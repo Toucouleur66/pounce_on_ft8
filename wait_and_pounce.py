@@ -383,7 +383,7 @@ def monitor_file(file_path, window_title, control_function_name):
 
         if time_hopping and frequency_hopping:
             change_qrg_jtdx(jtdx_window_title, format_with_comma(frequency_hopping[hop_index]))
-            last_frequency_time_change = time.time()
+            frequency_uptime = time.time()
 
         while not stop_event.is_set():
             current_mod_time = os.path.getmtime(file_path)
@@ -399,8 +399,16 @@ def monitor_file(file_path, window_title, control_function_name):
                         time.sleep(30)
                         jtdx_ready = disable_tx_jtdx(window_title)
                     elif control_function_name == 'WSJT':
-                        wsjt_ready = wait_and_log_wstj_qso(window_title)                    
-                    break
+                        wsjt_ready = wait_and_log_wstj_qso(window_title)          
+
+                    # Est ce que le programme doit continuer?
+                    if frequency_hopping:
+                        # Supprime la fréquence car terminé
+                        del frequency_hopping[hop_index]
+                        if not frequency_hopping:
+                            break
+                    else:
+                        break
                 else:
                     sequence_found = None
                     enable_tx = True
@@ -422,7 +430,7 @@ def monitor_file(file_path, window_title, control_function_name):
                     print(f"Séquence trouvée {black_on_green(sequence_found)}. Activation de la fenêtre et check état.")    
 
                 if enable_tx:        
-                    last_frequency_time_change = time.time()
+                    frequency_uptime = time.time()
                     if control_function_name == 'JTDX':
                         if jtdx_ready == False:
                             jtdx_ready = prepare_jtdx(window_title)
@@ -447,12 +455,11 @@ def monitor_file(file_path, window_title, control_function_name):
                 print(f"Mise à jour du log et suivi {black_on_white(control_function_name + ' #' + str(check_call_count))}", end='\r')
             
             if time_hopping and frequency_hopping:
-                # Vérifier si time_hopping en minutes a été dépassé
-                # avec le last_frequency_time_change
-                if (time.time() - last_frequency_time_change) > time_hopping * 60:
+                # Vérifier si time_hopping exprimé en minutes a été dépassé
+                if (time.time() - frequency_uptime) > time_hopping * 60:
                     print(f"{time_hopping} minute(s) écoulée(s). Fréquence changée (frequency_hopping): {frequency_hopping[hop_index]}Khz")
                     hop_index = (hop_index + 1) % len(frequency_hopping)
-                    last_frequency_time_change = time.time()
+                    frequency_uptime = time.time()
                     change_qrg_jtdx(jtdx_window_title, format_with_comma(frequency_hopping[hop_index]))
 
             time.sleep(wait_time)
