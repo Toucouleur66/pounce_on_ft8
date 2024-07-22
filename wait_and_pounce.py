@@ -31,7 +31,7 @@ wait_time = 0.3
 default_time_hopping = 10
 hop_index = 0
 
-# Gestion du compter de log 
+# Gestion du compteur de log 
 check_call_count = 0
 
 # Instance par défaut
@@ -358,7 +358,7 @@ def check_file_for_sequences(file_path, sequences, last_number_of_lines=100, tim
                             time_difference_display = f"{int(time_difference_in_minutes)}m"
                             
                         print(f"Il y a {white_on_blue(time_difference_display)}: {black_on_white(line.strip())}")
-                        results[sequence] = True
+                        results[sequence] = line.strip()
                 
                         return results
 
@@ -369,6 +369,8 @@ def monitor_file(file_path, window_title, control_function_name):
 
     wsjt_ready = False
     jtdx_ready = False
+    force_next_hop = False
+    last_exit_sequence = None 
 
     if control_function_name == 'WSJT':
         wsjt_ready = prepare_wsjt(window_title)
@@ -393,8 +395,11 @@ def monitor_file(file_path, window_title, control_function_name):
                 results = check_file_for_sequences(file_path, sequences_to_find)
                 last_file_time_update = current_mod_time  
 
-                if results[exit_sequence]:
-                    print(f"Séquence de sortie trouvée {white_on_red(exit_sequence)}. Arrêt du script.")
+                if results[exit_sequence] and last_exit_sequence != results[exit_sequence]:
+                    print(f"Séquence de sortie trouvée {white_on_red(exit_sequence)}: {black_on_white(results[exit_sequence])}")
+                    # Mise à jours de la dernière séquence de sortie
+                    last_exit_sequence = results[exit_sequence]
+                    
                     if control_function_name == 'JTDX':
                         time.sleep(30)
                         jtdx_ready = disable_tx_jtdx(window_title)
@@ -406,7 +411,14 @@ def monitor_file(file_path, window_title, control_function_name):
                         # Supprime la fréquence car terminé
                         del frequency_hopping[hop_index]
                         if not frequency_hopping:
+                            print(white_on_red("Arrêt du script."))                            
                             break
+                        else:
+                            force_next_hop = True
+                            if control_function_name == 'JTDX':
+                                jtdx_ready == False                            
+                            elif control_function_name == 'WSJT':
+                                wsjt_ready == False
                     else:
                         break
                 else:
@@ -425,8 +437,8 @@ def monitor_file(file_path, window_title, control_function_name):
                         sequence_found = negative_report_to_find                               
                     else:
                         enable_tx = False
-                        
-                if sequence_found:
+
+                if not force_next_hop and sequence_found:
                     print(f"Séquence trouvée {black_on_green(sequence_found)}. Activation de la fenêtre et check état.")    
 
                 if enable_tx:        
@@ -443,7 +455,7 @@ def monitor_file(file_path, window_title, control_function_name):
                         check_and_enable_tx_wsjt(window_title, 640, 750)
                 else:
                     if jtdx_ready or wsjt_ready:
-                        print(f"{black_on_yellow('Disable TX')}. Pas de séquence trouvée pour #{call_selected}. Le monitoring se poursuit.")
+                        print(f"{black_on_yellow('Disable TX')}. Pas de séquence trouvée pour {bright_green(call_selected)}. Le monitoring se poursuit.")
                                         
                         if control_function_name == 'JTDX':
                             jtdx_ready = False
@@ -454,13 +466,20 @@ def monitor_file(file_path, window_title, control_function_name):
                 # Afficher le compteur de vérifications
                 print(f"Mise à jour du log et suivi {black_on_white(control_function_name + ' #' + str(check_call_count))}", end='\r')
             
-            if time_hopping and frequency_hopping:
+            if time_hopping and frequency_hopping:  
                 # Vérifier si time_hopping exprimé en minutes a été dépassé
-                if (time.time() - frequency_uptime) > time_hopping * 60:
-                    print(f"{time_hopping} minute(s) écoulée(s). Fréquence changée (frequency_hopping): {frequency_hopping[hop_index]}Khz")
+                if (time.time() - frequency_uptime) > time_hopping * 60 or force_next_hop:
+                    # Au prochain passage dans la boucle inutile de changer à nouveau de fréquence
+                    if force_next_hop:
+                        force_next_hop = False
+                        debug_to_print = "Changement de fréquence demandé"
+                    else:
+                        debug_to_print = f"{time_hopping} minute(s) écoulée(s)"
+                    
                     hop_index = (hop_index + 1) % len(frequency_hopping)
-                    frequency_uptime = time.time()
                     change_qrg_jtdx(jtdx_window_title, format_with_comma(frequency_hopping[hop_index]))
+                    print(f"{debug_to_print}. Fréquence changée (frequency_hopping): {frequency_hopping[hop_index]}Khz")                    
+                    frequency_uptime = time.time()
 
             time.sleep(wait_time)
     except KeyboardInterrupt:
