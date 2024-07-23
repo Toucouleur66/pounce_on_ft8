@@ -72,9 +72,6 @@ init()
 # Event global pour signaler l'arrêt des threads
 stop_event = threading.Event()
 
-# Queue de travail
-work_queue = queue.Queue()
-
 # Fonction de décoration de texte
 def black_on_green(text):
     return f"{Fore.BLACK}{Back.GREEN}{text}{Style.RESET_ALL}"
@@ -102,6 +99,16 @@ def format_with_comma(number):
         return f"{number:,}"
     return None
 
+def signal_handler(sig, frame):
+    print(f"\n{white_on_red("Arrêt manuel du script.")}")
+    stop_event.set()
+
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
+
+# Queue de travail
+work_queue = queue.Queue()
+          
 def distance(c1, c2):
     return math.sqrt((c1[0] - c2[0]) ** 2 + (c1[1] - c2[1]) ** 2 + (c1[2] - c2[2]) ** 2)
 
@@ -401,7 +408,6 @@ def monitor_file(file_path, window_title, control_function_name):
                     last_exit_sequence = results[exit_sequence]
                     
                     if control_function_name == 'JTDX':
-                        time.sleep(30)
                         jtdx_ready = disable_tx_jtdx(window_title)
                     elif control_function_name == 'WSJT':
                         wsjt_ready = wait_and_log_wstj_qso(window_title)          
@@ -478,25 +484,12 @@ def monitor_file(file_path, window_title, control_function_name):
                     
                     hop_index = (hop_index + 1) % len(frequency_hopping)
                     change_qrg_jtdx(jtdx_window_title, format_with_comma(frequency_hopping[hop_index]))
-                    print(f"{debug_to_print}. Fréquence changée (frequency_hopping): {frequency_hopping[hop_index]}Khz")                    
+                    print(f"{white_on_blue(datetime.datetime.now(datetime.timezone.utc).strftime("%H%Mz %d %b"))} {debug_to_print}. Fréquence modifiée (frequency_hopping)")                    
                     frequency_uptime = time.time()
 
             time.sleep(wait_time)
     except KeyboardInterrupt:
         print("Script interrompu par l'utilisateur.")
-
-def process_queue():
-    threads = []
-    while not work_queue.empty() and not stop_event.is_set():
-        item = work_queue.get()
-        control_function_name = item[2]
-        t = threading.Thread(target=monitor_file, args=item, name=control_function_name)
-        t.start()
-        threads.append(t)
-        work_queue.task_done()
-    
-    for t in threads:
-        t.join()
 
 # Configuration 
 your_call = "F5UKW"
@@ -532,32 +525,17 @@ sequences_to_find = {
 def main():
     if frequency and frequency_hopping == None:
         change_qrg_jtdx(jtdx_window_title, format_with_comma(frequency))
-
-    global stop_event
-
+    
     # Ajouter les tâches à la queue de travail
     if instance == 'JTDX':
-        work_queue.put((jtdx_file_path, jtdx_window_title, 'JTDX'))
+        working_file_path = jtdx_file_path
+        working_window_title = jtdx_window_title    
     elif instance == 'WSJT':
-        work_queue.put((wsjt_file_path, wsjt_window_title, 'WSJT'))    
+        working_file_path = wsjt_file_path
+        working_window_title = wsjt_window_title
     
-    # Créer et démarrer le thread de traitement de la queue
-    process_thread = threading.Thread(target=process_queue, name="ProcessQueue")
-    process_thread.start()
+    monitor_file(working_file_path, working_window_title, instance)
 
-    try:
-        while process_thread.is_alive():
-            process_thread.join(timeout=wait_time)
-    except KeyboardInterrupt:
-        print("On termine le monitoring, fin du programme.")
-        stop_event.set()
-        work_queue.put("exit")
-        process_thread.join()
-
-    for t in threading.enumerate():
-        if t.name in ["WSJT", "JTDX"]:
-            print(f"Thread {t.name} a terminé sa tâche, fin du Thread.")
-    
     return 0
 
 if __name__ == "__main__":
