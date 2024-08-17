@@ -118,7 +118,7 @@ def is_closer_to_odd_or_even(color):
     else:
         return 'ODD'
 
-def replace_input_field_content(x_offset, y_offset, paste_content, press_enter_key=None):
+def replace_input_field_content(x_offset, y_offset, check_file_for_sequences, press_enter_key=None):
     # Déplacer la souris vers le champ input et cliquer
     pyautogui.click(x_offset, y_offset)
     time.sleep(wait_time)  
@@ -134,25 +134,26 @@ def replace_input_field_content(x_offset, y_offset, paste_content, press_enter_k
     # Lire le contenu du presse-papiers
     current_content = pyperclip.paste()
     
-    # Si le contenu actuel est identique à paste_content, sortir de la fonction
-    if current_content == paste_content:
+    # Si le contenu actuel est identique à check_file_for_sequences, sortir de la fonction
+    if current_content == check_file_for_sequences:
         return
     
     # Effacer le texte sélectionné (Delete)
     pyautogui.press('delete')
     time.sleep(wait_time)
     
-    # Coller le nouveau contenu dans le champ (Ctrl+V)
-    pyperclip.copy(paste_content)
-    pyautogui.hotkey('ctrl', 'v')
+    pyautogui.typewrite(check_file_for_sequences, interval=0.05)  # Vous pouvez ajuster l'intervalle entre chaque caractère si nécessaire
 
     if press_enter_key:
         pyautogui.press('enter')
 
     time.sleep(wait_time)
     
-def check_and_enable_tx_wsjt(window_title, x_offset, y_offset, disable=False):
+def check_and_enable_tx_wsjt(window_title, x_offset, y_offset, disable_tx = False):
     window = restore_and_or_move_window(window_title)
+
+    if disable_tx:
+        print(f"{white_on_blue('DX Call')} à désactiver. Clic droit sur le bouton.")
     
     if window:
         pyautogui.moveTo(x_offset, y_offset)  
@@ -160,8 +161,7 @@ def check_and_enable_tx_wsjt(window_title, x_offset, y_offset, disable=False):
         try:
             # Obtenir la couleur du pixel à la position actuelle de la souris
             pixel_color = pyautogui.pixel(x_offset, y_offset)
-            if disable:
-                print(f"{white_on_blue('DX Call')} à désactiver. Clic droit sur le bouton.")
+            if disable_tx:                
                 pyautogui.click(x_offset, y_offset, button='right')
             # Vérifier si la couleur du pixel est (255, 255, 0)
             elif pixel_color == (255, 255, 0):                
@@ -262,7 +262,7 @@ def wait_and_log_wstj_qso(window_title):
     
     # On log le QSO
     pyautogui.click(315, 360)
-    # Clic droit sur le bouton DXC Call
+    # Clic droit sur le bouton DXCC Call et on désactive l'instance
     check_and_enable_tx_wsjt(window_title, 640, 750, True)
 
     return False
@@ -314,12 +314,15 @@ def toggle_jtdx_to_odd(window_title):
 def toggle_jtdx_to_even(window_title):
     if jtdx_is_set_to_odd_or_even == 'first':
         pyautogui.click(1015, 150) 
-    
-def check_file_for_sequences(file_path, sequences, last_number_of_lines=100, time_max_expected_in_minutes=30):
+
+def check_file_for_sequences(file_path, sequences, last_number_of_lines=100, time_max_expected_in_minutes=10):    
     global check_call_count
     check_call_count += 1
 
+    # Initialiser les résultats avec les valeurs du dictionnaire sequences comme clés
     results = {sequence: False for sequence in sequences.values()}
+    found_sequences = {}
+
     if os.path.exists(file_path):
         with open(file_path, 'r', encoding='utf-8') as file:
             lines = file.readlines()
@@ -339,7 +342,6 @@ def check_file_for_sequences(file_path, sequences, last_number_of_lines=100, tim
             # Extraire la date et l'heure du début de la ligne
             try:
                 log_time_str = line.split()[0]
-                # Attention le format JTDX et WSJT sont différents
                 # Format JTDX
                 if re.match(r'^\d{8}_\d{6}', log_time_str):
                     log_time = datetime.datetime.strptime(log_time_str, "%Y%m%d_%H%M%S")
@@ -357,18 +359,22 @@ def check_file_for_sequences(file_path, sequences, last_number_of_lines=100, tim
 
             # Vérifier si la ligne est dans la limite de temps
             if time_difference_in_minutes <= time_max_expected_in_minutes:
-                for sequence in sequences.values():
+                for key, sequence in sequences.items():
                     if sequence in line:
                         if time_difference_in_seconds < 120:
                             time_difference_display = f"{int(time_difference_in_seconds)}s"
                         else:
                             time_difference_display = f"{int(time_difference_in_minutes)}m"
-                            
-                        print(f"Il y a {white_on_blue(time_difference_display)}: {black_on_white(line.strip())}")
-                        results[sequence] = line.strip()
-                
-                        return results
+                                                
+                        found_sequences[sequence] = line.strip()
 
+    # Parcourir les séquences dans l'ordre et mettre à jour results
+    for key in sequences.values():
+        if key in found_sequences:
+            print(f"Il y a {white_on_blue(time_difference_display)} [{key}]: {black_on_white(found_sequences[key])}")
+            results[key] = found_sequences[key]
+            return results
+        
     return results
 
 def monitor_file(file_path, window_title, control_function_name):
@@ -418,7 +424,7 @@ def monitor_file(file_path, window_title, control_function_name):
                         del frequency_hopping[hop_index]
                         if not frequency_hopping:
                             print(white_on_red("Arrêt du script."))                            
-                            break
+                            break                
                         else:
                             force_next_hop = True
                             if control_function_name == 'JTDX':
@@ -495,8 +501,8 @@ def monitor_file(file_path, window_title, control_function_name):
 your_call = "F5UKW"
 
 # Définir les chemins de fichiers à analyser
-wsjt_file_path = "C:\\Users\\TheBoss\\AppData\\Local\\WSJT-X\\2024-07-ALL.TXT"
-jtdx_file_path = "C:\\Users\\TheBoss\\AppData\\Local\\JTDX - FT5000\\202407_ALL.TXT"
+wsjt_file_path = "C:\\Users\\TheBoss\\AppData\\Local\\WSJT-X\\2024-08-ALL.TXT"
+jtdx_file_path = "C:\\Users\\TheBoss\\AppData\\Local\\JTDX - FT5000\\202408_ALL.TXT"
 
 # Bien remplacer le nom des fenêtres
 wsjt_window_title = "WSJT-X   v2.7.1-devel   by K1JT et al."
@@ -524,6 +530,7 @@ sequences_to_find = {
 
 def main():
     if frequency and frequency_hopping == None:
+        restore_and_or_move_window(jtdx_window_title, 0, 90, 1090, 960)
         change_qrg_jtdx(jtdx_window_title, format_with_comma(frequency))
     
     # Ajouter les tâches à la queue de travail
