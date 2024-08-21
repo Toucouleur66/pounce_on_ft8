@@ -2,7 +2,7 @@
 
 ## About
 
-This repository contains the source code used to handle FT8 QSO automation for `WSJT/JTDX`
+This repository contains the source code used to handle FT8 QSO automation for `WSJT-X` or `JTDX`. This type of automation is not recommended but corresponds to a need which is not to spend your entire life waiting in front of your screen because listening to audio alone does not allow you to decode anything in `FT8` (or `SuperFox`). I created this program especially for Jarvis `N5J` activation (August 2024) because I was not able to be in front on my screen. This did not prevent me from having to make many iterations to this program to make it work. Basically, it will read your `ALL.TXT` log files, check for some sequences, and will Enable or Disable TX on your `JTDX` or `WSJT-X` instance. It does support Super Fox Mode. Please check the TODO, and please think about a donation to let me find time to improve this program. I hope you will enjoy using this program, and you will get fun to search and pounce for DX. 73's de __F5UKW__
 
 ## Donate with PayPal
 
@@ -27,10 +27,11 @@ This repository contains the source code used to handle FT8 QSO automation for `
 
 ## TODO
 
+- [ ] Make binary for Windows
 - [ ] Output within a TXT log file
 - [ ] Show status on GUI
 - [ ] Handle multiple call
-- [ ] Let end user set his own Windows title and position
+- [ ] Let end user set his own JTDX and WSJT-X window title and position
 - [ ] Check `wsjtx_log.adi` to get confirmation of awaited QSO
 - [ ] Change for odd or even (JTDX)
 - [ ] Add internationalization (I18N) and localization (L10N) 
