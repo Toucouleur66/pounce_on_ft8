@@ -6,25 +6,28 @@ This repository contains the source code used to handle FT8 QSO automation for W
 
 ## Version
 
-- [0.4] Use latest known ALL.TXT files
-- [0.3] Allow to set user call instead of editing configuration waint_and_pounce.py
+- [0.4] Use latest modified *ALL.TXT files
+- [0.3] Allow to set your call instead of editing configuration waint_and_pounce.py
 - [0.2] Handle frequency change (frequency_hopping) and close once finished
 - [0.1] Initial version, reading logs
 
 ## Known bugs
 
-- [x] Issue while handle output sequence from WSJT-X
-- [x] When JTDX does not have a call yet, can't set anything
-- [ ] Logging QSO remains a issue due to variable size of the log window
-- [ ] Problem found while trying to set some callsign for example issue was found with 3V8SS
+## WSJT-X (S/F)
+- [x] Issue while handle output sequence
+- [ ] Logging QSO remains an issue due to variable size of the log window
+
+## JTDX (Regular Mode & F/H)
+- [x] When JTDX does not have a callsign set at DX Call, can't set any new callsign and generate message
+- [ ] Sometime, replace_input_field_content method can't set number for a callsign, issue was found while monitoring 3V8SS
 
 ## TODO
 
-- [ ] Output log file 
-- [ ] Output from GUI
+- [ ] Output within a TXT log file
+- [ ] Show status on GUI
 - [ ] Handle multiple call
 - [ ] Check wsjtx_log.adi
-- [ ] Change for odd or even
+- [ ] Change for odd or even (JTDX)
 - [ ] Add internationalization (I18N) and localization (L10N) 
 - [ ] Use Packet UDP
 - [x] Handle latest known ALL log files
