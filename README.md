@@ -12,8 +12,8 @@ v0.1    - Initial version, reading logs
 
 ## Known bugs
 
-- [x] Fix checking utput sequence from WSJT-X
-- [x] if JTDX does not have a call yet, can't set aything
+- [x] Issue while handle output sequence from WSJT-X
+- [x] When JTDX does not have a call yet, can't set anything
 - [ ] Logging QSO remains a issue due to variable size of the log window
 - [ ] Problem found while trying to set some callsign for example issue was found with 3V8SS
 
@@ -28,8 +28,8 @@ v0.1    - Initial version, reading logs
 - [x] Setting caller
 - [x] GUI
 - [x] Band hoping 
-- [x] If awaited sequence was found in the last 10 minutes then call otherwise return monitoring
-- [x] Frequency updates and support with JTDX
+- [x] Wait for sequence, if found in the last 10 minutes then call otherwise return monitoring
+- [x] Frequency update and support with JTDX
 - [x] Compare log time (UTC) with local machine time
 
 ## Need to read UDP packets coming frm either WSJT-X or JTDX
