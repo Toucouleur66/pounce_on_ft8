@@ -48,7 +48,8 @@ This repository contains the source code used to handle FT8 QSO automation for `
 
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=R4HK9ZTUPYHSL)
 
-## Need to read UDP packets coming frm either WSJT-X or JTDX
+## Need to read UDP packets coming from either WSJT-X or JTDX
+
 - https://github.com/rstagers/WSJT-X
 - https://github.com/bmo/py-wsjtx
 - https://github.com/SA0TAY/potassium
