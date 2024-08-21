@@ -6,6 +6,7 @@ This repository contains the source code used to handle FT8 QSO automation for W
 
 ## Version
 
+- [0.4] Use latest known ALL.TXT files
 - [0.3] Allow to set user call instead of editing configuration waint_and_pounce.py
 - [0.2] Handle frequency change (frequency_hopping) and close once finished
 - [0.1] Initial version, reading logs
@@ -24,7 +25,9 @@ This repository contains the source code used to handle FT8 QSO automation for W
 - [ ] Handle multiple call
 - [ ] Check wsjtx_log.adi
 - [ ] Change for odd or even
+- [ ] Add internationalization (I18N) and localization (L10N) 
 - [ ] Use Packet UDP
+- [x] Handle latest known ALL log files
 - [x] Setting caller
 - [x] GUI
 - [x] Band hoping 

@@ -1,4 +1,5 @@
 import os
+import glob
 import time
 import datetime
 import pyautogui
@@ -73,6 +74,13 @@ init()
 
 # Event global pour signaler l'arrêt des threads
 stop_event = threading.Event()
+
+def find_latest_file(dir_path, pattern="*ALL.TXT"):
+    files = glob.glob(os.path.join(dir_path, pattern))
+    if not files:
+        return None
+    latest_file = max(files, key=os.path.getmtime)    
+    return latest_file
 
 # Fonction de décoration de texte
 def black_on_green(text):
@@ -500,8 +508,8 @@ def monitor_file(file_path, window_title, control_function_name):
         print("Script interrompu par l'utilisateur.")
 
 # Définir les chemins de fichiers à analyser
-wsjt_file_path = "C:\\Users\\TheBoss\\AppData\\Local\\WSJT-X\\2024-08-ALL.TXT"
-jtdx_file_path = "C:\\Users\\TheBoss\\AppData\\Local\\JTDX - FT5000\\202408_ALL.TXT"
+wsjt_file_path = "C:\\Users\\TheBoss\\AppData\\Local\\WSJT-X\\"
+jtdx_file_path = "C:\\Users\\TheBoss\\AppData\\Local\\JTDX - FT5000\\"
 
 # Bien remplacer le nom des fenêtres
 wsjt_window_title = "WSJT-X   v2.7.1-devel   by K1JT et al."
@@ -534,12 +542,14 @@ def main():
     
     # Ajouter les tâches à la queue de travail
     if instance == 'JTDX':
-        working_file_path = jtdx_file_path
-        working_window_title = jtdx_window_title    
+        working_file_path = find_latest_file(jtdx_file_path)
+        working_window_title = jtdx_window_title
     elif instance == 'WSJT':
-        working_file_path = wsjt_file_path
+        working_file_path = find_latest_file(wsjt_file_path)
         working_window_title = wsjt_window_title
     
+    print(f"\nMonitoring pour {white_on_blue(your_call)} du fichier: {white_on_red(working_file_path)}")
+
     monitor_file(working_file_path, working_window_title, instance)
 
     return 0
