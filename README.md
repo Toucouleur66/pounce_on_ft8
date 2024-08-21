@@ -6,9 +6,9 @@ This repository contains the source code used to handle FT8 QSO automation for W
 
 ## Version
 
-v0.3    - Allow to set user call instead of editing configuration waint_and_pounce.py
-v0.2    - Handle frequency change (frequency_hopping) and close once finished
-v0.1    - Initial version, reading logs
+- [0.3] Allow to set user call instead of editing configuration waint_and_pounce.py
+- [0.2] Handle frequency change (frequency_hopping) and close once finished
+- [0.1] Initial version, reading logs
 
 ## Known bugs
 
