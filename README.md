@@ -10,10 +10,11 @@ This repository contains the source code used to handle FT8 QSO automation for `
 
 ## Version
 
-- [0.4] Use latest modified `*ALL.TXT` files
-- [0.3] Allow to set your call instead of editing configuration `wait_and_pounce.py`
-- [0.2] Handle frequency change (frequency_hopping) and close once finished
-- [0.1] Initial version, reading logs
+- `Next` ~~Handle multiple calls~~
+- `0.4` Use latest modified `*ALL.TXT` files `<== You are here`
+- `0.3` Allow to set your call instead of editing configuration `wait_and_pounce.
+- `0.2` Handle frequency change (frequency_hopping) and close once finished
+- `0.1` Initial version, reading logs
 
 ## Known bugs
 
@@ -30,7 +31,7 @@ This repository contains the source code used to handle FT8 QSO automation for `
 - [ ] Make binary for `Windows`
 - [ ] Output within a `TXT` log file
 - [ ] Show status on __GUI__
-- [ ] Handle multiple call
+- [ ] Handle multiple calls
 - [ ] Let end user set his own `JTDX` and `WSJT-X` window title and position
 - [ ] Check `wsjtx_log.adi` to get confirmation of awaited QSO
 - [ ] Change for odd or even `JTDX`
