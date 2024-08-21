@@ -2,7 +2,7 @@
 
 ## About
 
-This repository contains the source code used to handle FT8 QSO automation for `WSJT-X` or `JTDX`. This type of automation is not recommended but remains usefull to avoid to spend your entire life waiting in front of your screen because listening to audio alone does not allow you to decode anything in `FT8` (or `SuperFox`). I created this program especially for `N5J` _(Jarvis 2024)_ because I was not able to be in front on my screen. This did not prevent me from having to make many iterations to this program to make it work. Basically, it will read your `ALL.TXT` log files, check for some sequences, and will Enable or Disable TX on your `JTDX` or `WSJT-X` instance. It does support Super Fox Mode. Please check the TODO, and please think about a donation to let me find time to improve this program. I hope you will enjoy using this program, and you will get fun to search and pounce for DX. 73's de __F5UKW__
+This repository contains the source code used to handle FT8 QSO automation for `WSJT-X` or `JTDX`. This type of automation is not recommended but remains usefull to avoid to spend your entire life waiting in front of your screen because listening to audio alone does not allow you to decode anything in `FT8` (or `SuperFox`). I created this program especially for `N5J` _(Jarvis 2024)_ because I was not able to be in front on my screen. This did not prevent me from having to make many iterations to this program to make it work. Basically, it will read your `ALL.TXT` log files, check for some sequences, and will Enable or Disable TX on your `JTDX` or `WSJT-X` instance. It does support Super Fox Mode. Please check the TODO, and please think about a donation to let me find time to improve this program. I hope you will enjoy using this program, and you will get fun to search and pounce for DX. 73's de `F5UKW`
 
 ## Donate with PayPal
 
@@ -23,7 +23,7 @@ This repository contains the source code used to handle FT8 QSO automation for `
 
 ## `JTDX` (Regular Mode & F/H)
 - [x] When `JTDX` does not have a callsign set at `DX Call`, can't set any new callsign and generate message
-- [ ] Sometime, `replace_input_field_content` method can't set number for a callsign, issue was found while monitoring 3V8SS
+- [ ] Sometime, `replace_input_field_content` method can't set number for a callsign, issue was found while monitoring `3V8SS`
 
 ## TODO
 
