@@ -46,6 +46,7 @@ color_tx_disabled = (220, 220, 220)
 
 # Définir les arguments de la ligne de commande
 parser = argparse.ArgumentParser(description='Surveillance des fichiers de logs pour une séquence spécifique.')
+parser.add_argument('-yc', '--your_call', type=str, required=True, help='Votre indicatif d\'appel')
 parser.add_argument('-c', '--call', type=str, required=True, help='Le call à rechercher')
 parser.add_argument('-f', '--frequency', type=int, default=None, help="(optionnel) La fréquence à utiliser (en Khz, par exemple 28091, en cas d'absence de fréquence spécifiée, l'instance conserve sa fréquence actuelle)")
 parser.add_argument('-i', '--instance', type=str, default=default_instance_type, help=f'Le type d\'instance à lancer (valeurs autorisées "JTDX" ou "WSJT", par défaut "{default_instance_type}")')
@@ -54,13 +55,14 @@ parser.add_argument('-th', '--time_hopping', type=int, default=default_time_hopp
 
 args = parser.parse_args()
 
+print(f"Your Call: {args.your_call}")
 print(f"Call: {args.call}")
 print(f"Frequency: {args.frequency}")
 print(f"Instance: {args.instance}")
 print(f"Frequency Hopping: {args.frequency_hopping}")
 print(f"Time Hopping: {args.time_hopping}")
 
-call_selected, frequency, instance, frequency_hopping, time_hopping = args.call, args.frequency, args.instance, args.frequency_hopping, args.time_hopping
+your_call, call_selected, frequency, instance, frequency_hopping, time_hopping = args.your_call, args.call, args.frequency, args.instance, args.frequency_hopping, args.time_hopping
 
 # Prise en charge des fréquences à gérer
 if frequency_hopping:
@@ -261,7 +263,7 @@ def wait_and_log_wstj_qso(window_title):
     time.sleep(3) 
     
     # On log le QSO
-    pyautogui.click(315, 360)
+    pyautogui.click(215, 380)
     # Clic droit sur le bouton DXCC Call et on désactive l'instance
     check_and_enable_tx_wsjt(window_title, 640, 750, True)
 
@@ -496,9 +498,6 @@ def monitor_file(file_path, window_title, control_function_name):
             time.sleep(wait_time)
     except KeyboardInterrupt:
         print("Script interrompu par l'utilisateur.")
-
-# Configuration 
-your_call = "F5UKW"
 
 # Définir les chemins de fichiers à analyser
 wsjt_file_path = "C:\\Users\\TheBoss\\AppData\\Local\\WSJT-X\\2024-08-ALL.TXT"

@@ -6,13 +6,33 @@ This repository contains the source code used to handle FT8 QSO automation for W
 
 ## Version
 
-v0.2    - handle frequency change (frequency_hopping) and close once finished
-v0.1    - initial version, reading logs
+v0.3    - Allow to set user call instead of editing configuration waint_and_pounce.py
+v0.2    - Handle frequency change (frequency_hopping) and close once finished
+v0.1    - Initial version, reading logs
+
+## Known bugs
+
+- [x] Fix checking utput sequence from WSJT-X
+- [x] if JTDX does not have a call yet, can't set aything
+- [ ] Logging QSO remains a issue due to variable size of the log window
+- [ ] Problem found while trying to set some callsign for example issue was found with 3V8SS
 
 ## TODO
 
-Need to read UDP packets coming frm either WSJT-X or JTDX
+- [ ] Output log file 
+- [ ] Output from GUI
+- [ ] Handle multiple call
+- [ ] Check wsjtx_log.adi
+- [ ] Change for odd or even
+- [ ] Use Packet UDP
+- [x] Setting caller
+- [x] GUI
+- [x] Band hoping 
+- [x] If awaited sequence was found in the last 10 minutes then call otherwise return monitoring
+- [x] Frequency updates and support with JTDX
+- [x] Compare log time (UTC) with local machine time
 
-    https://github.com/rstagers/WSJT-X
-    https://github.com/bmo/py-wsjtx
-    https://github.com/SA0TAY/potassium
+## Need to read UDP packets coming frm either WSJT-X or JTDX
+- https://github.com/rstagers/WSJT-X
+- https://github.com/bmo/py-wsjtx
+- https://github.com/SA0TAY/potassium
