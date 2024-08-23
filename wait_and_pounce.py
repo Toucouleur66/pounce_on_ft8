@@ -358,6 +358,8 @@ def check_file_for_sequences(file_path, sequences, last_number_of_lines=100, tim
                 # Format WSJT                    
                 elif re.match(r'^\d{6}_\d{6}', log_time_str):
                     log_time = datetime.datetime.strptime(log_time_str, "%y%m%d_%H%M%S")
+                else:
+                    continue
                 
                 log_time = log_time.replace(tzinfo=utc) 
             except (IndexError, ValueError):

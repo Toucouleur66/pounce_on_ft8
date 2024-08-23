@@ -22,6 +22,7 @@ jtdx_window_title = "JTDX - FT5000  by HF community                             
 ## Version
 
 - `Next` ~~Handle multiple calls~~
+- `0.5` Handle `Super/Fox` Mode from JTDX v2.2.160-rc7
 - `0.4` Use latest modified `*ALL.TXT` files `<== You are here`
 - `0.3` Allow to set your call instead of editing configuration `wait_and_pounce.
 - `0.2` Handle frequency change (frequency_hopping) and close once finished
@@ -33,7 +34,8 @@ jtdx_window_title = "JTDX - FT5000  by HF community                             
 - [x] Issue while handle output sequence
 - [ ] Logging QSO remains an issue due to variable size of the log window
 
-## `JTDX` (Regular Mode & F/H)
+## `JTDX` (Regular Mode, F/H and S/F)
+- [x] When `JTDX` does not have a callsign set at `DX Call`, can't set any new callsign and generate message
 - [x] When `JTDX` does not have a callsign set at `DX Call`, can't set any new callsign and generate message
 - [ ] Sometime, `replace_input_field_content` method can't set number for a callsign, issue was found while monitoring `3V8SS`
 
