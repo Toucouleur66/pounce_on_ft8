@@ -511,9 +511,9 @@ def monitor_file(file_path, window_title, control_function_name):
 wsjt_file_path = "C:\\Users\\TheBoss\\AppData\\Local\\WSJT-X\\"
 jtdx_file_path = "C:\\Users\\TheBoss\\AppData\\Local\\JTDX - FT5000\\"
 
-# Bien remplacer le nom des fenêtres
+# Update window tile
 wsjt_window_title = "WSJT-X   v2.7.1-devel   by K1JT et al."
-jtdx_window_title = "JTDX - FT5000  by HF community                                         v2.2.159-32A , derivative work based on WSJT-X by K1JT"
+jtdx_window_title = "JTDX - FT5000  by HF community                                         v2.2.160-rc7 , derivative work based on WSJT-X by K1JT"
 
 # Séquences à identifier
 cq_to_find = f"CQ {call_selected}"
