@@ -56,14 +56,12 @@ parser.add_argument('-th', '--time_hopping', type=int, default=default_time_hopp
 
 args = parser.parse_args()
 
-print(f"Your Call: {args.your_call}")
-print(f"Call: {args.call}")
-print(f"Frequency: {args.frequency}")
-print(f"Instance: {args.instance}")
-print(f"Frequency Hopping: {args.frequency_hopping}")
-print(f"Time Hopping: {args.time_hopping}")
-
-your_call, call_selected, frequency, instance, frequency_hopping, time_hopping = args.your_call, args.call, args.frequency, args.instance, args.frequency_hopping, args.time_hopping
+your_call = args.your_call.upper()
+call_selected = args.call.upper()
+frequency = args.frequency
+instance = args.instance
+frequency_hopping = args.frequency_hopping
+time_hopping = args.time_hopping
 
 # Prise en charge des fréquences à gérer
 if frequency_hopping:

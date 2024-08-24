@@ -7,6 +7,13 @@ import threading
 
 PARAMS_FILE = "params.pkl"
 
+def force_uppercase(*args):
+    value = your_call_var.get()
+    your_call_var.set(value.upper())
+
+    value = call_sign_var.get()
+    call_sign_var.set(value.upper())
+
 def load_params():
     if os.path.exists(PARAMS_FILE):
         with open(PARAMS_FILE, "rb") as f:
@@ -79,8 +86,10 @@ frequency_var = tk.StringVar(value=params.get("frequencies", ""))
 time_hopping_var = tk.StringVar(value=params.get("time_hopping", ""))
 call_sign_var = tk.StringVar(value=params.get("call_sign", ""))
 
-# Création des widgets
+your_call_var.trace_add("write", force_uppercase)
+call_sign_var.trace_add("write", force_uppercase)
 
+# Création des widgets
 ttk.Label(root, text="Instance to monitor:").grid(column=0, row=0, padx=10, pady=5, sticky=tk.W)
 instance_combo = ttk.Combobox(root, textvariable=instance_var, values=["JTDX", "WSJT"])
 instance_combo.grid(column=1, row=0, padx=10, pady=5)
