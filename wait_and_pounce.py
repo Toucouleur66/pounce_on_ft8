@@ -387,7 +387,11 @@ def check_file_for_sequences(file_path, sequences, last_number_of_lines=100, tim
         
     return results
 
+# Séquences à identifier
 def generate_sequences(call_selected):
+    # Definition des séquences à identifier:
+    # Attention, l'ordre doit être respecté 
+    # par ordre décroissant d'importance 
     return {
         'exit_sequence': f"{your_call} {call_selected} RR73",
         'answer_to_my_call': f"{your_call} {call_selected}",
@@ -539,26 +543,6 @@ jtdx_file_path = "C:\\Users\\TheBoss\\AppData\\Local\\JTDX - FT5000\\"
 # Update window tile
 wsjt_window_title = "WSJT-X   v2.7.1-devel   by K1JT et al."
 jtdx_window_title = "JTDX - FT5000  by HF community                                         v2.2.160-rc7 , derivative work based on WSJT-X by K1JT"
-
-# Séquences à identifier
-cq_to_find = f"CQ {call_selected}"
-rr73_to_find = f"{call_selected} RR73"
-answer_to_my_call = f"{your_call} {call_selected}"
-exit_sequence = f"{your_call} {call_selected} RR73"
-positive_report_to_find = f"{call_selected} +"
-negative_report_to_find = f"{call_selected} -"
-
-# Definition des séquences à identifier:
-# Attention, l'ordre doit être respecté 
-# par ordre décroissant d'importance 
-sequences_to_find = {
-    'exit_sequence': exit_sequence,
-    'answer_to_my_call': answer_to_my_call,
-    'rr73_to_find': rr73_to_find,
-    'cq_to_find': cq_to_find,
-    'positive_report_to_find': positive_report_to_find,
-    'negative_report_to_find': negative_report_to_find
-}
 
 def main():
     if frequency and frequency_hopping == None:
