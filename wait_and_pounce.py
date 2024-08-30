@@ -57,7 +57,7 @@ parser.add_argument('-th', '--time_hopping', type=int, default=default_time_hopp
 args = parser.parse_args()
 
 your_call = args.your_call.upper()
-call_selected = args.call.upper()
+call_selected_list = args.call.upper().split(",")
 frequency = args.frequency
 instance = args.instance
 frequency_hopping = args.frequency_hopping
@@ -387,20 +387,34 @@ def check_file_for_sequences(file_path, sequences, last_number_of_lines=100, tim
         
     return results
 
+def generate_sequences(call_selected):
+    return {
+        'exit_sequence': f"{your_call} {call_selected} RR73",
+        'answer_to_my_call': f"{your_call} {call_selected}",
+        'rr73_to_find': f"{call_selected} RR73",
+        'cq_to_find': f"CQ {call_selected}",
+        'positive_report_to_find': f"{call_selected} +",
+        'negative_report_to_find': f"{call_selected} -"
+    }
+
 def monitor_file(file_path, window_title, control_function_name):
     global check_call_count, hop_index
 
     wsjt_ready = False
     jtdx_ready = False
     force_next_hop = False
-    last_exit_sequence = None 
+    last_exit_sequence = None
+    active_call = None 
 
     if control_function_name == 'WSJT':
         wsjt_ready = prepare_wsjt(window_title)
     elif control_function_name == 'JTDX':
         jtdx_ready = prepare_jtdx(window_title)
 
-    print(f"\n=== Démarrage Monitoring pour {control_function_name} {black_on_yellow(cq_to_find)} ou {black_on_yellow(rr73_to_find)} ===")
+
+    highlighted_calls = ", ".join([black_on_yellow(call) for call in call_selected_list])
+
+    print(f"\n=== Démarrage Monitoring pour {control_function_name} {highlighted_calls} ===")
     
     try:
         enable_tx = False
@@ -415,75 +429,86 @@ def monitor_file(file_path, window_title, control_function_name):
             
             # Vérification de la date de modification du fichier
             if last_file_time_update is None or current_mod_time != last_file_time_update:
-                results = check_file_for_sequences(file_path, sequences_to_find)
                 last_file_time_update = current_mod_time  
 
-                if results[exit_sequence] and last_exit_sequence != results[exit_sequence]:
-                    print(f"Séquence de sortie trouvée {white_on_red(exit_sequence)}: {black_on_white(results[exit_sequence])}")
-                    # Mise à jours de la dernière séquence de sortie
-                    last_exit_sequence = results[exit_sequence]
-                    
-                    if control_function_name == 'JTDX':
-                        jtdx_ready = disable_tx_jtdx(window_title)
-                    elif control_function_name == 'WSJT':
-                        wsjt_ready = wait_and_log_wstj_qso(window_title)          
-
-                    # Est ce que le programme doit continuer?
-                    if frequency_hopping:
-                        # Supprime la fréquence car terminé
-                        del frequency_hopping[hop_index]
-                        if not frequency_hopping:
-                            print(white_on_red("Arrêt du script."))                            
-                            break                
-                        else:
-                            force_next_hop = True
-                            if control_function_name == 'JTDX':
-                                jtdx_ready == False                            
-                            elif control_function_name == 'WSJT':
-                                wsjt_ready == False
-                    else:
-                        break
-                else:
-                    sequence_found = None
-                    enable_tx = True
-
-                    if results[cq_to_find]:
-                        sequence_found = cq_to_find                        
-                    elif results[answer_to_my_call]:
-                        sequence_found = answer_to_my_call     
-                    elif results[rr73_to_find]:
-                        sequence_found = rr73_to_find
-                    elif results[positive_report_to_find]:
-                        sequence_found = positive_report_to_find       
-                    elif results[negative_report_to_find]:
-                        sequence_found = negative_report_to_find                               
-                    else:
-                        enable_tx = False
-
-                if not force_next_hop and sequence_found:
-                    print(f"Séquence trouvée {black_on_green(sequence_found)}. Activation de la fenêtre et check état.")    
-
-                if enable_tx:        
-                    frequency_uptime = time.time()
-                    if control_function_name == 'JTDX':
-                        if jtdx_ready == False:
-                            jtdx_ready = prepare_jtdx(window_title)
-                        # Check sur le bouton Enable TX
-                        check_and_enable_tx_jtdx(window_title, 610, 855)
-                    elif control_function_name == 'WSJT':
-                        if wsjt_ready == False:
-                            wsjt_ready = prepare_wsjt(window_title)
-                        # Check sur le bouton DX Call
-                        check_and_enable_tx_wsjt(window_title, 640, 750)
-                else:
-                    if jtdx_ready or wsjt_ready:
-                        print(f"{black_on_yellow('Disable TX')}. Pas de séquence trouvée pour {bright_green(call_selected)}. Le monitoring se poursuit.")
-                                        
+                if active_call:
+                    sequences_to_find = generate_sequences(active_call)
+                    results = check_file_for_sequences(file_path, sequences_to_find)
+                    if results[exit_sequence] and last_exit_sequence != results[exit_sequence]:
+                        print(f"Séquence de sortie trouvée {white_on_red(exit_sequence)}: {black_on_white(results[exit_sequence])}")
+                        # Mise à jours de la dernière séquence de sortie
+                        last_exit_sequence = results[exit_sequence]
+                        
                         if control_function_name == 'JTDX':
-                            jtdx_ready = False
-                            disable_tx_jtdx(window_title)
+                            jtdx_ready = disable_tx_jtdx(window_title)
                         elif control_function_name == 'WSJT':
-                            wsjt_ready = False
+                            wsjt_ready = wait_and_log_wstj_qso(window_title)          
+
+                        # Est ce que le programme doit continuer?
+                        if frequency_hopping:
+                            # Supprime la fréquence car terminé
+                            del frequency_hopping[hop_index]
+                            if not frequency_hopping:
+                                print(white_on_red("Arrêt du script."))                            
+                                break                
+                            else:
+                                force_next_hop = True
+                                if control_function_name == 'JTDX':
+                                    jtdx_ready == False                            
+                                elif control_function_name == 'WSJT':
+                                    wsjt_ready == False
+                        else:
+                            break
+                    else:
+                        sequence_found = None
+                        enable_tx = True
+
+                        if results[cq_to_find]:
+                            sequence_found = cq_to_find                        
+                        elif results[answer_to_my_call]:
+                            sequence_found = answer_to_my_call     
+                        elif results[rr73_to_find]:
+                            sequence_found = rr73_to_find
+                        elif results[positive_report_to_find]:
+                            sequence_found = positive_report_to_find       
+                        elif results[negative_report_to_find]:
+                            sequence_found = negative_report_to_find                               
+                        else:
+                            enable_tx = False
+
+                    if not force_next_hop and sequence_found:
+                        print(f"Séquence trouvée {black_on_green(sequence_found)}. Activation de la fenêtre et check état.")    
+
+                    if enable_tx:        
+                        frequency_uptime = time.time()
+                        if control_function_name == 'JTDX':
+                            if jtdx_ready == False:
+                                jtdx_ready = prepare_jtdx(window_title)
+                            # Check sur le bouton Enable TX
+                            check_and_enable_tx_jtdx(window_title, 610, 855)
+                        elif control_function_name == 'WSJT':
+                            if wsjt_ready == False:
+                                wsjt_ready = prepare_wsjt(window_title)
+                            # Check sur le bouton DX Call
+                            check_and_enable_tx_wsjt(window_title, 640, 750)
+                    else:
+                        if jtdx_ready or wsjt_ready:
+                            print(f"{black_on_yellow('Disable TX')}. Pas de séquence trouvée pour {bright_green(active_call)}. Le monitoring se poursuit.")
+                                            
+                            if control_function_name == 'JTDX':
+                                jtdx_ready = False
+                                disable_tx_jtdx(window_title)
+                            elif control_function_name == 'WSJT':
+                                wsjt_ready = False
+                else:
+                    # Rechercher dans le fichier un call à partir de la liste
+                    for call in call_selected_list:
+                        sequences_to_find = generate_sequences(call)
+                        results = check_file_for_sequences(file_path, sequences_to_find)
+                        if any(results.values()):
+                            active_call = call
+                            print(f"{white_on_blue('Focus sur')} {active_call}")
+                            break
 
                 # Afficher le compteur de vérifications
                 print(f"Mise à jour du log et suivi {black_on_white(control_function_name + ' #' + str(check_call_count))}", end='\r')
