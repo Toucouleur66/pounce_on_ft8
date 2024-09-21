@@ -47,8 +47,8 @@ color_tx_disabled = (220, 220, 220)
 
 # Définir les arguments de la ligne de commande
 parser = argparse.ArgumentParser(description='Surveillance des fichiers de logs pour une séquence spécifique.')
-parser.add_argument('-yc', '--your_call', type=str, required=True, help='Votre indicatif d\'appel')
-parser.add_argument('-c', '--call', type=str, required=True, help='Le call à rechercher')
+parser.add_argument('-yc', '--your_callsign', type=str, required=True, help='Votre indicatif d\'appel')
+parser.add_argument('-wc', '--wanted_callsign', type=str, required=True, help='Les calls à appeler (séparrés d\'une virgule)')
 parser.add_argument('-f', '--frequency', type=int, default=None, help="(optionnel) La fréquence à utiliser (en Khz, par exemple 28091, en cas d'absence de fréquence spécifiée, l'instance conserve sa fréquence actuelle)")
 parser.add_argument('-i', '--instance', type=str, default=default_instance_type, help=f'Le type d\'instance à lancer (valeurs autorisées "JTDX" ou "WSJT", par défaut "{default_instance_type}")')
 parser.add_argument('-fh', '--frequency_hopping', type=str, default=None, help="(optionnel) Les fréquences à utiliser (en Khz, par exemple 28091,18095,24911) le basculement des fréquences s'effectuera dans l'ordre indiqué")
@@ -56,8 +56,8 @@ parser.add_argument('-th', '--time_hopping', type=int, default=default_time_hopp
 
 args = parser.parse_args()
 
-your_call = args.your_call.upper()
-call_selected_list = args.call.upper().split(",")
+your_callsign = args.your_callsign.upper()
+wanted_callsign_list = args.wanted_callsign.upper().split(",")
 frequency = args.frequency
 instance = args.instance
 frequency_hopping = args.frequency_hopping
@@ -403,8 +403,8 @@ def generate_sequences(call_selected):
 
     cq_to_find = f"CQ {call_selected}"
     rr73_to_find = f"{call_selected} RR73"
-    answer_to_my_call = f"{your_call} {call_selected}"
-    exit_sequence = f"{your_call} {call_selected} RR73"
+    answer_to_my_call = f"{your_callsign} {call_selected}"
+    exit_sequence = f"{your_callsign} {call_selected} RR73"
     positive_report_to_find = f"{call_selected} +"
     negative_report_to_find = f"{call_selected} -"
     # Definition des séquences à identifier:
@@ -423,7 +423,7 @@ def monitor_file(file_path, window_title, control_function_name):
     global check_call_count, hop_index
     global cq_to_find, rr73_to_find, answer_to_my_call, exit_sequence, positive_report_to_find, negative_report_to_find
 
-    highlighted_calls = ", ".join([black_on_yellow(call) for call in call_selected_list])
+    highlighted_calls = ", ".join([black_on_yellow(call) for call in wanted_callsign_list])
 
     print(f"\n=== Démarrage Monitoring pour {control_function_name} {highlighted_calls} ===")
 
@@ -433,16 +433,16 @@ def monitor_file(file_path, window_title, control_function_name):
     last_exit_sequence = None
     active_call = None 
 
-    if len(call_selected_list) > 1:
+    if len(wanted_callsign_list) > 1:
         if control_function_name == 'WSJT':
             wsjt_ready = prepare_wsjt(window_title)
         elif control_function_name == 'JTDX':
             jtdx_ready = prepare_jtdx(window_title)
     else:
         if control_function_name == 'WSJT':
-            wsjt_ready = prepare_wsjt(window_title, call_selected_list[0])
+            wsjt_ready = prepare_wsjt(window_title, wanted_callsign_list[0])
         elif control_function_name == 'JTDX':
-            jtdx_ready = prepare_jtdx(window_title, call_selected_list[0])
+            jtdx_ready = prepare_jtdx(window_title, wanted_callsign_list[0])
     
     try:
         enable_tx = False
@@ -530,7 +530,7 @@ def monitor_file(file_path, window_title, control_function_name):
                                 wsjt_ready = False
                 else:
                     # Rechercher dans le fichier un call à partir de la liste
-                    for call in call_selected_list:
+                    for call in wanted_callsign_list:
                         sequences_to_find = generate_sequences(call)
                         results = check_file_for_sequences(file_path, sequences_to_find)
                         if any(results.values()):
@@ -583,7 +583,7 @@ def main():
         working_file_path = find_latest_file(wsjt_file_path)
         working_window_title = wsjt_window_title
     
-    print(f"\nMonitoring pour {white_on_blue(your_call)} du fichier: {white_on_red(working_file_path)}")
+    print(f"\nMonitoring pour {white_on_blue(your_callsign)} du fichier: {white_on_red(working_file_path)}")
 
     monitor_file(working_file_path, working_window_title, instance)
 

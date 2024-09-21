@@ -1,0 +1,6 @@
+pyautogui
+pyperclip
+pygetwindow
+pytz
+pywin32
+colorama 
