@@ -67,6 +67,14 @@ time_hopping = args.time_hopping
 if frequency_hopping:
     frequency_hopping = list(map(int, args.frequency_hopping.split(',')))
 
+# Définition des séquences à identifier
+cq_to_find = None
+rr73_to_find = None
+answer_to_my_call = None
+exit_sequence = None
+positive_report_to_find = None
+negative_report_to_find = None
+
 # Initialisation de colorama
 init()
 
@@ -108,7 +116,7 @@ def format_with_comma(number):
     return None
 
 def signal_handler(sig, frame):
-    print(f"\n{white_on_red("Arrêt manuel du script.")}")
+    print(f"\n{white_on_red('Arrêt manuel du script.')}")
     stop_event.set()
 
 signal.signal(signal.SIGINT, signal_handler)
@@ -178,7 +186,7 @@ def check_and_enable_tx_wsjt(window_title, x_offset, y_offset, disable_tx = Fals
             elif pixel_color == (255, 0, 0):
                 print(f"{white_on_red('DX Call')} rouge. Aucun clic. Le monitoring se poursuit.")
             else:
-                print(f"{white_on_red('Erreur ou arrêt volontaire de l\'instance')} {str(pixel_color)}")
+                print(f"{white_on_red('Erreur ou arrêt volontaire')} {str(pixel_color)}")
                 sys.exit()
         except pyautogui.PyAutoGUIException as e:
             print(f"Erreur lors de l'obtention de la couleur du pixel : {e}")
@@ -255,11 +263,12 @@ def restore_and_or_move_window(window_title, x=None, y=None, width=None, height=
     
     return True
 
-def prepare_wsjt(window_title):
+def prepare_wsjt(window_title, call_selected = None):
     # Activer la fenêtre désirée
     restore_and_or_move_window(window_title, 480, 0, 1080, 960)
-    # Lecture du champ Input 
-    replace_input_field_content(690, 775, call_selected)
+    if call_selected:
+        # Lecture du champ Input 
+        replace_input_field_content(690, 775, call_selected)
     # Clic sur generate_message 
     pyautogui.click(1200, 720)
 
@@ -281,13 +290,14 @@ def change_qrg_jtdx(window_title, frequency):
     print(f"Mise à jours de la fréquence: {black_on_green(frequency + 'Mhz')}")
     replace_input_field_content(615, 190, frequency, True)
 
-def prepare_jtdx(window_title):
+def prepare_jtdx(window_title, call_selected = None):
     # Activer la fenêtre désirée
     restore_and_or_move_window(window_title, 0, 90, 1090, 960)
     # Définir 
     print(f"Configuration TX: {bright_green(jtdx_is_set_to_odd_or_even(window_title))}")
-    # Lecture du champ Input 
-    replace_input_field_content(625, 235, call_selected)
+    if call_selected:
+        # Lecture du champ Input 
+        replace_input_field_content(625, 235, call_selected)
     # Clic sur generate_message 
     pyautogui.click(770, 840)
 
@@ -389,20 +399,33 @@ def check_file_for_sequences(file_path, sequences, last_number_of_lines=100, tim
 
 # Séquences à identifier
 def generate_sequences(call_selected):
+    global cq_to_find, rr73_to_find, answer_to_my_call, exit_sequence, positive_report_to_find, negative_report_to_find
+
+    cq_to_find = f"CQ {call_selected}"
+    rr73_to_find = f"{call_selected} RR73"
+    answer_to_my_call = f"{your_call} {call_selected}"
+    exit_sequence = f"{your_call} {call_selected} RR73"
+    positive_report_to_find = f"{call_selected} +"
+    negative_report_to_find = f"{call_selected} -"
     # Definition des séquences à identifier:
     # Attention, l'ordre doit être respecté 
     # par ordre décroissant d'importance 
     return {
-        'exit_sequence': f"{your_call} {call_selected} RR73",
-        'answer_to_my_call': f"{your_call} {call_selected}",
-        'rr73_to_find': f"{call_selected} RR73",
-        'cq_to_find': f"CQ {call_selected}",
-        'positive_report_to_find': f"{call_selected} +",
-        'negative_report_to_find': f"{call_selected} -"
+        'exit_sequence': exit_sequence,
+        'answer_to_my_call': answer_to_my_call,
+        'rr73_to_find': rr73_to_find,
+        'cq_to_find': cq_to_find,
+        'positive_report_to_find': positive_report_to_find,
+        'negative_report_to_find': negative_report_to_find
     }
 
 def monitor_file(file_path, window_title, control_function_name):
     global check_call_count, hop_index
+    global cq_to_find, rr73_to_find, answer_to_my_call, exit_sequence, positive_report_to_find, negative_report_to_find
+
+    highlighted_calls = ", ".join([black_on_yellow(call) for call in call_selected_list])
+
+    print(f"\n=== Démarrage Monitoring pour {control_function_name} {highlighted_calls} ===")
 
     wsjt_ready = False
     jtdx_ready = False
@@ -410,15 +433,16 @@ def monitor_file(file_path, window_title, control_function_name):
     last_exit_sequence = None
     active_call = None 
 
-    if control_function_name == 'WSJT':
-        wsjt_ready = prepare_wsjt(window_title)
-    elif control_function_name == 'JTDX':
-        jtdx_ready = prepare_jtdx(window_title)
-
-
-    highlighted_calls = ", ".join([black_on_yellow(call) for call in call_selected_list])
-
-    print(f"\n=== Démarrage Monitoring pour {control_function_name} {highlighted_calls} ===")
+    if len(call_selected_list) > 1:
+        if control_function_name == 'WSJT':
+            wsjt_ready = prepare_wsjt(window_title)
+        elif control_function_name == 'JTDX':
+            jtdx_ready = prepare_jtdx(window_title)
+    else:
+        if control_function_name == 'WSJT':
+            wsjt_ready = prepare_wsjt(window_title, call_selected_list[0])
+        elif control_function_name == 'JTDX':
+            jtdx_ready = prepare_jtdx(window_title, call_selected_list[0])
     
     try:
         enable_tx = False
@@ -529,7 +553,8 @@ def monitor_file(file_path, window_title, control_function_name):
                     
                     hop_index = (hop_index + 1) % len(frequency_hopping)
                     change_qrg_jtdx(jtdx_window_title, format_with_comma(frequency_hopping[hop_index]))
-                    print(f"{white_on_blue(datetime.datetime.now(datetime.timezone.utc).strftime("%H%Mz %d %b"))} {debug_to_print}. Fréquence modifiée (frequency_hopping)")                    
+                    print(f"{white_on_blue(datetime.datetime.now(datetime.timezone.utc).strftime('%H%Mz %d %b'))} {debug_to_print}. Fréquence modifiée (frequency_hopping)")
+           
                     frequency_uptime = time.time()
 
             time.sleep(wait_time)
@@ -543,6 +568,7 @@ jtdx_file_path = "C:\\Users\\TheBoss\\AppData\\Local\\JTDX - FT5000\\"
 # Update window tile
 wsjt_window_title = "WSJT-X   v2.7.1-devel   by K1JT et al."
 jtdx_window_title = "JTDX - FT5000  by HF community                                         v2.2.160-rc7 , derivative work based on WSJT-X by K1JT"
+
 
 def main():
     if frequency and frequency_hopping == None:
