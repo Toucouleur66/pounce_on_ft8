@@ -443,7 +443,7 @@ def find_sequences(file_path, sequences, last_number_of_lines=100, time_max_expe
         if key in found_sequences:
             print(f"Il y a {white_on_blue(time_difference_display)}: {black_on_white(found_sequences[key])}")
             results[key] = {
-                'decode': found_sequences[key],
+                'message': found_sequences[key],
                 'period': ends_with_even_or_odd(log_time_str)
             }
             return results
@@ -494,10 +494,10 @@ def monitor_file(file_path, window_title, control_function_name):
                     sequences_to_find = generate_sequences(active_call)
                     sequences_found = find_sequences(file_path, sequences_to_find)
 
-                    if sequences_found[exit_sequence] and last_exit_sequence != sequences_found[exit_sequence]['decoded']:
-                        print(f"Séquence de sortie trouvée {white_on_red(exit_sequence)}: {black_on_white(sequences_found[exit_sequence]['decoded'])}")
+                    if sequences_found[exit_sequence] and last_exit_sequence != sequences_found[exit_sequence]['message']:
+                        print(f"Séquence de sortie trouvée {white_on_red(exit_sequence)}: {black_on_white(sequences_found[exit_sequence]['message'])}")
                         # Mise à jours de la dernière séquence de sortie
-                        last_exit_sequence = sequences_found[exit_sequence]['decoded']
+                        last_exit_sequence = sequences_found[exit_sequence]['message']
                         
                         if control_function_name == 'JTDX':
                             jtdx_ready = disable_tx_jtdx(window_title)
