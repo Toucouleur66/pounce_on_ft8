@@ -340,8 +340,10 @@ def ends_with_even_or_odd(log_time_str):
     if log_time_str[-1].isdigit():
         last_digit = int(log_time_str[-1])    
         if last_digit % 2 == 0:
+            # Nombre impaires
             return ODD
         else:
+            # Nombres paires
             return EVEN
     else:
         return False
@@ -368,13 +370,28 @@ def generate_sequences(call_selected):
         'negative_report_to_find': negative_report_to_find
     }
 
+
+def get_log_time(log_time_str, utc):
+    # Format JTDX
+    if re.match(r'^\d{8}_\d{6}', log_time_str):
+        log_time = datetime.datetime.strptime(log_time_str, "%Y%m%d_%H%M%S")
+    # Format WSJT                    
+    elif re.match(r'^\d{6}_\d{6}', log_time_str):
+        log_time = datetime.datetime.strptime(log_time_str, "%y%m%d_%H%M%S")
+
+    log_time.replace(tzinfo=utc) 
+
 def find_sequences(file_path, sequences, last_number_of_lines=100, time_max_expected_in_minutes=10):    
     global check_call_count
     check_call_count += 1
 
+    # Obtenir le fuseau horaire UTC
+    utc = datetime.timezone.utc
+
     # Initialiser les résultats avec les valeurs du dictionnaire sequences comme clés
     results = {sequence: False for sequence in sequences.values()}
     found_sequences = {}
+    log_time_str = False
 
     if os.path.exists(file_path):
         with open(file_path, 'r', encoding='utf-8') as file:
@@ -382,9 +399,6 @@ def find_sequences(file_path, sequences, last_number_of_lines=100, time_max_expe
 
         # Obtenir les dernières lignes en partant de la fin
         last_lines = lines[-last_number_of_lines:]
-
-        # Obtenir le fuseau horaire UTC
-        utc = datetime.timezone.utc
 
         # Vérifier si les séquences sont dans les dernières lignes
         for line in reversed(last_lines):
@@ -395,16 +409,8 @@ def find_sequences(file_path, sequences, last_number_of_lines=100, time_max_expe
             # Extraire la date et l'heure du début de la ligne
             try:
                 log_time_str = line.split()[0]
-                # Format JTDX
-                if re.match(r'^\d{8}_\d{6}', log_time_str):
-                    log_time = datetime.datetime.strptime(log_time_str, "%Y%m%d_%H%M%S")
-                # Format WSJT                    
-                elif re.match(r'^\d{6}_\d{6}', log_time_str):
-                    log_time = datetime.datetime.strptime(log_time_str, "%y%m%d_%H%M%S")
-                else:
-                    continue
+                log_time = get_log_time(log_time_str, utc)
                 
-                log_time = log_time.replace(tzinfo=utc) 
             except (IndexError, ValueError):
                 continue
 
@@ -422,11 +428,14 @@ def find_sequences(file_path, sequences, last_number_of_lines=100, time_max_expe
                             time_difference_display = f"{int(time_difference_in_minutes)}m"
                                                 
                         found_sequences[sequence] = line.strip()
+                        
+                        break
+                break    
 
     # Parcourir les séquences dans l'ordre et mettre à jour results
     for key in sequences.values():
         if key in found_sequences:
-            print(f"Il y a {white_on_blue(time_difference_display)} [{key}]: {black_on_white(found_sequences[key])}")
+            print(f"Il y a {white_on_blue(time_difference_display)}: {black_on_white(found_sequences[key])}")
             results[key] = {
                 'decode': found_sequences[key],
                 'period': ends_with_even_or_odd(log_time_str)
@@ -530,7 +539,7 @@ def monitor_file(file_path, window_title, control_function_name):
                             enable_tx = False
 
                     if not force_next_hop and sequence_found:
-                        print(f"Séquence trouvée {black_on_green(sequence_found)}. Période {black_on_green(period_found)} Activation de la fenêtre et check état.")    
+                        print(f"Séquence trouvée {black_on_green(sequence_found)} - {black_on_green(period_found)} - Activation de la fenêtre et check état.")
 
                     if enable_tx:        
                         frequency_uptime = time.time()
