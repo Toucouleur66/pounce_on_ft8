@@ -75,6 +75,9 @@ exit_sequence = None
 positive_report_to_find = None
 negative_report_to_find = None
 
+EVEN = "EVEN"
+ODD = "ODD"
+
 # Initialisation de colorama
 init()
 
@@ -130,11 +133,11 @@ def distance(c1, c2):
 
 def is_closer_to_odd_or_even(color):
     if distance(color, color_even) < distance(color, color_odd):
-        return 'EVEN'
+        return EVEN
     else:
-        return 'ODD'
+        return ODD
 
-def replace_input_field_content(x_offset, y_offset, check_file_for_sequences, press_enter_key=None):
+def replace_input_field_content(x_offset, y_offset, find_sequences, press_enter_key=None):
     # Déplacer la souris vers le champ input et cliquer
     pyautogui.click(x_offset, y_offset)
     time.sleep(wait_time)  
@@ -150,15 +153,15 @@ def replace_input_field_content(x_offset, y_offset, check_file_for_sequences, pr
     # Lire le contenu du presse-papiers
     current_content = pyperclip.paste()
     
-    # Si le contenu actuel est identique à check_file_for_sequences, sortir de la fonction
-    if current_content == check_file_for_sequences:
+    # Si le contenu actuel est identique à find_sequences, sortir de la fonction
+    if current_content == find_sequences:
         return
     
     # Effacer le texte sélectionné (Delete)
     pyautogui.press('delete')
     time.sleep(wait_time)
     
-    pyautogui.typewrite(check_file_for_sequences, interval=0.05)  # Vous pouvez ajuster l'intervalle entre chaque caractère si nécessaire
+    pyautogui.typewrite(find_sequences, interval=0.05)  # Vous pouvez ajuster l'intervalle entre chaque caractère si nécessaire
 
     if press_enter_key:
         pyautogui.press('enter')
@@ -326,14 +329,46 @@ def jtdx_is_set_to_odd_or_even(window_title):
     return None
 
 def toggle_jtdx_to_odd(window_title):
-    if jtdx_is_set_to_odd_or_even == 'even':
+    if jtdx_is_set_to_odd_or_even == EVEN:
         pyautogui.click(1015, 150) 
 
 def toggle_jtdx_to_even(window_title):
-    if jtdx_is_set_to_odd_or_even == 'first':
+    if jtdx_is_set_to_odd_or_even == ODD:
         pyautogui.click(1015, 150) 
 
-def check_file_for_sequences(file_path, sequences, last_number_of_lines=100, time_max_expected_in_minutes=10):    
+def ends_with_even_or_odd(log_time_str):
+    if log_time_str[-1].isdigit():
+        last_digit = int(log_time_str[-1])    
+        if last_digit % 2 == 0:
+            return ODD
+        else:
+            return EVEN
+    else:
+        return False
+
+# Séquences à identifier
+def generate_sequences(call_selected):
+    global cq_to_find, rr73_to_find, answer_to_my_call, exit_sequence, positive_report_to_find, negative_report_to_find
+
+    cq_to_find = f"CQ {call_selected}"
+    rr73_to_find = f"{call_selected} RR73"
+    answer_to_my_call = f"{your_callsign} {call_selected}"
+    exit_sequence = f"{your_callsign} {call_selected} RR73"
+    positive_report_to_find = f"{call_selected} +"
+    negative_report_to_find = f"{call_selected} -"
+    # Definition des séquences à identifier:
+    # Attention, l'ordre doit être respecté 
+    # par ordre décroissant d'importance 
+    return {
+        'exit_sequence': exit_sequence,
+        'answer_to_my_call': answer_to_my_call,
+        'rr73_to_find': rr73_to_find,
+        'cq_to_find': cq_to_find,
+        'positive_report_to_find': positive_report_to_find,
+        'negative_report_to_find': negative_report_to_find
+    }
+
+def find_sequences(file_path, sequences, last_number_of_lines=100, time_max_expected_in_minutes=10):    
     global check_call_count
     check_call_count += 1
 
@@ -392,32 +427,13 @@ def check_file_for_sequences(file_path, sequences, last_number_of_lines=100, tim
     for key in sequences.values():
         if key in found_sequences:
             print(f"Il y a {white_on_blue(time_difference_display)} [{key}]: {black_on_white(found_sequences[key])}")
-            results[key] = found_sequences[key]
+            results[key] = {
+                'decode': found_sequences[key],
+                'period': ends_with_even_or_odd(log_time_str)
+            }
             return results
         
     return results
-
-# Séquences à identifier
-def generate_sequences(call_selected):
-    global cq_to_find, rr73_to_find, answer_to_my_call, exit_sequence, positive_report_to_find, negative_report_to_find
-
-    cq_to_find = f"CQ {call_selected}"
-    rr73_to_find = f"{call_selected} RR73"
-    answer_to_my_call = f"{your_callsign} {call_selected}"
-    exit_sequence = f"{your_callsign} {call_selected} RR73"
-    positive_report_to_find = f"{call_selected} +"
-    negative_report_to_find = f"{call_selected} -"
-    # Definition des séquences à identifier:
-    # Attention, l'ordre doit être respecté 
-    # par ordre décroissant d'importance 
-    return {
-        'exit_sequence': exit_sequence,
-        'answer_to_my_call': answer_to_my_call,
-        'rr73_to_find': rr73_to_find,
-        'cq_to_find': cq_to_find,
-        'positive_report_to_find': positive_report_to_find,
-        'negative_report_to_find': negative_report_to_find
-    }
 
 def monitor_file(file_path, window_title, control_function_name):
     global check_call_count, hop_index
@@ -461,11 +477,12 @@ def monitor_file(file_path, window_title, control_function_name):
 
                 if active_call:
                     sequences_to_find = generate_sequences(active_call)
-                    results = check_file_for_sequences(file_path, sequences_to_find)
-                    if results[exit_sequence] and last_exit_sequence != results[exit_sequence]:
-                        print(f"Séquence de sortie trouvée {white_on_red(exit_sequence)}: {black_on_white(results[exit_sequence])}")
+                    sequences_found = find_sequences(file_path, sequences_to_find)
+
+                    if sequences_found[exit_sequence] and last_exit_sequence != sequences_found[exit_sequence]['decoded']:
+                        print(f"Séquence de sortie trouvée {white_on_red(exit_sequence)}: {black_on_white(sequences_found[exit_sequence]['decoded'])}")
                         # Mise à jours de la dernière séquence de sortie
-                        last_exit_sequence = results[exit_sequence]
+                        last_exit_sequence = sequences_found[exit_sequence]['decoded']
                         
                         if control_function_name == 'JTDX':
                             jtdx_ready = disable_tx_jtdx(window_title)
@@ -491,21 +508,29 @@ def monitor_file(file_path, window_title, control_function_name):
                         sequence_found = None
                         enable_tx = True
 
-                        if results[cq_to_find]:
-                            sequence_found = cq_to_find                        
-                        elif results[answer_to_my_call]:
-                            sequence_found = answer_to_my_call     
-                        elif results[rr73_to_find]:
-                            sequence_found = rr73_to_find
-                        elif results[positive_report_to_find]:
-                            sequence_found = positive_report_to_find       
-                        elif results[negative_report_to_find]:
-                            sequence_found = negative_report_to_find                               
-                        else:
+                        # Liste des séquences à vérifier, dans l'ordre de priorité
+                        sequences_to_check = [
+                            cq_to_find,
+                            answer_to_my_call,
+                            rr73_to_find,
+                            positive_report_to_find,
+                            negative_report_to_find
+                        ]
+
+                        # Recherche de la première séquence décodée
+                        for sequence in sequences_to_check:
+                            if sequences_found[sequence]['decoded']:
+                                sequence_found = sequence
+                                period_found = sequences_found[sequence]['period']
+                                 # Dès qu'une séquence est trouvée, on sort de la boucle
+                                break 
+
+                        # Si aucune séquence n'a été trouvée, désactiver l'émission 
+                        if sequence_found is None:
                             enable_tx = False
 
                     if not force_next_hop and sequence_found:
-                        print(f"Séquence trouvée {black_on_green(sequence_found)}. Activation de la fenêtre et check état.")    
+                        print(f"Séquence trouvée {black_on_green(sequence_found)}. Période {black_on_green(period_found)} Activation de la fenêtre et check état.")    
 
                     if enable_tx:        
                         frequency_uptime = time.time()
@@ -530,11 +555,11 @@ def monitor_file(file_path, window_title, control_function_name):
                                 wsjt_ready = False
                 else:
                     # Rechercher dans le fichier un call à partir de la liste
-                    for call in wanted_callsign_list:
-                        sequences_to_find = generate_sequences(call)
-                        results = check_file_for_sequences(file_path, sequences_to_find)
-                        if any(results.values()):
-                            active_call = call
+                    for wanted_callsign in wanted_callsign_list:
+                        sequences_to_find = generate_sequences(wanted_callsign)
+                        sequences_found = find_sequences(file_path, sequences_to_find)
+                        if any(sequences_found.values()):
+                            active_call = wanted_callsign
                             print(f"{white_on_blue('Focus sur')} {active_call}")
                             break
 
