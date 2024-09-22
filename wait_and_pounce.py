@@ -401,6 +401,7 @@ def find_sequences(file_path, sequences, last_number_of_lines=100, time_max_expe
 
         # Obtenir les dernières lignes en partant de la fin
         last_lines = lines[-last_number_of_lines:]
+        sequence_found_flag = False 
 
         # Vérifier si les séquences sont dans les dernières lignes
         for line in reversed(last_lines):
@@ -431,8 +432,11 @@ def find_sequences(file_path, sequences, last_number_of_lines=100, time_max_expe
                                                 
                         found_sequences[sequence] = line.strip()
                         
+                        sequence_found_flag = True
                         break
-                break    
+                if sequence_found_flag:
+                    # Sortir de la boucle des lignes si une séquence est trouvée
+                    break
 
     # Parcourir les séquences dans l'ordre et mettre à jour results
     for key in sequences.values():
