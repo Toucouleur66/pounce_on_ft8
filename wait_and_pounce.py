@@ -340,10 +340,12 @@ def ends_with_even_or_odd(log_time_str):
     if log_time_str[-1].isdigit():
         last_digit = int(log_time_str[-1])    
         if last_digit % 2 == 0:
-            # Nombre impaires
+            # Nombre impaires 
+            # (second)
             return ODD
         else:
-            # Nombres paires
+            # Nombres paires 
+            # (first)
             return EVEN
     else:
         return False
@@ -379,7 +381,7 @@ def get_log_time(log_time_str, utc):
     elif re.match(r'^\d{6}_\d{6}', log_time_str):
         log_time = datetime.datetime.strptime(log_time_str, "%y%m%d_%H%M%S")
 
-    log_time.replace(tzinfo=utc) 
+    return log_time.replace(tzinfo=utc) 
 
 def find_sequences(file_path, sequences, last_number_of_lines=100, time_max_expected_in_minutes=10):    
     global check_call_count
