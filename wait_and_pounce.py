@@ -42,6 +42,9 @@ default_instance_type = 'JTDX'
 color_even = (162, 229, 235)
 color_odd = (241, 249, 216)
 
+EVEN = "EVEN"
+ODD = "ODD"
+
 color_tx_enabled = (255, 60, 60)
 color_tx_disabled = (220, 220, 220)
 
@@ -74,9 +77,6 @@ answer_to_my_call = None
 exit_sequence = None
 positive_report_to_find = None
 negative_report_to_find = None
-
-EVEN = "EVEN"
-ODD = "ODD"
 
 # Initialisation de colorama
 init()
@@ -275,7 +275,10 @@ def prepare_wsjt(window_title, call_selected = None):
     # Clic sur generate_message 
     pyautogui.click(1200, 720)
 
-    return True
+    if call_selected:
+        return True
+    else:
+        return False
     
 def wait_and_log_wstj_qso(window_title):
     time.sleep(3) 
@@ -304,7 +307,10 @@ def prepare_jtdx(window_title, call_selected = None):
     # Clic sur generate_message 
     pyautogui.click(770, 840)
 
-    return True
+    if call_selected:
+        return True
+    else:
+        return False
 
 def disable_tx_jtdx(window_title):
     restore_and_or_move_window(window_title)
@@ -319,10 +325,7 @@ def jtdx_is_set_to_odd_or_even(window_title):
     try:
         pixel_color = pyautogui.pixel(1015, 150)
         time.sleep(wait_time)
-        if distance(pixel_color, color_even) < distance(pixel_color, color_odd):
-            return 'EVEN'
-        else:
-            return 'ODD'
+        return is_closer_to_odd_or_even(pixel_color)
     except pyautogui.PyAutoGUIException as e:
             print(f"Erreur lors de l'obtention de la couleur du pixel : {e}")
             sys.exit()
@@ -477,6 +480,7 @@ def monitor_file(file_path, window_title, control_function_name):
     
     try:
         enable_tx = False
+        period_found = None
         last_file_time_update = None
 
         if time_hopping and frequency_hopping:
@@ -504,7 +508,7 @@ def monitor_file(file_path, window_title, control_function_name):
                         elif control_function_name == 'WSJT':
                             wsjt_ready = wait_and_log_wstj_qso(window_title)          
 
-                        # Est ce que le programme doit continuer?
+                        # Est ce que le script doit poursuivre en utilisant d'autres fréquences?
                         if frequency_hopping:
                             # Supprime la fréquence car terminé
                             del frequency_hopping[hop_index]
@@ -551,12 +555,18 @@ def monitor_file(file_path, window_title, control_function_name):
                         frequency_uptime = time.time()
                         if control_function_name == 'JTDX':
                             if jtdx_ready == False:
-                                jtdx_ready = prepare_jtdx(window_title)
+                                # Changement de la période
+                                if period_found == EVEN and jtdx_is_set_to_odd_or_even(window_title) == EVEN:
+                                    toggle_jtdx_to_odd(window_title)
+                                elif period_found == ODD and jtdx_is_set_to_odd_or_even(window_title) == ODD:
+                                    toggle_jtdx_to_even(window_title)
+
+                                jtdx_ready = prepare_jtdx(window_title, active_call)
                             # Check sur le bouton Enable TX
                             check_and_enable_tx_jtdx(window_title, 610, 855)
                         elif control_function_name == 'WSJT':
                             if wsjt_ready == False:
-                                wsjt_ready = prepare_wsjt(window_title)
+                                wsjt_ready = prepare_wsjt(window_title, active_call)
                             # Check sur le bouton DX Call
                             check_and_enable_tx_wsjt(window_title, 640, 750)
                     else:
