@@ -23,8 +23,8 @@ jtdx_window_title = "JTDX - FT5000  by HF community                             
 
 ## Version
 
-- `WIP` Handle multiple calls
-- `WIP` Find period, and update period transmission for `JTDX`
+- `in progress` Handle multiple calls
+- `in progress` Change for odd or even `JTDX`
 - `0.6` Force `your_call` and `call_selected` to be uppercase
 - `0.5` Handle `Super/Fox` Mode from `JTDX v2.2.160-rc7`
 - `0.4` Use latest modified `*ALL.TXT` files `<== You are here`

@@ -519,7 +519,7 @@ def monitor_file(file_path, window_title, control_function_name):
 
                         # Recherche de la première séquence décodée
                         for sequence in sequences_to_check:
-                            if sequences_found[sequence]['decoded']:
+                            if sequences_found[sequence]:
                                 sequence_found = sequence
                                 period_found = sequences_found[sequence]['period']
                                  # Dès qu'une séquence est trouvée, on sort de la boucle
