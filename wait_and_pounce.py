@@ -343,13 +343,13 @@ def ends_with_even_or_odd(log_time_str):
     if log_time_str[-1].isdigit():
         last_digit = int(log_time_str[-1])    
         if last_digit % 2 == 0:
-            # Nombre impaires 
-            # (second)
-            return ODD
-        else:
             # Nombres paires 
             # (first)
             return EVEN
+        else:
+            # Nombre impaires 
+            # (second)
+            return ODD        
     else:
         return False
 
