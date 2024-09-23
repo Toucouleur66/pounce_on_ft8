@@ -332,11 +332,11 @@ def jtdx_is_set_to_odd_or_even(window_title):
     return None
 
 def toggle_jtdx_to_odd(window_title):
-    if jtdx_is_set_to_odd_or_even == EVEN:
+    if jtdx_is_set_to_odd_or_even(window_title) == EVEN:
         pyautogui.click(1015, 150) 
 
 def toggle_jtdx_to_even(window_title):
-    if jtdx_is_set_to_odd_or_even == ODD:
+    if jtdx_is_set_to_odd_or_even(window_title) == ODD:
         pyautogui.click(1015, 150) 
 
 def ends_with_even_or_odd(log_time_str):
@@ -592,7 +592,7 @@ def monitor_file(file_path, window_title, control_function_name):
                             enable_tx = False
 
                     if not force_next_hop and sequence_found:
-                        print(f"Séquence trouvée {black_on_green(sequence_found)} | {black_on_green(period_found)} | Activation de la fenêtre et check état.")
+                        print(f"Séquence trouvée {black_on_green('<' + sequence_found + '>')} {bright_green('[' + period_found + ']')}. Activation de la fenêtre et check état.")
 
                     if enable_tx:        
                         frequency_uptime = time.time()
