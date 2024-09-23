@@ -71,12 +71,12 @@ if frequency_hopping:
     frequency_hopping = list(map(int, args.frequency_hopping.split(',')))
 
 # Définition des séquences à identifier
-cq_to_find = None
-rr73_to_find = None
-answer_to_my_call = None
-exit_sequence = None
-positive_report_to_find = None
-negative_report_to_find = None
+cq_call_selected = None
+report_received_73 = None
+reply_to_my_call = None
+report_received_73_for_my_call = None
+respond_with_positive_signal_report = None
+respond_with_negative_signal_report = None
 
 # Initialisation de colorama
 init()
@@ -355,24 +355,41 @@ def ends_with_even_or_odd(log_time_str):
 
 # Séquences à identifier
 def generate_sequences(call_selected):
-    global cq_to_find, rr73_to_find, answer_to_my_call, exit_sequence, positive_report_to_find, negative_report_to_find
+    global cq_call_selected
+    global report_received_73
+    global reply_to_my_call
+    global reception_report_received
+    global best_regards_for_my_call    
+    global report_received_73_for_my_call
+    global respond_with_positive_signal_report
+    global respond_with_negative_signal_report
+    global confirm_signal_and_respond_with_positive_signal_report
+    global confirm_signal_and_respond_with_negative_signal_report
 
-    cq_to_find = f"CQ {call_selected}"
-    rr73_to_find = f"{call_selected} RR73"
-    answer_to_my_call = f"{your_callsign} {call_selected}"
-    exit_sequence = f"{your_callsign} {call_selected} RR73"
-    positive_report_to_find = f"{call_selected} +"
-    negative_report_to_find = f"{call_selected} -"
+    cq_call_selected = f"CQ {call_selected}"
+    report_received_73 = f"{call_selected} RR73"
+    reception_report_received = f"{call_selected} RRR"
+    reply_to_my_call = f"{your_callsign} {call_selected}"
+    report_received_73_for_my_call = f"{your_callsign} {call_selected} RR73"
+    best_regards_for_my_call = f"{your_callsign} {call_selected} 73"
+    respond_with_positive_signal_report = f"{call_selected} +"
+    respond_with_negative_signal_report = f"{call_selected} -"
+    confirm_signal_and_respond_with_positive_signal_report = f"{call_selected} R+"
+    confirm_signal_and_respond_with_negative_signal_report = f"{call_selected} R-"
+
     # Definition des séquences à identifier:
-    # Attention, l'ordre doit être respecté 
-    # par ordre décroissant d'importance 
+    # Attention, l'ordre doit être respecté par ordre décroissant d'importance des messages
     return {
-        'exit_sequence': exit_sequence,
-        'answer_to_my_call': answer_to_my_call,
-        'rr73_to_find': rr73_to_find,
-        'cq_to_find': cq_to_find,
-        'positive_report_to_find': positive_report_to_find,
-        'negative_report_to_find': negative_report_to_find
+        'report_received_73_for_my_call': report_received_73_for_my_call,
+        'best_regards_for_my_call': best_regards_for_my_call,
+        'reply_to_my_call': reply_to_my_call,
+        'reception_report_received': reception_report_received,
+        'report_received_73': report_received_73,
+        'cq_call_selected': cq_call_selected,
+        'respond_with_positive_signal_report': respond_with_positive_signal_report,
+        'respond_with_negative_signal_report': respond_with_negative_signal_report,
+        'confirm_signal_and_respond_with_positive_signal_report': confirm_signal_and_respond_with_positive_signal_report,
+        'confirm_signal_and_respond_with_negative_signal_report': confirm_signal_and_respond_with_negative_signal_report
     }
 
 
@@ -454,8 +471,19 @@ def find_sequences(file_path, sequences, last_number_of_lines=100, time_max_expe
     return results
 
 def monitor_file(file_path, window_title, control_function_name):
-    global check_call_count, hop_index
-    global cq_to_find, rr73_to_find, answer_to_my_call, exit_sequence, positive_report_to_find, negative_report_to_find
+    global check_call_count
+    global hop_index
+    # Sequences
+    global cq_call_selected
+    global reception_report_received
+    global report_received_73
+    global reply_to_my_call
+    global best_regards_for_my_call    
+    global report_received_73_for_my_call
+    global respond_with_positive_signal_report
+    global respond_with_negative_signal_report
+    global confirm_signal_and_respond_with_positive_signal_report
+    global confirm_signal_and_respond_with_negative_signal_report
 
     highlighted_calls = ", ".join([black_on_yellow(call) for call in wanted_callsign_list])
 
@@ -464,7 +492,7 @@ def monitor_file(file_path, window_title, control_function_name):
     wsjt_ready = False
     jtdx_ready = False
     force_next_hop = False
-    last_exit_sequence = None
+    last_exit_message = None
     active_call = None 
 
     if len(wanted_callsign_list) > 1:
@@ -497,11 +525,24 @@ def monitor_file(file_path, window_title, control_function_name):
                 if active_call:
                     sequences_to_find = generate_sequences(active_call)
                     sequences_found = find_sequences(file_path, sequences_to_find)
+                    exit_message = False
 
-                    if sequences_found[exit_sequence] and last_exit_sequence != sequences_found[exit_sequence]['message']:
-                        print(f"Séquence de sortie trouvée {white_on_red(exit_sequence)}: {black_on_white(sequences_found[exit_sequence]['message'])}")
+                    sequences_to_check = [
+                        report_received_73_for_my_call,
+                        best_regards_for_my_call
+                    ]
+
+                    # Recherche de la première séquence de sortie décodée
+                    for sequence in sequences_to_check:
+                        if sequences_found[sequence]:
+                            sequence_found = sequence
+                            exit_message = sequences_found[sequence]['message']                            
+                            break 
+
+                    if exit_message and last_exit_message != exit_message:
+                        print(f"Séquence de sortie trouvée {white_on_red(report_received_73_for_my_call)}: {black_on_white(exit_message)}")
                         # Mise à jours de la dernière séquence de sortie
-                        last_exit_sequence = sequences_found[exit_sequence]['message']
+                        last_exit_message = exit_message
                         
                         if control_function_name == 'JTDX':
                             jtdx_ready = disable_tx_jtdx(window_title)
@@ -529,11 +570,13 @@ def monitor_file(file_path, window_title, control_function_name):
 
                         # Liste des séquences à vérifier, dans l'ordre de priorité
                         sequences_to_check = [
-                            cq_to_find,
-                            answer_to_my_call,
-                            rr73_to_find,
-                            positive_report_to_find,
-                            negative_report_to_find
+                            cq_call_selected,
+                            reply_to_my_call,
+                            report_received_73,
+                            respond_with_positive_signal_report,
+                            respond_with_negative_signal_report,
+                            confirm_signal_and_respond_with_positive_signal_report,
+                            confirm_signal_and_respond_with_negative_signal_report
                         ]
 
                         # Recherche de la première séquence décodée
@@ -554,15 +597,15 @@ def monitor_file(file_path, window_title, control_function_name):
                     if enable_tx:        
                         frequency_uptime = time.time()
                         if control_function_name == 'JTDX':
+                            # Changement de la période
+                            if period_found == EVEN and jtdx_is_set_to_odd_or_even(window_title) == EVEN:
+                                print(f"Passage en période {black_on_green(ODD)}")
+                                toggle_jtdx_to_odd(window_title)
+                            elif period_found == ODD and jtdx_is_set_to_odd_or_even(window_title) == ODD:
+                                print(f"Passage en période {black_on_green(EVEN)}")
+                                toggle_jtdx_to_even(window_title)
+                                
                             if jtdx_ready == False:
-                                # Changement de la période
-                                if period_found == EVEN and jtdx_is_set_to_odd_or_even(window_title) == EVEN:
-                                    print(f"Passage en période {black_on_green(ODD)}")
-                                    toggle_jtdx_to_odd(window_title)
-                                elif period_found == ODD and jtdx_is_set_to_odd_or_even(window_title) == ODD:
-                                    print(f"Passage en période {black_on_green(EVEN)}")
-                                    toggle_jtdx_to_even(window_title)
-
                                 jtdx_ready = prepare_jtdx(window_title, active_call)
                             # Check sur le bouton Enable TX
                             check_and_enable_tx_jtdx(window_title, 610, 855)
