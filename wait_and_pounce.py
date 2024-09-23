@@ -51,7 +51,7 @@ color_tx_disabled = (220, 220, 220)
 # Définir les arguments de la ligne de commande
 parser = argparse.ArgumentParser(description='Surveillance des fichiers de logs pour une séquence spécifique.')
 parser.add_argument('-yc', '--your_callsign', type=str, required=True, help='Votre indicatif d\'appel')
-parser.add_argument('-wc', '--wanted_callsign', type=str, required=True, help='Les calls à appeler (séparrés d\'une virgule)')
+parser.add_argument('-wc', '--wanted_callsigns', type=str, required=True, help='Les calls à appeler (séparrés d\'une virgule)')
 parser.add_argument('-f', '--frequency', type=int, default=None, help="(optionnel) La fréquence à utiliser (en Khz, par exemple 28091, en cas d'absence de fréquence spécifiée, l'instance conserve sa fréquence actuelle)")
 parser.add_argument('-i', '--instance', type=str, default=default_instance_type, help=f'Le type d\'instance à lancer (valeurs autorisées "JTDX" ou "WSJT", par défaut "{default_instance_type}")')
 parser.add_argument('-fh', '--frequency_hopping', type=str, default=None, help="(optionnel) Les fréquences à utiliser (en Khz, par exemple 28091,18095,24911) le basculement des fréquences s'effectuera dans l'ordre indiqué")
@@ -60,7 +60,7 @@ parser.add_argument('-th', '--time_hopping', type=int, default=default_time_hopp
 args = parser.parse_args()
 
 your_callsign = args.your_callsign.upper()
-wanted_callsign_list = args.wanted_callsign.upper().split(",")
+wanted_callsigns_list = args.wanted_callsigns.upper().split(",")
 frequency = args.frequency
 instance = args.instance
 frequency_hopping = args.frequency_hopping
@@ -478,6 +478,9 @@ def find_sequences(file_path, sequences, last_number_of_lines=100, time_max_expe
         
     return results
 
+def highlight_calls(wanted_callsigns_list):
+    return ", ".join([black_on_yellow(call) for call in wanted_callsigns_list])
+
 def monitor_file(file_path, window_title, control_function_name):
     global check_call_count
     global hop_index
@@ -494,9 +497,7 @@ def monitor_file(file_path, window_title, control_function_name):
     global confirm_signal_and_respond_with_positive_signal_report
     global confirm_signal_and_respond_with_negative_signal_report
 
-    highlighted_calls = ", ".join([black_on_yellow(call) for call in wanted_callsign_list])
-
-    print(f"\n=== Démarrage Monitoring pour {control_function_name} {highlighted_calls} ===")
+    print(f"\n=== Démarrage Monitoring pour {control_function_name} {highlight_calls(wanted_callsigns_list)} ===")
 
     wsjt_ready = False
     jtdx_ready = False
@@ -504,16 +505,16 @@ def monitor_file(file_path, window_title, control_function_name):
     last_exit_message = None
     active_call = None 
 
-    if len(wanted_callsign_list) > 1:
+    if len(wanted_callsigns_list) > 1:
         if control_function_name == 'WSJT':
             wsjt_ready = prepare_wsjt(window_title)
         elif control_function_name == 'JTDX':
             jtdx_ready = prepare_jtdx(window_title)
     else:
         if control_function_name == 'WSJT':
-            wsjt_ready = prepare_wsjt(window_title, wanted_callsign_list[0])
+            wsjt_ready = prepare_wsjt(window_title, wanted_callsigns_list[0])
         elif control_function_name == 'JTDX':
-            jtdx_ready = prepare_jtdx(window_title, wanted_callsign_list[0])
+            jtdx_ready = prepare_jtdx(window_title, wanted_callsigns_list[0])
     
     try:
         enable_tx = False
@@ -558,12 +559,15 @@ def monitor_file(file_path, window_title, control_function_name):
                         elif control_function_name == 'WSJT':
                             wsjt_ready = wait_and_log_wstj_qso(window_title)          
 
+                        # Retirer l'indicatif des wanted
+                        wanted_callsigns_list.remove(active_call)
+
                         # Est ce que le script doit poursuivre en utilisant d'autres fréquences?
                         if frequency_hopping:
                             # Supprime la fréquence car terminé
                             del frequency_hopping[hop_index]
                             if not frequency_hopping:
-                                print(white_on_red("Arrêt du script."))                            
+                                print(white_on_red("Arrêt du script car plus de fréquence à explorer."))                            
                                 break                
                             else:
                                 force_next_hop = True
@@ -571,7 +575,10 @@ def monitor_file(file_path, window_title, control_function_name):
                                     jtdx_ready == False                            
                                 elif control_function_name == 'WSJT':
                                     wsjt_ready == False
+                        elif wanted_callsigns_list:
+                            print(f"\n=== Reprise Monitoring pour {control_function_name} {highlight_calls(wanted_callsigns_list)} ===")
                         else:
+                            print(white_on_red("Arrêt du script car plus d'indicatif à contacter."))
                             break
                     else:
                         sequence_found = None
@@ -626,6 +633,8 @@ def monitor_file(file_path, window_title, control_function_name):
                     else:
                         if jtdx_ready or wsjt_ready:
                             print(f"{black_on_yellow('Disable TX')}. Pas de séquence trouvée pour {bright_green(active_call)}. Le monitoring se poursuit.")
+                            if len(wanted_callsigns_list) > 1:
+                                active_call = None 
                                             
                             if control_function_name == 'JTDX':
                                 jtdx_ready = False
@@ -634,11 +643,11 @@ def monitor_file(file_path, window_title, control_function_name):
                                 wsjt_ready = False
                 else:
                     # Rechercher dans le fichier un call à partir de la liste
-                    for wanted_callsign in wanted_callsign_list:
-                        sequences_to_find = generate_sequences(wanted_callsign)
+                    for wanted_callsigns in wanted_callsigns_list:
+                        sequences_to_find = generate_sequences(wanted_callsigns)
                         sequences_found = find_sequences(file_path, sequences_to_find)
                         if any(sequences_found.values()):
-                            active_call = wanted_callsign
+                            active_call = wanted_callsigns
                             print(f"{white_on_blue('Focus sur')} {active_call}")
                             break
 
