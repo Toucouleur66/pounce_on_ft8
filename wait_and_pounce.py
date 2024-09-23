@@ -549,7 +549,7 @@ def monitor_file(file_path, window_title, control_function_name):
                             enable_tx = False
 
                     if not force_next_hop and sequence_found:
-                        print(f"Séquence trouvée {black_on_green(sequence_found)} - {black_on_green(period_found)} - Activation de la fenêtre et check état.")
+                        print(f"Séquence trouvée {black_on_green(sequence_found)} | {black_on_green(period_found)} | Activation de la fenêtre et check état.")
 
                     if enable_tx:        
                         frequency_uptime = time.time()
@@ -557,8 +557,10 @@ def monitor_file(file_path, window_title, control_function_name):
                             if jtdx_ready == False:
                                 # Changement de la période
                                 if period_found == EVEN and jtdx_is_set_to_odd_or_even(window_title) == EVEN:
+                                    print(f"Passage en période {black_on_green(ODD)}")
                                     toggle_jtdx_to_odd(window_title)
                                 elif period_found == ODD and jtdx_is_set_to_odd_or_even(window_title) == ODD:
+                                    print(f"Passage en période {black_on_green(EVEN)}")
                                     toggle_jtdx_to_even(window_title)
 
                                 jtdx_ready = prepare_jtdx(window_title, active_call)
