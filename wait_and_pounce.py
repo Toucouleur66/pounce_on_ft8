@@ -74,9 +74,14 @@ if frequency_hopping:
 cq_call_selected = None
 report_received_73 = None
 reply_to_my_call = None
+reception_report_received = None
+best_regards = None
+best_regards_for_my_call = None
 report_received_73_for_my_call = None
 respond_with_positive_signal_report = None
 respond_with_negative_signal_report = None
+confirm_signal_and_respond_with_positive_signal_report = None
+confirm_signal_and_respond_with_negative_signal_report = None
 
 # Initialisation de colorama
 init()
@@ -359,6 +364,7 @@ def generate_sequences(call_selected):
     global report_received_73
     global reply_to_my_call
     global reception_report_received
+    global best_regards
     global best_regards_for_my_call    
     global report_received_73_for_my_call
     global respond_with_positive_signal_report
@@ -372,6 +378,7 @@ def generate_sequences(call_selected):
     reply_to_my_call = f"{your_callsign} {call_selected}"
     report_received_73_for_my_call = f"{your_callsign} {call_selected} RR73"
     best_regards_for_my_call = f"{your_callsign} {call_selected} 73"
+    best_regards = f"{call_selected} 73"
     respond_with_positive_signal_report = f"{call_selected} +"
     respond_with_negative_signal_report = f"{call_selected} -"
     confirm_signal_and_respond_with_positive_signal_report = f"{call_selected} R+"
@@ -382,6 +389,7 @@ def generate_sequences(call_selected):
     return {
         'report_received_73_for_my_call': report_received_73_for_my_call,
         'best_regards_for_my_call': best_regards_for_my_call,
+        'best_regards': best_regards,
         'reply_to_my_call': reply_to_my_call,
         'reception_report_received': reception_report_received,
         'report_received_73': report_received_73,
@@ -479,6 +487,7 @@ def monitor_file(file_path, window_title, control_function_name):
     global report_received_73
     global reply_to_my_call
     global best_regards_for_my_call    
+    global best_regards
     global report_received_73_for_my_call
     global respond_with_positive_signal_report
     global respond_with_negative_signal_report
