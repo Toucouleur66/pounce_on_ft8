@@ -561,6 +561,7 @@ def monitor_file(file_path, window_title, control_function_name):
 
                         # Retirer l'indicatif des wanted
                         wanted_callsigns_list.remove(active_call)
+                        active_call = None
 
                         # Est ce que le script doit poursuivre en utilisant d'autres fréquences?
                         if frequency_hopping:
@@ -576,9 +577,10 @@ def monitor_file(file_path, window_title, control_function_name):
                                 elif control_function_name == 'WSJT':
                                     wsjt_ready == False
                         elif wanted_callsigns_list:
+                            force_next_hop = True
                             print(f"\n=== Reprise Monitoring pour {control_function_name} {highlight_calls(wanted_callsigns_list)} ===")
                         else:
-                            print(white_on_red("Arrêt du script car plus d'indicatif à contacter."))
+                            print(white_on_red("Arrêt du script car plus d'indicatif à rechercher."))
                             break
                     else:
                         sequence_found = None
