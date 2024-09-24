@@ -549,9 +549,6 @@ def monitor_file(file_path, window_title, control_function_name):
                     sequences_found = find_sequences(file_path, sequences_to_find)
                     exit_message = False
 
-                    print("---loop---")
-                    print(sequences_found)
-
                     # Regular normal mode
                     if instance_mode == "Normal":
                         sequences_to_check = [
@@ -613,6 +610,7 @@ def monitor_file(file_path, window_title, control_function_name):
                             cq_call_selected,
                             reply_to_my_call,
                             report_received_73,
+                            best_regards_received_for_my_call,
                             respond_with_positive_signal_report,
                             respond_with_negative_signal_report,
                             confirm_signal_and_respond_with_positive_signal_report,
