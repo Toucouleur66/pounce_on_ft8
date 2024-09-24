@@ -116,14 +116,24 @@ callsign_entry = ttk.Entry(root, textvariable=callsign_var)
 callsign_entry.grid(column=1, row=4, padx=10, pady=5)
 
 ttk.Label(root, text="Mode:").grid(column=0, row=5, padx=10, pady=5, sticky=tk.W)
-mode_combo = ttk.Combobox(root, textvariable=mode_var, values=["Normal", "Fox/Hound", "SuperFox"])
-mode_combo.grid(column=1, row=5, padx=10, pady=5)
+
+radio_frame = ttk.Frame(root)
+radio_frame.grid(column=1, row=5, padx=10, pady=5)
+
+radio_normal = ttk.Radiobutton(radio_frame, text="Normal", variable=mode_var, value="Normal")
+radio_normal.grid(column=0, row=0, padx=5, pady=5, sticky=tk.W)
+
+radio_foxhound = ttk.Radiobutton(radio_frame, text="Fox/Hound", variable=mode_var, value="Fox/Hound")
+radio_foxhound.grid(column=1, row=0, padx=5, pady=5, sticky=tk.W)
+
+radio_superfox = ttk.Radiobutton(radio_frame, text="SuperFox", variable=mode_var, value="SuperFox")
+radio_superfox.grid(column=2, row=0, padx=5, pady=5, sticky=tk.W)
 
 run_button = tk.Button(root, text="Click to Wait & Pounce", command=run_script)
-run_button.grid(column=0, row=5, padx=10, pady=10)
+run_button.grid(column=0, row=6, padx=10, pady=10)
 
 stop_button = tk.Button(root, text="Stop all", command=stop_script)
-stop_button.grid(column=1, row=5, padx=10, pady=10)
+stop_button.grid(column=1, row=6, padx=10, pady=10)
 
 # Exécution de la boucle principale
 root.mainloop()
