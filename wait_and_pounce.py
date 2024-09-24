@@ -608,8 +608,10 @@ def monitor_file(file_path, window_title, control_function_name):
                         # Liste des séquences à vérifier, dans l'ordre de priorité
                         sequences_to_check = [
                             cq_call_selected,
-                            reply_to_my_call,
                             report_received_73,
+                            reply_to_my_call,  
+                            reception_report_received, 
+                            best_regards,                                                     
                             best_regards_received_for_my_call,
                             respond_with_positive_signal_report,
                             respond_with_negative_signal_report,
