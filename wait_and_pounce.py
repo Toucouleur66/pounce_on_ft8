@@ -544,6 +544,16 @@ def monitor_file(file_path, window_title, control_function_name):
             if last_file_time_update is None or current_mod_time != last_file_time_update:
                 last_file_time_update = current_mod_time  
 
+                if not active_call:
+                    # Rechercher dans le fichier un call à partir de la liste
+                    for wanted_callsigns in wanted_callsigns_list:
+                        sequences_to_find = generate_sequences(wanted_callsigns)
+                        sequences_found = find_sequences(file_path, sequences_to_find)
+                        if any(sequences_found.values()):
+                            active_call = wanted_callsigns
+                            print(f"{white_on_blue('Focus sur')} {active_call}")
+                            break
+
                 if active_call:
                     sequences_to_find = generate_sequences(active_call)
                     sequences_found = find_sequences(file_path, sequences_to_find)
@@ -573,11 +583,9 @@ def monitor_file(file_path, window_title, control_function_name):
                         # Mise à jours de la dernière séquence de sortie
                         last_exit_message = exit_message
                         
-                        if instance_mode == "Normal":
-                            time.sleep(15)
-
                         if control_function_name == 'JTDX':
-                            jtdx_ready = disable_tx_jtdx(window_title)
+                            if instance_mode != "Normal":
+                                jtdx_ready = disable_tx_jtdx(window_title)
                         elif control_function_name == 'WSJT':
                             wsjt_ready = wait_and_log_wstj_qso(window_title)          
 
@@ -668,15 +676,6 @@ def monitor_file(file_path, window_title, control_function_name):
                                 disable_tx_jtdx(window_title)
                             elif control_function_name == 'WSJT':
                                 wsjt_ready = False
-                else:
-                    # Rechercher dans le fichier un call à partir de la liste
-                    for wanted_callsigns in wanted_callsigns_list:
-                        sequences_to_find = generate_sequences(wanted_callsigns)
-                        sequences_found = find_sequences(file_path, sequences_to_find)
-                        if any(sequences_found.values()):
-                            active_call = wanted_callsigns
-                            print(f"{white_on_blue('Focus sur')} {active_call}")
-                            break
 
                 # Afficher le compteur de vérifications
                 print(f"Mise à jour du log et suivi {black_on_white(control_function_name + ' #' + str(check_call_count))}", end='\r')
