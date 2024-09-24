@@ -414,7 +414,8 @@ def generate_sequences(call_selected):
 def get_log_time(log_time_str, utc):
     # Format JTDX
     if re.match(r'^\d{8}_\d{6}', log_time_str):
-        log_time = datetime.datetime.strptime(log_time_str, "%Y%m%d_%H%M%S")
+        match = re.match(r'^\d{8}_\d{6}', log_time_str)
+        log_time = datetime.datetime.strptime(match.group(0), "%Y%m%d_%H%M%S")
     # Format WSJT                    
     elif re.match(r'^\d{6}_\d{6}', log_time_str):
         log_time = datetime.datetime.strptime(log_time_str, "%y%m%d_%H%M%S")
