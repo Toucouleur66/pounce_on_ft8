@@ -549,6 +549,9 @@ def monitor_file(file_path, window_title, control_function_name):
                     sequences_found = find_sequences(file_path, sequences_to_find)
                     exit_message = False
 
+                    print("---loop---")
+                    print(sequences_found)
+
                     # Regular normal mode
                     if instance_mode == "Normal":
                         sequences_to_check = [
