@@ -36,7 +36,11 @@ hop_index = 0
 check_call_count = 0
 
 # Instance par défaut
-default_instance_type = 'JTDX'
+default_instance_type = "JTDX"
+
+# Mode par défaut
+default_instance_mode = "Normal"
+# "Normal", "Fox/Hound", "SuperFox"
 
 # Définir les couleurs
 color_even = (162, 229, 235)
@@ -56,6 +60,7 @@ parser.add_argument('-f', '--frequency', type=int, default=None, help="(optionne
 parser.add_argument('-i', '--instance', type=str, default=default_instance_type, help=f'Le type d\'instance à lancer (valeurs autorisées "JTDX" ou "WSJT", par défaut "{default_instance_type}")')
 parser.add_argument('-fh', '--frequency_hopping', type=str, default=None, help="(optionnel) Les fréquences à utiliser (en Khz, par exemple 28091,18095,24911) le basculement des fréquences s'effectuera dans l'ordre indiqué")
 parser.add_argument('-th', '--time_hopping', type=int, default=default_time_hopping, help=f'(optionnel) Le temps entre chaque saut de fréquence si --frequency_hopping a été précisé (fixé par défaut à {default_time_hopping} minutes)')
+parser.add_argument('-m', '--mode', type=str, default=default_instance_mode, help="(Normal par défaut) Le mode à utiliser")
 
 args = parser.parse_args()
 
@@ -65,6 +70,7 @@ frequency = args.frequency
 instance = args.instance
 frequency_hopping = args.frequency_hopping
 time_hopping = args.time_hopping
+instance_mode = args.mode
 
 # Prise en charge des fréquences à gérer
 if frequency_hopping:
@@ -76,7 +82,8 @@ report_received_73 = None
 reply_to_my_call = None
 reception_report_received = None
 best_regards = None
-best_regards_for_my_call = None
+best_regards_received_for_my_call = None
+best_regards_sent_to_call_selected = None
 report_received_73_for_my_call = None
 respond_with_positive_signal_report = None
 respond_with_negative_signal_report = None
@@ -365,7 +372,8 @@ def generate_sequences(call_selected):
     global reply_to_my_call
     global reception_report_received
     global best_regards
-    global best_regards_for_my_call    
+    global best_regards_received_for_my_call    
+    global best_regards_sent_to_call_selected
     global report_received_73_for_my_call
     global respond_with_positive_signal_report
     global respond_with_negative_signal_report
@@ -377,7 +385,8 @@ def generate_sequences(call_selected):
     reception_report_received = f"{call_selected} RRR"
     reply_to_my_call = f"{your_callsign} {call_selected}"
     report_received_73_for_my_call = f"{your_callsign} {call_selected} RR73"
-    best_regards_for_my_call = f"{your_callsign} {call_selected} 73"
+    best_regards_received_for_my_call = f"{your_callsign} {call_selected} 73"
+    best_regards_sent_to_call_selected = f"{call_selected} {your_callsign} 73"
     best_regards = f"{call_selected} 73"
     respond_with_positive_signal_report = f"{call_selected} +"
     respond_with_negative_signal_report = f"{call_selected} -"
@@ -388,7 +397,8 @@ def generate_sequences(call_selected):
     # Attention, l'ordre doit être respecté par ordre décroissant d'importance des messages
     return {
         'report_received_73_for_my_call': report_received_73_for_my_call,
-        'best_regards_for_my_call': best_regards_for_my_call,
+        'best_regards_received_for_my_call': best_regards_received_for_my_call,
+        'best_regards_sent_to_call_selected': best_regards_sent_to_call_selected,
         'best_regards': best_regards,
         'reply_to_my_call': reply_to_my_call,
         'reception_report_received': reception_report_received,
@@ -489,7 +499,8 @@ def monitor_file(file_path, window_title, control_function_name):
     global reception_report_received
     global report_received_73
     global reply_to_my_call
-    global best_regards_for_my_call    
+    global best_regards_received_for_my_call    
+    global best_regards_sent_to_call_selected
     global best_regards
     global report_received_73_for_my_call
     global respond_with_positive_signal_report
@@ -537,10 +548,17 @@ def monitor_file(file_path, window_title, control_function_name):
                     sequences_found = find_sequences(file_path, sequences_to_find)
                     exit_message = False
 
-                    sequences_to_check = [
-                        report_received_73_for_my_call,
-                        best_regards_for_my_call
-                    ]
+                    # Regular normal mode
+                    if instance_mode == "Normal":
+                        sequences_to_check = [
+                            best_regards_sent_to_call_selected
+                        ]
+                    # Might be Hound or Super hound    
+                    else:
+                        sequences_to_check = [
+                            report_received_73_for_my_call,
+                            best_regards_received_for_my_call
+                        ]
 
                     # Recherche de la première séquence de sortie décodée
                     for sequence in sequences_to_check:

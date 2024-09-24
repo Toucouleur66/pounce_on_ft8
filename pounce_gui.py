@@ -30,6 +30,7 @@ def run_script():
     time_hopping = time_hopping_var.get()
     callsign = callsign_var.get()
     your_callsign = your_callsign_var.get()
+    mode = mode_var.get() 
     
     if not callsign:
         messagebox.showerror("Erreur", "Le champ Call Sign est obligatoire")
@@ -40,7 +41,8 @@ def run_script():
         "frequencies": frequencies,
         "time_hopping": time_hopping,
         "callsign": callsign,
-        "your_callsign": your_callsign
+        "your_callsign": your_callsign,
+        "mode": mode 
     }
     save_params(params)
     
@@ -51,6 +53,8 @@ def run_script():
         cmd += f" -fh {frequencies}"
     if time_hopping:
         cmd += f" -th {time_hopping}"
+    if mode:
+        cmd += f" -m {mode}"
     
     def target():
         try:
@@ -85,6 +89,7 @@ instance_var = tk.StringVar(value=params.get("instance", "JTDX"))
 frequency_var = tk.StringVar(value=params.get("frequencies", ""))
 time_hopping_var = tk.StringVar(value=params.get("time_hopping", ""))
 callsign_var = tk.StringVar(value=params.get("callsign", ""))
+mode_var = tk.StringVar(value=params.get("mode", "Normal"))
 
 your_callsign_var.trace_add("write", force_uppercase)
 callsign_var.trace_add("write", force_uppercase)
@@ -109,6 +114,10 @@ time_hopping_entry.grid(column=1, row=3, padx=10, pady=5)
 ttk.Label(root, text="Call Sign:").grid(column=0, row=4, padx=10, pady=5, sticky=tk.W)
 callsign_entry = ttk.Entry(root, textvariable=callsign_var)
 callsign_entry.grid(column=1, row=4, padx=10, pady=5)
+
+ttk.Label(root, text="Mode:").grid(column=0, row=5, padx=10, pady=5, sticky=tk.W)
+mode_combo = ttk.Combobox(root, textvariable=mode_var, values=["Normal", "Fox/Hound", "SuperFox"])
+mode_combo.grid(column=1, row=5, padx=10, pady=5)
 
 run_button = tk.Button(root, text="Click to Wait & Pounce", command=run_script)
 run_button.grid(column=0, row=5, padx=10, pady=10)
