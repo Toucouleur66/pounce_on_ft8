@@ -508,7 +508,7 @@ def monitor_file(file_path, window_title, control_function_name):
     global confirm_signal_and_respond_with_positive_signal_report
     global confirm_signal_and_respond_with_negative_signal_report
 
-    print(f"\n=== Démarrage Monitoring pour {control_function_name} {highlight_calls(wanted_callsigns_list)} ===")
+    print(f"\n=== Démarrage Monitoring pour {control_function_name} {bright_green('[' + instance_mode + ']')} {highlight_calls(wanted_callsigns_list)} ===")
 
     wsjt_ready = False
     jtdx_ready = False
@@ -551,13 +551,13 @@ def monitor_file(file_path, window_title, control_function_name):
                     # Regular normal mode
                     if instance_mode == "Normal":
                         sequences_to_check = [
-                            best_regards_sent_to_call_selected
+                            best_regards_sent_to_call_selected,
+                            best_regards_received_for_my_call
                         ]
                     # Might be Hound or Super hound    
                     else:
                         sequences_to_check = [
-                            report_received_73_for_my_call,
-                            best_regards_received_for_my_call
+                            report_received_73_for_my_call
                         ]
 
                     # Recherche de la première séquence de sortie décodée
@@ -568,7 +568,7 @@ def monitor_file(file_path, window_title, control_function_name):
                             break 
 
                     if exit_message and last_exit_message != exit_message:
-                        print(f"Séquence de sortie trouvée {white_on_red(report_received_73_for_my_call)}: {black_on_white(exit_message)}")
+                        print(f"Séquence de sortie trouvée {white_on_red(sequence_found)}: {black_on_white(exit_message)}")
                         # Mise à jours de la dernière séquence de sortie
                         last_exit_message = exit_message
                         
