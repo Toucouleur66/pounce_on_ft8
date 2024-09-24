@@ -624,6 +624,7 @@ def monitor_file(file_path, window_title, control_function_name):
                             reception_report_received, 
                             best_regards,                                                     
                             best_regards_received_for_my_call,
+                            report_received_73_for_my_call,
                             respond_with_positive_signal_report,
                             respond_with_negative_signal_report,
                             confirm_signal_and_respond_with_positive_signal_report,
