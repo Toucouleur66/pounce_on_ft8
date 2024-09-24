@@ -573,6 +573,9 @@ def monitor_file(file_path, window_title, control_function_name):
                         # Mise à jours de la dernière séquence de sortie
                         last_exit_message = exit_message
                         
+                        if instance_mode == "Normal":
+                            time.sleep(15)
+
                         if control_function_name == 'JTDX':
                             jtdx_ready = disable_tx_jtdx(window_title)
                         elif control_function_name == 'WSJT':
