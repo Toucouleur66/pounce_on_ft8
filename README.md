@@ -44,7 +44,7 @@ jtdx_window_title = "JTDX - FT5000  by HF community                             
 - [ ] Logging QSO remains an issue due to variable size of the log window
 
 ## `JTDX` (Regular Mode, F/H and S/F)
-_ [ ] WHen focus after reading for the first time log file, doesn't Enable TX immediatly
+_ [ ] When focus after reading for the first time log file, doesn't Enable TX immediately
 - [x] When `JTDX` does not have a callsign set at `DX Call`, can't set any new callsign and generate message
 - [ ] Sometime, `replace_input_field_content` method can't set number for a callsign
 
