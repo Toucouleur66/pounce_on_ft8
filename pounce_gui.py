@@ -108,7 +108,6 @@ def update_listbox():
         listbox.insert(tk.END, callsign)  
 
 def on_listbox_select(event):
-    """Gestionnaire d'événement lorsque l'utilisateur sélectionne un élément dans la Listbox."""
     selection = listbox.curselection()
     if selection:
         selected_callsign = listbox.get(selection[0])
@@ -171,10 +170,11 @@ radio_superfox = ttk.Radiobutton(radio_frame, text="SuperFox", variable=mode_var
 radio_superfox.grid(column=2, row=0, padx=5, pady=5, sticky=tk.W)
 
 # Listbox pour afficher l'historique des wanted_callsigns
-ttk.Label(root, text="Wanted Callsigns History:").grid(column=2, row=0, rowspan=5, padx=10, pady=5, sticky=tk.N)
+ttk.Label(root, text="Wanted Callsigns History:").grid(column=2, row=0, columnspan=2, padx=10, pady=5, sticky=tk.W)
 
-listbox = tk.Listbox(root, height=5) 
-listbox.grid(column=2, row=1, rowspan=5, padx=10, pady=5, sticky=tk.N)
+
+listbox = tk.Listbox(root, height=6) 
+listbox.grid(column=2, row=1, rowspan=6, columnspan=2, padx=10, pady=5, sticky=tk.W+tk.E)
 listbox.bind("<<ListboxSelect>>", on_listbox_select)  
 
 # Bouton pour exécuter le script
