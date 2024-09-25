@@ -6,9 +6,8 @@ import os
 import threading
 
 PARAMS_FILE = "params.pkl"
-# Fichier pour sauvegarder les saisies précédentes
 WANTED_CALLSIGNS_FILE = "wanted_callsigns.pkl"  
-MAX_HISTORY = 10
+MAX_HISTORY = 10  
 
 def force_uppercase(*args):
     value = your_callsign_var.get()
@@ -27,7 +26,7 @@ def save_params(params):
     with open(PARAMS_FILE, "wb") as f:
         pickle.dump(params, f)
 
-def load_wanted_callsigns():    
+def load_wanted_callsigns():
     if os.path.exists(WANTED_CALLSIGNS_FILE):
         with open(WANTED_CALLSIGNS_FILE, "rb") as f:
             return pickle.load(f)
@@ -45,6 +44,8 @@ def update_wanted_callsigns_history(new_callsign):
             if len(wanted_callsigns_history) > MAX_HISTORY:
                 wanted_callsigns_history.pop(0)
             save_wanted_callsigns(wanted_callsigns_history)
+            # Met à jour la Listbox
+            update_listbox()
 
 def run_script():
     instance_type = instance_var.get()
@@ -57,7 +58,8 @@ def run_script():
     if not callsign:
         messagebox.showerror("Erreur", "Le champ Call Sign est obligatoire")
         return
-    
+
+    # Mettre à jour et sauvegarder l'historique des wanted_callsigns
     update_wanted_callsigns_history(callsign)
 
     params = {
@@ -100,9 +102,22 @@ def stop_script():
             run_button.config(state="normal", background="SystemButtonFace", text="Run Script")
             messagebox.showinfo("Interruption", "Script interrompu")
 
+def update_listbox():
+    listbox.delete(0, tk.END) 
+    for callsign in wanted_callsigns_history:
+        listbox.insert(tk.END, callsign)  
+
+def on_listbox_select(event):
+    """Gestionnaire d'événement lorsque l'utilisateur sélectionne un élément dans la Listbox."""
+    selection = listbox.curselection()
+    if selection:
+        selected_callsign = listbox.get(selection[0])
+        callsign_var.set(selected_callsign) 
+
 # Charger les paramètres précédemment sauvegardés
 params = load_params()
 
+# Charger l'historique des wanted_callsigns
 wanted_callsigns_history = load_wanted_callsigns()
 
 # Création de la fenêtre principale
@@ -138,8 +153,8 @@ time_hopping_entry = ttk.Entry(root, textvariable=time_hopping_var)
 time_hopping_entry.grid(column=1, row=3, padx=10, pady=5)
 
 ttk.Label(root, text="Call Sign:").grid(column=0, row=4, padx=10, pady=5, sticky=tk.W)
-callsign_combo = ttk.Combobox(root, textvariable=callsign_var, values=wanted_callsigns_history)
-callsign_combo.grid(column=1, row=4, padx=10, pady=5)
+callsign_entry = ttk.Entry(root, textvariable=callsign_var)
+callsign_entry.grid(column=1, row=4, padx=10, pady=5)
 
 ttk.Label(root, text="Mode:").grid(column=0, row=5, padx=10, pady=5, sticky=tk.W)
 
@@ -155,11 +170,23 @@ radio_foxhound.grid(column=1, row=0, padx=5, pady=5, sticky=tk.W)
 radio_superfox = ttk.Radiobutton(radio_frame, text="SuperFox", variable=mode_var, value="SuperFox")
 radio_superfox.grid(column=2, row=0, padx=5, pady=5, sticky=tk.W)
 
+# Listbox pour afficher l'historique des wanted_callsigns
+ttk.Label(root, text="Wanted Callsigns History:").grid(column=2, row=0, rowspan=5, padx=10, pady=5, sticky=tk.N)
+
+listbox = tk.Listbox(root, height=5) 
+listbox.grid(column=2, row=1, rowspan=5, padx=10, pady=5, sticky=tk.N)
+listbox.bind("<<ListboxSelect>>", on_listbox_select)  
+
+# Bouton pour exécuter le script
 run_button = tk.Button(root, text="Click to Wait & Pounce", command=run_script)
 run_button.grid(column=0, row=6, padx=10, pady=10)
 
+# Bouton pour arrêter le script
 stop_button = tk.Button(root, text="Stop all", command=stop_script)
 stop_button.grid(column=1, row=6, padx=10, pady=10)
+
+# Met à jour la Listbox avec l'historique
+update_listbox()
 
 # Exécution de la boucle principale
 root.mainloop()
