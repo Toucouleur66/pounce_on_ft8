@@ -65,7 +65,7 @@ parser.add_argument('-m', '--mode', type=str, default=default_instance_mode, hel
 args = parser.parse_args()
 
 your_callsign = args.your_callsign.upper()
-wanted_callsigns_list = args.wanted_callsigns.upper().split(",")
+wanted_callsigns_list = [call for call in args.wanted_callsigns.upper().split(",") if len(call) >= 3]
 frequency = args.frequency
 instance = args.instance
 frequency_hopping = args.frequency_hopping
@@ -75,6 +75,7 @@ instance_mode = args.mode
 # Prise en charge des fréquences à gérer
 if frequency_hopping:
     frequency_hopping = list(map(int, args.frequency_hopping.split(',')))
+    frequency_hopping = [freq for freq in frequency_hopping if is_valid_frequency(freq)]
 
 # Définition des séquences à identifier
 cq_call_selected = None
@@ -96,6 +97,23 @@ init()
 # Event global pour signaler l'arrêt des threads
 stop_event = threading.Event()
 
+def is_valid_frequency(freq):
+    # Plages de fréquences autorisées
+    valid_ranges = [
+        (1800, 2000),
+        (3500, 4000),
+        (5330, 5400),
+        (7000, 7100),
+        (10100, 10150),
+        (14000, 14350),
+        (18068, 18168),
+        (21000, 21450),
+        (24890, 24990),
+        (28000, 29700),
+        (50000, 50500)
+    ]
+    return any(lower <= freq <= upper for lower, upper in valid_ranges)
+
 def find_latest_file(dir_path, pattern="*ALL.TXT"):
     files = glob.glob(os.path.join(dir_path, pattern))
     if not files:
@@ -103,7 +121,7 @@ def find_latest_file(dir_path, pattern="*ALL.TXT"):
     latest_file = max(files, key=os.path.getmtime)    
     return latest_file
 
-# Fonction de décoration de texte
+# Fonction d'affichage de couleur de texte
 def black_on_green(text):
     return f"{Fore.BLACK}{Back.GREEN}{text}{Style.RESET_ALL}"
 
@@ -557,6 +575,8 @@ def monitor_file(file_path, window_title, control_function_name):
                 if active_call:
                     sequences_to_find = generate_sequences(active_call)
                     sequences_found = find_sequences(file_path, sequences_to_find)
+
+                    # Check for exit loop
                     exit_message = False
 
                     # Regular normal mode
