@@ -4,6 +4,7 @@ import subprocess
 import pickle
 import os
 import threading
+import datetime
 
 PARAMS_FILE = "params.pkl"
 WANTED_CALLSIGNS_FILE = "wanted_callsigns.pkl"  
@@ -47,6 +48,15 @@ def update_wanted_callsigns_history(new_callsign):
             # Met à jour la Listbox
             update_listbox()
 
+def get_log_filename():
+    today = datetime.datetime.now().strftime("%y%m%d") 
+    return f"{today}_pounce.log"
+
+def log_to_file(filename, message):
+    timestamp = datetime.datetime.now().strftime("%y%m%d_%H%M%S") 
+    with open(filename, "a") as log_file:
+        log_file.write(f"{timestamp} {message}\n")
+
 def run_script():
     instance_type = instance_var.get()
     frequencies = frequency_var.get()
@@ -83,12 +93,35 @@ def run_script():
         cmd += f" -m {mode}"
     
     def target():
+        log_filename = get_log_filename()
         try:
             run_button.config(state="disabled", background="red", text="Running...")
-            subprocess.run(cmd, shell=True, check=True)
-            messagebox.showinfo("Succès", "Script exécuté avec succès")
-        except subprocess.CalledProcessError as e:
+            process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            
+            # Lire la sortie du script et l'afficher dans le Text widget
+            for line in process.stdout:
+                output_text.insert(tk.END, line)
+                output_text.see(tk.END)  # Faire défiler vers la fin
+                
+                log_filename = get_log_filename()
+
+            for error_line in process.stderr:
+                output_text.insert(tk.END, f"ERROR: {error_line}", "error")
+                output_text.see(tk.END)
+                
+                log_to_file(log_filename, f"ERROR: {error_line.strip()}")
+            
+            process.stdout.close()
+            process.stderr.close()
+            process.wait()
+
+            if process.returncode == 0:
+                messagebox.showinfo("Succès", "Script exécuté avec succès")
+            else:
+                messagebox.showerror("Erreur", f"Erreur lors de l'exécution du script. Code: {process.returncode}")
+        except Exception as e:
             messagebox.showerror("Erreur", f"Erreur lors de l'exécution du script : {e}")
+            log_to_file(log_filename, f"Exception: {str(e)}")
         finally:
             run_button.config(state="normal", background="SystemButtonFace", text="Run Script")
     
@@ -121,7 +154,7 @@ wanted_callsigns_history = load_wanted_callsigns()
 
 # Création de la fenêtre principale
 root = tk.Tk()
-root.geometry("900x270")
+root.geometry("900x600")
 root.grid_columnconfigure(2, weight=1) 
 root.grid_columnconfigure(3, weight=1) 
 root.grid_columnconfigure(4, weight=1) 
@@ -182,6 +215,9 @@ ttk.Label(root, text="Wanted Callsigns History:").grid(column=2, row=0, padx=10,
 listbox = tk.Listbox(root, height=6, bg="#d080d0", fg="black", font=courier_bold_font)
 listbox.grid(column=2, row=0, rowspan=6, columnspan=3, padx=10, pady=0, sticky=tk.W+tk.E)
 listbox.bind("<<ListboxSelect>>", on_listbox_select) 
+
+output_text = tk.Text(root, height=20, width=100, bg="#D3D3D3", font=("Courier", 10, "normal"))
+output_text.grid(column=0, row=7, columnspan=5, padx=10, pady=10, sticky="ew")
 
 button_frame = tk.Frame(root)
 button_frame.grid(column=1, row=6, padx=10, pady=10)
