@@ -33,7 +33,7 @@ default_time_hopping = 10
 hop_index = 0
 
 # Gestion du compteur de log 
-check_call_count = 0
+log_analyze_count = 0
 
 # Instance par défaut
 default_instance_type = "JTDX"
@@ -51,31 +51,6 @@ ODD = "ODD"
 
 color_tx_enabled = (255, 60, 60)
 color_tx_disabled = (220, 220, 220)
-
-# Définir les arguments de la ligne de commande
-parser = argparse.ArgumentParser(description='Surveillance des fichiers de logs pour une séquence spécifique.')
-parser.add_argument('-yc', '--your_callsign', type=str, required=True, help='Votre indicatif d\'appel')
-parser.add_argument('-wc', '--wanted_callsigns', type=str, required=True, help='Les calls à appeler (séparrés d\'une virgule)')
-parser.add_argument('-f', '--frequency', type=int, default=None, help="(optionnel) La fréquence à utiliser (en Khz, par exemple 28091, en cas d'absence de fréquence spécifiée, l'instance conserve sa fréquence actuelle)")
-parser.add_argument('-i', '--instance', type=str, default=default_instance_type, help=f'Le type d\'instance à lancer (valeurs autorisées "JTDX" ou "WSJT", par défaut "{default_instance_type}")')
-parser.add_argument('-fh', '--frequency_hopping', type=str, default=None, help="(optionnel) Les fréquences à utiliser (en Khz, par exemple 28091,18095,24911) le basculement des fréquences s'effectuera dans l'ordre indiqué")
-parser.add_argument('-th', '--time_hopping', type=int, default=default_time_hopping, help=f'(optionnel) Le temps entre chaque saut de fréquence si --frequency_hopping a été précisé (fixé par défaut à {default_time_hopping} minutes)')
-parser.add_argument('-m', '--mode', type=str, default=default_instance_mode, help="(Normal par défaut) Le mode à utiliser")
-
-args = parser.parse_args()
-
-your_callsign = args.your_callsign.upper()
-wanted_callsigns_list = [call for call in args.wanted_callsigns.upper().split(",") if len(call) >= 3]
-frequency = args.frequency
-instance = args.instance
-frequency_hopping = args.frequency_hopping
-time_hopping = args.time_hopping
-instance_mode = args.mode
-
-# Prise en charge des fréquences à gérer
-if frequency_hopping:
-    frequency_hopping = list(map(int, args.frequency_hopping.split(',')))
-    frequency_hopping = [freq for freq in frequency_hopping if is_valid_frequency(freq)]
 
 # Définition des séquences à identifier
 cq_call_selected = None
@@ -384,7 +359,7 @@ def ends_with_even_or_odd(log_time_str):
         return False
 
 # Séquences à identifier
-def generate_sequences(call_selected):
+def generate_sequences(your_callsign, call_selected):
     global cq_call_selected
     global report_received_73
     global reply_to_my_call
@@ -441,8 +416,8 @@ def get_log_time(log_time_str, utc):
     return log_time.replace(tzinfo=utc) 
 
 def find_sequences(file_path, sequences, last_number_of_lines=100, time_max_expected_in_minutes=10):    
-    global check_call_count
-    check_call_count += 1
+    global log_analyze_count
+    log_analyze_count += 1
 
     # Obtenir le fuseau horaire UTC
     utc = datetime.timezone.utc
@@ -510,8 +485,18 @@ def find_sequences(file_path, sequences, last_number_of_lines=100, time_max_expe
 def highlight_calls(wanted_callsigns_list):
     return ", ".join([black_on_yellow(call) for call in wanted_callsigns_list])
 
-def monitor_file(file_path, window_title, control_function_name):
-    global check_call_count
+def monitor_file(
+        file_path,
+        window_title, 
+        control_function_name, 
+        control_log_count,
+        frequency_hopping,
+        time_hopping,
+        your_callsign,
+        wanted_callsigns_list,
+        instance_mode
+    ):
+    global log_analyze_count
     global hop_index
     # Sequences
     global cq_call_selected
@@ -565,7 +550,7 @@ def monitor_file(file_path, window_title, control_function_name):
                 if not active_call:
                     # Rechercher dans le fichier un call à partir de la liste
                     for wanted_callsigns in wanted_callsigns_list:
-                        sequences_to_find = generate_sequences(wanted_callsigns)
+                        sequences_to_find = generate_sequences(your_callsign, wanted_callsigns)
                         sequences_found = find_sequences(file_path, sequences_to_find)
                         if any(sequences_found.values()):
                             active_call = wanted_callsigns
@@ -573,7 +558,7 @@ def monitor_file(file_path, window_title, control_function_name):
                             break
 
                 if active_call:
-                    sequences_to_find = generate_sequences(active_call)
+                    sequences_to_find = generate_sequences(your_callsign, active_call)
                     sequences_found = find_sequences(file_path, sequences_to_find)
 
                     # Check for exit loop
@@ -699,7 +684,8 @@ def monitor_file(file_path, window_title, control_function_name):
                                 wsjt_ready = False
 
                 # Afficher le compteur de vérifications
-                print(f"Mise à jour du log et suivi {black_on_white(control_function_name + ' #' + str(check_call_count))}", end='\r')
+                print(f"Mise à jour du log et suivi {black_on_white(control_function_name + ' #' + str(log_analyze_count))}", end='\r')
+                control_log_count(log_analyze_count)
             
             if time_hopping and frequency_hopping:  
                 # Vérifier si time_hopping exprimé en minutes a été dépassé
@@ -730,22 +716,48 @@ wsjt_window_title = "WSJT-X   v2.7.1-devel   by K1JT et al."
 jtdx_window_title = "JTDX - FT5000  by HF community                                         v2.2.160-rc7 , derivative work based on WSJT-X by K1JT"
 
 
-def main():
+def main(
+        instance_type, 
+        frequency,
+        time_hopping,
+        your_callsign,
+        wanted_callsigns_list,
+        instance_mode,
+        control_log_count
+    ):
+    wanted_callsigns_list = [call for call in wanted_callsigns_list.upper().split(",") if len(call) >= 3]
+    frequency_hopping = None
+
+    # Prise en charge des fréquences à gérer
+    if frequency:
+        frequency_hopping = list(map(int, frequency_hopping.split(',')))
+        frequency_hopping = [freq for freq in frequency_hopping if is_valid_frequency(freq)]
+
     if frequency and frequency_hopping == None:
         restore_and_or_move_window(jtdx_window_title, 0, 90, 1090, 960)
         change_qrg_jtdx(jtdx_window_title, format_with_comma(frequency))
     
     # Ajouter les tâches à la queue de travail
-    if instance == 'JTDX':
+    if instance_type == 'JTDX':
         working_file_path = find_latest_file(jtdx_file_path)
         working_window_title = jtdx_window_title
-    elif instance == 'WSJT':
+    elif instance_type == 'WSJT':
         working_file_path = find_latest_file(wsjt_file_path)
         working_window_title = wsjt_window_title
     
-    print(f"\nMonitoring pour {white_on_blue(your_callsign)} du fichier: {white_on_red(working_file_path)}")
+    print(f"Monitoring pour {white_on_blue(your_callsign)} du fichier: {white_on_red(working_file_path)}")
 
-    monitor_file(working_file_path, working_window_title, instance)
+    monitor_file(
+        working_file_path,
+        working_window_title, 
+        instance_type, 
+        control_log_count,
+        frequency_hopping,
+        time_hopping,
+        your_callsign,
+        wanted_callsigns_list,
+        instance_mode
+    )
 
     return 0
 

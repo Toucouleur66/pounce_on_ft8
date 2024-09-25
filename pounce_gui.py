@@ -5,17 +5,28 @@ import pickle
 import os
 import threading
 import datetime
+import sys
+import wait_and_pounce
 
 PARAMS_FILE = "params.pkl"
 WANTED_CALLSIGNS_FILE = "wanted_callsigns.pkl"  
 MAX_HISTORY = 10  
 
-def force_uppercase(*args):
-    value = your_callsign_var.get()
-    your_callsign_var.set(value.upper())
+# Classe pour rediriger stdout vers le widget Text
+class DebugRedirector:
+    def __init__(self, widget):
+        self.widget = widget
 
-    value = callsign_var.get()
-    callsign_var.set(value.upper())
+    def write(self, string):
+        self.widget.insert(tk.END, string)
+        self.widget.see(tk.END) 
+
+    def flush(self):
+        pass 
+
+def force_uppercase(*args):
+    your_callsign_var.set(your_callsign_var.get().upper())
+    wanted_callsigns_var.set(wanted_callsigns_var.get().upper())
 
 def load_params():
     if os.path.exists(PARAMS_FILE):
@@ -61,70 +72,45 @@ def run_script():
     instance_type = instance_var.get()
     frequencies = frequency_var.get()
     time_hopping = time_hopping_var.get()
-    callsign = callsign_var.get()
+    wanted_callsigns = wanted_callsigns_var.get()
     your_callsign = your_callsign_var.get()
-    mode = mode_var.get() 
-    
-    if not callsign:
-        messagebox.showerror("Erreur", "Le champ Call Sign est obligatoire")
-        return
+    mode = mode_var.get()
 
-    # Mettre à jour et sauvegarder l'historique des wanted_callsigns
-    update_wanted_callsigns_history(callsign)
+    update_wanted_callsigns_history(wanted_callsigns)
 
     params = {
         "instance": instance_type,
         "frequencies": frequencies,
         "time_hopping": time_hopping,
-        "callsign": callsign,
+        "wanted_callsigns": wanted_callsigns,
         "your_callsign": your_callsign,
         "mode": mode 
     }
     save_params(params)
-    
-    cmd = f"python wait_and_pounce.py -wc {callsign} -yc {your_callsign_var.get()}"
-    if instance_type:
-        cmd += f" -i {instance_type}"
-    if frequencies:
-        cmd += f" -fh {frequencies}"
-    if time_hopping:
-        cmd += f" -th {time_hopping}"
-    if mode:
-        cmd += f" -m {mode}"
-    
+
     def target():
         log_filename = get_log_filename()
         try:
             run_button.config(state="disabled", background="red", text="Running...")
-            process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             
-            # Lire la sortie du script et l'afficher dans le Text widget
-            for line in process.stdout:
-                output_text.insert(tk.END, line)
-                output_text.see(tk.END)  # Faire défiler vers la fin
-                
-                log_filename = get_log_filename()
+            # Appel direct à la fonction monitor_file avec les paramètres et la fonction callback
+            wait_and_pounce.main(
+                instance_type,
+                frequencies,
+                time_hopping,        
+                your_callsign,
+                wanted_callsigns,
+                mode,
+                update_log_count
+            )
 
-            for error_line in process.stderr:
-                output_text.insert(tk.END, f"ERROR: {error_line}", "error")
-                output_text.see(tk.END)
-                
-                log_to_file(log_filename, f"ERROR: {error_line.strip()}")
-            
-            process.stdout.close()
-            process.stderr.close()
-            process.wait()
-
-            if process.returncode == 0:
-                messagebox.showinfo("Succès", "Script exécuté avec succès")
-            else:
-                messagebox.showerror("Erreur", f"Erreur lors de l'exécution du script. Code: {process.returncode}")
         except Exception as e:
             messagebox.showerror("Erreur", f"Erreur lors de l'exécution du script : {e}")
             log_to_file(log_filename, f"Exception: {str(e)}")
         finally:
             run_button.config(state="normal", background="SystemButtonFace", text="Run Script")
-    
+
+    # Lancer l'exécution du script dans un thread séparé pour ne pas bloquer l'interface
     thread = threading.Thread(target=target)
     thread.start()
 
@@ -144,7 +130,10 @@ def on_listbox_select(event):
     selection = listbox.curselection()
     if selection:
         selected_callsign = listbox.get(selection[0])
-        callsign_var.set(selected_callsign) 
+        wanted_callsigns_var.set(selected_callsign) 
+
+def update_log_count(value):
+    log_been_analyzed_counter_var.set(f"Log Analysis Count: {value}")
 
 # Charger les paramètres précédemment sauvegardés
 params = load_params()
@@ -165,16 +154,22 @@ your_callsign_var = tk.StringVar(value=params.get("your_callsign", ""))
 instance_var = tk.StringVar(value=params.get("instance", "JTDX"))
 frequency_var = tk.StringVar(value=params.get("frequencies", ""))
 time_hopping_var = tk.StringVar(value=params.get("time_hopping", ""))
-callsign_var = tk.StringVar(value=params.get("callsign", ""))
+wanted_callsigns_var = tk.StringVar(value=params.get("callsign", ""))
 mode_var = tk.StringVar(value=params.get("mode", "Normal"))
 
 your_callsign_var.trace_add("write", force_uppercase)
-callsign_var.trace_add("write", force_uppercase)
+wanted_callsigns_var.trace_add("write", force_uppercase)
 
+# Création des widgets
 courier_font = ("Courier", 10, "normal")
 courier_bold_font = ("Courier", 12, "bold")
 
-# Création des widgets
+log_been_analyzed_counter_var = tk.StringVar()
+log_been_analyzed_counter_var.set("Log Analysis Count: 0")
+
+log_been_analyzed_counter_label = ttk.Label(root, textvariable= log_been_analyzed_counter_var, font=courier_font)
+log_been_analyzed_counter_label.grid(column=0, row=6, padx=10, pady=5)
+
 ttk.Label(root, text="Instance to monitor:").grid(column=0, row=0, padx=10, pady=5, sticky=tk.W)
 instance_combo = ttk.Combobox(root, textvariable=instance_var, values=["JTDX", "WSJT"], font=courier_font)
 instance_combo.grid(column=1, row=0, padx=10, pady=5)
@@ -192,8 +187,8 @@ time_hopping_entry = ttk.Entry(root, textvariable=time_hopping_var, font=courier
 time_hopping_entry.grid(column=1, row=3, padx=10, pady=5)
 
 ttk.Label(root, text="Wanted Callsign(s) (comma-separated):").grid(column=0, row=4, padx=10, pady=5, sticky=tk.W)
-callsign_entry = ttk.Entry(root, textvariable=callsign_var, font=courier_font)
-callsign_entry.grid(column=1, row=4, padx=10, pady=5)
+wanted_callsigns_entry = ttk.Entry(root, textvariable=wanted_callsigns_var, font=courier_font)
+wanted_callsigns_entry.grid(column=1, row=4, padx=10, pady=5)
 
 ttk.Label(root, text="Mode:").grid(column=0, row=5, padx=10, pady=5, sticky=tk.W)
 
@@ -232,6 +227,8 @@ stop_button.pack(side="left", padx=5)
 
 # Met à jour la Listbox avec l'historique
 update_listbox()
+
+sys.stdout = DebugRedirector(output_text)
 
 # Exécution de la boucle principale
 root.mainloop()
