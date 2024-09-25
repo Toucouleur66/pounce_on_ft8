@@ -6,6 +6,9 @@ import os
 import threading
 
 PARAMS_FILE = "params.pkl"
+# Fichier pour sauvegarder les saisies précédentes
+WANTED_CALLSIGNS_FILE = "wanted_callsigns.pkl"  
+MAX_HISTORY = 10
 
 def force_uppercase(*args):
     value = your_callsign_var.get()
@@ -24,6 +27,25 @@ def save_params(params):
     with open(PARAMS_FILE, "wb") as f:
         pickle.dump(params, f)
 
+def load_wanted_callsigns():    
+    if os.path.exists(WANTED_CALLSIGNS_FILE):
+        with open(WANTED_CALLSIGNS_FILE, "rb") as f:
+            return pickle.load(f)
+    return []
+
+def save_wanted_callsigns(wanted_callsigns_history):
+    with open(WANTED_CALLSIGNS_FILE, "wb") as f:
+        pickle.dump(wanted_callsigns_history, f)
+
+def update_wanted_callsigns_history(new_callsign):
+    if new_callsign:
+        if new_callsign not in wanted_callsigns_history:
+            wanted_callsigns_history.append(new_callsign)
+            # Limiter à 10 entrées
+            if len(wanted_callsigns_history) > MAX_HISTORY:
+                wanted_callsigns_history.pop(0)
+            save_wanted_callsigns(wanted_callsigns_history)
+
 def run_script():
     instance_type = instance_var.get()
     frequencies = frequency_var.get()
@@ -35,6 +57,8 @@ def run_script():
     if not callsign:
         messagebox.showerror("Erreur", "Le champ Call Sign est obligatoire")
         return
+    
+    update_wanted_callsigns_history(callsign)
 
     params = {
         "instance": instance_type,
@@ -79,6 +103,8 @@ def stop_script():
 # Charger les paramètres précédemment sauvegardés
 params = load_params()
 
+wanted_callsigns_history = load_wanted_callsigns()
+
 # Création de la fenêtre principale
 root = tk.Tk()
 root.title("Wait and Pounce")
@@ -112,8 +138,8 @@ time_hopping_entry = ttk.Entry(root, textvariable=time_hopping_var)
 time_hopping_entry.grid(column=1, row=3, padx=10, pady=5)
 
 ttk.Label(root, text="Call Sign:").grid(column=0, row=4, padx=10, pady=5, sticky=tk.W)
-callsign_entry = ttk.Entry(root, textvariable=callsign_var)
-callsign_entry.grid(column=1, row=4, padx=10, pady=5)
+callsign_combo = ttk.Combobox(root, textvariable=callsign_var, values=wanted_callsigns_history)
+callsign_combo.grid(column=1, row=4, padx=10, pady=5)
 
 ttk.Label(root, text="Mode:").grid(column=0, row=5, padx=10, pady=5, sticky=tk.W)
 
