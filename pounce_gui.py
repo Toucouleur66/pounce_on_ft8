@@ -121,7 +121,11 @@ wanted_callsigns_history = load_wanted_callsigns()
 
 # Création de la fenêtre principale
 root = tk.Tk()
-root.title("Wait and Pounce")
+root.geometry("900x270")
+root.grid_columnconfigure(2, weight=1) 
+root.grid_columnconfigure(3, weight=1) 
+root.grid_columnconfigure(4, weight=1) 
+root.title("Wait and Pounce (by F5UKW under GNU GPL Licence)")
 
 # Variables
 your_callsign_var = tk.StringVar(value=params.get("your_callsign", ""))
@@ -134,25 +138,28 @@ mode_var = tk.StringVar(value=params.get("mode", "Normal"))
 your_callsign_var.trace_add("write", force_uppercase)
 callsign_var.trace_add("write", force_uppercase)
 
+courier_font = ("Courier", 10, "normal")
+courier_bold_font = ("Courier", 12, "bold")
+
 # Création des widgets
 ttk.Label(root, text="Instance to monitor:").grid(column=0, row=0, padx=10, pady=5, sticky=tk.W)
-instance_combo = ttk.Combobox(root, textvariable=instance_var, values=["JTDX", "WSJT"])
+instance_combo = ttk.Combobox(root, textvariable=instance_var, values=["JTDX", "WSJT"], font=courier_font)
 instance_combo.grid(column=1, row=0, padx=10, pady=5)
 
 ttk.Label(root, text="Your Call:").grid(column=0, row=1, padx=10, pady=5, sticky=tk.W)
-your_callsign_entry = ttk.Entry(root, textvariable=your_callsign_var)
+your_callsign_entry = ttk.Entry(root, textvariable=your_callsign_var, font=courier_font)
 your_callsign_entry.grid(column=1, row=1, padx=10, pady=5)
 
 ttk.Label(root, text="Frequencies (comma-separated):").grid(column=0, row=2, padx=10, pady=5, sticky=tk.W)
-frequency_entry = ttk.Entry(root, textvariable=frequency_var)
+frequency_entry = ttk.Entry(root, textvariable=frequency_var, font=courier_font)
 frequency_entry.grid(column=1, row=2, padx=10, pady=5)
 
 ttk.Label(root, text="Time Hopping (minutes):").grid(column=0, row=3, padx=10, pady=5, sticky=tk.W)
-time_hopping_entry = ttk.Entry(root, textvariable=time_hopping_var)
+time_hopping_entry = ttk.Entry(root, textvariable=time_hopping_var, font=courier_font)
 time_hopping_entry.grid(column=1, row=3, padx=10, pady=5)
 
-ttk.Label(root, text="Call Sign:").grid(column=0, row=4, padx=10, pady=5, sticky=tk.W)
-callsign_entry = ttk.Entry(root, textvariable=callsign_var)
+ttk.Label(root, text="Wanted Callsign(s) (comma-separated):").grid(column=0, row=4, padx=10, pady=5, sticky=tk.W)
+callsign_entry = ttk.Entry(root, textvariable=callsign_var, font=courier_font)
 callsign_entry.grid(column=1, row=4, padx=10, pady=5)
 
 ttk.Label(root, text="Mode:").grid(column=0, row=5, padx=10, pady=5, sticky=tk.W)
@@ -160,30 +167,32 @@ ttk.Label(root, text="Mode:").grid(column=0, row=5, padx=10, pady=5, sticky=tk.W
 radio_frame = ttk.Frame(root)
 radio_frame.grid(column=1, row=5, padx=10, pady=5)
 
-radio_normal = ttk.Radiobutton(radio_frame, text="Normal", variable=mode_var, value="Normal")
+radio_normal = tk.Radiobutton(radio_frame, text="Normal", variable=mode_var, value="Normal", font=courier_font)
 radio_normal.grid(column=0, row=0, padx=5, pady=5, sticky=tk.W)
 
-radio_foxhound = ttk.Radiobutton(radio_frame, text="Fox/Hound", variable=mode_var, value="Fox/Hound")
+radio_foxhound = tk.Radiobutton(radio_frame, text="Fox/Hound", variable=mode_var, value="Fox/Hound", font=courier_font)
 radio_foxhound.grid(column=1, row=0, padx=5, pady=5, sticky=tk.W)
 
-radio_superfox = ttk.Radiobutton(radio_frame, text="SuperFox", variable=mode_var, value="SuperFox")
+radio_superfox = tk.Radiobutton(radio_frame, text="SuperFox", variable=mode_var, value="SuperFox", font=courier_font)
 radio_superfox.grid(column=2, row=0, padx=5, pady=5, sticky=tk.W)
 
 # Listbox pour afficher l'historique des wanted_callsigns
-ttk.Label(root, text="Wanted Callsigns History:").grid(column=2, row=0, columnspan=2, padx=10, pady=5, sticky=tk.W)
+ttk.Label(root, text="Wanted Callsigns History:").grid(column=2, row=0, padx=10, pady=0, sticky=tk.W)
 
+listbox = tk.Listbox(root, height=6, bg="#d080d0", fg="black", font=courier_bold_font)
+listbox.grid(column=2, row=0, rowspan=6, columnspan=3, padx=10, pady=0, sticky=tk.W+tk.E)
+listbox.bind("<<ListboxSelect>>", on_listbox_select) 
 
-listbox = tk.Listbox(root, height=6) 
-listbox.grid(column=2, row=1, rowspan=6, columnspan=2, padx=10, pady=5, sticky=tk.W+tk.E)
-listbox.bind("<<ListboxSelect>>", on_listbox_select)  
+button_frame = tk.Frame(root)
+button_frame.grid(column=1, row=6, padx=10, pady=10)
 
 # Bouton pour exécuter le script
-run_button = tk.Button(root, text="Click to Wait & Pounce", command=run_script)
-run_button.grid(column=0, row=6, padx=10, pady=10)
+run_button = tk.Button(button_frame, text="Click to Wait & Pounce", command=run_script)
+run_button.pack(side="left", padx=5)
 
 # Bouton pour arrêter le script
-stop_button = tk.Button(root, text="Stop all", command=stop_script)
-stop_button.grid(column=1, row=6, padx=10, pady=10)
+stop_button = tk.Button(button_frame, text="Stop all", command=stop_script)
+stop_button.pack(side="left", padx=5)
 
 # Met à jour la Listbox avec l'historique
 update_listbox()
