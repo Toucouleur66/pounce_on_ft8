@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, Menu
 import subprocess
 import pickle
 import os
@@ -24,6 +24,7 @@ WAIT_POUNCE_TITLE = "Click to Wait & Pounce"
 STOP_LOG_ANALYSIS_TITLE = "Stopped"
 
 gui_queue = queue.Queue()
+inputs_enabled = True
 
 def process_gui_queue():
     try:
@@ -104,9 +105,55 @@ def check_fields():
     else:
         run_button.config(state="disabled")
 
+def disable_inputs():
+    global inputs_enabled
+
+    inputs_enabled = False
+
+    instance_combo_entry.config(state="disabled")
+    your_callsign_entry.config(state="disabled")
+    frequency_entry.config(state="disabled")
+    time_hopping_entry.config(state="disabled")
+    wanted_callsigns_entry.config(state="disabled")
+
+    for child in radio_frame.winfo_children():
+        child.config(state="disabled")
+
+def enable_inputs():
+    global inputs_enabled
+    
+    inputs_enabled = True
+
+    instance_combo_entry.config(state="normal")
+    your_callsign_entry.config(state="normal")
+    frequency_entry.config(state="normal")
+    time_hopping_entry.config(state="normal")
+    wanted_callsigns_entry.config(state="normal")
+
+    for child in radio_frame.winfo_children():
+        child.config(state="normal")
+
 def force_uppercase(*args):
     your_callsign_var.set(your_callsign_var.get().upper())
     wanted_callsigns_var.set(wanted_callsigns_var.get().upper())
+
+def on_right_click(event):
+    try:
+        index = listbox.nearest(event.y)  
+        listbox.selection_clear(0, tk.END)
+        listbox.selection_set(index) 
+        listbox.activate(index)
+        
+        wanted_callsigns_menu.post(event.x_root, event.y_root)
+    except Exception as e:
+        print(f"Erreur : {e}")
+
+def remove_item():
+    selection = listbox.curselection()
+    if selection:
+        index = selection[0]
+        listbox.delete(index)
+        del wanted_callsigns_history[index]
 
 def load_params():
     if os.path.exists(PARAMS_FILE):
@@ -150,6 +197,7 @@ def log_exception_to_file(filename, message):
 
 def run_script():
     run_button.config(state="disabled", background="red", text=RUNNING_TEXT_BUTTON)
+    disable_inputs()
     stop_event.clear() 
 
     instance_type = instance_var.get()
@@ -197,7 +245,8 @@ def run_script():
 def stop_script():
     stop_event.set()
     run_button.config(state="normal", background="SystemButtonFace", text=WAIT_POUNCE_TITLE)
-    messagebox.showinfo("Interruption", "Monitoring off")
+    enable_inputs()
+    messagebox.showinfo("Monitoring off", "It's time to check log")
 
 def update_listbox():
     listbox.delete(0, tk.END) 
@@ -205,6 +254,9 @@ def update_listbox():
         listbox.insert(tk.END, callsign)  
 
 def on_listbox_select(event):
+    if inputs_enabled == False:
+        return 
+    
     selection = listbox.curselection()
     if selection:
         selected_callsign = listbox.get(selection[0])
@@ -259,8 +311,8 @@ consolas_font = ("Consolas", 12, "normal")
 consolas_bold_font = ("Consolas", 12, "bold")
 
 ttk.Label(root, text="Instance to monitor:").grid(column=0, row=0, padx=10, pady=5, sticky=tk.W)
-instance_combo = ttk.Combobox(root, textvariable=instance_var, values=["JTDX", "WSJT"], font=consolas_font)
-instance_combo.grid(column=1, row=0, padx=10, pady=5, sticky=tk.W)
+instance_combo_entry = ttk.Combobox(root, textvariable=instance_var, values=["JTDX", "WSJT"], font=consolas_font)
+instance_combo_entry.grid(column=1, row=0, padx=10, pady=5, sticky=tk.W)
 
 ttk.Label(root, text="Your Call:").grid(column=0, row=1, padx=10, pady=5, sticky=tk.W)
 your_callsign_entry = ttk.Entry(root, textvariable=your_callsign_var, font=consolas_font)
@@ -298,6 +350,11 @@ ttk.Label(root, text="Wanted Callsigns History:").grid(column=2, row=0, padx=10,
 listbox = tk.Listbox(root, height=6, bg="#D080d0", fg="black", font=consolas_bold_font)
 listbox.grid(column=2, row=0, rowspan=6, columnspan=2, padx=10, pady=10, sticky=tk.W+tk.E)
 listbox.bind("<<ListboxSelect>>", on_listbox_select) 
+
+wanted_callsigns_menu = Menu(root, tearoff=0)
+wanted_callsigns_menu.add_command(label="Remove", command=remove_item)
+
+listbox.bind("<Button-3>", on_right_click)
 
 log_analysis_frame = ttk.Frame(root)
 log_analysis_frame.grid(column=2, row=6, padx=10, pady=10, sticky=tk.W)
