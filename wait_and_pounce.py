@@ -23,8 +23,6 @@ def caller_function_name():
 def grandcaller_function_name():
     return inspect.stack()[2][3]
 
-from colorama import init, Fore, Back, Style
-
 # Temps d'attente pour les différentes fréquences 
 wait_time = 0.3
 
@@ -66,9 +64,6 @@ respond_with_negative_signal_report = None
 confirm_signal_and_respond_with_positive_signal_report = None
 confirm_signal_and_respond_with_negative_signal_report = None
 
-# Initialisation de colorama
-init()
-
 # Event global pour signaler l'arrêt des threads
 stop_event = threading.Event()
 
@@ -98,22 +93,22 @@ def find_latest_file(dir_path, pattern="*ALL.TXT"):
 
 # Fonction d'affichage de couleur de texte
 def black_on_green(text):
-    return f"{Fore.BLACK}{Back.GREEN}{text}{Style.RESET_ALL}"
+    return f"[black_on_green]{text}[/black_on_green]"
 
 def black_on_white(text):
-    return f"{Fore.BLACK}{Back.WHITE}{text}{Style.RESET_ALL}"
+    return f"[black_on_white]{text}[/black_on_white]"
 
 def black_on_yellow(text):
-    return f"{Fore.BLACK}{Back.YELLOW}{text}{Style.RESET_ALL}"
+    return f"[black_on_yellow]{text}[/black_on_yellow]"
 
 def white_on_red(text):
-    return f"{Fore.WHITE}{Back.RED}{text}{Style.RESET_ALL}"
+    return f"[white_on_red]{text}[/white_on_red]"
 
 def white_on_blue(text):
-    return f"{Fore.WHITE}{Back.BLUE}{text}{Style.RESET_ALL}"
+    return f"[white_on_blue]{text}[/white_on_blue]"
 
 def bright_green(text):
-    return f"{Fore.GREEN}{Style.BRIGHT}{text}{Style.RESET_ALL}"
+    return f"[bright_green]{text}[/bright_green]"
 
 def truncate_title(title, max_length=22):
     return (title[:max_length] + '[...]') if len(title) > max_length else title
@@ -684,7 +679,7 @@ def monitor_file(
                                 wsjt_ready = False
 
                 # Afficher le compteur de vérifications
-                print(f"Mise à jour du log et suivi {black_on_white(control_function_name + ' #' + str(log_analyze_count))}", end='\r')
+                print(f"Mise à jours du log et suivi {black_on_white(control_function_name + ' #' + str(log_analyze_count))}", end='\r')
                 control_log_count(log_analyze_count)
             
             if time_hopping and frequency_hopping:  

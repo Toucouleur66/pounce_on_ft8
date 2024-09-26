@@ -7,22 +7,60 @@ import threading
 import datetime
 import sys
 import wait_and_pounce
+import re
 
 PARAMS_FILE = "params.pkl"
 WANTED_CALLSIGNS_FILE = "wanted_callsigns.pkl"  
 MAX_HISTORY = 10  
 
-# Classe pour rediriger stdout vers le widget Text
 class DebugRedirector:
-    def __init__(self, widget):
+    def __init__(self, widget, log_filename):
         self.widget = widget
+        self.log_filename = log_filename
+        self.buffer = '' 
 
     def write(self, string):
-        self.widget.insert(tk.END, string)
-        self.widget.see(tk.END) 
+        self.buffer += string
+        if '\n' in self.buffer:
+            lines = self.buffer.splitlines(keepends=True)
+            for line in lines:
+                if line.endswith('\n'):
+                    clean_string = self.remove_tag_codes(line)
+                    self.write_to_log(clean_string)
+                    self.widget.after(0, self.apply_tags, line)
+            self.buffer = lines[-1] if not lines[-1].endswith('\n') else ''
+
+    def write_to_log(self, clean_string):
+        with open(self.log_filename, "a") as log_file:
+            timestamp = datetime.datetime.now().strftime("%y%m%d_%H%M%S")
+            log_file.write(f"{timestamp} {clean_string}")
+
+    def remove_tag_codes(self, string):
+        tag_escape = re.compile(r'\[/?[a-zA-Z_]+\]')
+        return tag_escape.sub('', string)
+
+    def apply_tags(self, string):
+        tag_pattern = re.compile(r'\[(.*?)\](.*?)\[/.*?\]')
+        
+        last_pos = 0
+        for match in tag_pattern.finditer(string):
+            tag = match.group(1)  
+            text = match.group(2) 
+
+            if last_pos < match.start():
+                self.widget.insert(tk.END, string[last_pos:match.start()])
+
+            self.widget.insert(tk.END, text, tag)
+
+            last_pos = match.end()
+
+        if last_pos < len(string):
+            self.widget.insert(tk.END, string[last_pos:])
+        
+        self.widget.see(tk.END)
 
     def flush(self):
-        pass 
+        pass
 
 def force_uppercase(*args):
     your_callsign_var.set(your_callsign_var.get().upper())
@@ -63,7 +101,7 @@ def get_log_filename():
     today = datetime.datetime.now().strftime("%y%m%d") 
     return f"{today}_pounce.log"
 
-def log_to_file(filename, message):
+def log_exception_to_file(filename, message):
     timestamp = datetime.datetime.now().strftime("%y%m%d_%H%M%S") 
     with open(filename, "a") as log_file:
         log_file.write(f"{timestamp} {message}\n")
@@ -89,7 +127,6 @@ def run_script():
     save_params(params)
 
     def target():
-        log_filename = get_log_filename()
         try:
             run_button.config(state="disabled", background="red", text="Running...")
             
@@ -106,7 +143,7 @@ def run_script():
 
         except Exception as e:
             messagebox.showerror("Erreur", f"Erreur lors de l'exécution du script : {e}")
-            log_to_file(log_filename, f"Exception: {str(e)}")
+            log_exception_to_file(log_filename, f"Exception: {str(e)}")
         finally:
             run_button.config(state="normal", background="SystemButtonFace", text="Run Script")
 
@@ -212,6 +249,14 @@ listbox.grid(column=2, row=0, rowspan=6, columnspan=3, padx=10, pady=0, sticky=t
 listbox.bind("<<ListboxSelect>>", on_listbox_select) 
 
 output_text = tk.Text(root, height=20, width=100, bg="#D3D3D3", font=("Courier", 10, "normal"))
+
+output_text.tag_config('black_on_green', foreground='black', background='green')
+output_text.tag_config('black_on_white', foreground='black', background='white')
+output_text.tag_config('black_on_yellow', foreground='black', background='yellow')
+output_text.tag_config('white_on_red', foreground='white', background='red')
+output_text.tag_config('white_on_blue', foreground='white', background='blue')
+output_text.tag_config('bright_green', foreground='green', font=('Courier', 10, 'bold'))
+
 output_text.grid(column=0, row=7, columnspan=5, padx=10, pady=10, sticky="ew")
 
 button_frame = tk.Frame(root)
@@ -228,7 +273,8 @@ stop_button.pack(side="left", padx=5)
 # Met à jour la Listbox avec l'historique
 update_listbox()
 
-sys.stdout = DebugRedirector(output_text)
+log_filename = get_log_filename()
+sys.stdout = DebugRedirector(output_text, log_filename)
 
 # Exécution de la boucle principale
 root.mainloop()
