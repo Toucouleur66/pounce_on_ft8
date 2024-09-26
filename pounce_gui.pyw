@@ -23,6 +23,12 @@ RUNNING_TEXT_BUTTON = "Running..."
 WAIT_POUNCE_TITLE = "Click to Wait & Pounce"
 STOP_LOG_ANALYSIS_TITLE = "Stopped"
 
+START_COLOR = (255, 255, 0)
+END_COLOR = (240, 240, 240)
+
+EVEN_COLOR = "#9dfffe"
+ODD_COLOR = "#fffe9f"
+
 gui_queue = queue.Queue()
 inputs_enabled = True
 
@@ -84,6 +90,12 @@ class DebugRedirector:
 
     def flush(self):
         pass
+
+def interpolate_color(start_color, end_color, factor):
+    return tuple(int(start + (end - start) * factor) for start, end in zip(start_color, end_color))
+
+def rgb_to_hex(rgb):
+    return '#{:02x}{:02x}{:02x}'.format(*rgb)
 
 def save_window_position():
     x = root.winfo_x()
@@ -195,7 +207,7 @@ def log_exception_to_file(filename, message):
     with open(filename, "a") as log_file:
         log_file.write(f"{timestamp} {message}\n")
 
-def run_script():
+def start_monitoring():
     run_button.config(state="disabled", background="red", text=RUNNING_TEXT_BUTTON)
     disable_inputs()
     stop_event.clear() 
@@ -242,7 +254,7 @@ def run_script():
     thread = threading.Thread(target=target)
     thread.start()
 
-def stop_script():
+def stop_monitoring():
     stop_event.set()
     run_button.config(state="normal", background="SystemButtonFace", text=WAIT_POUNCE_TITLE)
     enable_inputs()
@@ -264,9 +276,49 @@ def on_listbox_select(event):
  
 def control_log_analysis_tracking(log_analysis_tracking):
     if log_analysis_tracking is None:
-        gui_queue.put(lambda: counter_value_label.config(text=STOP_LOG_ANALYSIS_TITLE))
+        gui_queue.put(lambda: counter_value_label.config(text=STOP_LOG_ANALYSIS_TITLE, bg="yellow"))
     else:
-        gui_queue.put(lambda: counter_value_label.config(text=f"#{str(log_analysis_tracking['total_analysis'])} @{log_analysis_tracking['last_analysis_time']}"))
+        current_time = datetime.datetime.now().timestamp()
+        time_difference = current_time - log_analysis_tracking['last_analysis_time']
+        
+        min_time = 60 
+        max_time = 300 
+
+        # Calculer le facteur pour le dégradé (0 pour 2 minutes, 1 pour 5 minutes)
+        if time_difference <= min_time:
+            # set to START_COLOR 
+            factor = 0  
+        elif time_difference >= max_time:
+            # Set to END_COLOR
+            factor = 1
+        else:
+            # Get factor
+            factor = (time_difference - min_time) / (max_time - min_time)
+
+        bg_color_rgb = interpolate_color(START_COLOR, END_COLOR, factor)
+        bg_color_hex = rgb_to_hex(bg_color_rgb)
+
+        gui_queue.put(lambda: counter_value_label.config(
+            text=f"{datetime.datetime.fromtimestamp(log_analysis_tracking['last_analysis_time'], tz=datetime.timezone.utc).strftime('%H:%M:%S')} - n°{str(log_analysis_tracking['total_analysis'])}",
+            bg=bg_color_hex
+        ))
+
+def update_timer_with_ft8_sequence():
+    current_time = datetime.datetime.now(datetime.timezone.utc)
+    utc_time = current_time.strftime("%H:%M:%S")
+
+    if (current_time.second // 15) % 2 == 0:
+        background_color = EVEN_COLOR
+    else:
+        background_color = ODD_COLOR
+
+    gui_queue.put(lambda: timer_value_label.config(
+        text=utc_time,
+        bg=background_color,
+        fg="#3d25fb" 
+    ))
+
+    root.after(200, update_timer_with_ft8_sequence)
 
 # Charger les paramètres précédemment sauvegardés
 params = load_params()
@@ -280,11 +332,10 @@ root.geometry("900x700")
 root.grid_columnconfigure(2, weight=1) 
 root.grid_columnconfigure(3, weight=2) 
 root.title(GUI_TITLE_VERSION)
-
 root.after(100, process_gui_queue)
 
-# Restauration de la position
 load_window_position()
+update_timer_with_ft8_sequence()
 
 # Sauvegarde de la position à la fermeture
 root.protocol("WM_DELETE_WINDOW", lambda: [save_window_position(), root.destroy()])
@@ -359,11 +410,14 @@ listbox.bind("<Button-3>", on_right_click)
 log_analysis_frame = ttk.Frame(root)
 log_analysis_frame.grid(column=2, row=6, padx=10, pady=10, sticky=tk.W)
 
-log_analysis_label = ttk.Label(log_analysis_frame, text="Log File Analysis:")
+log_analysis_label = ttk.Label(log_analysis_frame, text="Last sequence analyzed:")
 log_analysis_label.grid(column=0, row=0, padx=5, pady=5, sticky=tk.W)
 
 counter_value_label = tk.Label(log_analysis_frame, text=STOP_LOG_ANALYSIS_TITLE, font=consolas_font, bg="yellow")
 counter_value_label.grid(column=1, row=0, padx=5, pady=5, sticky=tk.W)
+
+timer_value_label = tk.Label(log_analysis_frame, font=consolas_font, bg="#9dfffe", fg="#555bc2")
+timer_value_label.grid(column=2, row=0, padx=5, pady=5, sticky=tk.W)
 
 output_text = tk.Text(root, height=20, width=100, bg="#D3D3D3", font=consolas_font)
 
@@ -381,11 +435,11 @@ button_frame = tk.Frame(root)
 button_frame.grid(column=1, row=6, padx=10, pady=10)
 
 # Bouton pour exécuter le script
-run_button = tk.Button(button_frame, text=WAIT_POUNCE_TITLE, command=run_script)
+run_button = tk.Button(button_frame, text=WAIT_POUNCE_TITLE, command=start_monitoring)
 run_button.pack(side="left", padx=5)
 
 # Bouton pour arrêter le script
-stop_button = tk.Button(button_frame, text="Stop all", command=stop_script)
+stop_button = tk.Button(button_frame, text="Stop all", command=stop_monitoring)
 stop_button.pack(side="left", padx=5)
 
 check_fields()

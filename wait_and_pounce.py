@@ -539,10 +539,9 @@ def monitor_file(
         if last_file_time_update is None or current_mod_time != last_file_time_update:
             # Attention pour le compteur inutile de compatibliser chaque itération 
             # car JTDX peut par exemple écrire plusieurs fois dans le log pour une seule séquence 
-            if last_file_time_update is None or (current_mod_time - last_file_time_update) >= 3:
-                log_analysis_tracking['total_analysis'] += 1
-
-            log_analysis_tracking['last_analysis_time'] = datetime.datetime.fromtimestamp(current_mod_time).strftime("%H:%M:%S")
+            # if last_file_time_update is None or (current_mod_time - last_file_time_update) >= 3:
+            log_analysis_tracking['total_analysis'] += 1
+            log_analysis_tracking['last_analysis_time'] = current_mod_time
             last_file_time_update = current_mod_time  
 
             if not active_call:
@@ -680,10 +679,7 @@ def monitor_file(
                             jtdx_ready = False
                             disable_tx_jtdx(window_title)
                         elif control_function_name == 'WSJT':
-                            wsjt_ready = False
-
-            # Compteur de vérification des logs
-            control_log_analysis_tracking(log_analysis_tracking)
+                            wsjt_ready = False            
         
         if time_hopping and frequency_hopping:  
             # Vérifier si time_hopping exprimé en minutes a été dépassé
@@ -701,6 +697,9 @@ def monitor_file(
         
                 frequency_uptime = time.time()
 
+        if datetime.datetime.now() - datetime.datetime.fromtimestamp(current_mod_time) < datetime.timedelta(minutes=5):
+            control_log_analysis_tracking(log_analysis_tracking)
+        
         time.sleep(wait_time)
     
     return 0
