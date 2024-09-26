@@ -9,9 +9,13 @@ import sys
 import wait_and_pounce
 import re
 
+stop_event = threading.Event()
+version_number = 1.0
+
 PARAMS_FILE = "params.pkl"
 WANTED_CALLSIGNS_FILE = "wanted_callsigns.pkl"  
 MAX_HISTORY = 10  
+GUI_TITLE_VERSION = f"Wait and Pounce v{version_number} (by F5UKW under GNU GPL Licence)"
 
 class DebugRedirector:
     def __init__(self, widget, log_filename):
@@ -62,6 +66,12 @@ class DebugRedirector:
     def flush(self):
         pass
 
+def check_fields():
+    if your_callsign_var.get() and wanted_callsigns_var.get():
+        run_button.config(state="normal")
+    else:
+        run_button.config(state="disabled")
+
 def force_uppercase(*args):
     your_callsign_var.set(your_callsign_var.get().upper())
     wanted_callsigns_var.set(wanted_callsigns_var.get().upper())
@@ -107,6 +117,8 @@ def log_exception_to_file(filename, message):
         log_file.write(f"{timestamp} {message}\n")
 
 def run_script():
+    stop_event.clear()
+
     instance_type = instance_var.get()
     frequencies = frequency_var.get()
     time_hopping = time_hopping_var.get()
@@ -129,8 +141,8 @@ def run_script():
     def target():
         try:
             run_button.config(state="disabled", background="red", text="Running...")
-            
-            # Appel direct à la fonction monitor_file avec les paramètres et la fonction callback
+            stop_event.clear() 
+
             wait_and_pounce.main(
                 instance_type,
                 frequencies,
@@ -138,7 +150,8 @@ def run_script():
                 your_callsign,
                 wanted_callsigns,
                 mode,
-                update_log_count
+                update_log_count,
+                stop_event
             )
 
         except Exception as e:
@@ -152,11 +165,9 @@ def run_script():
     thread.start()
 
 def stop_script():
-    for thread in threading.enumerate():
-        if thread.name == "ProcessQueue":
-            stop_event.set()
-            run_button.config(state="normal", background="SystemButtonFace", text="Run Script")
-            messagebox.showinfo("Interruption", "Script interrompu")
+    stop_event.set()
+    run_button.config(state="normal", background="SystemButtonFace", text="Run Script")
+    messagebox.showinfo("Interruption", "Script interrompu")
 
 def update_listbox():
     listbox.delete(0, tk.END) 
@@ -180,11 +191,11 @@ wanted_callsigns_history = load_wanted_callsigns()
 
 # Création de la fenêtre principale
 root = tk.Tk()
-root.geometry("900x600")
+root.geometry("900x700")
 root.grid_columnconfigure(2, weight=1) 
 root.grid_columnconfigure(3, weight=1) 
 root.grid_columnconfigure(4, weight=1) 
-root.title("Wait and Pounce (by F5UKW under GNU GPL Licence)")
+root.title(GUI_TITLE_VERSION)
 
 # Variables
 your_callsign_var = tk.StringVar(value=params.get("your_callsign", ""))
@@ -197,6 +208,9 @@ mode_var = tk.StringVar(value=params.get("mode", "Normal"))
 your_callsign_var.trace_add("write", force_uppercase)
 wanted_callsigns_var.trace_add("write", force_uppercase)
 
+your_callsign_var.trace_add("write", lambda *args: check_fields())
+wanted_callsigns_var.trace_add("write", lambda *args: check_fields())
+
 # Création des widgets
 courier_font = ("Courier", 10, "normal")
 courier_bold_font = ("Courier", 12, "bold")
@@ -208,7 +222,7 @@ log_been_analyzed_counter_var = tk.StringVar()
 log_been_analyzed_counter_var.set("Log Analysis Count: 0")
 
 log_been_analyzed_counter_label = ttk.Label(root, textvariable= log_been_analyzed_counter_var, font=consolas_font)
-log_been_analyzed_counter_label.grid(column=0, row=6, padx=10, pady=5)
+log_been_analyzed_counter_label.grid(column=2, row=6, padx=10, pady=5)
 
 ttk.Label(root, text="Instance to monitor:").grid(column=0, row=0, padx=10, pady=5, sticky=tk.W)
 instance_combo = ttk.Combobox(root, textvariable=instance_var, values=["JTDX", "WSJT"], font=consolas_font)
@@ -247,18 +261,19 @@ radio_superfox.grid(column=2, row=0, padx=5, pady=5, sticky=tk.W)
 # Listbox pour afficher l'historique des wanted_callsigns
 ttk.Label(root, text="Wanted Callsigns History:").grid(column=2, row=0, padx=10, pady=0, sticky=tk.W)
 
-listbox = tk.Listbox(root, height=6, bg="#d080d0", fg="black", font=consolas_bold_font)
+listbox = tk.Listbox(root, height=6, bg="#D080d0", fg="black", font=consolas_bold_font)
 listbox.grid(column=2, row=0, rowspan=6, columnspan=3, padx=10, pady=0, sticky=tk.W+tk.E)
 listbox.bind("<<ListboxSelect>>", on_listbox_select) 
 
 output_text = tk.Text(root, height=20, width=100, bg="#D3D3D3", font=consolas_font)
 
-output_text.tag_config('black_on_green', foreground='black', background='green')
+output_text.tag_config('black_on_purple', foreground='black', background='#D080d0')
+output_text.tag_config('black_on_brown', foreground='black', background='#C08000')
 output_text.tag_config('black_on_white', foreground='black', background='white')
 output_text.tag_config('black_on_yellow', foreground='black', background='yellow')
 output_text.tag_config('white_on_red', foreground='white', background='red')
 output_text.tag_config('white_on_blue', foreground='white', background='blue')
-output_text.tag_config('bright_green', foreground='green', font=('Courier', 10, 'bold'))
+output_text.tag_config('bright_green', foreground='green')
 
 output_text.grid(column=0, row=7, columnspan=5, padx=10, pady=10, sticky="ew")
 
@@ -272,6 +287,8 @@ run_button.pack(side="left", padx=5)
 # Bouton pour arrêter le script
 stop_button = tk.Button(button_frame, text="Stop all", command=stop_script)
 stop_button.pack(side="left", padx=5)
+
+check_fields()
 
 # Met à jour la Listbox avec l'historique
 update_listbox()

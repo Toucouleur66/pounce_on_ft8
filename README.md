@@ -50,13 +50,14 @@ _ [x] When focus after reading for the first time log file, doesn't Enable TX im
 - [ ] Sometime, `replace_input_field_content` method can't set number for a callsign
 
 ## TODO
-
 - [ ] Make binary for `Windows`
-- [ ] Set `JTDX` to `SHound` Mode
+- [ ] Fix `Log Analysys Count`
 - [ ] Let end user set his own `JTDX` and `WSJT-X` window title and position
 - [ ] Check `wsjtx_log.adi` to get confirmation of awaited QSO
 - [ ] Add internationalization `I18N` and localization `L10N`
 - [ ] Use `Packet UDP`
+- [x] Disable Run button unless user set `your_callsign` and `wanted_callsigns`
+- [x] Set `JTDX` to `SHound` Mode
 - [x] Change for odd or even `JTDX`
 - [x] Output within a `TXT` log file
 - [x] Show status on __GUI__
@@ -69,9 +70,9 @@ _ [x] When focus after reading for the first time log file, doesn't Enable TX im
 - [x] Frequency update and support with JTDX
 - [x] Compare log time `UTC` with local machine time
 
-## Build a binary
+## Make binary for Windows
 
-```pyinstaller --windowed --onefile --debug all C:\Users\TheBoss\pounce_on_ft8\pounce_gui.pyw```
+```pyinstaller --windowed --onefile --debug all C:\Users\YourDirectory]\pounce_on_ft8\pounce_gui.pyw```
 
 ## Donate with PayPal
 
