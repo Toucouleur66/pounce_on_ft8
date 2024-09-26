@@ -13,9 +13,13 @@ stop_event = threading.Event()
 version_number = 1.0
 
 PARAMS_FILE = "params.pkl"
+POSITION_FILE = "window_position.pkl"
 WANTED_CALLSIGNS_FILE = "wanted_callsigns.pkl"  
-MAX_HISTORY = 10  
+WANTED_CALLSIGNS_HISTORY_SIZE = 10  
+
 GUI_TITLE_VERSION = f"Wait and Pounce v{version_number} (by F5UKW under GNU GPL Licence)"
+RUNNING_TEXT_BUTTON = "Running..."
+WAIT_POUNCE_TITLE = "Click to Wait & Pounce"
 
 class DebugRedirector:
     def __init__(self, widget, log_filename):
@@ -66,6 +70,20 @@ class DebugRedirector:
     def flush(self):
         pass
 
+def save_window_position():
+    x = root.winfo_x()
+    y = root.winfo_y()
+    position = {'x': x, 'y': y}
+    
+    with open(POSITION_FILE, "wb") as f:
+        pickle.dump(position, f)
+
+def load_window_position():
+    if os.path.exists(POSITION_FILE):
+        with open(POSITION_FILE, "rb") as f:
+            position = pickle.load(f)
+        root.geometry(f"+{position['x']}+{position['y']}")  
+
 def check_fields():
     if your_callsign_var.get() and wanted_callsigns_var.get():
         run_button.config(state="normal")
@@ -101,7 +119,7 @@ def update_wanted_callsigns_history(new_callsign):
         if new_callsign not in wanted_callsigns_history:
             wanted_callsigns_history.append(new_callsign)
             # Limiter à 10 entrées
-            if len(wanted_callsigns_history) > MAX_HISTORY:
+            if len(wanted_callsigns_history) > WANTED_CALLSIGNS_HISTORY_SIZE:
                 wanted_callsigns_history.pop(0)
             save_wanted_callsigns(wanted_callsigns_history)
             # Met à jour la Listbox
@@ -117,7 +135,8 @@ def log_exception_to_file(filename, message):
         log_file.write(f"{timestamp} {message}\n")
 
 def run_script():
-    stop_event.clear()
+    run_button.config(state="disabled", background="red", text=RUNNING_TEXT_BUTTON)
+    stop_event.clear() 
 
     instance_type = instance_var.get()
     frequencies = frequency_var.get()
@@ -140,9 +159,6 @@ def run_script():
 
     def target():
         try:
-            run_button.config(state="disabled", background="red", text="Running...")
-            stop_event.clear() 
-
             wait_and_pounce.main(
                 instance_type,
                 frequencies,
@@ -150,15 +166,15 @@ def run_script():
                 your_callsign,
                 wanted_callsigns,
                 mode,
-                update_log_count,
-                stop_event
+                control_log_analysis_tracking,
+                stop_event,
             )
 
         except Exception as e:
             messagebox.showerror("Erreur", f"Erreur lors de l'exécution du script : {e}")
             log_exception_to_file(log_filename, f"Exception: {str(e)}")
         finally:
-            run_button.config(state="normal", background="SystemButtonFace", text="Run Script")
+            run_button.config(state="normal", background="SystemButtonFace", text=WAIT_POUNCE_TITLE)
 
     # Lancer l'exécution du script dans un thread séparé pour ne pas bloquer l'interface
     thread = threading.Thread(target=target)
@@ -166,8 +182,8 @@ def run_script():
 
 def stop_script():
     stop_event.set()
-    run_button.config(state="normal", background="SystemButtonFace", text="Run Script")
-    messagebox.showinfo("Interruption", "Script interrompu")
+    run_button.config(state="normal", background="SystemButtonFace", text=WAIT_POUNCE_TITLE)
+    messagebox.showinfo("Interruption", "Monitoring off")
 
 def update_listbox():
     listbox.delete(0, tk.END) 
@@ -180,8 +196,8 @@ def on_listbox_select(event):
         selected_callsign = listbox.get(selection[0])
         wanted_callsigns_var.set(selected_callsign) 
 
-def update_log_count(value):
-    log_been_analyzed_counter_var.set(f"Log Analysis Count: {value}")
+def control_log_analysis_tracking(log_analysis_tracking):    
+    counter_value_label.config(text=f"#{str(log_analysis_tracking['total_analysis'])}/{log_analysis_tracking['last_analysis_time']}")
 
 # Charger les paramètres précédemment sauvegardés
 params = load_params()
@@ -196,6 +212,12 @@ root.grid_columnconfigure(2, weight=1)
 root.grid_columnconfigure(3, weight=1) 
 root.grid_columnconfigure(4, weight=1) 
 root.title(GUI_TITLE_VERSION)
+
+# Restauration de la position
+load_window_position()
+
+# Sauvegarde de la position à la fermeture
+root.protocol("WM_DELETE_WINDOW", lambda: [save_window_position(), root.destroy()])
 
 # Variables
 your_callsign_var = tk.StringVar(value=params.get("your_callsign", ""))
@@ -218,11 +240,10 @@ courier_bold_font = ("Courier", 12, "bold")
 consolas_font = ("Consolas", 12, "normal")
 consolas_bold_font = ("Consolas", 12, "bold")
 
-log_been_analyzed_counter_var = tk.StringVar()
-log_been_analyzed_counter_var.set("Log Analysis Count: 0")
+log_analysis_label = ttk.Label(root, text="Log File Analysis:").grid(column=2, row=6, padx=10, pady=0, sticky=tk.W)
 
-log_been_analyzed_counter_label = ttk.Label(root, textvariable= log_been_analyzed_counter_var, font=consolas_font)
-log_been_analyzed_counter_label.grid(column=2, row=6, padx=10, pady=5)
+counter_value_label = tk.Label(root, text="None", font=consolas_font, bg="yellow")
+counter_value_label.grid(column=3, row=6, padx=10, pady=5, sticky=tk.W)
 
 ttk.Label(root, text="Instance to monitor:").grid(column=0, row=0, padx=10, pady=5, sticky=tk.W)
 instance_combo = ttk.Combobox(root, textvariable=instance_var, values=["JTDX", "WSJT"], font=consolas_font)
@@ -281,7 +302,7 @@ button_frame = tk.Frame(root)
 button_frame.grid(column=1, row=6, padx=10, pady=10)
 
 # Bouton pour exécuter le script
-run_button = tk.Button(button_frame, text="Click to Wait & Pounce", command=run_script)
+run_button = tk.Button(button_frame, text=WAIT_POUNCE_TITLE, command=run_script)
 run_button.pack(side="left", padx=5)
 
 # Bouton pour arrêter le script

@@ -16,12 +16,15 @@ import queue
 import re
 import math
 import inspect
+import traceback
 
 def caller_function_name():
     return inspect.stack()[1][3]
 
 def grandcaller_function_name():
     return inspect.stack()[2][3]
+
+utc = datetime.timezone.utc
 
 # Temps d'attente pour les différentes fréquences 
 wait_time = 0.3
@@ -31,7 +34,10 @@ default_time_hopping = 10
 hop_index = 0
 
 # Gestion du compteur de log 
-log_analyze_count = 0
+log_analysis_tracking = {
+    'total_analysis': 0,
+    'last_analysis_time': None 
+}
 
 # Instance par défaut
 default_instance_type = "JTDX"
@@ -249,19 +255,19 @@ def restore_and_or_move_window(window_title, x=None, y=None, width=None, height=
                                   win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
             win32gui.SetForegroundWindow(real_window)
             win32gui.BringWindowToTop(real_window)
-            print(f"Fenêtre '{truncate_title(window.title)}' restaurée et mise au premier plan.")
+            print(f"Fenêtre restaurée et mise au premier plan.")
 
         # Repositionner et redimensionner la fenêtre si les paramètres sont fournis
         if None not in (x, y, width, height):
             window.moveTo(x, y)
             window.resizeTo(width, height)
 
-            debug_to_print = f"Fenêtre '{black_on_yellow(truncate_title(window.title))}' identifiée et positionnée"
+            debug_to_print = f"Fenêtre identifiée et correctement positionnée"
             debug_to_print+= f" {bright_green('[' + grandcaller_function_name() + ']')}."
 
             print(debug_to_print)
     except Exception as e:
-        print(f"Erreur lors de la restauration et du déplacement de la fenêtre: {e}")
+        print(f"Erreur lors de l'identification et ou déplacement de la fenêtre: {e}")
         return False
     
     return True
@@ -399,7 +405,7 @@ def generate_sequences(your_callsign, call_selected):
     }
 
 
-def get_log_time(log_time_str, utc):
+def get_log_time(log_time_str):
     # Format JTDX
     if re.match(r'^\d{8}_\d{6}', log_time_str):
         match = re.match(r'^\d{8}_\d{6}', log_time_str)
@@ -411,12 +417,6 @@ def get_log_time(log_time_str, utc):
     return log_time.replace(tzinfo=utc) 
 
 def find_sequences(file_path, sequences, last_number_of_lines=100, time_max_expected_in_minutes=10):    
-    global log_analyze_count
-    log_analyze_count += 1
-
-    # Obtenir le fuseau horaire UTC
-    utc = datetime.timezone.utc
-
     # Initialiser les résultats avec les valeurs du dictionnaire sequences comme clés
     results = {sequence: False for sequence in sequences.values()}
     found_sequences = {}
@@ -439,7 +439,7 @@ def find_sequences(file_path, sequences, last_number_of_lines=100, time_max_expe
             # Extraire la date et l'heure du début de la ligne
             try:
                 log_time_str = line.split()[0]
-                log_time = get_log_time(log_time_str, utc)
+                log_time = get_log_time(log_time_str)
                 
             except (IndexError, ValueError):
                 continue
@@ -484,7 +484,7 @@ def monitor_file(
         file_path,
         window_title, 
         control_function_name, 
-        control_log_count,
+        control_log_analysis_tracking,
         frequency_hopping,
         time_hopping,
         your_callsign,
@@ -492,7 +492,7 @@ def monitor_file(
         instance_mode,
         stop_event,        
     ):
-    global log_analyze_count
+    global log_analysis_tracking
     global hop_index
     # Sequences
     global cq_call_selected
@@ -539,12 +539,19 @@ def monitor_file(
         
         # Vérification de la date de modification du fichier
         if last_file_time_update is None or current_mod_time != last_file_time_update:
+            # Attention pour le compteur inutile de compatibliser chaque itération 
+            # car JTDX peut par exemple écrire plusieurs fois dans le log pour une seule séquence 
+            if last_file_time_update is None or (current_mod_time - last_file_time_update) >= 3:
+                log_analysis_tracking['total_analysis'] += 1
+
+            log_analysis_tracking['last_analysis_time'] = datetime.datetime.fromtimestamp(current_mod_time).strftime("%H:%M:%S")
             last_file_time_update = current_mod_time  
 
             if not active_call:
                 # Rechercher dans le fichier un call à partir de la liste
                 for wanted_callsigns in wanted_callsigns_list:
                     sequences_to_find = generate_sequences(your_callsign, wanted_callsigns)
+                    # Attention, on peut avoir à lire de nombreuses fois le fichier de log
                     sequences_found = find_sequences(file_path, sequences_to_find)
                     if any(sequences_found.values()):
                         active_call = wanted_callsigns
@@ -677,9 +684,8 @@ def monitor_file(
                         elif control_function_name == 'WSJT':
                             wsjt_ready = False
 
-            # Afficher le compteur de vérifications
-            print(f"Mise à jours du log et suivi {black_on_white(control_function_name + ' #' + str(log_analyze_count))}", end='\r')
-            control_log_count(log_analyze_count)
+            # Compteur de vérification des logs
+            control_log_analysis_tracking(log_analysis_tracking)
         
         if time_hopping and frequency_hopping:  
             # Vérifier si time_hopping exprimé en minutes a été dépassé
@@ -717,8 +723,8 @@ def main(
         your_callsign,
         wanted_callsigns_list,
         instance_mode,
-        control_log_count,
-        stop_event,        
+        control_log_analysis_tracking,
+        stop_event
     ):
     wanted_callsigns_list = [call for call in wanted_callsigns_list.upper().split(",") if len(call) >= 3]
     frequency_hopping = None
@@ -742,21 +748,27 @@ def main(
     
     print(white_on_red(f"Début du Monitoring pour {your_callsign} du fichier: {working_file_path}"))
 
-    monitor_file(
-        working_file_path,
-        working_window_title, 
-        instance_type, 
-        control_log_count,
-        frequency_hopping,
-        time_hopping,
-        your_callsign,
-        wanted_callsigns_list,
-        instance_mode,
-        stop_event
-    )
-    
-    print(white_on_red(f"Fin du Monitoring pour {your_callsign}"))
+    try:
+        monitor_file(
+            working_file_path,
+            working_window_title, 
+            instance_type, 
+            control_log_analysis_tracking,
+            frequency_hopping,
+            time_hopping,
+            your_callsign,
+            wanted_callsigns_list,
+            instance_mode,
+            stop_event
+        )
+    except Exception as e:
+        timestamp = datetime.datetime.now().strftime("%y%m%d_%H%M%S") 
+        with open("wait_and_pounce_debug.log", "a") as log_file:
+            log_file.write(f"{timestamp} Exception: {str(e)}\n")
+            log_file.write(f"{timestamp} Traceback:\n{traceback.format_exc()}\n")
 
+    print(white_on_red(f"Fin du Monitoring pour {your_callsign}"))
+    
     return 0
 
 if __name__ == "__main__":
