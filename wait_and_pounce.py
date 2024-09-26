@@ -33,12 +33,6 @@ wait_time = 0.3
 default_time_hopping = 10
 hop_index = 0
 
-# Gestion du compteur de log 
-log_analysis_tracking = {
-    'total_analysis': 0,
-    'last_analysis_time': None 
-}
-
 # Instance par défaut
 default_instance_type = "JTDX"
 
@@ -492,7 +486,6 @@ def monitor_file(
         instance_mode,
         stop_event,        
     ):
-    global log_analysis_tracking
     global hop_index
     # Sequences
     global cq_call_selected
@@ -518,6 +511,11 @@ def monitor_file(
     enable_tx = False
     period_found = None
     last_file_time_update = None
+
+    log_analysis_tracking = {
+        'total_analysis': 0,
+        'last_analysis_time': None 
+    }
 
     if len(wanted_callsigns_list) > 1:
         if control_function_name == 'WSJT':
@@ -767,7 +765,9 @@ def main(
             log_file.write(f"{timestamp} Exception: {str(e)}\n")
             log_file.write(f"{timestamp} Traceback:\n{traceback.format_exc()}\n")
 
-    print(white_on_red(f"Fin du Monitoring pour {your_callsign}"))
+    control_log_analysis_tracking(None)
+    
+    print(f"{white_on_red(f"Fin du Monitoring pour {your_callsign}")} \n")
     
     return 0
 

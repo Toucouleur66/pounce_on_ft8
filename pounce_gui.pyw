@@ -20,6 +20,7 @@ WANTED_CALLSIGNS_HISTORY_SIZE = 10
 GUI_TITLE_VERSION = f"Wait and Pounce v{version_number} (by F5UKW under GNU GPL Licence)"
 RUNNING_TEXT_BUTTON = "Running..."
 WAIT_POUNCE_TITLE = "Click to Wait & Pounce"
+STOP_LOG_ANALYSIS_TITLE = "Stopped"
 
 class DebugRedirector:
     def __init__(self, widget, log_filename):
@@ -167,7 +168,7 @@ def run_script():
                 wanted_callsigns,
                 mode,
                 control_log_analysis_tracking,
-                stop_event,
+                stop_event
             )
 
         except Exception as e:
@@ -196,8 +197,11 @@ def on_listbox_select(event):
         selected_callsign = listbox.get(selection[0])
         wanted_callsigns_var.set(selected_callsign) 
 
-def control_log_analysis_tracking(log_analysis_tracking):    
-    counter_value_label.config(text=f"#{str(log_analysis_tracking['total_analysis'])}/{log_analysis_tracking['last_analysis_time']}")
+def control_log_analysis_tracking(log_analysis_tracking):   
+    if log_analysis_tracking == None:
+        counter_value_label.config(text=STOP_LOG_ANALYSIS_TITLE)
+    else:
+        counter_value_label.config(text=f"#{str(log_analysis_tracking['total_analysis'])}/{log_analysis_tracking['last_analysis_time']}")
 
 # Charger les paramètres précédemment sauvegardés
 params = load_params()
@@ -242,7 +246,7 @@ consolas_bold_font = ("Consolas", 12, "bold")
 
 log_analysis_label = ttk.Label(root, text="Log File Analysis:").grid(column=2, row=6, padx=10, pady=0, sticky=tk.W)
 
-counter_value_label = tk.Label(root, text="None", font=consolas_font, bg="yellow")
+counter_value_label = tk.Label(root, text=STOP_LOG_ANALYSIS_TITLE, font=consolas_font, bg="yellow")
 counter_value_label.grid(column=3, row=6, padx=10, pady=5, sticky=tk.W)
 
 ttk.Label(root, text="Instance to monitor:").grid(column=0, row=0, padx=10, pady=5, sticky=tk.W)
