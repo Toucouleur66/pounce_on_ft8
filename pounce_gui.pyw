@@ -3,6 +3,7 @@ from tkinter import ttk, messagebox
 import subprocess
 import pickle
 import os
+import queue
 import threading
 import datetime
 import sys
@@ -21,6 +22,18 @@ GUI_TITLE_VERSION = f"Wait and Pounce v{version_number} (by F5UKW under GNU GPL 
 RUNNING_TEXT_BUTTON = "Running..."
 WAIT_POUNCE_TITLE = "Click to Wait & Pounce"
 STOP_LOG_ANALYSIS_TITLE = "Stopped"
+
+gui_queue = queue.Queue()
+
+def process_gui_queue():
+    try:
+        while not gui_queue.empty():
+            task = gui_queue.get_nowait()
+            task()  
+    except queue.Empty:
+        pass
+
+    root.after(100, process_gui_queue)
 
 class DebugRedirector:
     def __init__(self, widget, log_filename):
@@ -196,12 +209,12 @@ def on_listbox_select(event):
     if selection:
         selected_callsign = listbox.get(selection[0])
         wanted_callsigns_var.set(selected_callsign) 
-
-def control_log_analysis_tracking(log_analysis_tracking):   
-    if log_analysis_tracking == None:
-        counter_value_label.config(text=STOP_LOG_ANALYSIS_TITLE)
+ 
+def control_log_analysis_tracking(log_analysis_tracking):
+    if log_analysis_tracking is None:
+        gui_queue.put(lambda: counter_value_label.config(text=STOP_LOG_ANALYSIS_TITLE))
     else:
-        counter_value_label.config(text=f"#{str(log_analysis_tracking['total_analysis'])}/{log_analysis_tracking['last_analysis_time']}")
+        gui_queue.put(lambda: counter_value_label.config(text=f"#{str(log_analysis_tracking['total_analysis'])} @{log_analysis_tracking['last_analysis_time']}"))
 
 # Charger les paramètres précédemment sauvegardés
 params = load_params()
@@ -213,9 +226,10 @@ wanted_callsigns_history = load_wanted_callsigns()
 root = tk.Tk()
 root.geometry("900x700")
 root.grid_columnconfigure(2, weight=1) 
-root.grid_columnconfigure(3, weight=1) 
-root.grid_columnconfigure(4, weight=1) 
+root.grid_columnconfigure(3, weight=2) 
 root.title(GUI_TITLE_VERSION)
+
+root.after(100, process_gui_queue)
 
 # Restauration de la position
 load_window_position()
@@ -244,35 +258,30 @@ courier_bold_font = ("Courier", 12, "bold")
 consolas_font = ("Consolas", 12, "normal")
 consolas_bold_font = ("Consolas", 12, "bold")
 
-log_analysis_label = ttk.Label(root, text="Log File Analysis:").grid(column=2, row=6, padx=10, pady=0, sticky=tk.W)
-
-counter_value_label = tk.Label(root, text=STOP_LOG_ANALYSIS_TITLE, font=consolas_font, bg="yellow")
-counter_value_label.grid(column=3, row=6, padx=10, pady=5, sticky=tk.W)
-
 ttk.Label(root, text="Instance to monitor:").grid(column=0, row=0, padx=10, pady=5, sticky=tk.W)
 instance_combo = ttk.Combobox(root, textvariable=instance_var, values=["JTDX", "WSJT"], font=consolas_font)
-instance_combo.grid(column=1, row=0, padx=10, pady=5)
+instance_combo.grid(column=1, row=0, padx=10, pady=5, sticky=tk.W)
 
 ttk.Label(root, text="Your Call:").grid(column=0, row=1, padx=10, pady=5, sticky=tk.W)
 your_callsign_entry = ttk.Entry(root, textvariable=your_callsign_var, font=consolas_font)
-your_callsign_entry.grid(column=1, row=1, padx=10, pady=5)
+your_callsign_entry.grid(column=1, row=1, padx=10, pady=5, sticky=tk.W)
 
 ttk.Label(root, text="Frequencies (comma-separated):").grid(column=0, row=2, padx=10, pady=5, sticky=tk.W)
 frequency_entry = ttk.Entry(root, textvariable=frequency_var, font=consolas_font)
-frequency_entry.grid(column=1, row=2, padx=10, pady=5)
+frequency_entry.grid(column=1, row=2, padx=10, pady=5, sticky=tk.W)
 
 ttk.Label(root, text="Time Hopping (minutes):").grid(column=0, row=3, padx=10, pady=5, sticky=tk.W)
 time_hopping_entry = ttk.Entry(root, textvariable=time_hopping_var, font=consolas_font)
-time_hopping_entry.grid(column=1, row=3, padx=10, pady=5)
+time_hopping_entry.grid(column=1, row=3, padx=10, pady=5, sticky=tk.W)
 
 ttk.Label(root, text="Wanted Callsign(s) (comma-separated):").grid(column=0, row=4, padx=10, pady=5, sticky=tk.W)
 wanted_callsigns_entry = ttk.Entry(root, textvariable=wanted_callsigns_var, font=consolas_font)
-wanted_callsigns_entry.grid(column=1, row=4, padx=10, pady=5)
+wanted_callsigns_entry.grid(column=1, row=4, padx=10, pady=5, sticky=tk.W)
 
 ttk.Label(root, text="Mode:").grid(column=0, row=5, padx=10, pady=5, sticky=tk.W)
 
 radio_frame = ttk.Frame(root)
-radio_frame.grid(column=1, row=5, padx=10, pady=5)
+radio_frame.grid(column=1, columnspan=2, row=5, padx=10, pady=5)
 
 radio_normal = tk.Radiobutton(radio_frame, text="Normal", variable=mode_var, value="Normal", font=consolas_font)
 radio_normal.grid(column=0, row=0, padx=5, pady=5, sticky=tk.W)
@@ -284,11 +293,20 @@ radio_superfox = tk.Radiobutton(radio_frame, text="SuperFox", variable=mode_var,
 radio_superfox.grid(column=2, row=0, padx=5, pady=5, sticky=tk.W)
 
 # Listbox pour afficher l'historique des wanted_callsigns
-ttk.Label(root, text="Wanted Callsigns History:").grid(column=2, row=0, padx=10, pady=0, sticky=tk.W)
+ttk.Label(root, text="Wanted Callsigns History:").grid(column=2, row=0, padx=10, pady=10, sticky=tk.W)
 
 listbox = tk.Listbox(root, height=6, bg="#D080d0", fg="black", font=consolas_bold_font)
-listbox.grid(column=2, row=0, rowspan=6, columnspan=3, padx=10, pady=0, sticky=tk.W+tk.E)
+listbox.grid(column=2, row=0, rowspan=6, columnspan=2, padx=10, pady=10, sticky=tk.W+tk.E)
 listbox.bind("<<ListboxSelect>>", on_listbox_select) 
+
+log_analysis_frame = ttk.Frame(root)
+log_analysis_frame.grid(column=2, row=6, padx=10, pady=10, sticky=tk.W)
+
+log_analysis_label = ttk.Label(log_analysis_frame, text="Log File Analysis:")
+log_analysis_label.grid(column=0, row=0, padx=5, pady=5, sticky=tk.W)
+
+counter_value_label = tk.Label(log_analysis_frame, text=STOP_LOG_ANALYSIS_TITLE, font=consolas_font, bg="yellow")
+counter_value_label.grid(column=1, row=0, padx=5, pady=5, sticky=tk.W)
 
 output_text = tk.Text(root, height=20, width=100, bg="#D3D3D3", font=consolas_font)
 
