@@ -201,30 +201,33 @@ wanted_callsigns_var.trace_add("write", force_uppercase)
 courier_font = ("Courier", 10, "normal")
 courier_bold_font = ("Courier", 12, "bold")
 
+consolas_font = ("Consolas", 12, "normal")
+consolas_bold_font = ("Consolas", 12, "bold")
+
 log_been_analyzed_counter_var = tk.StringVar()
 log_been_analyzed_counter_var.set("Log Analysis Count: 0")
 
-log_been_analyzed_counter_label = ttk.Label(root, textvariable= log_been_analyzed_counter_var, font=courier_font)
+log_been_analyzed_counter_label = ttk.Label(root, textvariable= log_been_analyzed_counter_var, font=consolas_font)
 log_been_analyzed_counter_label.grid(column=0, row=6, padx=10, pady=5)
 
 ttk.Label(root, text="Instance to monitor:").grid(column=0, row=0, padx=10, pady=5, sticky=tk.W)
-instance_combo = ttk.Combobox(root, textvariable=instance_var, values=["JTDX", "WSJT"], font=courier_font)
+instance_combo = ttk.Combobox(root, textvariable=instance_var, values=["JTDX", "WSJT"], font=consolas_font)
 instance_combo.grid(column=1, row=0, padx=10, pady=5)
 
 ttk.Label(root, text="Your Call:").grid(column=0, row=1, padx=10, pady=5, sticky=tk.W)
-your_callsign_entry = ttk.Entry(root, textvariable=your_callsign_var, font=courier_font)
+your_callsign_entry = ttk.Entry(root, textvariable=your_callsign_var, font=consolas_font)
 your_callsign_entry.grid(column=1, row=1, padx=10, pady=5)
 
 ttk.Label(root, text="Frequencies (comma-separated):").grid(column=0, row=2, padx=10, pady=5, sticky=tk.W)
-frequency_entry = ttk.Entry(root, textvariable=frequency_var, font=courier_font)
+frequency_entry = ttk.Entry(root, textvariable=frequency_var, font=consolas_font)
 frequency_entry.grid(column=1, row=2, padx=10, pady=5)
 
 ttk.Label(root, text="Time Hopping (minutes):").grid(column=0, row=3, padx=10, pady=5, sticky=tk.W)
-time_hopping_entry = ttk.Entry(root, textvariable=time_hopping_var, font=courier_font)
+time_hopping_entry = ttk.Entry(root, textvariable=time_hopping_var, font=consolas_font)
 time_hopping_entry.grid(column=1, row=3, padx=10, pady=5)
 
 ttk.Label(root, text="Wanted Callsign(s) (comma-separated):").grid(column=0, row=4, padx=10, pady=5, sticky=tk.W)
-wanted_callsigns_entry = ttk.Entry(root, textvariable=wanted_callsigns_var, font=courier_font)
+wanted_callsigns_entry = ttk.Entry(root, textvariable=wanted_callsigns_var, font=consolas_font)
 wanted_callsigns_entry.grid(column=1, row=4, padx=10, pady=5)
 
 ttk.Label(root, text="Mode:").grid(column=0, row=5, padx=10, pady=5, sticky=tk.W)
@@ -232,23 +235,23 @@ ttk.Label(root, text="Mode:").grid(column=0, row=5, padx=10, pady=5, sticky=tk.W
 radio_frame = ttk.Frame(root)
 radio_frame.grid(column=1, row=5, padx=10, pady=5)
 
-radio_normal = tk.Radiobutton(radio_frame, text="Normal", variable=mode_var, value="Normal", font=courier_font)
+radio_normal = tk.Radiobutton(radio_frame, text="Normal", variable=mode_var, value="Normal", font=consolas_font)
 radio_normal.grid(column=0, row=0, padx=5, pady=5, sticky=tk.W)
 
-radio_foxhound = tk.Radiobutton(radio_frame, text="Fox/Hound", variable=mode_var, value="Fox/Hound", font=courier_font)
+radio_foxhound = tk.Radiobutton(radio_frame, text="Fox/Hound", variable=mode_var, value="Fox/Hound", font=consolas_font)
 radio_foxhound.grid(column=1, row=0, padx=5, pady=5, sticky=tk.W)
 
-radio_superfox = tk.Radiobutton(radio_frame, text="SuperFox", variable=mode_var, value="SuperFox", font=courier_font)
+radio_superfox = tk.Radiobutton(radio_frame, text="SuperFox", variable=mode_var, value="SuperFox", font=consolas_font)
 radio_superfox.grid(column=2, row=0, padx=5, pady=5, sticky=tk.W)
 
 # Listbox pour afficher l'historique des wanted_callsigns
 ttk.Label(root, text="Wanted Callsigns History:").grid(column=2, row=0, padx=10, pady=0, sticky=tk.W)
 
-listbox = tk.Listbox(root, height=6, bg="#d080d0", fg="black", font=courier_bold_font)
+listbox = tk.Listbox(root, height=6, bg="#d080d0", fg="black", font=consolas_bold_font)
 listbox.grid(column=2, row=0, rowspan=6, columnspan=3, padx=10, pady=0, sticky=tk.W+tk.E)
 listbox.bind("<<ListboxSelect>>", on_listbox_select) 
 
-output_text = tk.Text(root, height=20, width=100, bg="#D3D3D3", font=("Courier", 10, "normal"))
+output_text = tk.Text(root, height=20, width=100, bg="#D3D3D3", font=consolas_font)
 
 output_text.tag_config('black_on_green', foreground='black', background='green')
 output_text.tag_config('black_on_white', foreground='black', background='white')
@@ -277,4 +280,5 @@ log_filename = get_log_filename()
 sys.stdout = DebugRedirector(output_text, log_filename)
 
 # Exécution de la boucle principale
-root.mainloop()
+if __name__ == "__main__":
+    root.mainloop()

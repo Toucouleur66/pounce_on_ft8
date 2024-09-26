@@ -27,8 +27,9 @@ jtdx_window_title = "JTDX - FT5000  by HF community                             
 
 ## Version
 
-- `in progress` Handle multiple calls
-- `in progress` Set mode to start on `Normal`or `Fox/Hound` or `SuperFox`
+- `1.0` Show status on __GUI__
+- `0.9` Handle multiple calls
+- `0.8` Set mode to start on `Normal`or `Fox/Hound` or `SuperFox`
 - `0.7` Change for odd or even `JTDX`
 - `0.6` Force `your_call` and `call_selected` to be uppercase
 - `0.5` Handle `Super/Fox` Mode from `JTDX v2.2.160-rc7`
@@ -44,7 +45,7 @@ jtdx_window_title = "JTDX - FT5000  by HF community                             
 - [ ] Logging QSO remains an issue due to variable size of the log window
 
 ## `JTDX` (Regular Mode, F/H and S/F)
-_ [ ] When focus after reading for the first time log file, doesn't Enable TX immediately
+_ [x] When focus after reading for the first time log file, doesn't Enable TX immediately
 - [x] When `JTDX` does not have a callsign set at `DX Call`, can't set any new callsign and generate message
 - [ ] Sometime, `replace_input_field_content` method can't set number for a callsign
 
@@ -52,14 +53,14 @@ _ [ ] When focus after reading for the first time log file, doesn't Enable TX im
 
 - [ ] Make binary for `Windows`
 - [ ] Set `JTDX` to `SHound` Mode
-- [ ] Output within a `TXT` log file
-- [ ] Show status on __GUI__
-- [ ] Handle multiple calls
 - [ ] Let end user set his own `JTDX` and `WSJT-X` window title and position
 - [ ] Check `wsjtx_log.adi` to get confirmation of awaited QSO
-- [ ] Change for odd or even `JTDX`
 - [ ] Add internationalization `I18N` and localization `L10N`
 - [ ] Use `Packet UDP`
+- [x] Change for odd or even `JTDX`
+- [x] Output within a `TXT` log file
+- [x] Show status on __GUI__
+- [x] Handle multiple calls
 - [x] Handle latest known ALL log files
 - [x] Setting caller
 - [x] GUI
@@ -67,6 +68,10 @@ _ [ ] When focus after reading for the first time log file, doesn't Enable TX im
 - [x] Wait for sequence, if found in the last 10 minutes then call otherwise return monitoring
 - [x] Frequency update and support with JTDX
 - [x] Compare log time `UTC` with local machine time
+
+## Build a binary
+
+```pyinstaller --windowed --onefile --debug all C:\Users\TheBoss\pounce_on_ft8\pounce_gui.pyw```
 
 ## Donate with PayPal
 
