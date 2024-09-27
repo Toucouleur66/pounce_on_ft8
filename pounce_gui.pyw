@@ -199,13 +199,17 @@ def remove_callsign_from_history():
         index = selection[0]
         listbox.delete(index)
         del wanted_callsigns_history[index]
-
-    update_wanted_callsigns_history_counter()        
+    
+    save_wanted_callsigns(wanted_callsigns_history)
+    update_wanted_callsigns_history_counter()   
 
 def update_listbox():
     listbox.delete(0, tk.END) 
-    for callsign in reversed(wanted_callsigns_history):
+    for callsign in wanted_callsigns_history:
         listbox.insert(tk.END, callsign)  
+
+    if wanted_callsigns_history:
+        listbox.see(tk.END)         
     
     update_wanted_callsigns_history_counter()
 
@@ -408,14 +412,10 @@ wanted_callsigns_label.grid(column=2, row=0, padx=10, pady=10, sticky=tk.W)
 listbox_frame = tk.Frame(root)
 listbox_frame.grid(column=2, row=0, rowspan=6, columnspan=2, padx=10, pady=0, sticky=tk.W+tk.E)
 listbox = tk.Listbox(listbox_frame, height=6, bg="#D080d0", fg="black", font=consolas_bold_font)
-listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)  # Remplir toute la largeur
+listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)  
 
-# Création de la Scrollbar
 scrollbar = tk.Scrollbar(listbox_frame, orient=tk.VERTICAL, command=listbox.yview)
-# Alignement à droite et remplissage vertical
 scrollbar.pack(side=tk.RIGHT, fill=tk.Y)  
-
-# Lier la Scrollbar à la Listbox
 listbox.config(yscrollcommand=scrollbar.set)
 
 # Associer l'événement de sélection
