@@ -18,10 +18,11 @@ POSITION_FILE = "window_position.pkl"
 WANTED_CALLSIGNS_FILE = "wanted_callsigns.pkl"  
 WANTED_CALLSIGNS_HISTORY_SIZE = 10  
 
-GUI_TITLE_VERSION = f"Wait and Pounce v{version_number} (by F5UKW under GNU GPL Licence)"
+GUI_LABEL_VERSION = f"Wait and Pounce v{version_number} (by F5UKW under GNU GPL Licence)"
 RUNNING_TEXT_BUTTON = "Running..."
-WAIT_POUNCE_TITLE = "Click to Wait & Pounce"
-STOP_LOG_ANALYSIS_TITLE = "Stopped"
+WAIT_POUNCE_LABEL = "Click to Wait & Pounce"
+STOP_LOG_ANALYSIS_LABEL = "Stopped"
+WANTED_CALLSIGNS_HISTORY_LABEL = "Wanted Callsigns History (%d):" 
 
 START_COLOR = (255, 255, 0)
 END_COLOR = (240, 240, 240)
@@ -149,24 +150,6 @@ def force_uppercase(*args):
     your_callsign_var.set(your_callsign_var.get().upper())
     wanted_callsigns_var.set(wanted_callsigns_var.get().upper())
 
-def on_right_click(event):
-    try:
-        index = listbox.nearest(event.y)  
-        listbox.selection_clear(0, tk.END)
-        listbox.selection_set(index) 
-        listbox.activate(index)
-        
-        wanted_callsigns_menu.post(event.x_root, event.y_root)
-    except Exception as e:
-        print(f"Erreur : {e}")
-
-def remove_item():
-    selection = listbox.curselection()
-    if selection:
-        index = selection[0]
-        listbox.delete(index)
-        del wanted_callsigns_history[index]
-
 def load_params():
     if os.path.exists(PARAMS_FILE):
         with open(PARAMS_FILE, "rb") as f:
@@ -191,12 +174,49 @@ def update_wanted_callsigns_history(new_callsign):
     if new_callsign:
         if new_callsign not in wanted_callsigns_history:
             wanted_callsigns_history.append(new_callsign)
-            # Limiter à 10 entrées
             if len(wanted_callsigns_history) > WANTED_CALLSIGNS_HISTORY_SIZE:
                 wanted_callsigns_history.pop(0)
             save_wanted_callsigns(wanted_callsigns_history)
-            # Met à jour la Listbox
             update_listbox()
+
+def update_wanted_callsigns_history_counter():
+    wanted_callsigns_label.config(text=WANTED_CALLSIGNS_HISTORY_LABEL % len(wanted_callsigns_history))        
+
+def on_right_click(event):
+    try:
+        index = listbox.nearest(event.y)  
+        listbox.selection_clear(0, tk.END)
+        listbox.selection_set(index) 
+        listbox.activate(index)
+        
+        wanted_callsigns_menu.post(event.x_root, event.y_root)
+    except Exception as e:
+        print(f"Erreur : {e}")
+
+def remove_callsign_from_history():
+    selection = listbox.curselection()
+    if selection:
+        index = selection[0]
+        listbox.delete(index)
+        del wanted_callsigns_history[index]
+
+    update_wanted_callsigns_history_counter()        
+
+def update_listbox():
+    listbox.delete(0, tk.END) 
+    for callsign in reversed(wanted_callsigns_history):
+        listbox.insert(tk.END, callsign)  
+    
+    update_wanted_callsigns_history_counter()
+
+def on_listbox_select(event):
+    if inputs_enabled == False:
+        return 
+    
+    selection = listbox.curselection()
+    if selection:
+        selected_callsign = listbox.get(selection[0])
+        wanted_callsigns_var.set(selected_callsign) 
 
 def get_log_filename():
     today = datetime.datetime.now().strftime("%y%m%d") 
@@ -248,7 +268,7 @@ def start_monitoring():
             messagebox.showerror("Erreur", f"Erreur lors de l'exécution du script : {e}")
             log_exception_to_file(log_filename, f"Exception: {str(e)}")
         finally:
-            run_button.config(state="normal", background="SystemButtonFace", text=WAIT_POUNCE_TITLE)
+            run_button.config(state="normal", background="SystemButtonFace", text=WAIT_POUNCE_LABEL)
 
     # Lancer l'exécution du script dans un thread séparé pour ne pas bloquer l'interface
     thread = threading.Thread(target=target)
@@ -256,27 +276,13 @@ def start_monitoring():
 
 def stop_monitoring():
     stop_event.set()
-    run_button.config(state="normal", background="SystemButtonFace", text=WAIT_POUNCE_TITLE)
+    run_button.config(state="normal", background="SystemButtonFace", text=WAIT_POUNCE_LABEL)
     enable_inputs()
     messagebox.showinfo("Monitoring off", "It's time to check log")
 
-def update_listbox():
-    listbox.delete(0, tk.END) 
-    for callsign in wanted_callsigns_history:
-        listbox.insert(tk.END, callsign)  
-
-def on_listbox_select(event):
-    if inputs_enabled == False:
-        return 
-    
-    selection = listbox.curselection()
-    if selection:
-        selected_callsign = listbox.get(selection[0])
-        wanted_callsigns_var.set(selected_callsign) 
- 
 def control_log_analysis_tracking(log_analysis_tracking):
     if log_analysis_tracking is None:
-        gui_queue.put(lambda: counter_value_label.config(text=STOP_LOG_ANALYSIS_TITLE, bg="yellow"))
+        gui_queue.put(lambda: counter_value_label.config(text=STOP_LOG_ANALYSIS_LABEL, bg="yellow"))
     else:
         current_time = datetime.datetime.now().timestamp()
         time_difference = current_time - log_analysis_tracking['last_analysis_time']
@@ -299,7 +305,7 @@ def control_log_analysis_tracking(log_analysis_tracking):
         bg_color_hex = rgb_to_hex(bg_color_rgb)
 
         gui_queue.put(lambda: counter_value_label.config(
-            text=f"{datetime.datetime.fromtimestamp(log_analysis_tracking['last_analysis_time'], tz=datetime.timezone.utc).strftime('%H:%M:%S')} - n°{str(log_analysis_tracking['total_analysis'])}",
+            text=f"{datetime.datetime.fromtimestamp(log_analysis_tracking['last_analysis_time'], tz=datetime.timezone.utc).strftime('%H:%M:%S')} ----- #{str(log_analysis_tracking['total_analysis'])} ----",
             bg=bg_color_hex
         ))
 
@@ -331,7 +337,7 @@ root = tk.Tk()
 root.geometry("900x700")
 root.grid_columnconfigure(2, weight=1) 
 root.grid_columnconfigure(3, weight=2) 
-root.title(GUI_TITLE_VERSION)
+root.title(GUI_LABEL_VERSION)
 root.after(100, process_gui_queue)
 
 load_window_position()
@@ -359,26 +365,27 @@ courier_font = ("Courier", 10, "normal")
 courier_bold_font = ("Courier", 12, "bold")
 
 consolas_font = ("Consolas", 12, "normal")
+consolas_font_lg = ("Consolas", 18, "normal")
 consolas_bold_font = ("Consolas", 12, "bold")
 
 ttk.Label(root, text="Instance to monitor:").grid(column=0, row=0, padx=10, pady=5, sticky=tk.W)
-instance_combo_entry = ttk.Combobox(root, textvariable=instance_var, values=["JTDX", "WSJT"], font=consolas_font)
+instance_combo_entry = ttk.Combobox(root, textvariable=instance_var, values=["JTDX", "WSJT"], font=consolas_font, width=23) 
 instance_combo_entry.grid(column=1, row=0, padx=10, pady=5, sticky=tk.W)
 
 ttk.Label(root, text="Your Call:").grid(column=0, row=1, padx=10, pady=5, sticky=tk.W)
-your_callsign_entry = ttk.Entry(root, textvariable=your_callsign_var, font=consolas_font)
+your_callsign_entry = ttk.Entry(root, textvariable=your_callsign_var, font=consolas_font, width=25) 
 your_callsign_entry.grid(column=1, row=1, padx=10, pady=5, sticky=tk.W)
 
 ttk.Label(root, text="Frequencies (comma-separated):").grid(column=0, row=2, padx=10, pady=5, sticky=tk.W)
-frequency_entry = ttk.Entry(root, textvariable=frequency_var, font=consolas_font)
+frequency_entry = ttk.Entry(root, textvariable=frequency_var, font=consolas_font, width=25) 
 frequency_entry.grid(column=1, row=2, padx=10, pady=5, sticky=tk.W)
 
 ttk.Label(root, text="Time Hopping (minutes):").grid(column=0, row=3, padx=10, pady=5, sticky=tk.W)
-time_hopping_entry = ttk.Entry(root, textvariable=time_hopping_var, font=consolas_font)
+time_hopping_entry = ttk.Entry(root, textvariable=time_hopping_var, font=consolas_font, width=25) 
 time_hopping_entry.grid(column=1, row=3, padx=10, pady=5, sticky=tk.W)
 
 ttk.Label(root, text="Wanted Callsign(s) (comma-separated):").grid(column=0, row=4, padx=10, pady=5, sticky=tk.W)
-wanted_callsigns_entry = ttk.Entry(root, textvariable=wanted_callsigns_var, font=consolas_font)
+wanted_callsigns_entry = ttk.Entry(root, textvariable=wanted_callsigns_var, font=consolas_font, width=25) 
 wanted_callsigns_entry.grid(column=1, row=4, padx=10, pady=5, sticky=tk.W)
 
 ttk.Label(root, text="Mode:").grid(column=0, row=5, padx=10, pady=5, sticky=tk.W)
@@ -395,29 +402,40 @@ radio_foxhound.grid(column=1, row=0, padx=5, pady=5, sticky=tk.W)
 radio_superfox = tk.Radiobutton(radio_frame, text="SuperFox", variable=mode_var, value="SuperFox", font=consolas_font)
 radio_superfox.grid(column=2, row=0, padx=5, pady=5, sticky=tk.W)
 
-# Listbox pour afficher l'historique des wanted_callsigns
-ttk.Label(root, text="Wanted Callsigns History:").grid(column=2, row=0, padx=10, pady=10, sticky=tk.W)
+wanted_callsigns_label = ttk.Label(root, text=WANTED_CALLSIGNS_HISTORY_LABEL % len(wanted_callsigns_history))
+wanted_callsigns_label.grid(column=2, row=0, padx=10, pady=10, sticky=tk.W)
 
-listbox = tk.Listbox(root, height=6, bg="#D080d0", fg="black", font=consolas_bold_font)
-listbox.grid(column=2, row=0, rowspan=6, columnspan=2, padx=10, pady=10, sticky=tk.W+tk.E)
-listbox.bind("<<ListboxSelect>>", on_listbox_select) 
+listbox_frame = tk.Frame(root)
+listbox_frame.grid(column=2, row=0, rowspan=6, columnspan=2, padx=10, pady=0, sticky=tk.W+tk.E)
+listbox = tk.Listbox(listbox_frame, height=6, bg="#D080d0", fg="black", font=consolas_bold_font)
+listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)  # Remplir toute la largeur
 
-wanted_callsigns_menu = Menu(root, tearoff=0)
-wanted_callsigns_menu.add_command(label="Remove", command=remove_item)
+# Création de la Scrollbar
+scrollbar = tk.Scrollbar(listbox_frame, orient=tk.VERTICAL, command=listbox.yview)
+# Alignement à droite et remplissage vertical
+scrollbar.pack(side=tk.RIGHT, fill=tk.Y)  
 
+# Lier la Scrollbar à la Listbox
+listbox.config(yscrollcommand=scrollbar.set)
+
+# Associer l'événement de sélection
+listbox.bind("<<ListboxSelect>>", on_listbox_select)
 listbox.bind("<Button-3>", on_right_click)
 
+wanted_callsigns_menu = Menu(root, tearoff=0)
+wanted_callsigns_menu.add_command(label="Remove", command=remove_callsign_from_history)
+
 log_analysis_frame = ttk.Frame(root)
-log_analysis_frame.grid(column=2, row=6, padx=10, pady=10, sticky=tk.W)
+log_analysis_frame.grid(column=2, columnspan=2, row=6, padx=10, pady=10, sticky=tk.W)
 
 log_analysis_label = ttk.Label(log_analysis_frame, text="Last sequence analyzed:")
 log_analysis_label.grid(column=0, row=0, padx=5, pady=5, sticky=tk.W)
 
-counter_value_label = tk.Label(log_analysis_frame, text=STOP_LOG_ANALYSIS_TITLE, font=consolas_font, bg="yellow")
+counter_value_label = tk.Label(log_analysis_frame, text=STOP_LOG_ANALYSIS_LABEL, font=consolas_font, bg="yellow")
 counter_value_label.grid(column=1, row=0, padx=5, pady=5, sticky=tk.W)
 
-timer_value_label = tk.Label(log_analysis_frame, font=consolas_font, bg="#9dfffe", fg="#555bc2")
-timer_value_label.grid(column=2, row=0, padx=5, pady=5, sticky=tk.W)
+timer_value_label = tk.Label(root, font=consolas_font_lg, bg="#9dfffe", fg="#555bc2", borderwidth=1, relief="solid", highlightbackground="#333333", highlightthickness=0, padx=10, pady=5)
+timer_value_label.grid(column=3, row=0, padx=(5, 30), pady=5, sticky=tk.E)
 
 output_text = tk.Text(root, height=20, width=100, bg="#D3D3D3", font=consolas_font)
 
@@ -435,7 +453,7 @@ button_frame = tk.Frame(root)
 button_frame.grid(column=1, row=6, padx=10, pady=10)
 
 # Bouton pour exécuter le script
-run_button = tk.Button(button_frame, text=WAIT_POUNCE_TITLE, command=start_monitoring)
+run_button = tk.Button(button_frame, text=WAIT_POUNCE_LABEL, command=start_monitoring)
 run_button.pack(side="left", padx=5)
 
 # Bouton pour arrêter le script
