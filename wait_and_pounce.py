@@ -268,7 +268,19 @@ def restore_and_or_move_window(window_title, x=None, y=None, width=None, height=
 
 def prepare_wsjt(window_title, call_selected = None):
     # Activer la fenêtre désirée
-    restore_and_or_move_window(window_title, 480, 0, 1080, 960)
+    if restore_and_or_move_window(window_title, 480, 0, 1080, 960) == False:
+        return None
+
+    if call_selected:
+        # Lecture du champ Input 
+        replace_input_field_content(690, 775, call_selected)
+    # Clic sur generate_message 
+    pyautogui.click(1200, 720)
+
+    if call_selected:
+        return True
+    else:
+        return False
     if call_selected:
         # Lecture du champ Input 
         replace_input_field_content(690, 775, call_selected)
@@ -298,8 +310,8 @@ def change_qrg_jtdx(window_title, frequency):
 
 def prepare_jtdx(window_title, call_selected = None):
     # Activer la fenêtre désirée
-    restore_and_or_move_window(window_title, 0, 90, 1090, 960)
-    # Définir 
+    if restore_and_or_move_window(window_title, 0, 90, 1090, 960) == False:
+        return None
     print(f"Configuration TX: {bright_green(jtdx_is_set_to_odd_or_even(window_title))}")
     if call_selected:
         # Lecture du champ Input 
@@ -410,6 +422,27 @@ def get_log_time(log_time_str):
 
     return log_time.replace(tzinfo=utc) 
 
+def find_free_frequency_for_tx(file_path, sequences, last_number_of_lines=100):
+    # Try to find clear QRG according to mode and last log analysis
+    return False
+
+def decode_sequence(sequence, instance_type): 
+    if instance_type == "JTDX":
+        match = re.match(r"(?P<timestamp>\d{8}_\d{6})\s+(?P<db>[+-]?\d+)\s+(?P<dt>\d+\.\d+)\s+(?P<hz>\d{2,4})\s+~\s+(?P<message>.+?)(?=\s*[\*\^]|$)", sequence)
+        if match:
+            db = f"{match.group('db')}dB"
+            dt = match.group('dt')
+            hz = f"{match.group('hz')}Hz"
+            message = match.group('message').strip()
+            return f"{db} {dt} {hz} {message}"
+    else: 
+        match = re.search(r"\s+([-+]?\d+)\s+([-+]?\d*\.\d+)\s+(\d{2,4})\s+(.+)", sequence)
+        if match:
+            return match.group(4)
+        
+    print("Format de séquence avec problème")
+    return False
+    
 def find_sequences(file_path, sequences, last_number_of_lines=100, time_max_expected_in_minutes=10):    
     # Initialiser les résultats avec les valeurs du dictionnaire sequences comme clés
     results = {sequence: False for sequence in sequences.values()}
@@ -501,20 +534,23 @@ def monitor_file(
     global confirm_signal_and_respond_with_positive_signal_report
     global confirm_signal_and_respond_with_negative_signal_report
 
+    print(white_on_red(f"Début du Monitoring pour {your_callsign} du fichier: {file_path}"))        
     print(f"\n=== Démarrage Monitoring pour {control_function_name} {bright_green('[' + instance_mode + ']')} {highlight_calls(wanted_callsigns_list)} ===")
 
     wsjt_ready = False
     jtdx_ready = False
     force_next_hop = False
     last_exit_message = None
-    active_call = None 
+    active_callsign = None 
     enable_tx = False
     period_found = None
     last_file_time_update = None
+    decoded_sequence = None
 
     log_analysis_tracking = {
         'total_analysis': 0,
-        'last_analysis_time': None 
+        'last_analysis_time': None,
+        'active_callsign': None,
     }
 
     if len(wanted_callsigns_list) > 1:
@@ -528,6 +564,10 @@ def monitor_file(
         elif control_function_name == 'JTDX':
             jtdx_ready = prepare_jtdx(window_title, wanted_callsigns_list[0])
     
+    if jtdx_ready == None and wsjt_ready == None:
+        # Exit from monitor_file as we failed to find window
+        return False
+
     if time_hopping and frequency_hopping:
         change_qrg_jtdx(jtdx_window_title, format_with_comma(frequency_hopping[hop_index]))
         frequency_uptime = time.time()
@@ -544,21 +584,23 @@ def monitor_file(
             log_analysis_tracking['last_analysis_time'] = current_mod_time
             last_file_time_update = current_mod_time  
 
-            if not active_call:
+            if not active_callsign:
+                log_analysis_tracking['active_callsign'] = None
                 # Rechercher dans le fichier un call à partir de la liste
-                for wanted_callsigns in wanted_callsigns_list:
-                    sequences_to_find = generate_sequences(your_callsign, wanted_callsigns)
+                for wanted_callsign in wanted_callsigns_list:
+                    sequences_to_find = generate_sequences(your_callsign, wanted_callsign)
                     # Attention, on peut avoir à lire de nombreuses fois le fichier de log
                     sequences_found = find_sequences(file_path, sequences_to_find)
                     if any(sequences_found.values()):
-                        active_call = wanted_callsigns
-                        print(f"{white_on_blue('Focus sur')} {active_call}")
+                        active_callsign = wanted_callsign
+                        print(f"{white_on_blue('Focus sur')} {active_callsign}")
                         break
 
-            if active_call:
-                sequences_to_find = generate_sequences(your_callsign, active_call)
+            if active_callsign:        
+                # Build and try to find sequences
+                sequences_to_find = generate_sequences(your_callsign, active_callsign)
                 sequences_found = find_sequences(file_path, sequences_to_find)
-
+                
                 # Check for exit loop
                 exit_message = False
 
@@ -593,8 +635,8 @@ def monitor_file(
                         wsjt_ready = wait_and_log_wstj_qso(window_title)          
 
                     # Retirer l'indicatif des wanted
-                    wanted_callsigns_list.remove(active_call)
-                    active_call = None
+                    wanted_callsigns_list.remove(active_callsign)
+                    active_callsign = None
 
                     # Est ce que le script doit poursuivre en utilisant d'autres fréquences?
                     if frequency_hopping:
@@ -638,6 +680,7 @@ def monitor_file(
                     for sequence in sequences_to_check:
                         if sequences_found[sequence]:
                             sequence_found = sequence
+                            decoded_sequence = decode_sequence(sequences_found[sequence]['message'], control_function_name) 
                             period_found = sequences_found[sequence]['period']
                                 # Dès qu'une séquence est trouvée, on sort de la boucle
                             break 
@@ -646,6 +689,10 @@ def monitor_file(
                     if sequence_found is None:
                         enable_tx = False
 
+                    if decoded_sequence is not None:
+                        # Report active callsign to GUI
+                        log_analysis_tracking['active_callsign'] = decoded_sequence
+    
                 if not force_next_hop and sequence_found:
                     print(f"Séquence trouvée {black_on_brown(sequence_found)} {bright_green('[' + period_found + ']')}. Activation de la fenêtre et check état.")
 
@@ -661,25 +708,27 @@ def monitor_file(
                             toggle_jtdx_to_even(window_title)
                             
                         if jtdx_ready == False:
-                            jtdx_ready = prepare_jtdx(window_title, active_call)
+                            jtdx_ready = prepare_jtdx(window_title, active_callsign)
                         # Check sur le bouton Enable TX
                         check_and_enable_tx_jtdx(window_title, 610, 855)
                     elif control_function_name == 'WSJT':
                         if wsjt_ready == False:
-                            wsjt_ready = prepare_wsjt(window_title, active_call)
+                            wsjt_ready = prepare_wsjt(window_title, active_callsign)
                         # Check sur le bouton DX Call
                         check_and_enable_tx_wsjt(window_title, 640, 750)
                 else:
                     if jtdx_ready or wsjt_ready:
-                        print(f"{black_on_yellow('Disable TX')}. Pas de séquence trouvée pour {bright_green(active_call)}. Le monitoring se poursuit.")
+                        print(f"{black_on_yellow('Disable TX')}. Pas de séquence trouvée pour {bright_green(active_callsign)}. Le monitoring se poursuit.")
                         if len(wanted_callsigns_list) > 1:
-                            active_call = None 
+                            active_callsign = None 
                                         
                         if control_function_name == 'JTDX':
                             jtdx_ready = False
                             disable_tx_jtdx(window_title)
                         elif control_function_name == 'WSJT':
-                            wsjt_ready = False            
+                            wsjt_ready = False      
+
+                        log_analysis_tracking['active_callsign'] = None                                  
         
         if time_hopping and frequency_hopping:  
             # Vérifier si time_hopping exprimé en minutes a été dépassé
@@ -702,7 +751,7 @@ def monitor_file(
         
         time.sleep(wait_time)
     
-    return 0
+    return True
 
 # Définir les chemins de fichiers à analyser
 wsjt_file_path = "C:\\Users\\TheBoss\\AppData\\Local\\WSJT-X\\"
@@ -711,7 +760,6 @@ jtdx_file_path = "C:\\Users\\TheBoss\\AppData\\Local\\JTDX - FT5000\\"
 # Update window tile
 wsjt_window_title = "WSJT-X   v2.7.1-devel   by K1JT et al."
 jtdx_window_title = "JTDX - FT5000  by HF community                                         v2.2.160-rc7 , derivative work based on WSJT-X by K1JT"
-
 
 def main(
         instance_type, 
@@ -749,29 +797,25 @@ def main(
             working_file_path = find_latest_file(wsjt_file_path)
             working_window_title = wsjt_window_title
         
-        print(white_on_red(f"Début du Monitoring pour {your_callsign} du fichier: {working_file_path}"))
+        if monitor_file(
+                working_file_path,
+                working_window_title, 
+                instance_type, 
+                control_log_analysis_tracking,
+                frequency_hopping,
+                time_hopping,
+                your_callsign,
+                wanted_callsigns_list,
+                instance_mode,
+                stop_event
+            ) == False:
+                print(white_on_red(f"Pas de Monitoring possible avec {instance_type}"))
 
-        monitor_file(
-            working_file_path,
-            working_window_title, 
-            instance_type, 
-            control_log_analysis_tracking,
-            frequency_hopping,
-            time_hopping,
-            your_callsign,
-            wanted_callsigns_list,
-            instance_mode,
-            stop_event
-        )
     except Exception as e:
         timestamp = datetime.datetime.now().strftime("%y%m%d_%H%M%S") 
-        exception = f"{timestamp} Exception: {str(e)}\n"
-        traceback = f"{timestamp} Traceback:\n{traceback.format_exc()}\n"
-        print(exception)
-        print(traceback)
         with open("wait_and_pounce_debug.log", "a") as log_file:
-            log_file.write(exception)
-            log_file.write(traceback)
+            log_file.write(f"{timestamp} Exception: {str(e)}\n")
+            log_file.write(f"{timestamp} Traceback:\n{traceback.format_exc()}\n")
 
     control_log_analysis_tracking(None)
     

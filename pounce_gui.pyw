@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, Menu
 import subprocess
+import pyperclip
 import pickle
 import os
 import queue
@@ -91,6 +92,11 @@ class DebugRedirector:
 
     def flush(self):
         pass
+
+def copy_to_clipboard(event):
+    text = focus_value_label.cget("text")
+    pyperclip.copy(text)
+    print(f"Copied to clipboard: {text}")
 
 def interpolate_color(start_color, end_color, factor):
     return tuple(int(start + (end - start) * factor) for start, end in zip(start_color, end_color))
@@ -272,7 +278,7 @@ def start_monitoring():
             messagebox.showerror("Erreur", f"Erreur lors de l'exécution du script : {e}")
             log_exception_to_file(log_filename, f"Exception: {str(e)}")
         finally:
-            run_button.config(state="normal", background="SystemButtonFace", text=WAIT_POUNCE_LABEL)
+            stop_monitoring()
 
     # Lancer l'exécution du script dans un thread séparé pour ne pas bloquer l'interface
     thread = threading.Thread(target=target)
@@ -282,11 +288,11 @@ def stop_monitoring():
     stop_event.set()
     run_button.config(state="normal", background="SystemButtonFace", text=WAIT_POUNCE_LABEL)
     enable_inputs()
-    messagebox.showinfo("Monitoring off", "It's time to check log")
 
 def control_log_analysis_tracking(log_analysis_tracking):
     if log_analysis_tracking is None:
         gui_queue.put(lambda: counter_value_label.config(text=WAITING_DATA_ANALYSIS_LABEL, bg="yellow"))
+        gui_queue.put(lambda: focus_frame.grid_remove())  
     else:
         current_time = datetime.datetime.now().timestamp()
         time_difference = current_time - log_analysis_tracking['last_analysis_time']
@@ -313,6 +319,14 @@ def control_log_analysis_tracking(log_analysis_tracking):
             bg=bg_color_hex
         ))
 
+        if log_analysis_tracking['active_callsign'] is not None:
+            gui_queue.put(lambda: (
+                focus_value_label.config(text=log_analysis_tracking['active_callsign']),
+                focus_frame.grid()  # Afficher le cadre entier
+            ))
+        else:
+            gui_queue.put(lambda: focus_frame.grid_remove())  
+
 def update_timer_with_ft8_sequence():
     current_time = datetime.datetime.now(datetime.timezone.utc)
     utc_time = current_time.strftime("%H:%M:%S")
@@ -338,7 +352,7 @@ wanted_callsigns_history = load_wanted_callsigns()
 
 # Création de la fenêtre principale
 root = tk.Tk()
-root.geometry("900x700")
+root.geometry("900x750")
 root.grid_columnconfigure(2, weight=1) 
 root.grid_columnconfigure(3, weight=2) 
 root.title(GUI_LABEL_VERSION)
@@ -373,30 +387,30 @@ consolas_font_lg = ("Consolas", 18, "normal")
 consolas_bold_font = ("Consolas", 12, "bold")
 segoe_ui_semi_bold_font = ("Segoe UI Semibold", 16)
 
-ttk.Label(root, text="Instance to monitor:").grid(column=0, row=0, padx=10, pady=5, sticky=tk.W)
+ttk.Label(root, text="Instance to monitor:").grid(column=0, row=1, padx=10, pady=5, sticky=tk.W)
 instance_combo_entry = ttk.Combobox(root, textvariable=instance_var, values=["JTDX", "WSJT"], font=consolas_font, width=23) 
-instance_combo_entry.grid(column=1, row=0, padx=10, pady=5, sticky=tk.W)
+instance_combo_entry.grid(column=1, row=1, padx=10, pady=5, sticky=tk.W)
 
-ttk.Label(root, text="Your Call:").grid(column=0, row=1, padx=10, pady=5, sticky=tk.W)
+ttk.Label(root, text="Your Call:").grid(column=0, row=2, padx=10, pady=5, sticky=tk.W)
 your_callsign_entry = ttk.Entry(root, textvariable=your_callsign_var, font=consolas_font, width=25) 
-your_callsign_entry.grid(column=1, row=1, padx=10, pady=5, sticky=tk.W)
+your_callsign_entry.grid(column=1, row=2, padx=10, pady=5, sticky=tk.W)
 
-ttk.Label(root, text="Frequencies (comma-separated):").grid(column=0, row=2, padx=10, pady=5, sticky=tk.W)
+ttk.Label(root, text="Frequencies (comma-separated):").grid(column=0, row=3, padx=10, pady=5, sticky=tk.W)
 frequency_entry = ttk.Entry(root, textvariable=frequency_var, font=consolas_font, width=25) 
-frequency_entry.grid(column=1, row=2, padx=10, pady=5, sticky=tk.W)
+frequency_entry.grid(column=1, row=3, padx=10, pady=5, sticky=tk.W)
 
-ttk.Label(root, text="Time Hopping (minutes):").grid(column=0, row=3, padx=10, pady=5, sticky=tk.W)
+ttk.Label(root, text="Time Hopping (minutes):").grid(column=0, row=4, padx=10, pady=5, sticky=tk.W)
 time_hopping_entry = ttk.Entry(root, textvariable=time_hopping_var, font=consolas_font, width=25) 
-time_hopping_entry.grid(column=1, row=3, padx=10, pady=5, sticky=tk.W)
+time_hopping_entry.grid(column=1, row=4, padx=10, pady=5, sticky=tk.W)
 
-ttk.Label(root, text="Wanted Callsign(s) (comma-separated):").grid(column=0, row=4, padx=10, pady=5, sticky=tk.W)
+ttk.Label(root, text="Wanted Callsign(s) (comma-separated):").grid(column=0, row=5, padx=10, pady=5, sticky=tk.W)
 wanted_callsigns_entry = ttk.Entry(root, textvariable=wanted_callsigns_var, font=consolas_font, width=25) 
-wanted_callsigns_entry.grid(column=1, row=4, padx=10, pady=5, sticky=tk.W)
+wanted_callsigns_entry.grid(column=1, row=5, padx=10, pady=5, sticky=tk.W)
 
-ttk.Label(root, text="Mode:").grid(column=0, row=5, padx=10, pady=5, sticky=tk.W)
+ttk.Label(root, text="Mode:").grid(column=0, row=6, padx=10, pady=5, sticky=tk.W)
 
 radio_frame = ttk.Frame(root)
-radio_frame.grid(column=1, columnspan=2, row=5, padx=10, pady=5)
+radio_frame.grid(column=1, columnspan=2, row=6, padx=10, pady=5)
 
 radio_normal = tk.Radiobutton(radio_frame, text="Normal", variable=mode_var, value="Normal", font=consolas_font)
 radio_normal.grid(column=0, row=0, padx=5, pady=5, sticky=tk.W)
@@ -408,10 +422,10 @@ radio_superfox = tk.Radiobutton(radio_frame, text="SuperFox", variable=mode_var,
 radio_superfox.grid(column=2, row=0, padx=5, pady=5, sticky=tk.W)
 
 wanted_callsigns_label = ttk.Label(root, text=WANTED_CALLSIGNS_HISTORY_LABEL % len(wanted_callsigns_history))
-wanted_callsigns_label.grid(column=2, row=0, padx=10, pady=10, sticky=tk.W)
+wanted_callsigns_label.grid(column=2, row=1, padx=10, pady=10, sticky=tk.W)
 
 listbox_frame = tk.Frame(root)
-listbox_frame.grid(column=2, row=0, rowspan=6, columnspan=2, padx=10, pady=0, sticky=tk.W+tk.E)
+listbox_frame.grid(column=2, row=1, rowspan=6, columnspan=2, padx=10, pady=0, sticky=tk.W+tk.E)
 listbox = tk.Listbox(listbox_frame, height=6, bg="#D080d0", fg="black", font=consolas_bold_font)
 listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)  
 
@@ -427,7 +441,7 @@ wanted_callsigns_menu = Menu(root, tearoff=0)
 wanted_callsigns_menu.add_command(label="Remove", command=remove_callsign_from_history)
 
 log_analysis_frame = ttk.Frame(root)
-log_analysis_frame.grid(column=2, columnspan=2, row=6, padx=10, pady=10, sticky=tk.W)
+log_analysis_frame.grid(column=2, columnspan=2, row=7, padx=10, pady=10, sticky=tk.W)
 
 log_analysis_label = ttk.Label(log_analysis_frame, text="Last sequence analyzed:")
 log_analysis_label.grid(column=0, row=0, padx=5, pady=5, sticky=tk.W)
@@ -435,21 +449,38 @@ log_analysis_label.grid(column=0, row=0, padx=5, pady=5, sticky=tk.W)
 counter_value_label = tk.Label(log_analysis_frame, text=WAITING_DATA_ANALYSIS_LABEL, font=consolas_font, bg="yellow")
 counter_value_label.grid(column=1, row=0, padx=5, pady=5, sticky=tk.W)
 
+focus_frame = tk.Frame(root)
+focus_frame.grid(column=0, columnspan=3, row=0, padx=40, pady=10, sticky=tk.W+tk.E)
+
+focus_value_label = tk.Label(
+    focus_frame,
+    font=consolas_font_lg,
+    bg="#000000",
+    fg="#01ffff",
+    padx=10,
+    pady=5,
+    anchor="center"
+)
+
+focus_value_label.pack(side=tk.LEFT, fill=tk.X, expand=True) 
+focus_frame.grid_remove()
+focus_frame.bind("<Button-1>", copy_to_clipboard)
+
+timer_frame = tk.Frame(root, bg="#cccccc", bd=1)
+timer_frame.grid(column=3, row=0, padx=(5, 30), pady=10, sticky=tk.E)
+
 timer_value_label = tk.Label(
-    root,
+    timer_frame,
     font=consolas_font_lg,
     bg="#9dfffe",
     fg="#555bc2",
-    borderwidth=1,
-    relief="solid",
-    highlightbackground="#555555",
-    highlightthickness=0,
     padx=10,
     pady=5,
     width=10,
     anchor="center"
 )
-timer_value_label.grid(column=3, row=0, padx=(5, 30), pady=5, sticky=tk.E)
+
+timer_value_label.pack()
 
 output_text = tk.Text(root, height=20, width=100, bg="#D3D3D3", font=consolas_font)
 
@@ -461,10 +492,10 @@ output_text.tag_config('white_on_red', foreground='white', background='red')
 output_text.tag_config('white_on_blue', foreground='white', background='blue')
 output_text.tag_config('bright_green', foreground='green')
 
-output_text.grid(column=0, row=7, columnspan=5, padx=10, pady=10, sticky="ew")
+output_text.grid(column=0, row=8, columnspan=5, padx=10, pady=10, sticky="ew")
 
 button_frame = tk.Frame(root)
-button_frame.grid(column=1, row=6, padx=10, pady=10)
+button_frame.grid(column=1, row=7, padx=10, pady=10)
 
 # Bouton pour exécuter le script
 run_button = tk.Button(button_frame, text=WAIT_POUNCE_LABEL, command=start_monitoring)

@@ -51,11 +51,13 @@ jtdx_window_title = "JTDX - FT5000  by HF community                             
 - [ ] Sometime, `replace_input_field_content` method can't set number for a callsign
 
 ## TODO
+- [ ] Let end user set his own filepath
 - [ ] Set mode Hound or Super Fox to `JTDX`
 - [ ] Add clean button for output Widget
+- [ ] Allow use of Wildcard for Wanted callsigns
 - [ ] Add Widget to GUI when focus on callsign
 - [ ] Add scrollbar to output Widget
-- [ ] Let end user set his own filepath
+- [ ] Find clear QRG for TXing
 - [ ] Let end user set his own `JTDX` and `WSJT-X` window title and position
 - [ ] Make binary for `Windows`
 - [ ] Check `wsjtx_log.adi` to get confirmation of awaited QSO
