@@ -12,14 +12,15 @@ Works For Windows Platform only for now.
 
 ## How to use it
 
+- pip install -r requirements.txt
 - Get a correct version working for Super/Fox mode with `WSJT-X` or `JTDX` and installed
-- Make sure to update `wait_and_pounce.py` around line 514
+- Make sure to update `wait_and_pounce.py` around line 710
 ```
 # Update window tile
 wsjt_window_title = "WSJT-X   v2.7.1-devel   by K1JT et al."
 jtdx_window_title = "JTDX - FT5000  by HF community                                         v2.2.160-rc7 , derivative work based on WSJT-X by K1JT"
 ```
-- Launch GUI using command line with Python. Ex: `python3 pounce_gui.py`
+- Launch GUI using command line with Python. Ex: `python3 pounce_gui.pyw`
 
 ## Donate with PayPal
 
@@ -52,11 +53,11 @@ jtdx_window_title = "JTDX - FT5000  by HF community                             
 ## TODO
 - [ ] Set mode Hound or Super Fox to `JTDX`
 - [ ] Add clean button for output Widget
-- [ ] When end monitoring stop script
-- [ ] Add focus callsign to GUI
+- [ ] Add Widget to GUI when focus on callsign
 - [ ] Add scrollbar to output Widget
-- [ ] Make binary for `Windows`
+- [ ] Let end user set his own filepath
 - [ ] Let end user set his own `JTDX` and `WSJT-X` window title and position
+- [ ] Make binary for `Windows`
 - [ ] Check `wsjtx_log.adi` to get confirmation of awaited QSO
 - [ ] Add internationalization `I18N` and localization `L10N`
 - [ ] Use `Packet UDP` instead of reading log files
