@@ -723,29 +723,34 @@ def main(
         control_log_analysis_tracking,
         stop_event
     ):
-    wanted_callsigns_list = [call for call in wanted_callsigns_list.upper().split(",") if len(call) >= 3]
-    frequency_hopping = None
-
-    # Prise en charge des fréquences à gérer
-    if frequency:
-        frequency_hopping = list(map(int, frequency_hopping.split(',')))
-        frequency_hopping = [freq for freq in frequency_hopping if is_valid_frequency(freq)]
-
-    if frequency and frequency_hopping == None:
-        restore_and_or_move_window(jtdx_window_title, 0, 90, 1090, 960)
-        change_qrg_jtdx(jtdx_window_title, format_with_comma(frequency))
-    
-    # Ajouter les tâches à la queue de travail
-    if instance_type == 'JTDX':
-        working_file_path = find_latest_file(jtdx_file_path)
-        working_window_title = jtdx_window_title
-    elif instance_type == 'WSJT':
-        working_file_path = find_latest_file(wsjt_file_path)
-        working_window_title = wsjt_window_title
-    
-    print(white_on_red(f"Début du Monitoring pour {your_callsign} du fichier: {working_file_path}"))
 
     try:
+        wanted_callsigns_list = [call for call in wanted_callsigns_list.upper().split(",") if len(call) >= 3]
+        frequency_hopping = None
+
+        if frequency and ',' in frequency:
+            frequency_hopping = list(map(int, frequency.split(',')))
+            frequency_hopping = [freq for freq in frequency_hopping if is_valid_frequency(freq)]
+
+            if len(frequency_hopping) > 1 and time_hopping == None:
+                time_hopping = default_time_hopping
+
+        if frequency and frequency_hopping == None:
+            frequency = int(frequency)
+
+            if is_valid_frequency(frequency):
+                restore_and_or_move_window(jtdx_window_title, 0, 90, 1090, 960)
+                change_qrg_jtdx(jtdx_window_title, format_with_comma(frequency))
+        
+        if instance_type == 'JTDX':
+            working_file_path = find_latest_file(jtdx_file_path)
+            working_window_title = jtdx_window_title
+        elif instance_type == 'WSJT':
+            working_file_path = find_latest_file(wsjt_file_path)
+            working_window_title = wsjt_window_title
+        
+        print(white_on_red(f"Début du Monitoring pour {your_callsign} du fichier: {working_file_path}"))
+
         monitor_file(
             working_file_path,
             working_window_title, 
@@ -760,9 +765,13 @@ def main(
         )
     except Exception as e:
         timestamp = datetime.datetime.now().strftime("%y%m%d_%H%M%S") 
+        exception = f"{timestamp} Exception: {str(e)}\n"
+        traceback = f"{timestamp} Traceback:\n{traceback.format_exc()}\n"
+        print(exception)
+        print(traceback)
         with open("wait_and_pounce_debug.log", "a") as log_file:
-            log_file.write(f"{timestamp} Exception: {str(e)}\n")
-            log_file.write(f"{timestamp} Traceback:\n{traceback.format_exc()}\n")
+            log_file.write(exception)
+            log_file.write(traceback)
 
     control_log_analysis_tracking(None)
     

@@ -21,7 +21,7 @@ WANTED_CALLSIGNS_HISTORY_SIZE = 10
 GUI_LABEL_VERSION = f"Wait and Pounce v{version_number} (by F5UKW under GNU GPL Licence)"
 RUNNING_TEXT_BUTTON = "Running..."
 WAIT_POUNCE_LABEL = "Click to Wait & Pounce"
-STOP_LOG_ANALYSIS_LABEL = "Stopped"
+WAITING_DATA_ANALYSIS_LABEL= "Nothing yet"
 WANTED_CALLSIGNS_HISTORY_LABEL = "Wanted Callsigns History (%d):" 
 
 START_COLOR = (255, 255, 0)
@@ -237,7 +237,7 @@ def start_monitoring():
     stop_event.clear() 
 
     instance_type = instance_var.get()
-    frequencies = frequency_var.get()
+    frequency = frequency_var.get()
     time_hopping = time_hopping_var.get()
     wanted_callsigns = wanted_callsigns_var.get()
     your_callsign = your_callsign_var.get()
@@ -247,7 +247,7 @@ def start_monitoring():
 
     params = {
         "instance": instance_type,
-        "frequencies": frequencies,
+        "frequency": frequency,
         "time_hopping": time_hopping,
         "wanted_callsigns": wanted_callsigns,
         "your_callsign": your_callsign,
@@ -259,7 +259,7 @@ def start_monitoring():
         try:
             wait_and_pounce.main(
                 instance_type,
-                frequencies,
+                frequency,
                 time_hopping,        
                 your_callsign,
                 wanted_callsigns,
@@ -286,7 +286,7 @@ def stop_monitoring():
 
 def control_log_analysis_tracking(log_analysis_tracking):
     if log_analysis_tracking is None:
-        gui_queue.put(lambda: counter_value_label.config(text=STOP_LOG_ANALYSIS_LABEL, bg="yellow"))
+        gui_queue.put(lambda: counter_value_label.config(text=WAITING_DATA_ANALYSIS_LABEL, bg="yellow"))
     else:
         current_time = datetime.datetime.now().timestamp()
         time_difference = current_time - log_analysis_tracking['last_analysis_time']
@@ -371,6 +371,7 @@ courier_bold_font = ("Courier", 12, "bold")
 consolas_font = ("Consolas", 12, "normal")
 consolas_font_lg = ("Consolas", 18, "normal")
 consolas_bold_font = ("Consolas", 12, "bold")
+segoe_ui_semi_bold_font = ("Segoe UI Semibold", 16)
 
 ttk.Label(root, text="Instance to monitor:").grid(column=0, row=0, padx=10, pady=5, sticky=tk.W)
 instance_combo_entry = ttk.Combobox(root, textvariable=instance_var, values=["JTDX", "WSJT"], font=consolas_font, width=23) 
@@ -431,10 +432,23 @@ log_analysis_frame.grid(column=2, columnspan=2, row=6, padx=10, pady=10, sticky=
 log_analysis_label = ttk.Label(log_analysis_frame, text="Last sequence analyzed:")
 log_analysis_label.grid(column=0, row=0, padx=5, pady=5, sticky=tk.W)
 
-counter_value_label = tk.Label(log_analysis_frame, text=STOP_LOG_ANALYSIS_LABEL, font=consolas_font, bg="yellow")
+counter_value_label = tk.Label(log_analysis_frame, text=WAITING_DATA_ANALYSIS_LABEL, font=consolas_font, bg="yellow")
 counter_value_label.grid(column=1, row=0, padx=5, pady=5, sticky=tk.W)
 
-timer_value_label = tk.Label(root, font=consolas_font_lg, bg="#9dfffe", fg="#555bc2", borderwidth=1, relief="solid", highlightbackground="#333333", highlightthickness=0, padx=10, pady=5)
+timer_value_label = tk.Label(
+    root,
+    font=consolas_font_lg,
+    bg="#9dfffe",
+    fg="#555bc2",
+    borderwidth=1,
+    relief="solid",
+    highlightbackground="#555555",
+    highlightthickness=0,
+    padx=10,
+    pady=5,
+    width=10,
+    anchor="center"
+)
 timer_value_label.grid(column=3, row=0, padx=(5, 30), pady=5, sticky=tk.E)
 
 output_text = tk.Text(root, height=20, width=100, bg="#D3D3D3", font=consolas_font)

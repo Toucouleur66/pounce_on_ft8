@@ -27,7 +27,7 @@ jtdx_window_title = "JTDX - FT5000  by HF community                             
 
 ## Version
 
-- `1.0` Show status on __GUI__
+- `1.0` Show status on `GUI`
 - `0.9` Handle multiple calls
 - `0.8` Set mode to start on `Normal`or `Fox/Hound` or `SuperFox`
 - `0.7` Change for odd or even `JTDX`
@@ -45,17 +45,22 @@ jtdx_window_title = "JTDX - FT5000  by HF community                             
 - [ ] Logging QSO remains an issue due to variable size of the log window
 
 ## `JTDX` (Regular Mode, F/H and S/F)
-_ [x] When focus after reading for the first time log file, doesn't Enable TX immediately
+- [x] When focus after reading for the first time log file, doesn't Enable TX immediately
 - [x] When `JTDX` does not have a callsign set at `DX Call`, can't set any new callsign and generate message
 - [ ] Sometime, `replace_input_field_content` method can't set number for a callsign
 
 ## TODO
+- [ ] Set mode Hound or Super Fox to `JTDX`
+- [ ] Add clean button for output Widget
+- [ ] When end monitoring stop script
+- [ ] Add focus callsign to GUI
+- [ ] Add scrollbar to output Widget
 - [ ] Make binary for `Windows`
-- [ ] Fix `Log Analysys Count`
 - [ ] Let end user set his own `JTDX` and `WSJT-X` window title and position
 - [ ] Check `wsjtx_log.adi` to get confirmation of awaited QSO
 - [ ] Add internationalization `I18N` and localization `L10N`
-- [ ] Use `Packet UDP`
+- [ ] Use `Packet UDP` instead of reading log files
+- [x] Fix `Log Analysis Count`
 - [x] Disable Run button unless user set `your_callsign` and `wanted_callsigns`
 - [x] Set `JTDX` to `SHound` Mode
 - [x] Change for odd or even `JTDX`
