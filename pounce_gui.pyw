@@ -17,7 +17,7 @@ version_number = 1.0
 PARAMS_FILE = "params.pkl"
 POSITION_FILE = "window_position.pkl"
 WANTED_CALLSIGNS_FILE = "wanted_callsigns.pkl"  
-WANTED_CALLSIGNS_HISTORY_SIZE = 10  
+WANTED_CALLSIGNS_HISTORY_SIZE = 50 
 
 GUI_LABEL_VERSION = f"Wait and Pounce v{version_number} (by F5UKW under GNU GPL Licence)"
 RUNNING_TEXT_BUTTON = "Running..."
@@ -273,12 +273,11 @@ def start_monitoring():
                 control_log_analysis_tracking,
                 stop_event
             )
+            stop_monitoring()
 
         except Exception as e:
             messagebox.showerror("Erreur", f"Erreur lors de l'exécution du script : {e}")
             log_exception_to_file(log_filename, f"Exception: {str(e)}")
-        finally:
-            stop_monitoring()
 
     # Lancer l'exécution du script dans un thread séparé pour ne pas bloquer l'interface
     thread = threading.Thread(target=target)
@@ -322,7 +321,7 @@ def control_log_analysis_tracking(log_analysis_tracking):
         if log_analysis_tracking['active_callsign'] is not None:
             gui_queue.put(lambda: (
                 focus_value_label.config(text=log_analysis_tracking['active_callsign']),
-                focus_frame.grid()  # Afficher le cadre entier
+                focus_frame.grid() 
             ))
         else:
             gui_queue.put(lambda: focus_frame.grid_remove())  

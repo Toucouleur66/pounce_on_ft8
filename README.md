@@ -28,6 +28,7 @@ jtdx_window_title = "JTDX - FT5000  by HF community                             
 
 ## Version
 
+- `1.1` Handle Wildcard (use "`*`" as Wildcard)
 - `1.0` Show status on `GUI`
 - `0.9` Handle multiple calls
 - `0.8` Set mode to start on `Normal`or `Fox/Hound` or `SuperFox`
@@ -87,7 +88,8 @@ jtdx_window_title = "JTDX - FT5000  by HF community                             
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=R4HK9ZTUPYHSL)
 
 ## Need to read UDP packets coming from either WSJT-X or JTDX
-
+- https://github.com/bmo/py-wsjtx
+- https://github.com/takgr/JTDX-controller/blob/main/call_alert.py
 - https://github.com/rstagers/WSJT-X
 - https://github.com/bmo/py-wsjtx
 - https://github.com/SA0TAY/potassium

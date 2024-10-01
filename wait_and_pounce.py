@@ -137,31 +137,25 @@ def is_closer_to_odd_or_even(color):
     else:
         return ODD
 
-def replace_input_field_content(x_offset, y_offset, find_sequences, press_enter_key=None):
-    # Déplacer la souris vers le champ input et cliquer
+def replace_input_field_content(x_offset, y_offset, new_content, press_enter_key=None):
     pyautogui.click(x_offset, y_offset)
     time.sleep(wait_time)  
     
-    # Sélectionner tout le texte (Ctrl+A)
     pyautogui.hotkey('ctrl', 'a')
     time.sleep(wait_time)
     
-    # Copier le contenu actuel dans le presse-papiers (Ctrl+C)
     pyautogui.hotkey('ctrl', 'c')
     time.sleep(wait_time)
     
-    # Lire le contenu du presse-papiers
     current_content = pyperclip.paste()
     
-    # Si le contenu actuel est identique à find_sequences, sortir de la fonction
-    if current_content == find_sequences:
+    if current_content == new_content:
         return
     
-    # Effacer le texte sélectionné (Delete)
     pyautogui.press('delete')
     time.sleep(wait_time)
     
-    pyautogui.typewrite(find_sequences, interval=0.05)  # Vous pouvez ajuster l'intervalle entre chaque caractère si nécessaire
+    pyautogui.typewrite(new_content, interval=0.05) 
 
     if press_enter_key:
         pyautogui.press('enter')
@@ -251,7 +245,6 @@ def restore_and_or_move_window(window_title, x=None, y=None, width=None, height=
             win32gui.BringWindowToTop(real_window)
             print(f"Fenêtre restaurée et mise au premier plan.")
 
-        # Repositionner et redimensionner la fenêtre si les paramètres sont fournis
         if None not in (x, y, width, height):
             window.moveTo(x, y)
             window.resizeTo(width, height)
@@ -267,24 +260,11 @@ def restore_and_or_move_window(window_title, x=None, y=None, width=None, height=
     return True
 
 def prepare_wsjt(window_title, call_selected = None):
-    # Activer la fenêtre désirée
     if restore_and_or_move_window(window_title, 480, 0, 1080, 960) == False:
         return None
-
+    
     if call_selected:
-        # Lecture du champ Input 
         replace_input_field_content(690, 775, call_selected)
-    # Clic sur generate_message 
-    pyautogui.click(1200, 720)
-
-    if call_selected:
-        return True
-    else:
-        return False
-    if call_selected:
-        # Lecture du champ Input 
-        replace_input_field_content(690, 775, call_selected)
-    # Clic sur generate_message 
     pyautogui.click(1200, 720)
 
     if call_selected:
@@ -310,6 +290,7 @@ def change_qrg_jtdx(window_title, frequency):
 
 def prepare_jtdx(window_title, call_selected = None):
     # Activer la fenêtre désirée
+    print(f"Préparation indicatif {call_selected}")
     if restore_and_or_move_window(window_title, 0, 90, 1090, 960) == False:
         return None
     print(f"Configuration TX: {bright_green(jtdx_is_set_to_odd_or_even(window_title))}")
@@ -379,7 +360,6 @@ def generate_sequences(your_callsign, call_selected):
     global respond_with_negative_signal_report
     global confirm_signal_and_respond_with_positive_signal_report
     global confirm_signal_and_respond_with_negative_signal_report
-
     cq_call_selected = f"CQ {call_selected}"
     report_received_73 = f"{call_selected} RR73"
     reception_report_received = f"{call_selected} RRR"
@@ -392,7 +372,6 @@ def generate_sequences(your_callsign, call_selected):
     respond_with_negative_signal_report = f"{call_selected} -"
     confirm_signal_and_respond_with_positive_signal_report = f"{call_selected} R+"
     confirm_signal_and_respond_with_negative_signal_report = f"{call_selected} R-"
-
     # Definition des séquences à identifier:
     # Attention, l'ordre doit être respecté par ordre décroissant d'importance des messages
     return {
@@ -442,12 +421,45 @@ def decode_sequence(sequence, instance_type):
         
     print("Format de séquence avec problème")
     return False
+
+def highlight_wanted_callsigns(wanted_callsigns_list):
+    return black_on_purple(", ".join(wanted_callsigns_list))
+
+def contains_wildcard(callsign):
+    if "*" in callsign or "@" in callsign:
+        return True
+    else:
+        return False
+
+def extract_callsign(line, search_with_wildcard):
+    search_with_wildcard = search_with_wildcard.replace("*", "@")
+    # Échapper les caractères spéciaux dans search_with_wildcard
+    search_with_wildcard = re.escape(search_with_wildcard)
+    # Remplacement du Wildcard pour regex
+    pattern = search_with_wildcard.replace("@", r"\w+")
+    pattern = re.sub(r"(\w+)\\w\+", r"(\1\\w+)", pattern)
+    pattern = r'(?:^|\s)' + pattern
     
-def find_sequences(file_path, sequences, last_number_of_lines=100, time_max_expected_in_minutes=10):    
-    # Initialiser les résultats avec les valeurs du dictionnaire sequences comme clés
-    results = {sequence: False for sequence in sequences.values()}
-    found_sequences = {}
+    match = re.search(pattern, line)
+    
+    if match:
+        return match.group(1)
+    else:
+        return None
+    
+def find_sequences(
+        file_path, 
+        your_callsign,
+        wanted_callsign,
+        excluded_callsigns_list = [],
+        last_number_of_lines = 100,
+        time_max_expected_in_minutes = 10
+    ):    
+    sequences_to_find = generate_sequences(your_callsign, wanted_callsign)
     log_time_str = False
+    sequence_found = None
+    message_found = None
+    found_callsign = None
 
     if os.path.exists(file_path):
         with open(file_path, 'r', encoding='utf-8') as file:
@@ -455,7 +467,7 @@ def find_sequences(file_path, sequences, last_number_of_lines=100, time_max_expe
 
         # Obtenir les dernières lignes en partant de la fin
         last_lines = lines[-last_number_of_lines:]
-        sequence_found_flag = False 
+        callsign_found_with_wildcard = None 
 
         # Vérifier si les séquences sont dans les dernières lignes
         for line in reversed(last_lines):
@@ -477,35 +489,39 @@ def find_sequences(file_path, sequences, last_number_of_lines=100, time_max_expe
 
             # Vérifier si la ligne est dans la limite de temps
             if time_difference_in_minutes <= time_max_expected_in_minutes:
-                for key, sequence in sequences.items():
+                for key, sequence in sequences_to_find.items():
                     if sequence in line:
+                        sequence_found = sequence
+                        found_callsign = wanted_callsign
+                    elif '*' in sequence:
+                        callsign_found_with_wildcard = extract_callsign(line, sequence)
+                        if callsign_found_with_wildcard and callsign_found_with_wildcard not in excluded_callsigns_list:
+                            found_callsign = callsign_found_with_wildcard
+                            sequence_found = sequence
+
+                    if sequence_found:
+                        message_found = line.strip()
                         if time_difference_in_seconds < 120:
-                            time_difference_display = f"{int(time_difference_in_seconds)}s"
-                        else:
+                            time_difference_display = f"{int(time_difference_in_seconds)}s" 
+                        else: 
                             time_difference_display = f"{int(time_difference_in_minutes)}m"
-                                                
-                        found_sequences[sequence] = line.strip()
-                        
-                        sequence_found_flag = True
+
+                        # Break for sequence loop
                         break
-                if sequence_found_flag:
-                    # Sortir de la boucle des lignes si une séquence est trouvée
-                    break
 
-    # Parcourir les séquences dans l'ordre et mettre à jour results
-    for key in sequences.values():
-        if key in found_sequences:
-            print(f"Il y a {white_on_blue(time_difference_display)}: {black_on_white(found_sequences[key])}")
-            results[key] = {
-                'message': found_sequences[key],
-                'period': ends_with_even_or_odd(log_time_str)
-            }
-            return results
-        
-    return results
+            if sequence_found:
+                break
 
-def highlight_calls(wanted_callsigns_list):
-    return black_on_purple(", ".join(wanted_callsigns_list))
+    if sequence_found:
+        print(f"Il y a {white_on_blue(time_difference_display)}: {black_on_white(message_found)}")
+        return {
+            'sequence' : sequence_found,
+            'message': message_found,
+            'period': ends_with_even_or_odd(log_time_str),
+            'callsign': found_callsign
+        }
+    else:
+        return None
 
 def monitor_file(
         file_path,
@@ -535,7 +551,7 @@ def monitor_file(
     global confirm_signal_and_respond_with_negative_signal_report
 
     print(white_on_red(f"Début du Monitoring pour {your_callsign} du fichier: {file_path}"))        
-    print(f"\n=== Démarrage Monitoring pour {control_function_name} {bright_green('[' + instance_mode + ']')} {highlight_calls(wanted_callsigns_list)} ===")
+    print(f"\n=== Démarrage Monitoring pour {control_function_name} {bright_green('[' + instance_mode + ']')} {highlight_wanted_callsigns(wanted_callsigns_list)} ===")
 
     wsjt_ready = False
     jtdx_ready = False
@@ -546,6 +562,7 @@ def monitor_file(
     period_found = None
     last_file_time_update = None
     decoded_sequence = None
+    excluded_callsigns_list = []
 
     log_analysis_tracking = {
         'total_analysis': 0,
@@ -553,7 +570,7 @@ def monitor_file(
         'active_callsign': None,
     }
 
-    if len(wanted_callsigns_list) > 1:
+    if len(wanted_callsigns_list) > 1 or contains_wildcard(wanted_callsigns_list[0]):
         if control_function_name == 'WSJT':
             wsjt_ready = prepare_wsjt(window_title)
         elif control_function_name == 'JTDX':
@@ -588,18 +605,25 @@ def monitor_file(
                 log_analysis_tracking['active_callsign'] = None
                 # Rechercher dans le fichier un call à partir de la liste
                 for wanted_callsign in wanted_callsigns_list:
-                    sequences_to_find = generate_sequences(your_callsign, wanted_callsign)
                     # Attention, on peut avoir à lire de nombreuses fois le fichier de log
-                    sequences_found = find_sequences(file_path, sequences_to_find)
-                    if any(sequences_found.values()):
-                        active_callsign = wanted_callsign
+                    sequence_found = find_sequences(
+                        file_path,
+                        your_callsign,
+                        wanted_callsign,
+                        excluded_callsigns_list
+                    )
+                    if sequence_found:
+                        active_callsign = sequence_found['callsign']
                         print(f"{white_on_blue('Focus sur')} {active_callsign}")
                         break
 
             if active_callsign:        
-                # Build and try to find sequences
-                sequences_to_find = generate_sequences(your_callsign, active_callsign)
-                sequences_found = find_sequences(file_path, sequences_to_find)
+                if sequence_found is None:
+                    sequence_found = find_sequences(
+                        file_path,
+                        your_callsign,
+                        active_callsign
+                    ) 
                 
                 # Check for exit loop
                 exit_message = False
@@ -617,14 +641,14 @@ def monitor_file(
                     ]
 
                 # Recherche de la première séquence de sortie décodée
-                for sequence in sequences_to_check:
-                    if sequences_found[sequence]:
-                        sequence_found = sequence
-                        exit_message = sequences_found[sequence]['message']                            
-                        break 
+                if sequence_found:
+                    for sequence_to_check in sequences_to_check:
+                        if sequence_to_check == sequence_found['sequence']:
+                            exit_message = sequence_found['message']                            
+                            break 
 
                 if exit_message and last_exit_message != exit_message:
-                    print(f"Séquence de sortie trouvée {white_on_red(sequence_found)}: {black_on_white(exit_message)}")
+                    print(f"Séquence de sortie trouvée {white_on_red(sequence_found['sequence'])}: {black_on_white(exit_message)}")
                     # Mise à jours de la dernière séquence de sortie
                     last_exit_message = exit_message
                     
@@ -634,8 +658,13 @@ def monitor_file(
                     elif control_function_name == 'WSJT':
                         wsjt_ready = wait_and_log_wstj_qso(window_title)          
 
-                    # Retirer l'indicatif des wanted
-                    wanted_callsigns_list.remove(active_callsign)
+                    if active_callsign in wanted_callsigns_list:
+                        # Retirer l'indicatif des wanted
+                        wanted_callsigns_list.remove(active_callsign)
+                    else:
+                        # Ajouter l'indicatif aux excluded_callsigns_list
+                        excluded_callsigns_list.append(active_callsign)                  
+                    
                     active_callsign = None
 
                     # Est ce que le script doit poursuivre en utilisant d'autres fréquences?
@@ -652,38 +681,44 @@ def monitor_file(
                             elif control_function_name == 'WSJT':
                                 wsjt_ready == False
                     elif wanted_callsigns_list:
+                        if control_function_name == 'WSJT':
+                            wsjt_ready = False
+                        elif control_function_name == 'JTDX':
+                            jtdx_ready = False
+                            disable_tx_jtdx(window_title)
+                        
+                        enable_tx = False
+
                         force_next_hop = True
-                        print(f"\n=== Reprise Monitoring pour {control_function_name} {highlight_calls(wanted_callsigns_list)} ===")
+                        print(f"\n=== Reprise Monitoring pour {control_function_name} {highlight_wanted_callsigns(wanted_callsigns_list)} ===")
                     else:
                         print(white_on_red("Arrêt du script car plus d'indicatif à rechercher."))
                         break
                 else:
-                    sequence_found = None
                     enable_tx = True
 
-                    # Liste des séquences à vérifier, dans l'ordre de priorité
-                    sequences_to_check = [
-                        cq_call_selected,
-                        report_received_73,
-                        reply_to_my_call,  
-                        reception_report_received, 
-                        best_regards,                                                     
-                        best_regards_received_for_my_call,
-                        report_received_73_for_my_call,
-                        respond_with_positive_signal_report,
-                        respond_with_negative_signal_report,
-                        confirm_signal_and_respond_with_positive_signal_report,
-                        confirm_signal_and_respond_with_negative_signal_report
-                    ]
+                    if sequence_found:
+                        # Liste des séquences à vérifier, dans l'ordre de priorité
+                        sequences_to_check = [
+                            cq_call_selected,
+                            report_received_73,
+                            reply_to_my_call,  
+                            reception_report_received, 
+                            best_regards,                                                     
+                            best_regards_received_for_my_call,
+                            report_received_73_for_my_call,
+                            respond_with_positive_signal_report,
+                            respond_with_negative_signal_report,
+                            confirm_signal_and_respond_with_positive_signal_report,
+                            confirm_signal_and_respond_with_negative_signal_report
+                        ]
 
-                    # Recherche de la première séquence décodée
-                    for sequence in sequences_to_check:
-                        if sequences_found[sequence]:
-                            sequence_found = sequence
-                            decoded_sequence = decode_sequence(sequences_found[sequence]['message'], control_function_name) 
-                            period_found = sequences_found[sequence]['period']
-                                # Dès qu'une séquence est trouvée, on sort de la boucle
-                            break 
+                        # Recherche de la première séquence décodée
+                        for sequence_to_check in sequences_to_check:
+                            if sequence_to_check == sequence_found['sequence']:
+                                decoded_sequence = decode_sequence(sequence_found['message'], control_function_name) 
+                                period_found = sequence_found['period']
+                                break 
 
                     # Si aucune séquence n'a été trouvée, désactiver l'émission 
                     if sequence_found is None:
@@ -694,7 +729,7 @@ def monitor_file(
                         log_analysis_tracking['active_callsign'] = decoded_sequence
     
                 if not force_next_hop and sequence_found:
-                    print(f"Séquence trouvée {black_on_brown(sequence_found)} {bright_green('[' + period_found + ']')}. Activation de la fenêtre et check état.")
+                    print(f"Séquence trouvée {black_on_brown(sequence_found['sequence'])} {bright_green('[' + period_found + ']')}. Activation de la fenêtre et check état.")
 
                 if enable_tx:        
                     frequency_uptime = time.time()
@@ -706,7 +741,7 @@ def monitor_file(
                         elif period_found == ODD and jtdx_is_set_to_odd_or_even(window_title) == ODD:
                             print(f"Passage en période {black_on_brown(EVEN)}")
                             toggle_jtdx_to_even(window_title)
-                            
+
                         if jtdx_ready == False:
                             jtdx_ready = prepare_jtdx(window_title, active_callsign)
                         # Check sur le bouton Enable TX
@@ -719,7 +754,12 @@ def monitor_file(
                 else:
                     if jtdx_ready or wsjt_ready:
                         print(f"{black_on_yellow('Disable TX')}. Pas de séquence trouvée pour {bright_green(active_callsign)}. Le monitoring se poursuit.")
+                        # On peut chasser d'autres indicatifs
                         if len(wanted_callsigns_list) > 1:
+                            active_callsign = None 
+                        # On considère que le active_callsign n'est pas dans wanted_callsigns_list
+                        # et qu'il répond à un Wildcard
+                        elif active_callsign not in wanted_callsigns_list:
                             active_callsign = None 
                                         
                         if control_function_name == 'JTDX':
@@ -728,7 +768,9 @@ def monitor_file(
                         elif control_function_name == 'WSJT':
                             wsjt_ready = False      
 
-                        log_analysis_tracking['active_callsign'] = None                                  
+                        log_analysis_tracking['active_callsign'] = None 
+                
+                sequence_found = None                                 
         
         if time_hopping and frequency_hopping:  
             # Vérifier si time_hopping exprimé en minutes a été dépassé
@@ -760,6 +802,18 @@ jtdx_file_path = "C:\\Users\\TheBoss\\AppData\\Local\\JTDX - FT5000\\"
 # Update window tile
 wsjt_window_title = "WSJT-X   v2.7.1-devel   by K1JT et al."
 jtdx_window_title = "JTDX - FT5000  by HF community                                         v2.2.160-rc7 , derivative work based on WSJT-X by K1JT"
+
+def extraire_pattern(chaine, motif):
+    motif = re.escape(motif)
+    motif_regex = motif.replace("@", r"\w+").replace("*", r"\w+")
+    motif_regex = re.sub(r"(\w+)\\w\+", r"(\1\\w+)", motif_regex)
+    motif_regex = r'(?:^|\s)' + motif_regex
+    
+    match = re.search(motif_regex, chaine)
+    if match:
+        return match.group(1)
+    else:
+        return None
 
 def main(
         instance_type, 
@@ -796,7 +850,7 @@ def main(
         elif instance_type == 'WSJT':
             working_file_path = find_latest_file(wsjt_file_path)
             working_window_title = wsjt_window_title
-        
+
         if monitor_file(
                 working_file_path,
                 working_window_title, 
