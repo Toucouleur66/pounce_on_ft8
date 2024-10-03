@@ -392,15 +392,23 @@ def generate_sequences(your_callsign, call_selected):
 
 
 def get_log_time(log_time_str):
-    # Format JTDX
-    if re.match(r'^\d{8}_\d{6}', log_time_str):
-        match = re.match(r'^\d{8}_\d{6}', log_time_str)
-        log_time = datetime.datetime.strptime(match.group(0), "%Y%m%d_%H%M%S")
-    # Format WSJT                    
-    elif re.match(r'^\d{6}_\d{6}', log_time_str):
-        log_time = datetime.datetime.strptime(log_time_str, "%y%m%d_%H%M%S")
+    log_time = None
 
-    return log_time.replace(tzinfo=utc) 
+    try:
+        # Format JTDX
+        if re.match(r'^\d{8}_\d{6}', log_time_str):
+            match = re.match(r'^\d{8}_\d{6}', log_time_str)
+            log_time = datetime.datetime.strptime(match.group(0), "%Y%m%d_%H%M%S")
+        # Format WSJT                    
+        elif re.match(r'^\d{6}_\d{6}', log_time_str):
+            log_time = datetime.datetime.strptime(log_time_str, "%y%m%d_%H%M%S")
+
+        if log_time:
+            log_time = log_time.replace(tzinfo=utc) 
+    except Exception as e:
+        print(f"Problème de formattage: {log_time_str}")
+
+    return log_time 
 
 def find_free_frequency_for_tx(file_path, sequences, last_number_of_lines=100):
     # Try to find clear QRG according to mode and last log analysis
@@ -476,39 +484,41 @@ def find_sequences(
             if not re.match(r'^\d{6}', line):
                 continue
 
-            # Extraire la date et l'heure du début de la ligne
             try:
+                # Extraire la date et l'heure du début de la ligne
                 log_time_str = line.split()[0]
                 log_time = get_log_time(log_time_str)
                 
-            except (IndexError, ValueError):
-                continue
+                if log_time:
+                    # Calculer la différence de temps en minutes
+                    time_difference_in_seconds = (datetime.datetime.now(utc) - log_time).total_seconds() 
+                    time_difference_in_minutes = time_difference_in_seconds / 60.0
 
-            # Calculer la différence de temps en minutes
-            time_difference_in_seconds = (datetime.datetime.now(utc) - log_time).total_seconds() 
-            time_difference_in_minutes = time_difference_in_seconds / 60.0
+                    # Vérifier si la ligne est dans la limite de temps
+                    if time_difference_in_minutes < time_max_expected_in_minutes and log_time > last_monitor_time:
+                        for key, sequence in sequences_to_find.items():
+                            if sequence in line:
+                                sequence_found = sequence
+                                found_callsign = wanted_callsign
+                            elif '*' in sequence:
+                                callsign_found_with_wildcard = extract_callsign(line, sequence)
+                                if callsign_found_with_wildcard and callsign_found_with_wildcard not in excluded_callsigns_list:
+                                    found_callsign = callsign_found_with_wildcard
+                                    sequence_found = sequence
 
-            # Vérifier si la ligne est dans la limite de temps
-            if time_difference_in_minutes < time_max_expected_in_minutes and log_time > last_monitor_time:
-                for key, sequence in sequences_to_find.items():
-                    if sequence in line:
-                        sequence_found = sequence
-                        found_callsign = wanted_callsign
-                    elif '*' in sequence:
-                        callsign_found_with_wildcard = extract_callsign(line, sequence)
-                        if callsign_found_with_wildcard and callsign_found_with_wildcard not in excluded_callsigns_list:
-                            found_callsign = callsign_found_with_wildcard
-                            sequence_found = sequence
+                            if sequence_found:
+                                message_found = line.strip()
+                                if time_difference_in_seconds < 120:
+                                    time_difference_display = f"{int(time_difference_in_seconds)}s" 
+                                else: 
+                                    time_difference_display = f"{int(time_difference_in_minutes)}m"
 
-                    if sequence_found:
-                        message_found = line.strip()
-                        if time_difference_in_seconds < 120:
-                            time_difference_display = f"{int(time_difference_in_seconds)}s" 
-                        else: 
-                            time_difference_display = f"{int(time_difference_in_minutes)}m"
-
-                        # Break for sequence loop
-                        break
+                                # Break for sequence loop
+                                break
+            except Exception as e:
+                timestamp = datetime.datetime.now().strftime("%y%m%d_%H%M%S")                 
+                print(f"{timestamp} Exception: {str(e)}\n")
+                print(f"{timestamp} Traceback:\n{traceback.format_exc()}\n")
 
             if sequence_found:
                 break

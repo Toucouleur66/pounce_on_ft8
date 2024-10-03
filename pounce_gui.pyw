@@ -99,7 +99,7 @@ class DebugRedirector:
                     gui_queue.put(lambda l=line: self.widget.after(0, self.apply_tags, l))
             self.buffer = lines[-1] if not lines[-1].endswith('\n') else ''
 
-        self.update_clear_button_state()
+        gui_queue.put(self.update_clear_button_state)
 
     def update_clear_button_state(self):
         if self.widget.get(1.0, tk.END).strip():  
