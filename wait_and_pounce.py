@@ -437,14 +437,14 @@ def extract_callsign(line, search_with_wildcard):
     # Échapper les caractères spéciaux dans search_with_wildcard
     search_with_wildcard = re.escape(search_with_wildcard)
     # Remplacement du Wildcard pour regex
-    pattern = search_with_wildcard.replace("@", r"\w+")
+    pattern = search_with_wildcard.replace("@", r"[\w/]+")
     pattern = re.sub(r"(\w+)\\w\+", r"(\1\\w+)", pattern)
     pattern = r'(?:^|\s)' + pattern
     
     match = re.search(pattern, line)
     
     if match:
-        return match.group(1)
+        return match.group(0).strip()
     else:
         return None
     

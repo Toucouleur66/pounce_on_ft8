@@ -99,6 +99,14 @@ class DebugRedirector:
                     gui_queue.put(lambda l=line: self.widget.after(0, self.apply_tags, l))
             self.buffer = lines[-1] if not lines[-1].endswith('\n') else ''
 
+        self.update_clear_button_state()
+
+    def update_clear_button_state(self):
+        if self.widget.get(1.0, tk.END).strip():  
+            clear_button.config(state=tk.NORMAL) 
+        else:
+            clear_button.config(state=tk.DISABLED) 
+
     def write_to_log(self, clean_string):
         with open(self.log_filename, "a") as log_file:
             timestamp = datetime.datetime.now().strftime("%y%m%d_%H%M%S")
@@ -275,6 +283,10 @@ def log_exception_to_file(filename, message):
     with open(filename, "a") as log_file:
         log_file.write(f"{timestamp} {message}\n")
 
+def clear_output_text():
+    output_text.delete(1.0, tk.END)
+    clear_button.config(state=tk.DISABLED)
+
 def start_monitoring():
     run_button.config(state="disabled", background="red", text=RUNNING_TEXT_BUTTON)
     disable_inputs()
@@ -402,7 +414,7 @@ wanted_callsigns_history = load_wanted_callsigns()
 
 # Création de la fenêtre principale
 root = tk.Tk()
-root.geometry("900x750")
+root.geometry("900x800")
 root.grid_columnconfigure(2, weight=1) 
 root.grid_columnconfigure(3, weight=2) 
 root.title(GUI_LABEL_VERSION)
@@ -543,6 +555,9 @@ output_text.tag_config('white_on_blue', foreground='white', background='blue')
 output_text.tag_config('bright_green', foreground='green')
 
 output_text.grid(column=0, row=8, columnspan=5, padx=10, pady=10, sticky="ew")
+
+clear_button = tk.Button(root, text="Clear Log", command=clear_output_text)
+clear_button.grid(column=0, columnspan="4", row=9, padx=10, pady=5, sticky=tk.E)
 
 button_frame = tk.Frame(root)
 button_frame.grid(column=1, row=7, padx=10, pady=10)
