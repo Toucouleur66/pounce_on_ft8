@@ -44,6 +44,44 @@ def process_gui_queue():
 
     root.after(100, process_gui_queue)
 
+class ToolTip:
+    def __init__(self, widget, text=''):
+        self.widget = widget
+        self.text = text
+        self.tooltip_window = None
+        self.widget.bind("<Enter>", self.show_tooltip)
+        self.widget.bind("<Leave>", self.hide_tooltip)
+
+    def show_tooltip(self, event=None):
+        self.text = self.widget.get()
+
+        if self.tooltip_window or not self.text:
+            return
+        x, y, _, _ = self.widget.bbox("insert")
+        x = x + self.widget.winfo_rootx() + 25
+        y = y + self.widget.winfo_rooty() + 25
+
+        self.tooltip_window = tw = tk.Toplevel(self.widget)
+        tw.wm_overrideredirect(True)
+        tw.wm_geometry(f"+{x}+{y}")
+        label = tk.Label(
+            tw, 
+            text=self.text,
+            relief="solid",
+            bg="#D080d0",
+            fg="black",
+            font=consolas_bold_font,
+            justify="left",
+            borderwidth=1,
+            wraplength=250
+        )
+        label.pack()
+
+    def hide_tooltip(self, event=None):
+        if self.tooltip_window:
+            self.tooltip_window.destroy()
+            self.tooltip_window = None
+
 class DebugRedirector:
     def __init__(self, widget, log_filename):
         self.widget = widget
@@ -58,7 +96,7 @@ class DebugRedirector:
                 if line.endswith('\n'):
                     clean_string = self.remove_tag_codes(line)
                     self.write_to_log(clean_string)
-                    self.widget.after(0, self.apply_tags, line)
+                    gui_queue.put(lambda l=line: self.widget.after(0, self.apply_tags, l))
             self.buffer = lines[-1] if not lines[-1].endswith('\n') else ''
 
     def write_to_log(self, clean_string):
@@ -310,17 +348,30 @@ def control_log_analysis_tracking(log_analysis_tracking):
             # Get factor
             factor = (time_difference - min_time) / (max_time - min_time)
 
-        bg_color_rgb = interpolate_color(START_COLOR, END_COLOR, factor)
-        bg_color_hex = rgb_to_hex(bg_color_rgb)
+        # Update counter value
+        counter_value_text = f"{datetime.datetime.fromtimestamp(log_analysis_tracking['last_analysis_time'], tz=datetime.timezone.utc).strftime('%H:%M:%S')} ----- #{str(log_analysis_tracking['total_analysis'])} ----"
 
         gui_queue.put(lambda: counter_value_label.config(
-            text=f"{datetime.datetime.fromtimestamp(log_analysis_tracking['last_analysis_time'], tz=datetime.timezone.utc).strftime('%H:%M:%S')} ----- #{str(log_analysis_tracking['total_analysis'])} ----",
-            bg=bg_color_hex
+            text=counter_value_text,
+            bg=rgb_to_hex(interpolate_color(START_COLOR, END_COLOR, factor))
         ))
 
-        if log_analysis_tracking['active_callsign'] is not None:
+        active_callsign = log_analysis_tracking['active_callsign']
+
+        if active_callsign is not None and isinstance(active_callsign, (str, list)):
+            if your_callsign_var.get() in (active_callsign if isinstance(active_callsign, list) else [active_callsign]):          
+                bg_color_hex ="#80d0d0"
+                fg_color_hex ="#ff6452"
+            else:
+                bg_color_hex ="#000000"
+                fg_color_hex ="#01ffff"
+
             gui_queue.put(lambda: (
-                focus_value_label.config(text=log_analysis_tracking['active_callsign']),
+                focus_value_label.config(
+                    text=active_callsign,
+                    bg= bg_color_hex,
+                    fg= fg_color_hex
+                ),
                 focus_frame.grid() 
             ))
         else:
@@ -406,6 +457,8 @@ ttk.Label(root, text="Wanted Callsign(s) (comma-separated):").grid(column=0, row
 wanted_callsigns_entry = ttk.Entry(root, textvariable=wanted_callsigns_var, font=consolas_font, width=25) 
 wanted_callsigns_entry.grid(column=1, row=5, padx=10, pady=5, sticky=tk.W)
 
+tooltip = ToolTip(wanted_callsigns_entry)
+
 ttk.Label(root, text="Mode:").grid(column=0, row=6, padx=10, pady=5, sticky=tk.W)
 
 radio_frame = ttk.Frame(root)
@@ -453,9 +506,7 @@ focus_frame.grid(column=0, columnspan=3, row=0, padx=40, pady=10, sticky=tk.W+tk
 
 focus_value_label = tk.Label(
     focus_frame,
-    font=consolas_font_lg,
-    bg="#000000",
-    fg="#01ffff",
+    font=consolas_font_lg,    
     padx=10,
     pady=5,
     anchor="center"
@@ -497,7 +548,7 @@ button_frame = tk.Frame(root)
 button_frame.grid(column=1, row=7, padx=10, pady=10)
 
 # Bouton pour exécuter le script
-run_button = tk.Button(button_frame, text=WAIT_POUNCE_LABEL, command=start_monitoring)
+run_button = tk.Button(button_frame, text=WAIT_POUNCE_LABEL, width=20, command=start_monitoring)
 run_button.pack(side="left", padx=5)
 
 # Bouton pour arrêter le script

@@ -31,7 +31,6 @@ wait_time = 0.3
 
 # Temps d'attente pour le basculement de fréquence
 default_time_hopping = 10
-hop_index = 0
 
 # Instance par défaut
 default_instance_type = "JTDX"
@@ -63,6 +62,8 @@ respond_with_positive_signal_report = None
 respond_with_negative_signal_report = None
 confirm_signal_and_respond_with_positive_signal_report = None
 confirm_signal_and_respond_with_negative_signal_report = None
+
+last_monitor_time = None
 
 def is_valid_frequency(freq):
     # Plages de fréquences autorisées
@@ -488,7 +489,7 @@ def find_sequences(
             time_difference_in_minutes = time_difference_in_seconds / 60.0
 
             # Vérifier si la ligne est dans la limite de temps
-            if time_difference_in_minutes <= time_max_expected_in_minutes:
+            if time_difference_in_minutes < time_max_expected_in_minutes and log_time > last_monitor_time:
                 for key, sequence in sequences_to_find.items():
                     if sequence in line:
                         sequence_found = sequence
@@ -534,25 +535,10 @@ def monitor_file(
         wanted_callsigns_list,
         instance_mode,
         stop_event,        
-    ):
-    global hop_index
-    # Sequences
-    global cq_call_selected
-    global reception_report_received
-    global report_received_73
-    global reply_to_my_call
-    global best_regards_received_for_my_call    
-    global best_regards_sent_to_call_selected
-    global best_regards
-    global report_received_73_for_my_call
-    global respond_with_positive_signal_report
-    global respond_with_negative_signal_report
-    global confirm_signal_and_respond_with_positive_signal_report
-    global confirm_signal_and_respond_with_negative_signal_report
+    ):    
+    global last_monitor_time
 
-    print(white_on_red(f"Début du Monitoring pour {your_callsign} du fichier: {file_path}"))        
-    print(f"\n=== Démarrage Monitoring pour {control_function_name} {bright_green('[' + instance_mode + ']')} {highlight_wanted_callsigns(wanted_callsigns_list)} ===")
-
+    hop_index = 0
     wsjt_ready = False
     jtdx_ready = False
     force_next_hop = False
@@ -564,11 +550,16 @@ def monitor_file(
     decoded_sequence = None
     excluded_callsigns_list = []
 
+    print(white_on_red(f"Début du Monitoring pour {your_callsign} du fichier: {file_path}"))        
+    print(f"\n=== Démarrage Monitoring pour {control_function_name} {bright_green('[' + instance_mode + ']')} {highlight_wanted_callsigns(wanted_callsigns_list)} ===")
+
     log_analysis_tracking = {
         'total_analysis': 0,
         'last_analysis_time': None,
         'active_callsign': None,
     }
+
+    last_monitor_time = datetime.datetime.now(utc)
 
     if len(wanted_callsigns_list) > 1 or contains_wildcard(wanted_callsigns_list[0]):
         if control_function_name == 'WSJT':

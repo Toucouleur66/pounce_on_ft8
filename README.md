@@ -12,7 +12,7 @@ Works For Windows Platform only for now.
 
 ## How to use it
 
-- pip install -r requirements.txt
+- `pip install -r requirements.txt`
 - Get a correct version working for Super/Fox mode with `WSJT-X` or `JTDX` and installed
 - Make sure to update `wait_and_pounce.py` around line 710
 ```
@@ -88,8 +88,8 @@ jtdx_window_title = "JTDX - FT5000  by HF community                             
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=R4HK9ZTUPYHSL)
 
 ## Need to read UDP packets coming from either WSJT-X or JTDX
-- https://github.com/bmo/py-wsjtx
+- https://github.com/takgr/JTDX-controller
 - https://github.com/takgr/JTDX-controller/blob/main/call_alert.py
 - https://github.com/rstagers/WSJT-X
-- https://github.com/bmo/py-wsjtx
-- https://github.com/SA0TAY/potassium
+- https://github.com/bmo/py-wsjtx   
+- https://github.com/stephenhouser/node-red-contrib-wsjt-x
