@@ -416,7 +416,7 @@ def find_free_frequency_for_tx(file_path, sequences, last_number_of_lines=100):
 
 def decode_sequence(sequence, instance_type): 
     if instance_type == "JTDX":
-        match = re.match(r"(?P<timestamp>\d{8}_\d{6})\s+(?P<db>[+-]?\d+)\s+(?P<dt>\d+\.\d+)\s+(?P<hz>\d{2,4})\s+~\s+(?P<message>.+?)(?=\s*[\*\^]|$)", sequence)
+        match = re.match(r"(?P<timestamp>\d{8}_\d{6})\s+(?P<db>[+-]?\d+)\s+(?P<dt>[+-]?\d+\.\d+)\s+(?P<hz>\d{2,4})\s+~\s+(?P<message>.+?)(?=\s*[\*\^]|$)", sequence)
         if match:
             db = f"{match.group('db')}dB"
             dt = match.group('dt')
@@ -443,18 +443,25 @@ def contains_wildcard(callsign):
 def extract_callsign(line, search_with_wildcard):
     search_with_wildcard = search_with_wildcard.replace("*", "@")
     # Échapper les caractères spéciaux dans search_with_wildcard
-    search_with_wildcard = re.escape(search_with_wildcard)
+    search_for_string = re.escape(search_with_wildcard)
     # Remplacement du Wildcard pour regex
-    pattern = search_with_wildcard.replace("@", r"[\w/]+")
+    pattern = search_for_string.replace("@", r"[\w/]+")
     pattern = re.sub(r"(\w+)\\w\+", r"(\1\\w+)", pattern)
     pattern = r'(?:^|\s)' + pattern
-    
     match = re.search(pattern, line)
-    
-    if match:
-        return match.group(0).strip()
-    else:
-        return None
+
+    if match:        
+        sub_match = re.search(r'(\w+)@|@(\w+)', search_with_wildcard)
+        print(search_with_wildcard)
+        if sub_match:
+            result_without_wildcard = sub_match.group(1)
+        else:
+            return None
+        for part in match.group(0).strip().split():
+            if result_without_wildcard in part:
+                return part.strip()
+            
+    return None
     
 def find_sequences(
         file_path, 
@@ -497,6 +504,7 @@ def find_sequences(
                     # Vérifier si la ligne est dans la limite de temps
                     if time_difference_in_minutes < time_max_expected_in_minutes and log_time > last_monitor_time:
                         for key, sequence in sequences_to_find.items():
+                            print(f"---{sequence}")
                             if sequence in line:
                                 sequence_found = sequence
                                 found_callsign = wanted_callsign
@@ -566,7 +574,7 @@ def monitor_file(
     log_analysis_tracking = {
         'total_analysis': 0,
         'last_analysis_time': None,
-        'active_callsign': None,
+        'relevant_sequence': None,
     }
 
     last_monitor_time = datetime.datetime.now(utc)
@@ -603,7 +611,7 @@ def monitor_file(
             last_file_time_update = current_mod_time  
 
             if not active_callsign:
-                log_analysis_tracking['active_callsign'] = None
+                log_analysis_tracking['relevant_sequence'] = None
                 # Rechercher dans le fichier un call à partir de la liste
                 for wanted_callsign in wanted_callsigns_list:
                     # Attention, on peut avoir à lire de nombreuses fois le fichier de log
@@ -727,7 +735,7 @@ def monitor_file(
 
                     if decoded_sequence is not None:
                         # Report active callsign to GUI
-                        log_analysis_tracking['active_callsign'] = decoded_sequence
+                        log_analysis_tracking['relevant_sequence'] = decoded_sequence
     
                 if not force_next_hop and sequence_found:
                     print(f"Séquence trouvée {black_on_brown(sequence_found['sequence'])} {bright_green('[' + period_found + ']')}. Activation de la fenêtre et check état.")
@@ -769,7 +777,7 @@ def monitor_file(
                         elif control_function_name == 'WSJT':
                             wsjt_ready = False      
 
-                        log_analysis_tracking['active_callsign'] = None 
+                        log_analysis_tracking['relevant_sequence'] = None 
                 
                 sequence_found = None                                 
         

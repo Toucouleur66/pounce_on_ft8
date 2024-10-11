@@ -284,10 +284,11 @@ def log_exception_to_file(filename, message):
         log_file.write(f"{timestamp} {message}\n")
 
 def clear_output_text():
-    output_text.delete(1.0, tk.END)
-    clear_button.config(state=tk.DISABLED)
+    gui_queue.put(lambda: output_text.delete(1.0, tk.END))
+    gui_queue.put(lambda: clear_button.config(state=tk.DISABLED))
 
 def start_monitoring():
+    gui_queue.put(lambda: output_text.delete(1.0, tk.END))
     run_button.config(state="disabled", background="red", text=RUNNING_TEXT_BUTTON)
     disable_inputs()
     stop_event.clear() 
@@ -368,26 +369,28 @@ def control_log_analysis_tracking(log_analysis_tracking):
             bg=rgb_to_hex(interpolate_color(START_COLOR, END_COLOR, factor))
         ))
 
-        active_callsign = log_analysis_tracking['active_callsign']
+        gui_queue.put(lambda: check_callsign(log_analysis_tracking))
 
-        if active_callsign is not None and isinstance(active_callsign, (str, list)):
-            if your_callsign_var.get() in (active_callsign if isinstance(active_callsign, list) else [active_callsign]):          
-                bg_color_hex ="#80d0d0"
-                fg_color_hex ="#ff6452"
-            else:
-                bg_color_hex ="#000000"
-                fg_color_hex ="#01ffff"
-
-            gui_queue.put(lambda: (
-                focus_value_label.config(
-                    text=active_callsign,
-                    bg= bg_color_hex,
-                    fg= fg_color_hex
-                ),
-                focus_frame.grid() 
-            ))
+def check_callsign(log_analysis_tracking):
+    relevant_sequence = log_analysis_tracking['active_callsign']
+    if relevant_sequence is not None and isinstance(relevant_sequence, (str, list)):
+        if your_callsign_var.get() in relevant_sequence:          
+            bg_color_hex ="#80d0d0"
+            fg_color_hex ="#000000"
         else:
-            gui_queue.put(lambda: focus_frame.grid_remove())  
+            bg_color_hex ="#000000"
+            fg_color_hex ="#01ffff"
+
+        gui_queue.put(lambda: (
+            focus_value_label.config(
+                text=relevant_sequence,
+                bg= bg_color_hex,
+                fg= fg_color_hex
+            ),
+            focus_frame.grid() 
+        ))
+    else:
+        gui_queue.put(lambda: focus_frame.grid_remove())  
 
 def update_timer_with_ft8_sequence():
     current_time = datetime.datetime.now(datetime.timezone.utc)
