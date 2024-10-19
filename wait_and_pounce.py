@@ -502,40 +502,32 @@ def find_sequences(
 
                     # Vérifier si la ligne est dans la limite de temps
                     if time_difference_in_minutes < time_max_expected_in_minutes and log_time > last_monitor_time:
-                        found_sequence_for_line = None
-                        found_callsign_for_line = None
-                        message_found_for_line = None
-
                         for key, sequence in sequences_to_find.items():
                             if sequence in line:
-                                found_sequence_for_line = sequence
-                                found_callsign_for_line = wanted_callsign
+                                sequence_found = sequence
+                                found_callsign = wanted_callsign
                             elif '*' in sequence:
                                 callsign_found_with_wildcard = extract_callsign(line, sequence)
                                 if callsign_found_with_wildcard and callsign_found_with_wildcard not in excluded_callsigns_list:
-                                    found_callsign_for_line = callsign_found_with_wildcard
-                                    found_sequence_for_line = sequence
+                                    found_callsign = callsign_found_with_wildcard
+                                    sequence_found = sequence
 
-                            if found_sequence_for_line:
-                                message_found_for_line = line.strip()
-                                break 
+                            if sequence_found:
+                                message_found = line.strip()
+                                if time_difference_in_seconds < 120:
+                                    time_difference_display = f"{int(time_difference_in_seconds)}s" 
+                                else: 
+                                    time_difference_display = f"{int(time_difference_in_minutes)}m"
 
-                        if found_sequence_for_line:
-                            if time_difference_in_seconds < 120:
-                                time_difference_display = f"{int(time_difference_in_seconds)}s"
-                            else:
-                                time_difference_display = f"{int(time_difference_in_minutes)}m"
-
-                            # Check priority of sequence
-                            if sequence_found is None or (sequence_found in sequences_to_find and list(sequences_to_find.keys()).index(key) < list(sequences_to_find.keys()).index(sequence_found)):
-                                sequence_found = found_sequence_for_line
-                                message_found = message_found_for_line    
-                                found_callsign = found_callsign_for_line
-                                
+                                # Break for sequence loop
+                                break
             except Exception as e:
                 timestamp = datetime.datetime.now().strftime("%y%m%d_%H%M%S")                 
                 print(f"{timestamp} Exception: {str(e)}\n")
                 print(f"{timestamp} Traceback:\n{traceback.format_exc()}\n")
+
+            if sequence_found:
+                break
 
     if sequence_found:
         print(f"Il y a {white_on_blue(time_difference_display)}: {black_on_white(message_found)}")
@@ -583,7 +575,7 @@ def monitor_file(
         'relevant_sequence': None,
     }
 
-    last_monitor_time = datetime.datetime.now(utc) - datetime.timedelta(seconds=60)
+    last_monitor_time = datetime.datetime.now(utc)
 
     if len(wanted_callsigns_list) > 1 or contains_wildcard(wanted_callsigns_list[0]):
         if control_function_name == 'WSJT':
