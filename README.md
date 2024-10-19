@@ -93,3 +93,6 @@ jtdx_window_title = "JTDX - FT5000  by HF community                             
 - https://github.com/rstagers/WSJT-X
 - https://github.com/bmo/py-wsjtx   
 - https://github.com/stephenhouser/node-red-contrib-wsjt-x
+- https://github.com/jtdx-project/jtdx/blob/master/NetworkMessage.hpp
+- https://github.com/josh3io/jtman
+- https://github.com/jf1kkm/getqrz
