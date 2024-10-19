@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox, Menu
+from tkinter import simpledialog, ttk, messagebox, Menu
 import subprocess
 import pyperclip
 import pickle
@@ -10,9 +10,14 @@ import datetime
 import sys
 import wait_and_pounce
 import re
+import time
+from pystray import Icon, MenuItem
+from PIL import Image, ImageDraw
 
 stop_event = threading.Event()
 version_number = 1.0
+
+tray_icon = None
 
 PARAMS_FILE = "params.pkl"
 POSITION_FILE = "window_position.pkl"
@@ -34,6 +39,14 @@ ODD_COLOR = "#fffe9f"
 gui_queue = queue.Queue()
 inputs_enabled = True
 
+courier_font = ("Courier", 10, "normal")
+courier_bold_font = ("Courier", 12, "bold")
+
+consolas_font = ("Consolas", 12, "normal")
+consolas_font_lg = ("Consolas", 18, "normal")
+consolas_bold_font = ("Consolas", 12, "bold")
+segoe_ui_semi_bold_font = ("Segoe UI Semibold", 16)
+
 def process_gui_queue():
     try:
         while not gui_queue.empty():
@@ -43,6 +56,46 @@ def process_gui_queue():
         pass
 
     root.after(100, process_gui_queue)
+    
+class TrayIcon:
+    def __init__(self):
+        self.color1 = "#01ffff"
+        self.color2 = "#000000"
+        self.current_color = self.color1
+        self.icon = None
+        self.blink_thread = None
+        self.running = False
+
+    def create_icon(self, color, size=(64, 64)):
+        img = Image.new('RGB', size, color)
+        draw = ImageDraw.Draw(img)
+        draw.rectangle([0, 0, size[0], size[1]], fill=color)
+        return img
+
+    def blink_icon(self):
+        while self.running:
+            self.icon.icon = self.create_icon(self.current_color)
+            self.icon.update_menu()
+            self.current_color = self.color2 if self.current_color == self.color1 else self.color1
+            time.sleep(1)  
+
+    def quit_action(self, icon):
+        self.running = False
+        icon.stop()  
+
+    def start(self):
+        self.running = True
+        self.icon = Icon('Pounce Icon', self.create_icon(self.color1))
+
+        self.blink_thread = threading.Thread(target=self.blink_icon, daemon=True)
+        self.blink_thread.start()
+
+        self.icon.run()  
+
+    def stop(self):
+        self.running = False
+        if self.icon:
+            self.icon.stop() 
 
 class ToolTip:
     def __init__(self, widget, text=''):
@@ -245,6 +298,70 @@ def on_right_click(event):
     except Exception as e:
         print(f"Erreur : {e}")
 
+class CustomDialog(tk.Toplevel):
+    def __init__(
+            self,
+            parent,
+            initial_value="",
+            title="Edit Wanted Callsigns"
+        ):
+        super().__init__(parent)
+        self.title(title)    
+        self.geometry("400x200")
+        
+        label = tk.Label(self, text="Wanted Callsign(s) (comma-separated):")
+        label.pack(pady=10)
+
+        self.entry = tk.Text(
+            self, 
+            width=55,
+            relief="solid",
+            bg="#D080d0",
+            fg="black",
+            font=consolas_bold_font,
+            borderwidth=1,
+            height=4
+        )
+        self.entry.pack(pady=5, padx=10)
+        
+        self.entry.insert(tk.END, initial_value)
+        
+        button_frame = tk.Frame(self)
+        button_frame.pack(pady=10)
+
+        ok_button = tk.Button(button_frame, text="OK", command=self.on_ok)
+        ok_button.pack(side=tk.LEFT, padx=10)
+
+        cancel_button = tk.Button(button_frame, text="Cancel", command=self.on_cancel)
+        cancel_button.pack(side=tk.LEFT)
+
+        self.result = None
+        self.grab_set() 
+        self.entry.focus_set()
+
+    def on_ok(self):
+        self.result = self.entry.get("1.0", tk.END).strip()
+        self.destroy()  
+
+    def on_cancel(self):
+        self.destroy()  
+
+def edit_callsign():
+    selection = listbox.curselection()
+    if selection:
+        index = selection[0]
+        current_callsign = wanted_callsigns_history[index]
+            
+        dialog = CustomDialog(root, initial_value=current_callsign)
+        root.wait_window(dialog)  
+        
+        if dialog.result:
+            wanted_callsigns_history[index] = dialog.result
+            listbox.delete(index)
+            listbox.insert(index, dialog.result)
+            save_wanted_callsigns(wanted_callsigns_history)
+            update_wanted_callsigns_history_counter()
+
 def remove_callsign_from_history():
     selection = listbox.curselection()
     if selection:
@@ -288,10 +405,16 @@ def clear_output_text():
     gui_queue.put(lambda: clear_button.config(state=tk.DISABLED))
 
 def start_monitoring():
+    global tray_icon
+
     gui_queue.put(lambda: output_text.delete(1.0, tk.END))
     run_button.config(state="disabled", background="red", text=RUNNING_TEXT_BUTTON)
     disable_inputs()
     stop_event.clear() 
+
+    tray_icon = TrayIcon()
+    tray_icon_thread = threading.Thread(target=tray_icon.start, daemon=True)
+    tray_icon_thread.start()
 
     instance_type = instance_var.get()
     frequency = frequency_var.get()
@@ -300,7 +423,7 @@ def start_monitoring():
     your_callsign = your_callsign_var.get()
     mode = mode_var.get()
 
-    update_wanted_callsigns_history(wanted_callsigns)
+    gui_queue.put(lambda: update_wanted_callsigns_history(wanted_callsigns))
 
     params = {
         "instance": instance_type,
@@ -335,6 +458,12 @@ def start_monitoring():
     thread.start()
 
 def stop_monitoring():
+    global tray_icon
+
+    if tray_icon:
+        tray_icon.stop()
+        tray_icon = None
+
     stop_event.set()
     run_button.config(state="normal", background="SystemButtonFace", text=WAIT_POUNCE_LABEL)
     enable_inputs()
@@ -372,7 +501,8 @@ def control_log_analysis_tracking(log_analysis_tracking):
         gui_queue.put(lambda: check_callsign(log_analysis_tracking))
 
 def check_callsign(log_analysis_tracking):
-    relevant_sequence = log_analysis_tracking['active_callsign']
+    relevant_sequence = log_analysis_tracking['relevant_sequence']
+    
     if relevant_sequence is not None and isinstance(relevant_sequence, (str, list)):
         if your_callsign_var.get() in relevant_sequence:          
             bg_color_hex ="#80d0d0"
@@ -417,7 +547,8 @@ wanted_callsigns_history = load_wanted_callsigns()
 
 # Création de la fenêtre principale
 root = tk.Tk()
-root.geometry("900x800")
+root.geometry("900x700")
+root.resizable(False, False)
 root.grid_columnconfigure(2, weight=1) 
 root.grid_columnconfigure(3, weight=2) 
 root.title(GUI_LABEL_VERSION)
@@ -442,15 +573,6 @@ wanted_callsigns_var.trace_add("write", force_uppercase)
 
 your_callsign_var.trace_add("write", lambda *args: check_fields())
 wanted_callsigns_var.trace_add("write", lambda *args: check_fields())
-
-# Création des widgets
-courier_font = ("Courier", 10, "normal")
-courier_bold_font = ("Courier", 12, "bold")
-
-consolas_font = ("Consolas", 12, "normal")
-consolas_font_lg = ("Consolas", 18, "normal")
-consolas_bold_font = ("Consolas", 12, "bold")
-segoe_ui_semi_bold_font = ("Segoe UI Semibold", 16)
 
 ttk.Label(root, text="Instance to monitor:").grid(column=0, row=1, padx=10, pady=5, sticky=tk.W)
 instance_combo_entry = ttk.Combobox(root, textvariable=instance_var, values=["JTDX", "WSJT"], font=consolas_font, width=23) 
@@ -506,6 +628,7 @@ listbox.bind("<Button-3>", on_right_click)
 
 wanted_callsigns_menu = Menu(root, tearoff=0)
 wanted_callsigns_menu.add_command(label="Remove", command=remove_callsign_from_history)
+wanted_callsigns_menu.add_command(label="Edit", command=edit_callsign)
 
 log_analysis_frame = ttk.Frame(root)
 log_analysis_frame.grid(column=2, columnspan=2, row=7, padx=10, pady=10, sticky=tk.W)
@@ -547,7 +670,7 @@ timer_value_label = tk.Label(
 
 timer_value_label.pack()
 
-output_text = tk.Text(root, height=20, width=100, bg="#D3D3D3", font=consolas_font)
+output_text = tk.Text(root, height=15, width=100, bg="#D3D3D3", font=consolas_font)
 
 output_text.tag_config('black_on_purple', foreground='black', background='#D080d0')
 output_text.tag_config('black_on_brown', foreground='black', background='#C08000')
