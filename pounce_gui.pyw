@@ -1,34 +1,35 @@
-import tkinter as tk
-from tkinter import simpledialog, ttk, messagebox, Menu
-import subprocess
-import pyperclip
+import platform
+import sys
 import pickle
 import os
 import queue
 import threading
 import datetime
-import sys
-import wait_and_pounce
 import re
 import time
-from pystray import Icon, MenuItem
+from PyQt5 import QtWidgets, QtCore, QtGui
 from PIL import Image, ImageDraw
+import pyperclip
+import wait_and_pounce
+
+if platform.system() == 'Windows':
+    from pystray import Icon, MenuItem
 
 stop_event = threading.Event()
-version_number = 1.0
+version_number = 2.0
 
 tray_icon = None
 
 PARAMS_FILE = "params.pkl"
 POSITION_FILE = "window_position.pkl"
-WANTED_CALLSIGNS_FILE = "wanted_callsigns.pkl"  
-WANTED_CALLSIGNS_HISTORY_SIZE = 50 
+WANTED_CALLSIGNS_FILE = "wanted_callsigns.pkl"
+WANTED_CALLSIGNS_HISTORY_SIZE = 50
 
-GUI_LABEL_VERSION = f"Wait and Pounce v{version_number} (by F5UKW under GNU GPL Licence)"
+GUI_LABEL_VERSION = f"Wait and Pounce v{version_number} with UDP (by F5UKW under GNU GPL Licence)"
 RUNNING_TEXT_BUTTON = "Running..."
-WAIT_POUNCE_LABEL = "Click to Wait & Pounce"
-WAITING_DATA_ANALYSIS_LABEL= "Nothing yet"
-WANTED_CALLSIGNS_HISTORY_LABEL = "Wanted Callsigns History (%d):" 
+WAIT_POUNCE_LABEL = "Listen UDP Packets & Pounce"
+WAITING_DATA_ANALYSIS_LABEL = "Nothing yet"
+WANTED_CALLSIGNS_HISTORY_LABEL = "Wanted Callsigns History (%d):"
 
 START_COLOR = (255, 255, 0)
 END_COLOR = (240, 240, 240)
@@ -39,24 +40,23 @@ ODD_COLOR = "#fffe9f"
 gui_queue = queue.Queue()
 inputs_enabled = True
 
-courier_font = ("Courier", 10, "normal")
-courier_bold_font = ("Courier", 12, "bold")
+# PyQt equivalent of fonts in tkinter
+courier_font = QtGui.QFont("Courier", 10)
+courier_font_bold = QtGui.QFont("Courier", 12, QtGui.QFont.Bold)
 
-consolas_font = ("Consolas", 12, "normal")
-consolas_font_lg = ("Consolas", 18, "normal")
-consolas_bold_font = ("Consolas", 12, "bold")
-segoe_ui_semi_bold_font = ("Segoe UI Semibold", 16)
+custom_font = QtGui.QFont("Helvetica", 12)
+custom_font_lg = QtGui.QFont("Helvetica", 18)
+custom_font_bold = QtGui.QFont("Helvetica", 12, QtGui.QFont.Bold)
 
-def process_gui_queue():
-    try:
-        while not gui_queue.empty():
-            task = gui_queue.get_nowait()
-            task()  
-    except queue.Empty:
-        pass
+if platform.system() == 'Windows':
+    custom_font = QtGui.QFont("Consolas", 12)
+    custom_font_lg = QtGui.QFont("Consolas", 18)
+    custom_font_bold = QtGui.QFont("Consolas", 12, QtGui.QFont.Bold)
+elif platform.system() == 'Darwin':
+    custom_font = QtGui.QFont("Menlo", 12)
+    custom_font_lg = QtGui.QFont("Menlo", 18)
+    custom_font_bold = QtGui.QFont("Menlo", 12, QtGui.QFont.Bold)
 
-    root.after(100, process_gui_queue)
-    
 class TrayIcon:
     def __init__(self):
         self.color1 = "#01ffff"
@@ -77,11 +77,11 @@ class TrayIcon:
             self.icon.icon = self.create_icon(self.current_color)
             self.icon.update_menu()
             self.current_color = self.color2 if self.current_color == self.color1 else self.color1
-            time.sleep(1)  
+            time.sleep(1)
 
     def quit_action(self, icon):
         self.running = False
-        icon.stop()  
+        icon.stop()
 
     def start(self):
         self.running = True
@@ -90,75 +90,54 @@ class TrayIcon:
         self.blink_thread = threading.Thread(target=self.blink_icon, daemon=True)
         self.blink_thread.start()
 
-        self.icon.run()  
+        self.icon.run()
 
     def stop(self):
         self.running = False
         if self.icon:
-            self.icon.stop() 
+            self.icon.stop()
 
-class ToolTip:
+
+class ToolTip(QtWidgets.QWidget):
     def __init__(self, widget, text=''):
+        super().__init__()
         self.widget = widget
         self.text = text
         self.tooltip_window = None
-        self.widget.bind("<Enter>", self.show_tooltip)
-        self.widget.bind("<Leave>", self.hide_tooltip)
+        self.widget.installEventFilter(self)
 
-    def show_tooltip(self, event=None):
-        self.text = self.widget.get()
+    def eventFilter(self, obj, event):
+        if obj == self.widget:
+            if event.type() == QtCore.QEvent.Enter:
+                self.show_tooltip()
+            elif event.type() == QtCore.QEvent.Leave:
+                self.hide_tooltip()
+        return super().eventFilter(obj, event)
 
-        if self.tooltip_window or not self.text:
+    def show_tooltip(self):
+        self.text = self.widget.text()
+        if not self.text:
             return
-        x, y, _, _ = self.widget.bbox("insert")
-        x = x + self.widget.winfo_rootx() + 25
-        y = y + self.widget.winfo_rooty() + 25
+        QtWidgets.QToolTip.showText(QtGui.QCursor.pos(), self.text, self.widget)
 
-        self.tooltip_window = tw = tk.Toplevel(self.widget)
-        tw.wm_overrideredirect(True)
-        tw.wm_geometry(f"+{x}+{y}")
-        label = tk.Label(
-            tw, 
-            text=self.text,
-            relief="solid",
-            bg="#D080d0",
-            fg="black",
-            font=consolas_bold_font,
-            justify="left",
-            borderwidth=1,
-            wraplength=250
-        )
-        label.pack()
+    def hide_tooltip(self):
+        QtWidgets.QToolTip.hideText()
 
-    def hide_tooltip(self, event=None):
-        if self.tooltip_window:
-            self.tooltip_window.destroy()
-            self.tooltip_window = None
 
-class DebugRedirector:
-    def __init__(self, widget, log_filename):
-        self.widget = widget
+class DebugRedirector(QtCore.QObject):
+    new_text = QtCore.pyqtSignal(str)
+
+    def __init__(self, log_filename):
+        super().__init__()
         self.log_filename = log_filename
-        self.buffer = '' 
 
     def write(self, string):
-        self.buffer += string
-        if '\n' in self.buffer:
-            lines = self.buffer.splitlines(keepends=True)
-            for line in lines:
-                if line.endswith('\n'):
-                    clean_string = self.remove_tag_codes(line)
-                    self.write_to_log(clean_string)
-                    gui_queue.put(lambda l=line: self.widget.after(0, self.apply_tags, l))
-            self.buffer = lines[-1] if not lines[-1].endswith('\n') else ''
+        clean_string = self.remove_tag_codes(string)
+        self.write_to_log(clean_string)
+        self.new_text.emit(string)
 
-        gui_queue.put(self.update_clear_button_state)
-
-    def update_clear_button_state(self):
-        if self.widget.get(1.0, tk.END).strip():  
-            clear_button.config(state=tk.NORMAL) 
-        else:
-            clear_button.config(state=tk.DISABLED) 
+    def flush(self):
+        pass
 
     def write_to_log(self, clean_string):
         with open(self.log_filename, "a") as log_file:
@@ -169,541 +148,575 @@ class DebugRedirector:
         tag_escape = re.compile(r'\[/?[a-zA-Z_]+\]')
         return tag_escape.sub('', string)
 
-    def apply_tags(self, string):
-        tag_pattern = re.compile(r'\[(.*?)\](.*?)\[/.*?\]')
-        
-        last_pos = 0
-        for match in tag_pattern.finditer(string):
-            tag = match.group(1)  
-            text = match.group(2) 
-
-            if last_pos < match.start():
-                self.widget.insert(tk.END, string[last_pos:match.start()])
-
-            self.widget.insert(tk.END, text, tag)
-
-            last_pos = match.end()
-
-        if last_pos < len(string):
-            self.widget.insert(tk.END, string[last_pos:])
-        
-        self.widget.see(tk.END)
-
-    def flush(self):
-        pass
-
-def copy_to_clipboard(event):
-    text = focus_value_label.cget("text")
-    pyperclip.copy(text)
-    print(f"Copied to clipboard: {text}")
 
 def interpolate_color(start_color, end_color, factor):
     return tuple(int(start + (end - start) * factor) for start, end in zip(start_color, end_color))
 
+
 def rgb_to_hex(rgb):
     return '#{:02x}{:02x}{:02x}'.format(*rgb)
 
-def save_window_position():
-    x = root.winfo_x()
-    y = root.winfo_y()
-    position = {'x': x, 'y': y}
-    
-    with open(POSITION_FILE, "wb") as f:
-        pickle.dump(position, f)
 
-def load_window_position():
-    if os.path.exists(POSITION_FILE):
-        with open(POSITION_FILE, "rb") as f:
-            position = pickle.load(f)
-        root.geometry(f"+{position['x']}+{position['y']}")  
-
-def check_fields():
-    if your_callsign_var.get() and wanted_callsigns_var.get():
-        run_button.config(state="normal")
-    else:
-        run_button.config(state="disabled")
-
-def disable_inputs():
-    global inputs_enabled
-
-    inputs_enabled = False
-
-    instance_combo_entry.config(state="disabled")
-    your_callsign_entry.config(state="disabled")
-    frequency_entry.config(state="disabled")
-    time_hopping_entry.config(state="disabled")
-    wanted_callsigns_entry.config(state="disabled")
-
-    for child in radio_frame.winfo_children():
-        child.config(state="disabled")
-
-def enable_inputs():
-    global inputs_enabled
-    
-    inputs_enabled = True
-
-    instance_combo_entry.config(state="normal")
-    your_callsign_entry.config(state="normal")
-    frequency_entry.config(state="normal")
-    time_hopping_entry.config(state="normal")
-    wanted_callsigns_entry.config(state="normal")
-
-    for child in radio_frame.winfo_children():
-        child.config(state="normal")
-
-def force_uppercase(*args):
-    your_callsign_var.set(your_callsign_var.get().upper())
-    wanted_callsigns_var.set(wanted_callsigns_var.get().upper())
-
-def load_params():
-    if os.path.exists(PARAMS_FILE):
-        with open(PARAMS_FILE, "rb") as f:
-            return pickle.load(f)
-    return {}
-
-def save_params(params):
-    with open(PARAMS_FILE, "wb") as f:
-        pickle.dump(params, f)
-
-def load_wanted_callsigns():
-    if os.path.exists(WANTED_CALLSIGNS_FILE):
-        with open(WANTED_CALLSIGNS_FILE, "rb") as f:
-            return pickle.load(f)
-    return []
-
-def save_wanted_callsigns(wanted_callsigns_history):
-    with open(WANTED_CALLSIGNS_FILE, "wb") as f:
-        pickle.dump(wanted_callsigns_history, f)
-
-def update_wanted_callsigns_history(new_callsign):
-    if new_callsign:
-        if new_callsign not in wanted_callsigns_history:
-            wanted_callsigns_history.append(new_callsign)
-            if len(wanted_callsigns_history) > WANTED_CALLSIGNS_HISTORY_SIZE:
-                wanted_callsigns_history.pop(0)
-            save_wanted_callsigns(wanted_callsigns_history)
-            update_listbox()
-
-def update_wanted_callsigns_history_counter():
-    wanted_callsigns_label.config(text=WANTED_CALLSIGNS_HISTORY_LABEL % len(wanted_callsigns_history))        
-
-def on_right_click(event):
-    try:
-        index = listbox.nearest(event.y)  
-        listbox.selection_clear(0, tk.END)
-        listbox.selection_set(index) 
-        listbox.activate(index)
-        
-        wanted_callsigns_menu.post(event.x_root, event.y_root)
-    except Exception as e:
-        print(f"Erreur : {e}")
-
-class CustomDialog(tk.Toplevel):
-    def __init__(
-            self,
-            parent,
-            initial_value="",
-            title="Edit Wanted Callsigns"
-        ):
+class CustomDialog(QtWidgets.QDialog):
+    def __init__(self, parent=None, initial_value="", title="Edit Wanted Callsigns"):
         super().__init__(parent)
-        self.title(title)    
-        self.geometry("400x200")
-        
-        label = tk.Label(self, text="Wanted Callsign(s) (comma-separated):")
-        label.pack(pady=10)
+        self.setWindowTitle(title)
+        self.resize(400, 200)
 
-        self.entry = tk.Text(
-            self, 
-            width=55,
-            relief="solid",
-            bg="#D080d0",
-            fg="black",
-            font=consolas_bold_font,
-            borderwidth=1,
-            height=4
+        layout = QtWidgets.QVBoxLayout(self)
+
+        label = QtWidgets.QLabel("Wanted Callsign(s) (comma-separated):")
+        layout.addWidget(label)
+
+        self.entry = QtWidgets.QTextEdit()
+        self.entry.setText(initial_value)
+        layout.addWidget(self.entry)
+
+        button_box = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
         )
-        self.entry.pack(pady=5, padx=10)
+        layout.addWidget(button_box)
+
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+
+    def get_result(self):
+        return self.entry.toPlainText().strip()
+
+
+class MainApp(QtWidgets.QMainWindow):
+    error_occurred = QtCore.pyqtSignal(str)    
+    message_received = QtCore.pyqtSignal(str)
+
+    def __init__(self):
+        super(MainApp, self).__init__()
+
+        self.error_occurred.connect(self.show_error_message)
+        self.message_received.connect(self.handle_message_received)
+
+        self.setWindowTitle(GUI_LABEL_VERSION)
+        self.setGeometry(100, 100, 900, 700)
         
-        self.entry.insert(tk.END, initial_value)
-        
-        button_frame = tk.Frame(self)
-        button_frame.pack(pady=10)
+        # Main layout
+        central_widget = QtWidgets.QWidget()
+        self.setCentralWidget(central_widget)
+        main_layout = QtWidgets.QGridLayout()
+        central_widget.setLayout(main_layout)
 
-        ok_button = tk.Button(button_frame, text="OK", command=self.on_ok)
-        ok_button.pack(side=tk.LEFT, padx=10)
+        # Variables
+        self.your_callsign_var = QtWidgets.QLineEdit()
+        self.wanted_callsigns_var = QtWidgets.QLineEdit()
+        self.instance_var = QtWidgets.QComboBox()
+        self.instance_var.addItems(["JTDX", "WSJT"])
+        self.frequency_var = QtWidgets.QLineEdit()
+        self.time_hopping_var = QtWidgets.QLineEdit()
 
-        cancel_button = tk.Button(button_frame, text="Cancel", command=self.on_cancel)
-        cancel_button.pack(side=tk.LEFT)
+        # Mode buttons (radio buttons)
+        self.mode_var = QtWidgets.QButtonGroup()
+        radio_normal = QtWidgets.QRadioButton("Normal")
+        radio_foxhound = QtWidgets.QRadioButton("Fox/Hound")
+        radio_superfox = QtWidgets.QRadioButton("SuperFox")
 
-        self.result = None
-        self.grab_set() 
-        self.entry.focus_set()
+        self.mode_var.addButton(radio_normal)
+        self.mode_var.addButton(radio_foxhound)
+        self.mode_var.addButton(radio_superfox)
 
-    def on_ok(self):
-        self.result = self.entry.get("1.0", tk.END).strip()
-        self.destroy()  
-
-    def on_cancel(self):
-        self.destroy()  
-
-def edit_callsign():
-    selection = listbox.curselection()
-    if selection:
-        index = selection[0]
-        current_callsign = wanted_callsigns_history[index]
+        radio_normal.setChecked(True)
             
-        dialog = CustomDialog(root, initial_value=current_callsign)
-        root.wait_window(dialog)  
-        
-        if dialog.result:
-            wanted_callsigns_history[index] = dialog.result
-            listbox.delete(index)
-            listbox.insert(index, dialog.result)
-            save_wanted_callsigns(wanted_callsigns_history)
-            update_wanted_callsigns_history_counter()
+        self.text_formats = {
+            'black_on_purple': QtGui.QTextCharFormat(),
+            'black_on_brown': QtGui.QTextCharFormat(),
+            'black_on_white': QtGui.QTextCharFormat(),
+            'black_on_yellow': QtGui.QTextCharFormat(),
+            'white_on_red': QtGui.QTextCharFormat(),
+            'white_on_blue': QtGui.QTextCharFormat(),
+            'bright_green': QtGui.QTextCharFormat(),
+        }
 
-def remove_callsign_from_history():
-    selection = listbox.curselection()
-    if selection:
-        index = selection[0]
-        listbox.delete(index)
-        del wanted_callsigns_history[index]
-    
-    save_wanted_callsigns(wanted_callsigns_history)
-    update_wanted_callsigns_history_counter()   
+        self.text_formats['black_on_purple'].setForeground(QtGui.QBrush(QtGui.QColor('black')))
+        self.text_formats['black_on_purple'].setBackground(QtGui.QBrush(QtGui.QColor('#D080d0')))
 
-def update_listbox():
-    listbox.delete(0, tk.END) 
-    for callsign in wanted_callsigns_history:
-        listbox.insert(tk.END, callsign)  
+        self.text_formats['black_on_brown'].setForeground(QtGui.QBrush(QtGui.QColor('black')))
+        self.text_formats['black_on_brown'].setBackground(QtGui.QBrush(QtGui.QColor('#C08000')))
 
-    if wanted_callsigns_history:
-        listbox.see(tk.END)         
-    
-    update_wanted_callsigns_history_counter()
+        self.text_formats['black_on_white'].setForeground(QtGui.QBrush(QtGui.QColor('black')))
+        self.text_formats['black_on_white'].setBackground(QtGui.QBrush(QtGui.QColor('white')))
 
-def on_listbox_select(event):
-    if inputs_enabled == False:
-        return 
-    
-    selection = listbox.curselection()
-    if selection:
-        selected_callsign = listbox.get(selection[0])
-        wanted_callsigns_var.set(selected_callsign) 
+        self.text_formats['black_on_yellow'].setForeground(QtGui.QBrush(QtGui.QColor('black')))
+        self.text_formats['black_on_yellow'].setBackground(QtGui.QBrush(QtGui.QColor('yellow')))
 
-def get_log_filename():
-    today = datetime.datetime.now().strftime("%y%m%d") 
-    return f"{today}_pounce.log"
+        self.text_formats['white_on_red'].setForeground(QtGui.QBrush(QtGui.QColor('white')))
+        self.text_formats['white_on_red'].setBackground(QtGui.QBrush(QtGui.QColor('red')))
 
-def log_exception_to_file(filename, message):
-    timestamp = datetime.datetime.now().strftime("%y%m%d_%H%M%S") 
-    with open(filename, "a") as log_file:
-        log_file.write(f"{timestamp} {message}\n")
+        self.text_formats['white_on_blue'].setForeground(QtGui.QBrush(QtGui.QColor('white')))
+        self.text_formats['white_on_blue'].setBackground(QtGui.QBrush(QtGui.QColor('blue')))
 
-def clear_output_text():
-    gui_queue.put(lambda: output_text.delete(1.0, tk.END))
-    gui_queue.put(lambda: clear_button.config(state=tk.DISABLED))
+        self.text_formats['bright_green'].setForeground(QtGui.QBrush(QtGui.QColor('green')))
 
-def start_monitoring():
-    global tray_icon
+        # Load saved parameters
+        params = self.load_params()
+        self.wanted_callsigns_history = self.load_wanted_callsigns()
 
-    gui_queue.put(lambda: output_text.delete(1.0, tk.END))
-    run_button.config(state="disabled", background="red", text=RUNNING_TEXT_BUTTON)
-    disable_inputs()
-    stop_event.clear() 
+        self.your_callsign_var.setText(params.get("your_callsign", ""))
+        self.instance_var.setCurrentText(params.get("instance", "JTDX"))
+        self.frequency_var.setText(params.get("frequency", ""))
+        self.time_hopping_var.setText(params.get("time_hopping", ""))
+        self.wanted_callsigns_var.setText(params.get("wanted_callsigns", ""))
+        mode = params.get("mode", "Normal")
+        if mode == "Normal":
+            radio_normal.setChecked(True)
+        elif mode == "Fox/Hound":
+            radio_foxhound.setChecked(True)
+        elif mode == "SuperFox":
+            radio_superfox.setChecked(True)
 
-    tray_icon = TrayIcon()
-    tray_icon_thread = threading.Thread(target=tray_icon.start, daemon=True)
-    tray_icon_thread.start()
+        # Signals
+        self.your_callsign_var.textChanged.connect(self.force_uppercase)
+        self.wanted_callsigns_var.textChanged.connect(self.force_uppercase)
+        self.your_callsign_var.textChanged.connect(self.check_fields)
+        self.wanted_callsigns_var.textChanged.connect(self.check_fields)
 
-    instance_type = instance_var.get()
-    frequency = frequency_var.get()
-    time_hopping = time_hopping_var.get()
-    wanted_callsigns = wanted_callsigns_var.get()
-    your_callsign = your_callsign_var.get()
-    mode = mode_var.get()
+        # Wanted callsigns label
+        self.wanted_callsigns_label = QtWidgets.QLabel(WANTED_CALLSIGNS_HISTORY_LABEL % len(self.wanted_callsigns_history))
+        self.wanted_callsigns_label.setFont(custom_font_bold)
 
-    gui_queue.put(lambda: update_wanted_callsigns_history(wanted_callsigns))
+        # Listbox (wanted callsigns)
+        self.listbox = QtWidgets.QListWidget()
+        self.listbox.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self.listbox.itemClicked.connect(self.on_listbox_select)
 
-    params = {
-        "instance": instance_type,
-        "frequency": frequency,
-        "time_hopping": time_hopping,
-        "wanted_callsigns": wanted_callsigns,
-        "your_callsign": your_callsign,
-        "mode": mode 
-    }
-    save_params(params)
+        # Context menu for listbox
+        self.listbox.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.listbox.customContextMenuRequested.connect(self.on_right_click)
 
-    def target():
-        try:
-            wait_and_pounce.main(
-                instance_type,
-                frequency,
-                time_hopping,        
-                your_callsign,
-                wanted_callsigns,
-                mode,
-                control_log_analysis_tracking,
-                stop_event
-            )
-            stop_monitoring()
+        # Maintenant, ajoutez le label et la listbox au layout
+        main_layout.addWidget(self.wanted_callsigns_label, 1, 2, 1, 2)
+        main_layout.addWidget(self.listbox, 2, 2, 5, 2)
 
-        except Exception as e:
-            messagebox.showerror("Erreur", f"Erreur lors de l'exécution du script : {e}")
-            log_exception_to_file(log_filename, f"Exception: {str(e)}")
+        # Appelez update_listbox après avoir défini le label
+        self.update_listbox()
 
-    # Lancer l'exécution du script dans un thread séparé pour ne pas bloquer l'interface
-    thread = threading.Thread(target=target)
-    thread.start()
+        # ToolTip
+        self.tooltip = ToolTip(self.wanted_callsigns_var)
 
-def stop_monitoring():
-    global tray_icon
+        # Focus value (sequence)
+        self.focus_frame = QtWidgets.QFrame()
+        self.focus_frame_layout = QtWidgets.QHBoxLayout()
+        self.focus_frame.setLayout(self.focus_frame_layout)
+        self.focus_value_label = QtWidgets.QLabel("")
+        self.focus_value_label.setFont(custom_font_lg)
+        self.focus_value_label.setStyleSheet("padding: 10px;")
+        self.focus_frame_layout.addWidget(self.focus_value_label)
+        self.focus_frame.hide()
+        self.focus_value_label.mousePressEvent = self.copy_to_clipboard
 
-    if tray_icon:
-        tray_icon.stop()
-        tray_icon = None
+        # Timer value
+        self.timer_value_label = QtWidgets.QLabel("00:00:00")
+        self.timer_value_label.setFont(custom_font_lg)
+        self.timer_value_label.setStyleSheet("background-color: #9dfffe; color: #555bc2; padding: 10px;")
 
-    stop_event.set()
-    run_button.config(state="normal", background="SystemButtonFace", text=WAIT_POUNCE_LABEL)
-    enable_inputs()
+        # Log analysis label and value
+        self.counter_value_label = QtWidgets.QLabel(WAITING_DATA_ANALYSIS_LABEL)
+        self.counter_value_label.setFont(custom_font)
+        self.counter_value_label.setStyleSheet("background-color: yellow")
 
-def control_log_analysis_tracking(log_analysis_tracking):
-    if log_analysis_tracking is None:
-        gui_queue.put(lambda: counter_value_label.config(text=WAITING_DATA_ANALYSIS_LABEL, bg="yellow"))
-        gui_queue.put(lambda: focus_frame.grid_remove())  
-    else:
-        current_time = datetime.datetime.now().timestamp()
-        time_difference = current_time - log_analysis_tracking['last_analysis_time']
-        
-        min_time = 60 
-        max_time = 300 
+        # Log and clear button
+        self.output_text = QtWidgets.QTextEdit(self)
+        self.output_text.setFont(custom_font)
+        self.output_text.setStyleSheet("background-color: #D3D3D3;")
 
-        # Calculer le facteur pour le dégradé (0 pour 2 minutes, 1 pour 5 minutes)
-        if time_difference <= min_time:
-            # set to START_COLOR 
-            factor = 0  
-        elif time_difference >= max_time:
-            # Set to END_COLOR
-            factor = 1
+        self.clear_button = QtWidgets.QPushButton("Clear Log")
+        self.clear_button.setEnabled(False)
+        self.clear_button.clicked.connect(self.clear_output_text)
+
+        # Timer and start/stop buttons
+        self.run_button = QtWidgets.QPushButton(WAIT_POUNCE_LABEL)
+        self.run_button.clicked.connect(self.start_monitoring)
+        self.stop_button = QtWidgets.QPushButton("Stop all")
+        self.stop_button.clicked.connect(self.stop_monitoring)
+
+        # Organize UI components
+        main_layout.addWidget(self.focus_frame, 0, 0, 1, 4)
+
+        main_layout.addWidget(QtWidgets.QLabel("Instance to monitor:"), 1, 0)
+        main_layout.addWidget(self.instance_var, 1, 1)
+        main_layout.addWidget(QtWidgets.QLabel("Your Call:"), 2, 0)
+        main_layout.addWidget(self.your_callsign_var, 2, 1)
+        main_layout.addWidget(QtWidgets.QLabel("Frequencies (comma-separated):"), 3, 0)
+        main_layout.addWidget(self.frequency_var, 3, 1)
+        main_layout.addWidget(QtWidgets.QLabel("Time Hopping (minutes):"), 4, 0)
+        main_layout.addWidget(self.time_hopping_var, 4, 1)
+        main_layout.addWidget(QtWidgets.QLabel("Wanted Callsign(s) (comma-separated):"), 5, 0)
+        main_layout.addWidget(self.wanted_callsigns_var, 5, 1)
+
+        # Mode section
+        mode_layout = QtWidgets.QHBoxLayout()
+        mode_layout.addWidget(radio_normal)
+        mode_layout.addWidget(radio_foxhound)
+        mode_layout.addWidget(radio_superfox)
+        main_layout.addLayout(mode_layout, 6, 1)
+
+        # Timer label and log analysis
+        main_layout.addWidget(self.timer_value_label, 0, 3)
+        main_layout.addWidget(QtWidgets.QLabel("Last sequence analyzed:"), 7, 0)
+        main_layout.addWidget(self.counter_value_label, 7, 1)
+
+        # Add output text and buttons
+        main_layout.addWidget(self.output_text, 8, 0, 1, 4)
+        main_layout.addWidget(self.clear_button, 9, 3)
+        main_layout.addWidget(self.run_button, 7, 2)
+        main_layout.addWidget(self.stop_button, 7, 3)
+
+        # Timer to update time every second
+        self.timer = QtCore.QTimer()
+        self.timer.timeout.connect(self.update_timer_with_ft8_sequence)
+        self.timer.start(200)
+
+        # Initialize the stdout redirection
+        log_filename = self.get_log_filename()
+        self.debug_redirector = DebugRedirector(log_filename)
+        self.debug_redirector.new_text.connect(self.append_output_text)
+        sys.stdout = self.debug_redirector
+
+        self.check_fields()
+        self.load_window_position()
+
+        # Close event to save position
+        self.closeEvent = self.on_close
+
+    @QtCore.pyqtSlot(str)
+    def show_error_message(self, message):
+        self.append_output_text(f"[white_on_red]{message}[/white_on_red]\n")
+
+    @QtCore.pyqtSlot(str)
+    def handle_message_received(self, message):
+        self.append_output_text(message + "\n")            
+
+    def on_close(self, event):
+        self.save_window_position()
+        event.accept()
+
+    def force_uppercase(self):
+        self.your_callsign_var.setText(self.your_callsign_var.text().upper())
+        self.wanted_callsigns_var.setText(self.wanted_callsigns_var.text().upper())
+
+    def check_fields(self):
+        if self.your_callsign_var.text() and self.wanted_callsigns_var.text():
+            self.run_button.setEnabled(True)
         else:
-            # Get factor
-            factor = (time_difference - min_time) / (max_time - min_time)
+            self.run_button.setEnabled(False)
 
-        # Update counter value
-        counter_value_text = f"{datetime.datetime.fromtimestamp(log_analysis_tracking['last_analysis_time'], tz=datetime.timezone.utc).strftime('%H:%M:%S')} ----- #{str(log_analysis_tracking['total_analysis'])} ----"
+    def disable_inputs(self):
+        global inputs_enabled
+        inputs_enabled = False
+        self.instance_var.setEnabled(False)
+        self.your_callsign_var.setEnabled(False)
+        self.frequency_var.setEnabled(False)
+        self.time_hopping_var.setEnabled(False)
+        self.wanted_callsigns_var.setEnabled(False)
 
-        gui_queue.put(lambda: counter_value_label.config(
-            text=counter_value_text,
-            bg=rgb_to_hex(interpolate_color(START_COLOR, END_COLOR, factor))
-        ))
+    def enable_inputs(self):
+        global inputs_enabled
+        inputs_enabled = True
+        self.instance_var.setEnabled(True)
+        self.your_callsign_var.setEnabled(True)
+        self.frequency_var.setEnabled(True)
+        self.time_hopping_var.setEnabled(True)
+        self.wanted_callsigns_var.setEnabled(True)
 
-        gui_queue.put(lambda: check_callsign(log_analysis_tracking))
+    def save_params(self, params):
+        with open(PARAMS_FILE, "wb") as f:
+            pickle.dump(params, f)
 
-def check_callsign(log_analysis_tracking):
-    relevant_sequence = log_analysis_tracking['relevant_sequence']
-    
-    if relevant_sequence is not None and isinstance(relevant_sequence, (str, list)):
-        if your_callsign_var.get() in relevant_sequence:          
-            bg_color_hex ="#80d0d0"
-            fg_color_hex ="#000000"
+    def load_params(self):
+        if os.path.exists(PARAMS_FILE):
+            with open(PARAMS_FILE, "rb") as f:
+                return pickle.load(f)
+        return {}
+
+    def save_wanted_callsigns(self, wanted_callsigns_history):
+        with open(WANTED_CALLSIGNS_FILE, "wb") as f:
+            pickle.dump(wanted_callsigns_history, f)
+
+    def load_wanted_callsigns(self):
+        if os.path.exists(WANTED_CALLSIGNS_FILE):
+            with open(WANTED_CALLSIGNS_FILE, "rb") as f:
+                return pickle.load(f)
+        return []
+
+    def update_wanted_callsigns_history(self, new_callsign):
+        if new_callsign:
+            if new_callsign not in self.wanted_callsigns_history:
+                self.wanted_callsigns_history.append(new_callsign)
+                if len(self.wanted_callsigns_history) > WANTED_CALLSIGNS_HISTORY_SIZE:
+                    self.wanted_callsigns_history.pop(0)
+                self.save_wanted_callsigns(self.wanted_callsigns_history)
+                self.update_listbox()
+
+    def update_listbox(self):
+        self.listbox.clear()
+        self.listbox.addItems(self.wanted_callsigns_history)
+        self.update_wanted_callsigns_history_counter()
+
+    def update_wanted_callsigns_history_counter(self):
+        self.wanted_callsigns_label.setText(WANTED_CALLSIGNS_HISTORY_LABEL % len(self.wanted_callsigns_history))
+
+    def on_listbox_select(self):
+        if not inputs_enabled:
+            return
+        selected_item = self.listbox.currentItem()
+        if selected_item:
+            selected_callsign = selected_item.text()
+            self.wanted_callsigns_var.setText(selected_callsign)
+
+    def on_right_click(self, position):
+        menu = QtWidgets.QMenu()
+        remove_action = menu.addAction("Remove")
+        edit_action = menu.addAction("Edit")
+
+        action = menu.exec_(self.listbox.mapToGlobal(position))
+        if action == remove_action:
+            self.remove_callsign_from_history()
+        elif action == edit_action:
+            self.edit_callsign()
+
+    def remove_callsign_from_history(self):
+        selected_items = self.listbox.selectedItems()
+        if not selected_items:
+            return
+        for item in selected_items:
+            self.wanted_callsigns_history.remove(item.text())
+            self.listbox.takeItem(self.listbox.row(item))
+        self.save_wanted_callsigns(self.wanted_callsigns_history)
+        self.update_wanted_callsigns_history_counter()
+
+    def edit_callsign(self):
+        selected_items = self.listbox.selectedItems()
+        if not selected_items:
+            return
+        current_callsign = selected_items[0].text()
+        dialog = CustomDialog(self, initial_value=current_callsign)
+        if dialog.exec_() == QtWidgets.QDialog.Accepted:
+            new_callsign = dialog.get_result()
+            index = self.listbox.row(selected_items[0])
+            self.wanted_callsigns_history[index] = new_callsign
+            self.listbox.item(index).setText(new_callsign)
+            self.save_wanted_callsigns(self.wanted_callsigns_history)
+            self.update_wanted_callsigns_history_counter()
+
+    def copy_to_clipboard(self, event):
+        text = self.focus_value_label.text()
+        pyperclip.copy(text)
+        print(f"Copied to clipboard: {text}")
+
+    def get_log_filename(self):
+        today = datetime.datetime.now().strftime("%y%m%d")
+        return f"{today}_pounce.log"
+
+    def append_output_text(self, text):
+        cursor = self.output_text.textCursor()
+        cursor.movePosition(QtGui.QTextCursor.End)
+
+        pattern = re.compile(r'\[(\/?[a-zA-Z_]+)\]')
+        pos = 0
+        current_format = QtGui.QTextCharFormat()
+
+        while True:
+            match = pattern.search(text, pos)
+            if not match:
+                cursor.insertText(text[pos:], current_format)
+                break
+            else:
+                start, end = match.span()
+                tag = match.group(1)
+                cursor.insertText(text[pos:start], current_format)
+                pos = end  
+
+                if tag.startswith('/'):
+                    current_format = QtGui.QTextCharFormat()
+                else:
+                    format = self.text_formats.get(tag)
+                    if format:
+                        current_format = format
+                    else:                    
+                        pass
+
+        self.output_text.ensureCursorVisible()
+        self.clear_button.setEnabled(True)
+
+    def clear_output_text(self):
+        self.output_text.clear()
+        self.clear_button.setEnabled(False)
+
+    def save_window_position(self):
+        position = self.geometry()
+        position_data = {
+            'x': position.x(),
+            'y': position.y(),
+            'width': position.width(),
+            'height': position.height()
+        }
+        with open(POSITION_FILE, "wb") as f:
+            pickle.dump(position_data, f)
+
+    def load_window_position(self):
+        if os.path.exists(POSITION_FILE):
+            with open(POSITION_FILE, "rb") as f:
+                position_data = pickle.load(f)
+                if 'width' in position_data and 'height' in position_data:
+                    self.setGeometry(position_data['x'], position_data['y'], position_data['width'], position_data['height'])
+                else:
+                    self.setGeometry(100, 100, 900, 700) 
+                    os.remove(POSITION_FILE)
         else:
-            bg_color_hex ="#000000"
-            fg_color_hex ="#01ffff"
+            self.setGeometry(100, 100, 900, 700) 
 
-        gui_queue.put(lambda: (
-            focus_value_label.config(
-                text=relevant_sequence,
-                bg= bg_color_hex,
-                fg= fg_color_hex
-            ),
-            focus_frame.grid() 
-        ))
-    else:
-        gui_queue.put(lambda: focus_frame.grid_remove())  
+    def update_timer_with_ft8_sequence(self):
+        current_time = datetime.datetime.utcnow()
+        utc_time = current_time.strftime("%H:%M:%S")
 
-def update_timer_with_ft8_sequence():
-    current_time = datetime.datetime.now(datetime.timezone.utc)
-    utc_time = current_time.strftime("%H:%M:%S")
+        if (current_time.second // 15) % 2 == 0:
+            background_color = EVEN_COLOR
+        else:
+            background_color = ODD_COLOR
 
-    if (current_time.second // 15) % 2 == 0:
-        background_color = EVEN_COLOR
-    else:
-        background_color = ODD_COLOR
+        self.timer_value_label.setText(utc_time)
+        self.timer_value_label.setStyleSheet(f"background-color: {background_color}; color: #3d25fb; padding: 10px;")
 
-    gui_queue.put(lambda: timer_value_label.config(
-        text=utc_time,
-        bg=background_color,
-        fg="#3d25fb" 
-    ))
+    def start_monitoring(self):
+        global tray_icon
 
-    root.after(200, update_timer_with_ft8_sequence)
+        self.output_text.clear()
+        self.run_button.setEnabled(False)
+        self.run_button.setText(RUNNING_TEXT_BUTTON)
+        self.run_button.setStyleSheet("background-color: red")
+        self.disable_inputs()
+        stop_event.clear()
 
-# Charger les paramètres précédemment sauvegardés
-params = load_params()
+        if platform.system() == 'Windows':
+            tray_icon = TrayIcon()
+            tray_icon_thread = threading.Thread(target=tray_icon.start, daemon=True)
+            tray_icon_thread.start()
 
-# Charger l'historique des wanted_callsigns
-wanted_callsigns_history = load_wanted_callsigns()
+        instance_type = self.instance_var.currentText()
+        frequency = self.frequency_var.text()
+        time_hopping = self.time_hopping_var.text()
+        wanted_callsigns = self.wanted_callsigns_var.text()
+        your_callsign = self.your_callsign_var.text()
+        mode = self.mode_var.checkedButton().text()
 
-# Création de la fenêtre principale
-root = tk.Tk()
-root.geometry("900x700")
-root.resizable(False, False)
-root.grid_columnconfigure(2, weight=1) 
-root.grid_columnconfigure(3, weight=2) 
-root.title(GUI_LABEL_VERSION)
-root.after(100, process_gui_queue)
+        self.update_wanted_callsigns_history(wanted_callsigns)
 
-load_window_position()
-update_timer_with_ft8_sequence()
+        params = {
+            "instance": instance_type,
+            "frequency": frequency,
+            "time_hopping": time_hopping,
+            "wanted_callsigns": wanted_callsigns,
+            "your_callsign": your_callsign,
+            "mode": mode
+        }
+        self.save_params(params)
 
-# Sauvegarde de la position à la fermeture
-root.protocol("WM_DELETE_WINDOW", lambda: [save_window_position(), root.destroy()])
+        def message_callback(message):
+            self.message_received.emit(message)
 
-# Variables
-your_callsign_var = tk.StringVar(value=params.get("your_callsign", ""))
-instance_var = tk.StringVar(value=params.get("instance", "JTDX"))
-frequency_var = tk.StringVar(value=params.get("frequencies", ""))
-time_hopping_var = tk.StringVar(value=params.get("time_hopping", ""))
-wanted_callsigns_var = tk.StringVar(value=params.get("callsign", ""))
-mode_var = tk.StringVar(value=params.get("mode", "Normal"))
+        def target():
+            try:
+                wait_and_pounce.main(
+                    instance_type,
+                    frequency,
+                    time_hopping,
+                    your_callsign,
+                    wanted_callsigns,
+                    mode,
+                    self.control_log_analysis_tracking,
+                    stop_event,
+                    message_callback=message_callback
+                )
+                self.stop_monitoring()
 
-your_callsign_var.trace_add("write", force_uppercase)
-wanted_callsigns_var.trace_add("write", force_uppercase)
+            except Exception as e:
+                self.error_occurred.emit(f"Erreur lors de l'exécution du script : {e}")
+                self.log_exception_to_file(self.get_log_filename(), f"Exception: {str(e)}")
 
-your_callsign_var.trace_add("write", lambda *args: check_fields())
-wanted_callsigns_var.trace_add("write", lambda *args: check_fields())
+        # Run the script in a separate thread
+        thread = threading.Thread(target=target)
+        thread.start()
 
-ttk.Label(root, text="Instance to monitor:").grid(column=0, row=1, padx=10, pady=5, sticky=tk.W)
-instance_combo_entry = ttk.Combobox(root, textvariable=instance_var, values=["JTDX", "WSJT"], font=consolas_font, width=23) 
-instance_combo_entry.grid(column=1, row=1, padx=10, pady=5, sticky=tk.W)
+    def stop_monitoring(self):
+        global tray_icon
 
-ttk.Label(root, text="Your Call:").grid(column=0, row=2, padx=10, pady=5, sticky=tk.W)
-your_callsign_entry = ttk.Entry(root, textvariable=your_callsign_var, font=consolas_font, width=25) 
-your_callsign_entry.grid(column=1, row=2, padx=10, pady=5, sticky=tk.W)
+        if tray_icon:
+            tray_icon.stop()
+            tray_icon = None
 
-ttk.Label(root, text="Frequencies (comma-separated):").grid(column=0, row=3, padx=10, pady=5, sticky=tk.W)
-frequency_entry = ttk.Entry(root, textvariable=frequency_var, font=consolas_font, width=25) 
-frequency_entry.grid(column=1, row=3, padx=10, pady=5, sticky=tk.W)
+        stop_event.set()
+        self.run_button.setEnabled(True)
+        self.run_button.setText(WAIT_POUNCE_LABEL)
+        self.run_button.setStyleSheet("")
+        self.enable_inputs()
 
-ttk.Label(root, text="Time Hopping (minutes):").grid(column=0, row=4, padx=10, pady=5, sticky=tk.W)
-time_hopping_entry = ttk.Entry(root, textvariable=time_hopping_var, font=consolas_font, width=25) 
-time_hopping_entry.grid(column=1, row=4, padx=10, pady=5, sticky=tk.W)
+    def control_log_analysis_tracking(self, log_analysis_tracking):
+        if log_analysis_tracking is None:
+            self.counter_value_label.setText(WAITING_DATA_ANALYSIS_LABEL)
+            self.counter_value_label.setStyleSheet("background-color: yellow")
+            self.focus_frame.hide()
+        else:
+            current_time = datetime.datetime.now().timestamp()
+            time_difference = current_time - log_analysis_tracking['last_analysis_time']
 
-ttk.Label(root, text="Wanted Callsign(s) (comma-separated):").grid(column=0, row=5, padx=10, pady=5, sticky=tk.W)
-wanted_callsigns_entry = ttk.Entry(root, textvariable=wanted_callsigns_var, font=consolas_font, width=25) 
-wanted_callsigns_entry.grid(column=1, row=5, padx=10, pady=5, sticky=tk.W)
+            min_time = 60
+            max_time = 300
 
-tooltip = ToolTip(wanted_callsigns_entry)
+            if time_difference <= min_time:
+                factor = 0
+            elif time_difference >= max_time:
+                factor = 1
+            else:
+                factor = (time_difference - min_time) / (max_time - min_time)
 
-ttk.Label(root, text="Mode:").grid(column=0, row=6, padx=10, pady=5, sticky=tk.W)
+            # Update counter value
+            timestamp = datetime.datetime.fromtimestamp(
+                log_analysis_tracking['last_analysis_time'], tz=datetime.timezone.utc
+            ).strftime('%H:%M:%S')
+            counter_value_text = f"{timestamp} ----- #{str(log_analysis_tracking['total_analysis'])} ----"
 
-radio_frame = ttk.Frame(root)
-radio_frame.grid(column=1, columnspan=2, row=6, padx=10, pady=5)
+            color = rgb_to_hex(interpolate_color(START_COLOR, END_COLOR, factor))
 
-radio_normal = tk.Radiobutton(radio_frame, text="Normal", variable=mode_var, value="Normal", font=consolas_font)
-radio_normal.grid(column=0, row=0, padx=5, pady=5, sticky=tk.W)
+            self.counter_value_label.setText(counter_value_text)
+            self.counter_value_label.setStyleSheet(f"background-color: {color}")
 
-radio_foxhound = tk.Radiobutton(radio_frame, text="Fox/Hound", variable=mode_var, value="Fox/Hound", font=consolas_font)
-radio_foxhound.grid(column=1, row=0, padx=5, pady=5, sticky=tk.W)
+            self.check_callsign(log_analysis_tracking)
 
-radio_superfox = tk.Radiobutton(radio_frame, text="SuperFox", variable=mode_var, value="SuperFox", font=consolas_font)
-radio_superfox.grid(column=2, row=0, padx=5, pady=5, sticky=tk.W)
+    def check_callsign(self, log_analysis_tracking):
+        relevant_sequence = log_analysis_tracking['relevant_sequence']
 
-wanted_callsigns_label = ttk.Label(root, text=WANTED_CALLSIGNS_HISTORY_LABEL % len(wanted_callsigns_history))
-wanted_callsigns_label.grid(column=2, row=1, padx=10, pady=10, sticky=tk.W)
+        if relevant_sequence:
+            if self.your_callsign_var.text() in relevant_sequence:
+                bg_color_hex = "#80d0d0"
+                fg_color_hex = "#000000"
+            else:
+                bg_color_hex = "#000000"
+                fg_color_hex = "#01ffff"
 
-listbox_frame = tk.Frame(root)
-listbox_frame.grid(column=2, row=1, rowspan=6, columnspan=2, padx=10, pady=0, sticky=tk.W+tk.E)
-listbox = tk.Listbox(listbox_frame, height=6, bg="#D080d0", fg="black", font=consolas_bold_font)
-listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)  
+            self.focus_value_label.setText(relevant_sequence)
+            self.focus_value_label.setStyleSheet(f"background-color: {bg_color_hex}; color: {fg_color_hex}; padding: 10px;")
+            self.focus_frame.show()
+        else:
+            self.focus_frame.hide()
 
-scrollbar = tk.Scrollbar(listbox_frame, orient=tk.VERTICAL, command=listbox.yview)
-scrollbar.pack(side=tk.RIGHT, fill=tk.Y)  
-listbox.config(yscrollcommand=scrollbar.set)
+    def log_exception_to_file(self, filename, message):
+        timestamp = datetime.datetime.now().strftime("%y%m%d_%H%M%S")
+        with open(filename, "a") as log_file:
+            log_file.write(f"{timestamp} {message}\n")
 
-# Associer l'événement de sélection
-listbox.bind("<<ListboxSelect>>", on_listbox_select)
-listbox.bind("<Button-3>", on_right_click)
 
-wanted_callsigns_menu = Menu(root, tearoff=0)
-wanted_callsigns_menu.add_command(label="Remove", command=remove_callsign_from_history)
-wanted_callsigns_menu.add_command(label="Edit", command=edit_callsign)
+def main():
+    app = QtWidgets.QApplication(sys.argv)
+    window = MainApp()
+    window.show()
+    sys.exit(app.exec_())
 
-log_analysis_frame = ttk.Frame(root)
-log_analysis_frame.grid(column=2, columnspan=2, row=7, padx=10, pady=10, sticky=tk.W)
 
-log_analysis_label = ttk.Label(log_analysis_frame, text="Last sequence analyzed:")
-log_analysis_label.grid(column=0, row=0, padx=5, pady=5, sticky=tk.W)
-
-counter_value_label = tk.Label(log_analysis_frame, text=WAITING_DATA_ANALYSIS_LABEL, font=consolas_font, bg="yellow")
-counter_value_label.grid(column=1, row=0, padx=5, pady=5, sticky=tk.W)
-
-focus_frame = tk.Frame(root)
-focus_frame.grid(column=0, columnspan=3, row=0, padx=40, pady=10, sticky=tk.W+tk.E)
-
-focus_value_label = tk.Label(
-    focus_frame,
-    font=consolas_font_lg,    
-    padx=10,
-    pady=5,
-    anchor="center"
-)
-
-focus_value_label.pack(side=tk.LEFT, fill=tk.X, expand=True) 
-focus_frame.grid_remove()
-focus_frame.bind("<Button-1>", copy_to_clipboard)
-
-timer_frame = tk.Frame(root, bg="#cccccc", bd=1)
-timer_frame.grid(column=3, row=0, padx=(5, 30), pady=10, sticky=tk.E)
-
-timer_value_label = tk.Label(
-    timer_frame,
-    font=consolas_font_lg,
-    bg="#9dfffe",
-    fg="#555bc2",
-    padx=10,
-    pady=5,
-    width=10,
-    anchor="center"
-)
-
-timer_value_label.pack()
-
-output_text = tk.Text(root, height=15, width=100, bg="#D3D3D3", font=consolas_font)
-
-output_text.tag_config('black_on_purple', foreground='black', background='#D080d0')
-output_text.tag_config('black_on_brown', foreground='black', background='#C08000')
-output_text.tag_config('black_on_white', foreground='black', background='white')
-output_text.tag_config('black_on_yellow', foreground='black', background='yellow')
-output_text.tag_config('white_on_red', foreground='white', background='red')
-output_text.tag_config('white_on_blue', foreground='white', background='blue')
-output_text.tag_config('bright_green', foreground='green')
-
-output_text.grid(column=0, row=8, columnspan=5, padx=10, pady=10, sticky="ew")
-
-clear_button = tk.Button(root, text="Clear Log", command=clear_output_text)
-clear_button.grid(column=0, columnspan="4", row=9, padx=10, pady=5, sticky=tk.E)
-
-button_frame = tk.Frame(root)
-button_frame.grid(column=1, row=7, padx=10, pady=10)
-
-# Bouton pour exécuter le script
-run_button = tk.Button(button_frame, text=WAIT_POUNCE_LABEL, width=20, command=start_monitoring)
-run_button.pack(side="left", padx=5)
-
-# Bouton pour arrêter le script
-stop_button = tk.Button(button_frame, text="Stop all", command=stop_monitoring)
-stop_button.pack(side="left", padx=5)
-
-check_fields()
-
-# Met à jour la Listbox avec l'historique
-update_listbox()
-
-log_filename = get_log_filename()
-sys.stdout = DebugRedirector(output_text, log_filename)
-
-# Exécution de la boucle principale
-if __name__ == "__main__":
-    root.mainloop()
+if __name__ == '__main__':
+    main()
