@@ -11,8 +11,8 @@ from termcolor import colored
 from logger import LOGGER as log
 
 class Listener:
-    def __init__(self,q,config,ip_address,port,timeout=2.0):
-        log.debug('new listener: '+str(q))
+    def __init__(self, q, config, ip_address, port, timeout=2.0):
+        log.debug('new listener: ' + str(q))
         self.config = config
         self.call = None
         self.band = None
@@ -24,8 +24,12 @@ class Listener:
         self.ip_address = ip_address
         self.port = port
 
-        self.initAdif()
+        self._running = True
+
         self.s = pywsjtx.extra.simple_server.SimpleServer(ip_address, port)
+        self.s.sock.settimeout(1.0)
+
+        self.initAdif()
 
     def initAdif(self):
         filePaths = self.config.get('ADIF_FILES','paths').splitlines()
@@ -70,11 +74,11 @@ class Listener:
         print('decode packet ',self.the_packet)
 
     def stop(self):
-        log.debug("stopping wsjtx listener")
-        self.stopped = True
+        self._running = False
+        self.s.sock.close() 
 
     def doListen(self):
-        while True:
+        while self._running:
             try:
                 self.pkt, self.addr_port = self.s.sock.recvfrom(8192)
                 message = f"Received packet of length {len(self.pkt)} from {self.addr_port}"
@@ -89,6 +93,12 @@ class Listener:
                 log.info(error_message)
                 if self.message_callback:
                     self.message_callback(error_message)
+        
+        self.s.sock.close()
+        log.info("Listener stopped")      
+
+    def stop(self):
+        self._running = False                      
 
     def listen(self):
         self.t = threading.Thread(target=self.doListen, daemon=True)

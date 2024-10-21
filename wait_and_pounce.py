@@ -3,6 +3,7 @@ import threading
 import sys
 import signal
 import time
+import datetime
 
 from wsjtx_listener import Listener
 
@@ -65,6 +66,22 @@ class MyListener(Listener):
             log.info(message)
             if self.message_callback:
                 self.message_callback(message)
+        elif isinstance(self.the_packet, pywsjtx.DecodePacket):
+            super().handle_packet()
+            # print(f"Attributes of DecodePacket: {dir(self.the_packet)}")
+            decode_time = self.the_packet.time
+            decode_time_str = decode_time.strftime('%Y-%m-%d %H:%M:%S')
+
+            message_text = self.the_packet.message
+            snr = self.the_packet.snr
+            delta_time = self.the_packet.delta_t  
+            delta_frequency = self.the_packet.delta_f
+            mode = self.the_packet.mode
+
+            display_message = f"Decode at {decode_time_str} SNR {snr} dB {delta_time:+.1f}s {delta_frequency}Hz {mode}: [white_on_blue]{message_text}[/white_on_blue]"
+            log.info(display_message)
+            if self.message_callback:
+                self.message_callback(display_message)
         else:
             super().handle_packet()
 
@@ -87,14 +104,13 @@ def main(
     config = MockConfig()
 
     listener = MyListener(q, config, ip_address, port, message_callback=message_callback)
-
     listener.listen()
 
-    # Garder le script en cours d'exécution jusqu'à ce que stop_event soit défini
     try:
         while not stop_event.is_set():
-            time.sleep(1)
+            time.sleep(0.1)  
     except KeyboardInterrupt:
         print("\nArrêt du script.")
     finally:
         listener.stop()
+        listener.t.join()

@@ -1,3 +1,6 @@
+from PyQt5 import QtWidgets, QtCore, QtGui
+from PyQt5.QtCore import QObject, pyqtSignal, QThread
+
 import platform
 import sys
 import pickle
@@ -7,7 +10,6 @@ import threading
 import datetime
 import re
 import time
-from PyQt5 import QtWidgets, QtCore, QtGui
 from PIL import Image, ImageDraw
 import pyperclip
 import wait_and_pounce
@@ -56,6 +58,45 @@ elif platform.system() == 'Darwin':
     custom_font = QtGui.QFont("Menlo", 12)
     custom_font_lg = QtGui.QFont("Menlo", 18)
     custom_font_bold = QtGui.QFont("Menlo", 12, QtGui.QFont.Bold)
+
+class Worker(QObject):
+    finished = pyqtSignal()
+    error = pyqtSignal(str)
+    message = pyqtSignal(str)
+
+    def __init__(self, instance_type, frequency, time_hopping, your_callsign,
+                 wanted_callsigns, mode, control_log_analysis_tracking,
+                 stop_event, message_callback):
+        super(Worker, self).__init__()
+        self.instance_type = instance_type
+        self.frequency = frequency
+        self.time_hopping = time_hopping
+        self.your_callsign = your_callsign
+        self.wanted_callsigns = wanted_callsigns
+        self.mode = mode
+        self.control_log_analysis_tracking = control_log_analysis_tracking
+        self.stop_event = stop_event
+        self.message_callback = message_callback
+
+    def run(self):
+        try:
+            wait_and_pounce.main(
+                self.instance_type,
+                self.frequency,
+                self.time_hopping,
+                self.your_callsign,
+                self.wanted_callsigns,
+                self.mode,
+                self.control_log_analysis_tracking,
+                self.stop_event,
+                message_callback=self.message_callback
+            )
+        except Exception as e:
+            error_message = f"Erreur lors de l'exécution du script : {e}"
+            self.error.emit(error_message)
+        finally:
+            self.finished.emit()
+
 
 class TrayIcon:
     def __init__(self):
@@ -191,6 +232,7 @@ class MainApp(QtWidgets.QMainWindow):
     def __init__(self):
         super(MainApp, self).__init__()
 
+        self.stop_event = threading.Event()
         self.error_occurred.connect(self.show_error_message)
         self.message_received.connect(self.handle_message_received)
 
@@ -591,7 +633,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.run_button.setText(RUNNING_TEXT_BUTTON)
         self.run_button.setStyleSheet("background-color: red")
         self.disable_inputs()
-        stop_event.clear()
+        self.stop_event.clear()
 
         if platform.system() == 'Windows':
             tray_icon = TrayIcon()
@@ -617,31 +659,35 @@ class MainApp(QtWidgets.QMainWindow):
         }
         self.save_params(params)
 
-        def message_callback(message):
-            self.message_received.emit(message)
+        message_callback = self.message_received.emit
 
-        def target():
-            try:
-                wait_and_pounce.main(
-                    instance_type,
-                    frequency,
-                    time_hopping,
-                    your_callsign,
-                    wanted_callsigns,
-                    mode,
-                    self.control_log_analysis_tracking,
-                    stop_event,
-                    message_callback=message_callback
-                )
-                self.stop_monitoring()
+        # Create a QThread and a Worker object
+        self.thread = QThread()
+        self.worker = Worker(
+            instance_type,
+            frequency,
+            time_hopping,
+            your_callsign,
+            wanted_callsigns,
+            mode,
+            self.control_log_analysis_tracking,
+            self.stop_event,
+            message_callback=message_callback
+        )
+        self.worker.moveToThread(self.thread)
 
-            except Exception as e:
-                self.error_occurred.emit(f"Erreur lors de l'exécution du script : {e}")
-                self.log_exception_to_file(self.get_log_filename(), f"Exception: {str(e)}")
+        # Connect signals and slots
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
 
-        # Run the script in a separate thread
-        thread = threading.Thread(target=target)
-        thread.start()
+        # Connect worker's signals to the GUI slots
+        self.worker.finished.connect(self.stop_monitoring)
+        self.worker.error.connect(self.show_error_message)
+        self.worker.message.connect(self.handle_message_received)
+
+        self.thread.start()
 
     def stop_monitoring(self):
         global tray_icon
@@ -650,7 +696,8 @@ class MainApp(QtWidgets.QMainWindow):
             tray_icon.stop()
             tray_icon = None
 
-        stop_event.set()
+        self.stop_event.set()
+        
         self.run_button.setEnabled(True)
         self.run_button.setText(WAIT_POUNCE_LABEL)
         self.run_button.setStyleSheet("")
