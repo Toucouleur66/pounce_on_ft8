@@ -49,8 +49,25 @@ signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
 class MyListener(Listener):
-    def __init__(self, q, config, ip_address, port, message_callback=None):
-        super().__init__(q, config, ip_address, port)
+    def __init__(
+            self,
+            q,
+            config,
+            ip_address,
+            port,
+            your_callsign,
+            wanted_callsigns,
+            message_callback=None
+        ):
+        super().__init__(
+            q,
+            config,
+            ip_address,
+            port,
+            your_callsign,
+            wanted_callsigns,
+            message_callback=message_callback
+        )
         self.message_callback = message_callback
 
     def handle_packet(self):
@@ -103,7 +120,18 @@ def main(
     q = MockQueue()
     config = MockConfig()
 
-    listener = MyListener(q, config, ip_address, port, message_callback=message_callback)
+    if isinstance(wanted_callsigns, str):
+        wanted_callsigns = [callsign.strip() for callsign in wanted_callsigns.split(',')]
+
+    listener = MyListener(
+        q,
+        config,
+        ip_address,
+        port,
+        your_callsign=your_callsign,
+        wanted_callsigns=wanted_callsigns,
+        message_callback=message_callback
+    )
     listener.listen()
 
     try:

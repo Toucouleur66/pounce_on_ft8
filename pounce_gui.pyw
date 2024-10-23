@@ -1,5 +1,6 @@
 from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtCore import QObject, pyqtSignal, QThread
+from PyQt5.QtMultimedia import QSound
 
 import platform
 import sys
@@ -62,11 +63,19 @@ elif platform.system() == 'Darwin':
 class Worker(QObject):
     finished = pyqtSignal()
     error = pyqtSignal(str)
-    message = pyqtSignal(str)
+    message = pyqtSignal(object)
 
-    def __init__(self, instance_type, frequency, time_hopping, your_callsign,
-                 wanted_callsigns, mode, control_log_analysis_tracking,
-                 stop_event, message_callback):
+    def __init__(
+            self,
+            instance_type,
+            frequency,
+            time_hopping,
+            your_callsign,
+            wanted_callsigns,
+            mode,
+            control_log_analysis_tracking,
+            stop_event
+        ):
         super(Worker, self).__init__()
         self.instance_type = instance_type
         self.frequency = frequency
@@ -76,7 +85,6 @@ class Worker(QObject):
         self.mode = mode
         self.control_log_analysis_tracking = control_log_analysis_tracking
         self.stop_event = stop_event
-        self.message_callback = message_callback
 
     def run(self):
         try:
@@ -89,7 +97,7 @@ class Worker(QObject):
                 self.mode,
                 self.control_log_analysis_tracking,
                 self.stop_event,
-                message_callback=self.message_callback
+                message_callback=self.message.emit
             )
         except Exception as e:
             error_message = f"Erreur lors de l'exécution du script : {e}"
@@ -227,7 +235,7 @@ class CustomDialog(QtWidgets.QDialog):
 
 class MainApp(QtWidgets.QMainWindow):
     error_occurred = QtCore.pyqtSignal(str)    
-    message_received = QtCore.pyqtSignal(str)
+    message_received = QtCore.pyqtSignal(object)
 
     def __init__(self):
         super(MainApp, self).__init__()
@@ -235,6 +243,12 @@ class MainApp(QtWidgets.QMainWindow):
         self.stop_event = threading.Event()
         self.error_occurred.connect(self.show_error_message)
         self.message_received.connect(self.handle_message_received)
+
+        self.decode_packet_count = 0
+        self.last_decode_packet_time = None
+        self.last_heartbeat_time = None
+
+        self.alert_sound = QSound("sounds/716445__scottyd0es__tone12_error.wav")
 
         self.setWindowTitle(GUI_LABEL_VERSION)
         self.setGeometry(100, 100, 900, 700)
@@ -331,11 +345,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.listbox.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.listbox.customContextMenuRequested.connect(self.on_right_click)
 
-        # Maintenant, ajoutez le label et la listbox au layout
         main_layout.addWidget(self.wanted_callsigns_label, 1, 2, 1, 2)
         main_layout.addWidget(self.listbox, 2, 2, 5, 2)
 
-        # Appelez update_listbox après avoir défini le label
         self.update_listbox()
 
         # ToolTip
@@ -371,6 +383,12 @@ class MainApp(QtWidgets.QMainWindow):
         self.clear_button.setEnabled(False)
         self.clear_button.clicked.connect(self.clear_output_text)
 
+        self.enable_alert_checkbox = QtWidgets.QCheckBox("Enable Sound")
+        self.enable_alert_checkbox.setChecked(False)
+
+        self.quit_button = QtWidgets.QPushButton("Quit")
+        self.quit_button.clicked.connect(self.quit_application)
+
         # Timer and start/stop buttons
         self.run_button = QtWidgets.QPushButton(WAIT_POUNCE_LABEL)
         self.run_button.clicked.connect(self.start_monitoring)
@@ -400,12 +418,14 @@ class MainApp(QtWidgets.QMainWindow):
 
         # Timer label and log analysis
         main_layout.addWidget(self.timer_value_label, 0, 3)
-        main_layout.addWidget(QtWidgets.QLabel("Last sequence analyzed:"), 7, 0)
+        main_layout.addWidget(QtWidgets.QLabel("Status:"), 7, 0)
         main_layout.addWidget(self.counter_value_label, 7, 1)
 
         # Add output text and buttons
         main_layout.addWidget(self.output_text, 8, 0, 1, 4)
-        main_layout.addWidget(self.clear_button, 9, 3)
+        main_layout.addWidget(self.clear_button, 9, 2)
+        main_layout.addWidget(self.enable_alert_checkbox, 9, 0)
+        main_layout.addWidget(self.quit_button, 9, 3)
         main_layout.addWidget(self.run_button, 7, 2)
         main_layout.addWidget(self.stop_button, 7, 3)
 
@@ -430,13 +450,69 @@ class MainApp(QtWidgets.QMainWindow):
     def show_error_message(self, message):
         self.append_output_text(f"[white_on_red]{message}[/white_on_red]\n")
 
-    @QtCore.pyqtSlot(str)
+    @QtCore.pyqtSlot(object)
     def handle_message_received(self, message):
-        self.append_output_text(message + "\n")            
+        if isinstance(message, dict):
+            message_type = message.get('type')
+            if message_type == 'wanted_callsign_detected':
+                formatted_message = message.get('formatted_message')
+                contains_my_call = message.get('contains_my_call')
+                if formatted_message is not None:
+                    self.update_focus_frame(formatted_message, contains_my_call)
+                    if self.enable_alert_checkbox.isChecked():
+                        self.play_alert_sound()
+            elif message_type == 'update_status':
+                self.update_status_label(
+                    message.get('decode_packet_count', 0),
+                    message.get('last_decode_packet_time'),
+                    message.get('last_heartbeat_time')
+                )
+        else:
+            self.append_output_text(str(message) + "\n")     
+
+    def play_alert_sound(self):
+        try:
+            self.alert_sound.play()
+        except Exception as e:
+            print(f"Failed to play alert sound: {e}")
+
+    def update_focus_frame(self, formatted_message, contains_my_call):
+        self.focus_value_label.setText(formatted_message)
+        if contains_my_call:
+            bg_color_hex = "#80d0d0"
+            fg_color_hex = "#000000"
+        else:
+            bg_color_hex = "#000000"
+            fg_color_hex = "#01ffff"
+        self.focus_value_label.setStyleSheet(f"background-color: {bg_color_hex}; color: {fg_color_hex}; padding: 10px;")
+        self.focus_frame.show()
+
+    def update_status_label(self, decode_packet_count, last_decode_packet_time, last_heartbeat_time):
+        now = datetime.datetime.now()
+        status_text = f"DecodePackets: #{decode_packet_count}\n"
+
+        if last_decode_packet_time:
+            time_since_last_decode = (now - last_decode_packet_time).total_seconds()
+            if time_since_last_decode > 60:
+                status_text += f"No DecodePacket for more than 60 secondes.\n"
+        else:
+            status_text += "No DecodePacket received yet.\n"
+
+        if last_heartbeat_time:
+            last_heartbeat_str = last_heartbeat_time.strftime('%Y-%m-%d %H:%M:%S')
+            status_text += f"Last HeartBeat @ {last_heartbeat_str}"
+        else:
+            status_text += "No HeartBeat."
+
+        self.counter_value_label.setText(status_text)        
 
     def on_close(self, event):
         self.save_window_position()
         event.accept()
+
+    def quit_application(self):
+        self.save_window_position()
+        QtWidgets.QApplication.quit()
 
     def force_uppercase(self):
         self.your_callsign_var.setText(self.your_callsign_var.text().upper())
@@ -634,6 +710,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.run_button.setStyleSheet("background-color: red")
         self.disable_inputs()
         self.stop_event.clear()
+        self.focus_frame.hide()
 
         if platform.system() == 'Windows':
             tray_icon = TrayIcon()
@@ -671,8 +748,7 @@ class MainApp(QtWidgets.QMainWindow):
             wanted_callsigns,
             mode,
             self.control_log_analysis_tracking,
-            self.stop_event,
-            message_callback=message_callback
+            self.stop_event
         )
         self.worker.moveToThread(self.thread)
 
@@ -703,6 +779,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.run_button.setStyleSheet("")
         self.enable_inputs()
 
+    # Todo : to delete
     def control_log_analysis_tracking(self, log_analysis_tracking):
         if log_analysis_tracking is None:
             self.counter_value_label.setText(WAITING_DATA_ANALYSIS_LABEL)
@@ -735,6 +812,7 @@ class MainApp(QtWidgets.QMainWindow):
 
             self.check_callsign(log_analysis_tracking)
 
+    # Todo : to delete
     def check_callsign(self, log_analysis_tracking):
         relevant_sequence = log_analysis_tracking['relevant_sequence']
 
