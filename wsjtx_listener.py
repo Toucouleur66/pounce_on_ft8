@@ -17,7 +17,6 @@ class Listener:
             config,
             ip_address,
             port,
-            your_callsign,
             wanted_callsigns,
             message_callback=None
         ):
@@ -27,7 +26,6 @@ class Listener:
         self.band = None
         self.dx_call = None
 
-        self.your_callsign = your_callsign
         self.wanted_callsigns = set(wanted_callsigns)
         self.message_callback = message_callback
 
@@ -231,7 +229,7 @@ class Listener:
                         wanted_data = {
                             'cuarto': 15 * (datetime.now().second // 15),
                             'directed': directed,
-                           'callsign': callsign,
+                            'callsign': callsign,
                             'msg': msg
                         }
 

@@ -67,35 +67,26 @@ class Worker(QObject):
 
     def __init__(
             self,
-            instance_type,
             frequency,
             time_hopping,
-            your_callsign,
             wanted_callsigns,
             mode,
-            control_log_analysis_tracking,
             stop_event
         ):
         super(Worker, self).__init__()
-        self.instance_type = instance_type
         self.frequency = frequency
         self.time_hopping = time_hopping
-        self.your_callsign = your_callsign
         self.wanted_callsigns = wanted_callsigns
         self.mode = mode
-        self.control_log_analysis_tracking = control_log_analysis_tracking
         self.stop_event = stop_event
 
     def run(self):
         try:
             wait_and_pounce.main(
-                self.instance_type,
                 self.frequency,
                 self.time_hopping,
-                self.your_callsign,
                 self.wanted_callsigns,
                 self.mode,
-                self.control_log_analysis_tracking,
                 self.stop_event,
                 message_callback=self.message.emit
             )
@@ -260,10 +251,7 @@ class MainApp(QtWidgets.QMainWindow):
         central_widget.setLayout(main_layout)
 
         # Variables
-        self.your_callsign_var = QtWidgets.QLineEdit()
         self.wanted_callsigns_var = QtWidgets.QLineEdit()
-        self.instance_var = QtWidgets.QComboBox()
-        self.instance_var.addItems(["JTDX", "WSJT"])
         self.frequency_var = QtWidgets.QLineEdit()
         self.time_hopping_var = QtWidgets.QLineEdit()
 
@@ -313,8 +301,6 @@ class MainApp(QtWidgets.QMainWindow):
         params = self.load_params()
         self.wanted_callsigns_history = self.load_wanted_callsigns()
 
-        self.your_callsign_var.setText(params.get("your_callsign", ""))
-        self.instance_var.setCurrentText(params.get("instance", "JTDX"))
         self.frequency_var.setText(params.get("frequency", ""))
         self.time_hopping_var.setText(params.get("time_hopping", ""))
         self.wanted_callsigns_var.setText(params.get("wanted_callsigns", ""))
@@ -327,14 +313,11 @@ class MainApp(QtWidgets.QMainWindow):
             radio_superfox.setChecked(True)
 
         # Signals
-        self.your_callsign_var.textChanged.connect(self.force_uppercase)
         self.wanted_callsigns_var.textChanged.connect(self.force_uppercase)
-        self.your_callsign_var.textChanged.connect(self.check_fields)
         self.wanted_callsigns_var.textChanged.connect(self.check_fields)
 
         # Wanted callsigns label
         self.wanted_callsigns_label = QtWidgets.QLabel(WANTED_CALLSIGNS_HISTORY_LABEL % len(self.wanted_callsigns_history))
-        self.wanted_callsigns_label.setFont(custom_font_bold)
 
         # Listbox (wanted callsigns)
         self.listbox = QtWidgets.QListWidget()
@@ -389,6 +372,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.quit_button = QtWidgets.QPushButton("Quit")
         self.quit_button.clicked.connect(self.quit_application)
 
+        self.restart_button = QtWidgets.QPushButton("Restart")
+        self.restart_button.clicked.connect(self.restart_application)
+
         # Timer and start/stop buttons
         self.run_button = QtWidgets.QPushButton(WAIT_POUNCE_LABEL)
         self.run_button.clicked.connect(self.start_monitoring)
@@ -398,16 +384,12 @@ class MainApp(QtWidgets.QMainWindow):
         # Organize UI components
         main_layout.addWidget(self.focus_frame, 0, 0, 1, 4)
 
-        main_layout.addWidget(QtWidgets.QLabel("Instance to monitor:"), 1, 0)
-        main_layout.addWidget(self.instance_var, 1, 1)
-        main_layout.addWidget(QtWidgets.QLabel("Your Call:"), 2, 0)
-        main_layout.addWidget(self.your_callsign_var, 2, 1)
-        main_layout.addWidget(QtWidgets.QLabel("Frequencies (comma-separated):"), 3, 0)
-        main_layout.addWidget(self.frequency_var, 3, 1)
-        main_layout.addWidget(QtWidgets.QLabel("Time Hopping (minutes):"), 4, 0)
-        main_layout.addWidget(self.time_hopping_var, 4, 1)
-        main_layout.addWidget(QtWidgets.QLabel("Wanted Callsign(s) (comma-separated):"), 5, 0)
-        main_layout.addWidget(self.wanted_callsigns_var, 5, 1)
+        main_layout.addWidget(QtWidgets.QLabel("Frequencies (comma-separated):"), 2, 0)
+        main_layout.addWidget(self.frequency_var, 2, 1)
+        main_layout.addWidget(QtWidgets.QLabel("Time Hopping (minutes):"), 3, 0)
+        main_layout.addWidget(self.time_hopping_var, 3, 1)
+        main_layout.addWidget(QtWidgets.QLabel("Wanted Callsign(s) (comma-separated):"), 4, 0)
+        main_layout.addWidget(self.wanted_callsigns_var, 4, 1)
 
         # Mode section
         mode_layout = QtWidgets.QHBoxLayout()
@@ -426,6 +408,7 @@ class MainApp(QtWidgets.QMainWindow):
         main_layout.addWidget(self.clear_button, 9, 2)
         main_layout.addWidget(self.enable_alert_checkbox, 9, 0)
         main_layout.addWidget(self.quit_button, 9, 3)
+        main_layout.addWidget(self.restart_button, 9, 1)
         main_layout.addWidget(self.run_button, 7, 2)
         main_layout.addWidget(self.stop_button, 7, 3)
 
@@ -514,12 +497,17 @@ class MainApp(QtWidgets.QMainWindow):
         self.save_window_position()
         QtWidgets.QApplication.quit()
 
+    def restart_application(self):
+        self.save_window_position()
+
+        QtCore.QProcess.startDetached(sys.executable, sys.argv)
+        QtWidgets.QApplication.quit()
+
     def force_uppercase(self):
-        self.your_callsign_var.setText(self.your_callsign_var.text().upper())
         self.wanted_callsigns_var.setText(self.wanted_callsigns_var.text().upper())
 
     def check_fields(self):
-        if self.your_callsign_var.text() and self.wanted_callsigns_var.text():
+        if self.wanted_callsigns_var.text():
             self.run_button.setEnabled(True)
         else:
             self.run_button.setEnabled(False)
@@ -527,8 +515,6 @@ class MainApp(QtWidgets.QMainWindow):
     def disable_inputs(self):
         global inputs_enabled
         inputs_enabled = False
-        self.instance_var.setEnabled(False)
-        self.your_callsign_var.setEnabled(False)
         self.frequency_var.setEnabled(False)
         self.time_hopping_var.setEnabled(False)
         self.wanted_callsigns_var.setEnabled(False)
@@ -536,8 +522,6 @@ class MainApp(QtWidgets.QMainWindow):
     def enable_inputs(self):
         global inputs_enabled
         inputs_enabled = True
-        self.instance_var.setEnabled(True)
-        self.your_callsign_var.setEnabled(True)
         self.frequency_var.setEnabled(True)
         self.time_hopping_var.setEnabled(True)
         self.wanted_callsigns_var.setEnabled(True)
@@ -717,21 +701,17 @@ class MainApp(QtWidgets.QMainWindow):
             tray_icon_thread = threading.Thread(target=tray_icon.start, daemon=True)
             tray_icon_thread.start()
 
-        instance_type = self.instance_var.currentText()
         frequency = self.frequency_var.text()
         time_hopping = self.time_hopping_var.text()
         wanted_callsigns = self.wanted_callsigns_var.text()
-        your_callsign = self.your_callsign_var.text()
         mode = self.mode_var.checkedButton().text()
 
         self.update_wanted_callsigns_history(wanted_callsigns)
 
         params = {
-            "instance": instance_type,
             "frequency": frequency,
             "time_hopping": time_hopping,
             "wanted_callsigns": wanted_callsigns,
-            "your_callsign": your_callsign,
             "mode": mode
         }
         self.save_params(params)
@@ -741,13 +721,10 @@ class MainApp(QtWidgets.QMainWindow):
         # Create a QThread and a Worker object
         self.thread = QThread()
         self.worker = Worker(
-            instance_type,
             frequency,
             time_hopping,
-            your_callsign,
             wanted_callsigns,
             mode,
-            self.control_log_analysis_tracking,
             self.stop_event
         )
         self.worker.moveToThread(self.thread)
@@ -778,57 +755,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.run_button.setText(WAIT_POUNCE_LABEL)
         self.run_button.setStyleSheet("")
         self.enable_inputs()
-
-    # Todo : to delete
-    def control_log_analysis_tracking(self, log_analysis_tracking):
-        if log_analysis_tracking is None:
-            self.counter_value_label.setText(WAITING_DATA_ANALYSIS_LABEL)
-            self.counter_value_label.setStyleSheet("background-color: yellow")
-            self.focus_frame.hide()
-        else:
-            current_time = datetime.datetime.now().timestamp()
-            time_difference = current_time - log_analysis_tracking['last_analysis_time']
-
-            min_time = 60
-            max_time = 300
-
-            if time_difference <= min_time:
-                factor = 0
-            elif time_difference >= max_time:
-                factor = 1
-            else:
-                factor = (time_difference - min_time) / (max_time - min_time)
-
-            # Update counter value
-            timestamp = datetime.datetime.fromtimestamp(
-                log_analysis_tracking['last_analysis_time'], tz=datetime.timezone.utc
-            ).strftime('%H:%M:%S')
-            counter_value_text = f"{timestamp} ----- #{str(log_analysis_tracking['total_analysis'])} ----"
-
-            color = rgb_to_hex(interpolate_color(START_COLOR, END_COLOR, factor))
-
-            self.counter_value_label.setText(counter_value_text)
-            self.counter_value_label.setStyleSheet(f"background-color: {color}")
-
-            self.check_callsign(log_analysis_tracking)
-
-    # Todo : to delete
-    def check_callsign(self, log_analysis_tracking):
-        relevant_sequence = log_analysis_tracking['relevant_sequence']
-
-        if relevant_sequence:
-            if self.your_callsign_var.text() in relevant_sequence:
-                bg_color_hex = "#80d0d0"
-                fg_color_hex = "#000000"
-            else:
-                bg_color_hex = "#000000"
-                fg_color_hex = "#01ffff"
-
-            self.focus_value_label.setText(relevant_sequence)
-            self.focus_value_label.setStyleSheet(f"background-color: {bg_color_hex}; color: {fg_color_hex}; padding: 10px;")
-            self.focus_frame.show()
-        else:
-            self.focus_frame.hide()
 
     def log_exception_to_file(self, filename, message):
         timestamp = datetime.datetime.now().strftime("%y%m%d_%H%M%S")

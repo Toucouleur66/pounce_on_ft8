@@ -55,7 +55,6 @@ class MyListener(Listener):
             config,
             ip_address,
             port,
-            your_callsign,
             wanted_callsigns,
             message_callback=None
         ):
@@ -64,7 +63,6 @@ class MyListener(Listener):
             config,
             ip_address,
             port,
-            your_callsign,
             wanted_callsigns,
             message_callback=message_callback
         )
@@ -103,13 +101,10 @@ class MyListener(Listener):
             super().handle_packet()
 
 def main(
-        instance_type,
         frequency,
         time_hopping,
-        your_callsign,
         wanted_callsigns,
         mode,
-        control_log_analysis_tracking,
         stop_event,
         message_callback=None
     ):
@@ -128,7 +123,6 @@ def main(
         config,
         ip_address,
         port,
-        your_callsign=your_callsign,
         wanted_callsigns=wanted_callsigns,
         message_callback=message_callback
     )
