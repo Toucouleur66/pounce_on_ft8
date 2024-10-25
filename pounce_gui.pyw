@@ -23,16 +23,17 @@ version_number = 2.0
 
 tray_icon = None
 
-PARAMS_FILE = "params.pkl"
-POSITION_FILE = "window_position.pkl"
-WANTED_CALLSIGNS_FILE = "wanted_callsigns.pkl"
-WANTED_CALLSIGNS_HISTORY_SIZE = 50
+PARAMS_FILE                         = "params.pkl"
+POSITION_FILE                       = "window_position.pkl"
+WANTED_CALLSIGNS_FILE               = "wanted_callsigns.pkl"
+WANTED_CALLSIGNS_HISTORY_SIZE       = 50
 
-GUI_LABEL_VERSION = f"Wait and Pounce v{version_number} with UDP (by F5UKW under GNU GPL Licence)"
-RUNNING_TEXT_BUTTON = "Running..."
-WAIT_POUNCE_LABEL = "Listen UDP Packets & Pounce"
-WAITING_DATA_ANALYSIS_LABEL = "Nothing yet"
-WANTED_CALLSIGNS_HISTORY_LABEL = "Wanted Callsigns History (%d):"
+GUI_LABEL_VERSION                   = f"Wait and Pounce v{version_number} with UDP (by F5UKW under GNU GPL Licence)"
+RUNNING_TEXT_BUTTON                 = "Running..."
+WAIT_POUNCE_LABEL                   = "Listen UDP Packets & Pounce"
+NOTHING_YET                         = "Nothing yet"
+WAITING_DATA_PACKETS_LABEL          = "Waiting for UDP Packets"
+WANTED_CALLSIGNS_HISTORY_LABEL      = "Wanted Callsigns History (%d):"
 
 START_COLOR = (255, 255, 0)
 END_COLOR = (240, 240, 240)
@@ -44,21 +45,21 @@ gui_queue = queue.Queue()
 inputs_enabled = True
 
 # PyQt equivalent of fonts in tkinter
-courier_font = QtGui.QFont("Courier", 10)
-courier_font_bold = QtGui.QFont("Courier", 12, QtGui.QFont.Bold)
+courier_font                = QtGui.QFont("Courier", 10)
+courier_font_bold           = QtGui.QFont("Courier", 12, QtGui.QFont.Bold)
 
-custom_font = QtGui.QFont("Helvetica", 12)
-custom_font_lg = QtGui.QFont("Helvetica", 18)
-custom_font_bold = QtGui.QFont("Helvetica", 12, QtGui.QFont.Bold)
+custom_font                 = QtGui.QFont("Helvetica", 12)
+custom_font_lg              = QtGui.QFont("Helvetica", 18)
+custom_font_bold            = QtGui.QFont("Helvetica", 12, QtGui.QFont.Bold)
 
 if platform.system() == 'Windows':
-    custom_font = QtGui.QFont("Consolas", 12)
-    custom_font_lg = QtGui.QFont("Consolas", 18)
-    custom_font_bold = QtGui.QFont("Consolas", 12, QtGui.QFont.Bold)
+    custom_font             = QtGui.QFont("Consolas", 12)
+    custom_font_lg          = QtGui.QFont("Consolas", 18)
+    custom_font_bold        = QtGui.QFont("Consolas", 12, QtGui.QFont.Bold)
 elif platform.system() == 'Darwin':
-    custom_font = QtGui.QFont("Menlo", 12)
-    custom_font_lg = QtGui.QFont("Menlo", 18)
-    custom_font_bold = QtGui.QFont("Menlo", 12, QtGui.QFont.Bold)
+    custom_font             = QtGui.QFont("Menlo", 12)
+    custom_font_lg          = QtGui.QFont("Menlo", 18)
+    custom_font_bold        = QtGui.QFont("Menlo", 12, QtGui.QFont.Bold)
 
 class Worker(QObject):
     finished = pyqtSignal()
@@ -235,11 +236,13 @@ class MainApp(QtWidgets.QMainWindow):
         self.error_occurred.connect(self.show_error_message)
         self.message_received.connect(self.handle_message_received)
 
-        self.decode_packet_count = 0
-        self.last_decode_packet_time = None
-        self.last_heartbeat_time = None
+        self.decode_packet_count                = 0
+        self.last_decode_packet_time            = None
+        self.last_heartbeat_time                = None
 
-        self.alert_sound = QSound("sounds/716445__scottyd0es__tone12_error.wav")
+        self.wanted_callsign_detected_sound     = QSound("sounds/716445__scottyd0es__tone12_error.wav")
+        self.directed_to_my_call_sound          = QSound("sounds/495650__matrixxx__supershort-ping-or-short-notification.wav")
+        self.confirm_contact_sound     = QSound("sounds/716447__scottyd0es__tone12_msg_notification_1.wav")
 
         self.setWindowTitle(GUI_LABEL_VERSION)
         self.setGeometry(100, 100, 900, 700)
@@ -253,7 +256,9 @@ class MainApp(QtWidgets.QMainWindow):
         # Variables
         self.wanted_callsigns_var = QtWidgets.QLineEdit()
         self.frequency_var = QtWidgets.QLineEdit()
+        self.frequency_var.setDisabled(True)
         self.time_hopping_var = QtWidgets.QLineEdit()
+        self.time_hopping_var.setDisabled(True)
 
         # Mode buttons (radio buttons)
         self.mode_var = QtWidgets.QButtonGroup()
@@ -353,9 +358,10 @@ class MainApp(QtWidgets.QMainWindow):
         self.timer_value_label.setStyleSheet("background-color: #9dfffe; color: #555bc2; padding: 10px;")
 
         # Log analysis label and value
-        self.counter_value_label = QtWidgets.QLabel(WAITING_DATA_ANALYSIS_LABEL)
+        self.counter_value_label = QtWidgets.QLabel(NOTHING_YET)
         self.counter_value_label.setFont(custom_font)
-        self.counter_value_label.setStyleSheet("background-color: yellow")
+        self.counter_value_label.setIndent(5)
+        self.counter_value_label.setStyleSheet("background-color: #D3D3D3;")
 
         # Log and clear button
         self.output_text = QtWidgets.QTextEdit(self)
@@ -367,7 +373,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.clear_button.clicked.connect(self.clear_output_text)
 
         self.enable_alert_checkbox = QtWidgets.QCheckBox("Enable Sound")
-        self.enable_alert_checkbox.setChecked(False)
+        self.enable_alert_checkbox.setChecked(True)
 
         self.quit_button = QtWidgets.QPushButton("Quit")
         self.quit_button.clicked.connect(self.quit_application)
@@ -396,21 +402,30 @@ class MainApp(QtWidgets.QMainWindow):
         mode_layout.addWidget(radio_normal)
         mode_layout.addWidget(radio_foxhound)
         mode_layout.addWidget(radio_superfox)
-        main_layout.addLayout(mode_layout, 6, 1)
+        main_layout.addLayout(mode_layout, 5, 1)
 
         # Timer label and log analysis
         main_layout.addWidget(self.timer_value_label, 0, 3)
         main_layout.addWidget(QtWidgets.QLabel("Status:"), 7, 0)
         main_layout.addWidget(self.counter_value_label, 7, 1)
 
-        # Add output text and buttons
-        main_layout.addWidget(self.output_text, 8, 0, 1, 4)
-        main_layout.addWidget(self.clear_button, 9, 2)
-        main_layout.addWidget(self.enable_alert_checkbox, 9, 0)
-        main_layout.addWidget(self.quit_button, 9, 3)
-        main_layout.addWidget(self.restart_button, 9, 1)
         main_layout.addWidget(self.run_button, 7, 2)
         main_layout.addWidget(self.stop_button, 7, 3)
+
+        # Add output text and buttons
+        main_layout.addWidget(self.output_text, 8, 0, 1, 4)
+
+        button_layout = QtWidgets.QHBoxLayout()
+        button_layout.addWidget(self.clear_button)
+        button_layout.addWidget(self.restart_button)
+        button_layout.addWidget(self.quit_button)
+
+        bottom_layout = QtWidgets.QHBoxLayout()
+        bottom_layout.addWidget(self.enable_alert_checkbox)
+        bottom_layout.addStretch()  
+        bottom_layout.addLayout(button_layout)
+
+        main_layout.addLayout(bottom_layout, 9, 0, 1, 4)
 
         # Timer to update time every second
         self.timer = QtCore.QTimer()
@@ -437,27 +452,37 @@ class MainApp(QtWidgets.QMainWindow):
     def handle_message_received(self, message):
         if isinstance(message, dict):
             message_type = message.get('type')
-            if message_type == 'wanted_callsign_detected':
-                formatted_message = message.get('formatted_message')
-                contains_my_call = message.get('contains_my_call')
-                if formatted_message is not None:
-                    self.update_focus_frame(formatted_message, contains_my_call)
-                    if self.enable_alert_checkbox.isChecked():
-                        self.play_alert_sound()
-            elif message_type == 'update_status':
+            if message_type == 'update_status':
                 self.update_status_label(
                     message.get('decode_packet_count', 0),
                     message.get('last_decode_packet_time'),
                     message.get('last_heartbeat_time')
                 )
+            elif message_type == 'wanted_callsign_detected':
+                formatted_message = message.get('formatted_message')
+                if formatted_message is not None:
+                    if self.enable_alert_checkbox.isChecked():
+                        self.play_sound(message_type)
+                    contains_my_call = message.get('contains_my_call')                        
+                    self.update_focus_frame(formatted_message, contains_my_call)
+            elif message_type in {'directed_to_my_call', 'confirm_contact'}:
+                if self.enable_alert_checkbox.isChecked():
+                        self.play_sound(message_type)
         else:
             self.append_output_text(str(message) + "\n")     
 
-    def play_alert_sound(self):
+    def play_sound(self, sound_name):
         try:
-            self.alert_sound.play()
+            if sound_name == 'wanted_callsign_detected':
+                self.wanted_callsign_detected_sound.play()
+            elif sound_name == 'directed_to_my_call':
+                self.directed_to_my_call_sound.play()
+            elif sound_name == 'confirm_contact':
+                self.confirm_contact_sound.play()
+            else:
+                print(f"Unknown sound: {sound_name}")
         except Exception as e:
-            print(f"Failed to play alert sound: {e}")
+            print(f"Failed to play alert sound: {e}")            
 
     def update_focus_frame(self, formatted_message, contains_my_call):
         self.focus_value_label.setText(formatted_message)
@@ -473,11 +498,13 @@ class MainApp(QtWidgets.QMainWindow):
     def update_status_label(self, decode_packet_count, last_decode_packet_time, last_heartbeat_time):
         now = datetime.datetime.now()
         status_text = f"DecodePackets: #{decode_packet_count}\n"
+        self.counter_value_label.setStyleSheet("background-color: yellow; color: black;")
 
         if last_decode_packet_time:
             time_since_last_decode = (now - last_decode_packet_time).total_seconds()
             if time_since_last_decode > 60:
                 status_text += f"No DecodePacket for more than 60 secondes.\n"
+                self.counter_value_label.setStyleSheet("background-color: red; color: white;")
         else:
             status_text += "No DecodePacket received yet.\n"
 
@@ -691,7 +718,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_text.clear()
         self.run_button.setEnabled(False)
         self.run_button.setText(RUNNING_TEXT_BUTTON)
-        self.run_button.setStyleSheet("background-color: red")
+        self.run_button.setStyleSheet("background-color: red; color: #ffffff")
         self.disable_inputs()
         self.stop_event.clear()
         self.focus_frame.hide()
@@ -715,6 +742,9 @@ class MainApp(QtWidgets.QMainWindow):
             "mode": mode
         }
         self.save_params(params)
+
+        self.counter_value_label.setText(WAITING_DATA_PACKETS_LABEL)    
+        self.counter_value_label.setStyleSheet("background-color: yellow; color: black;")
 
         message_callback = self.message_received.emit
 
@@ -754,6 +784,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.run_button.setEnabled(True)
         self.run_button.setText(WAIT_POUNCE_LABEL)
         self.run_button.setStyleSheet("")
+
+        self.counter_value_label.setStyleSheet("background-color: #D3D3D3;")
         self.enable_inputs()
 
     def log_exception_to_file(self, filename, message):

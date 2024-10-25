@@ -5,6 +5,7 @@ import socket
 import requests
 import re
 import random
+import traceback
 from datetime import datetime,timedelta
 import pandas
 from termcolor import colored
@@ -86,12 +87,6 @@ class Listener:
         packet = pywsjtx.ReplyPacket.Builder(data['packet'])
         self.s.send_packet(data['addr_port'], packet)
 
-    def parse_packet(self):
-        if self.q.defered:
-            return
-        
-        print('decode packet ',self.the_packet)
-
     def stop(self):
         self._running = False
         self.s.sock.close() 
@@ -165,7 +160,10 @@ class Listener:
         elif type(self.the_packet) == pywsjtx.DecodePacket:
             self.last_decode_packet_time = datetime.now()
             self.decode_packet_count += 1
-            self.parse_packet()
+            if self.my_call:
+                self.decode_parse_packet()
+            else:
+                log.error('No Status yet, not decoding packet.')    
             self.send_status_update()
         else:
             log.debug('unknown packet type {}; {}'.format(type(self.the_packet),self.the_packet))
@@ -179,15 +177,8 @@ class Listener:
                 'last_heartbeat_time': self.last_heartbeat_time
             })
 
-    def parse_packet(self):
+    def decode_parse_packet(self):
         wanted_data = None
-
-        if wanted_data is not None:
-            wanted_data['packet'] = self.the_packet
-            wanted_data['addr_port'] = self.addr_port
-            log.debug("listener wanted_data {}".format(wanted_data))
-            with self.unseen_lock:
-                self.unseen.append(wanted_data)        
 
         log.debug('{}'.format(self.the_packet))
         try:
@@ -219,11 +210,15 @@ class Listener:
 
             else:
                 # Pattern for dual-call messages
-                match = re.match(r"([A-Z0-9/]+) ([A-Z0-9/]+) ([A-Z0-9+-]+)", message)
+                match = re.match(r"^([A-Z0-9/]+) ([A-Z0-9/]+) ([A-Z0-9+-]+)$", message)
                 if match:
                     directed = match.group(1)
                     callsign = match.group(2)
                     msg = match.group(3)
+
+                    test_msg = msg in {"RR73", "73"}
+
+                    # log.debug(f"Duall-call message | directed={directed} callsign={callsign} msg={msg}")
 
                     if callsign in self.wanted_callsigns:
                         wanted_data = {
@@ -231,9 +226,23 @@ class Listener:
                             'directed': directed,
                             'callsign': callsign,
                             'msg': msg
-                        }
-
-            if wanted_data is not None:
+                        }                    
+            
+            if directed == self.my_call and msg in {"RR73", "73"}:
+                log.warning("Found acknowledged as complete for my call {} with {}".format(directed, callsign))
+                if self.message_callback:
+                    self.message_callback({
+                        'type': 'acknowledged_as_complete',
+                        'formatted_message': formatted_message
+                    })        
+            elif directed == self.my_call:
+                log.warning("Found message directed to my call {}".format(directed))
+                if self.message_callback:
+                    self.message_callback({
+                        'type': 'directed_to_my_call',
+                        'formatted_message': formatted_message
+                    })        
+            elif wanted_data is not None:
                 wanted_data['packet'] = self.the_packet
                 wanted_data['addr_port'] = self.addr_port
                 log.debug("Listener wanted_data {}".format(wanted_data))
@@ -253,8 +262,8 @@ class Listener:
                 # Start the webhook event in a new thread if needed
                 threading.Thread(target=self.webhook_event, args=(wanted_data,), daemon=True).start()
 
-                debug_message = f"Found Wanted Callsign: [black_on_yellow]{callsign}[/black_on_yellow]"
-                log.info(debug_message)
+                debug_message = f"Found Wanted Callsign: {callsign}"
+                log.warning(debug_message)
 
                 try:
                     bg = pywsjtx.QCOLOR.Red()
@@ -281,6 +290,8 @@ class Listener:
                     self.message_callback(debug_message)
 
         except TypeError as e:
-            log.error("Caught a type error in parsing packet: {}; error {}".format(self.the_packet.message, e))
+            log.error("Caught a type error in parsing packet: {}; error {}\n{}".format(
+            self.the_packet.message, e, traceback.format_exc()))
         except Exception as e:
-            log.error("Caught an error parsing packet: {}; error {}".format(self.the_packet.message, e))
+            log.error("Caught an error parsing packet: {}; error {}\n{}".format(
+                self.the_packet.message, e, traceback.format_exc()))
