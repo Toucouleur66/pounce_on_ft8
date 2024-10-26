@@ -23,9 +23,10 @@ class Listener:
         ):
         log.debug('New Listener: ' + str(q))
         self.config = config
-        self.my_call = None
-        self.band = None
-        self.dx_call = None
+        self.my_call    = None
+        self.my_grid    = None
+        self.band       = None
+        self.dx_call    = None
 
         self.wanted_callsigns = set(wanted_callsigns)
         self.message_callback = message_callback
@@ -34,8 +35,17 @@ class Listener:
         self.last_decode_packet_time = None
         self.last_heartbeat_time = None
 
-        self.lastReport = datetime.now()
-        self.lastScan = None
+        self.ongoing_callsign           = None
+        self.ongoing_callsign_grid      = None
+        self.qso_time_on                = None
+        self.qso_time_off               = None
+        self.rst_rcvd                   = None
+        self.rst_sent                   = None
+        self.mode                       = None
+        self.frequency                  = None
+        self.rx_df                      = None
+        self.tx_df                      = None
+
         self.q = q
         self.unseen = []
         self.unseen_lock = threading.Lock()
@@ -75,13 +85,6 @@ class Listener:
                         break
             except Exception as e:
                 log.warn('webhook {} failed: event {} error {}'.format(webhook,event,e))
-
-    def print_line(self):
-        now = datetime.now()
-        newLastReport = datetime(now.year, now.month, now.day, now.hour, now.minute, 15*(now.second // 15),0)
-        if (newLastReport-self.lastReport).total_seconds() >= 15:
-            log.info("------- "+str(newLastReport)+" -------")
-        self.lastReport = newLastReport
 
     def send_reply(self,data):
         packet = pywsjtx.ReplyPacket.Builder(data['packet'])
@@ -124,29 +127,21 @@ class Listener:
     def update_status(self):
         log.debug('wsjt-x status {}'.format(self.the_packet))
         try:
-            freqinfo = self.the_packet.dial_frequency/1000
-            self.my_call = self.the_packet.de_call
-            self.dx_call = self.the_packet.dx_call
-            self.band = str(freqinfo)+'Khz'
-        except Exception as e:
-            pass
+            self.my_call    = self.the_packet.de_call
+            self.my_grid    = self.the_packet.de_grid
+            self.dx_call    = self.the_packet.dx_call
+            self.rx_df      = self.the_packet.rx_df            
+            self.band       = str(self.the_packet.dial_frequency / 1_000) + 'Khz'
+            self.frequency  = self.the_packet.dial_frequency  
 
-    def update_log(self):
-        log.debug("update log".format(self.the_packet))
-        nd = self.q.wanted_dataByBandAndCall(self.band,self.the_packet.call,self.the_packet.grid)
-        log.debug("update_log call {} grid {} wanted_data {}".format(self.the_packet.call,self.the_packet.grid,nd))
-        try:
-            qso = { 
-                'CALL': self.the_packet.call, 
-                'BAND': self.band,
-                'DXCC': nd.get('dx'),
-                'STATE': nd.get('state'),
-                'GRID': nd.get('grid')
-            }
-            self.q.addQso(qso)
+            # Todo: Handle next condition instead
+            # if self.ongoing_callsign is not None and self.ongoing_callsign == self.dx_call:
+            if self.ongoing_callsign is not None:
+                self.tx_df      = self.the_packet.tx_df
+                self.rst_sent   = self.the_packet.report
+                self.time_off   = datetime.now()
         except Exception as e:
-            log.error("Failed to update log for call {}, data {}: {}".format(self.the_packet.call,nd,e))
-            pass
+            pass 
 
     def handle_packet(self):
         if type(self.the_packet) == pywsjtx.HeartBeatPacket:
@@ -156,14 +151,14 @@ class Listener:
         elif type(self.the_packet) == pywsjtx.StatusPacket:
             self.update_status()
         elif type(self.the_packet) == pywsjtx.QSOLoggedPacket:
-            self.update_log()
+            log.error('QSOLoggedPacket should not be handle due to JTDX restrictions')   
         elif type(self.the_packet) == pywsjtx.DecodePacket:
             self.last_decode_packet_time = datetime.now()
             self.decode_packet_count += 1
             if self.my_call:
                 self.decode_parse_packet()
             else:
-                log.error('No Status yet, not decoding packet.')    
+                log.error('No StatusPacket received yet, can\'t handle DecodePacket for now.')    
             self.send_status_update()
         else:
             log.debug('unknown packet type {}; {}'.format(type(self.the_packet),self.the_packet))
@@ -177,27 +172,45 @@ class Listener:
                 'last_heartbeat_time': self.last_heartbeat_time
             })
 
+    def reset_ongoing_contact(self):
+        self.ongoing_callsign       = None
+        self.ongoing_callsign_grid  = None
+        self.qso_time_on            = None
+        self.qso_time_off           = None        
+        self.rst_rcvd               = None
+        self.rst_sent               = None
+        self.grid                   = None
+        self.mode                   = None
+        self.frequency              = None
+
     def decode_parse_packet(self):
         wanted_data = None
 
         log.debug('{}'.format(self.the_packet))
         try:
-            message = self.the_packet.message
-            decode_time = self.the_packet.time
-            snr = self.the_packet.snr
-            delta_t = self.the_packet.delta_t
-            delta_f = self.the_packet.delta_f         
+            message         = self.the_packet.message
+            decode_time     = self.the_packet.time
+            snr             = self.the_packet.snr
+            delta_t         = self.the_packet.delta_t
+            delta_f         = self.the_packet.delta_f     
+
+            directed        = None
+            msg             = None
+            callsign        = None
+            grid            = None     
 
             time_str = decode_time.strftime('%H%M%S')
 
             formatted_message = f"{time_str} {snr:+d} {delta_t:+.1f} {delta_f} ~ {message}"
 
+            # log.info("{}".format(formatted_message))
+
             # Pattern for CQ calls
             match = re.match(r"^CQ\s(\w{2,3}\b)?\s?([A-Z0-9/]+)\s?([A-Z0-9/]+)?\s?([A-Z]{2}[0-9]{2})?", message)
             if match:
-                directed = match.group(1)
-                callsign = match.group(2)
-                grid = match.group(4)
+                directed    = match.group(1)
+                callsign    = match.group(2)
+                grid        = match.group(4)
 
                 if callsign in self.wanted_callsigns:
                     wanted_data = {
@@ -207,6 +220,7 @@ class Listener:
                         'grid': grid,
                         'cq': True
                     }
+                    self.ongoing_callsign_grid = grid
 
             else:
                 # Pattern for dual-call messages
@@ -215,8 +229,6 @@ class Listener:
                     directed = match.group(1)
                     callsign = match.group(2)
                     msg = match.group(3)
-
-                    test_msg = msg in {"RR73", "73"}
 
                     # log.debug(f"Duall-call message | directed={directed} callsign={callsign} msg={msg}")
 
@@ -228,20 +240,48 @@ class Listener:
                             'msg': msg
                         }                    
             
+            if (
+                self.qso_time_on is not None and
+                (datetime.now() - self.qso_time_on).total_seconds() > 120 and
+                callsign != self.ongoing_callsign and            
+                wanted_data is not None
+            ):
+                log.warning("Waiting to decode |{}| but we are about to switch on |{}|".format(self.ongoing_callsign, callsign))
+                self.reset_ongoing_contact()
+
             if directed == self.my_call and msg in {"RR73", "73"}:
-                log.warning("Found acknowledged as complete for my call {} with {}".format(directed, callsign))
+                log.warning("Ready to log |{}|".format(callsign))
+
+                if self.ongoing_callsign == callsign:
+                    self.qso_time_off = decode_time
+                    self.log_qso_to_adif()
+                    self.reset_ongoing_contact()
+                else:
+                    log.error(f"Received |{msg}| from <{callsign}> but ongoing callsign is <{self.ongoing_callsign}>")
+
                 if self.message_callback:
                     self.message_callback({
-                        'type': 'acknowledged_as_complete',
+                        'type': 'ready_to_log',
                         'formatted_message': formatted_message
                     })        
             elif directed == self.my_call:
-                log.warning("Found message directed to my call {}".format(directed))
+                log.warning("Found message directed to my call |{}| from callsign |{}| (SNR {} dB)".format(directed, callsign, msg))
+
+                if wanted_data is not None and self.ongoing_callsign is None:
+                    log.warning("Start focus on callsign |{}|".format(callsign))
+                    self.ongoing_callsign   = callsign                    
+                    self.grid               = grid or ''                    
+                    self.qso_time_on        = decode_time
+                    self.rst_rcvd           = msg
+                    self.mode               = self.the_packet.mode
+
                 if self.message_callback:
                     self.message_callback({
                         'type': 'directed_to_my_call',
-                        'formatted_message': formatted_message
-                    })        
+                        'formatted_message': formatted_message,
+                        'contains_my_call': True
+                    })                            
+
             elif wanted_data is not None:
                 wanted_data['packet'] = self.the_packet
                 wanted_data['addr_port'] = self.addr_port
@@ -262,7 +302,7 @@ class Listener:
                 # Start the webhook event in a new thread if needed
                 threading.Thread(target=self.webhook_event, args=(wanted_data,), daemon=True).start()
 
-                debug_message = f"Found Wanted Callsign: {callsign}"
+                debug_message = "Found message directed to |{}| from callsign |{}| (SNR {} dB)".format(directed, callsign, msg)
                 log.warning(debug_message)
 
                 try:
@@ -295,3 +335,83 @@ class Listener:
         except Exception as e:
             log.error("Caught an error parsing packet: {}; error {}\n{}".format(
                 self.the_packet.message, e, traceback.format_exc()))
+
+    def log_qso_to_adif(self):
+        required_fields = {
+            'ongoing_callsign': self.ongoing_callsign,
+            'mode': self.mode,
+            'rst_sent': self.rst_sent,
+            'rst_rcvd': self.rst_rcvd,
+            'frequency': self.frequency,
+            'rx_df': self.rx_df,
+            'tx_df': self.tx_df,
+            'my_call': self.my_call,
+            'qso_time_on': self.qso_time_on,
+            'qso_time_off': self.qso_time_off
+        }
+
+        missing_fields = [name for name, value in required_fields.items() if not value]
+        if missing_fields:
+            log.error(f"Missing data: {', '.join(missing_fields)}")
+            return
+
+        callsign        = self.ongoing_callsign
+        grid            = self.ongoing_callsign_grid or ''
+        mode            = self.mode
+        rst_sent        = self.rst_sent
+        rst_rcvd        = self.rst_rcvd
+        freq_rx         = f"{round((self.frequency + self.rx_df) / 1_000_000, 6):.6f}"
+        freq            = f"{round((self.frequency + self.tx_df) / 1_000_000, 6):.6f}"
+        band            = self.get_amateur_band(self.frequency)
+        my_call         = self.my_call
+        qso_time_on     = self.qso_time_on.strftime('%H%M%S')
+        qso_time_off    = self.qso_time_off.strftime('%H%M%S')
+        qso_date        = self.qso_time_on.strftime('%Y%m%d')
+
+        # Création de l'entrée ADIF avec une ligne par élément
+        adif_entry = " ".join([
+            f"<call:{len(callsign)}>{callsign}",
+            f"<gridsquare:{len(grid)}>{grid}",
+            f"<mode:{len(mode)}>{mode}",
+            f"<rst_sent:{len(rst_sent)}>{rst_sent}",
+            f"<rst_rcvd:{len(rst_rcvd)}>{rst_rcvd}",
+            f"<qso_date:{len(qso_date)}>{qso_date}",
+            f"<time_on:{len(qso_time_on)}>{qso_time_on}",
+            f"<time_off:{len(qso_time_off)}>{qso_time_off}",
+            f"<band:{len(str(band))}>{band}",
+            f"<freq:{len(str(freq))}>{freq}",
+            f"<freq_rx:{len(str(freq_rx))}>{freq_rx}",
+            f"<station_callsign:{len(my_call)}>{my_call}",
+            f"<my_gridsquare:{len(self.my_grid)}>{self.my_grid}",
+            f"<eor>\n"
+        ])
+
+        try:
+            with open("wsjtx_log.adif", "a") as adif_file:
+                adif_file.write(adif_entry)
+            log.info("Contact saved in ADIF file")
+        except Exception as e:
+            log.error(f"Can't write in ADIF file {e}")
+
+    def get_amateur_band(self, frequency):
+        bands = {
+            '160m'  : (1_800_000, 2_000_000),
+            '80m'   : (3_500_000, 4_000_000),
+            '60m'   : (5_351_500, 5_366_500),  
+            '40m'   : (7_000_000, 7_300_000),
+            '30m'   : (10_100_000, 10_150_000),
+            '20m'   : (14_000_000, 14_350_000),
+            '17m'   : (18_068_000, 18_168_000),
+            '15m'   : (21_000_000, 21_450_000),
+            '12m'   : (24_890_000, 24_990_000),
+            '10m'   : (28_000_000, 29_700_000),
+            '6m'    : (50_000_000, 54_000_000),
+            '2m'    : (144_000_000, 148_000_000),
+            '70cm'  : (430_000_000, 440_000_000)
+        }
+        
+        for band, (lower_bound, upper_bound) in bands.items():
+            if lower_bound <= frequency <= upper_bound:
+                return band
+        
+        return "Invalid"

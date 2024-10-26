@@ -71,7 +71,7 @@ class MyListener(Listener):
     def handle_packet(self):
         if isinstance(self.the_packet, pywsjtx.HeartBeatPacket):
             super().handle_packet()
-            message = f"Heartbeat: {self.addr_port}: {self.the_packet}"
+            message = f"{self.the_packet}"
             log.info(message)
             if self.message_callback:
                 self.message_callback(message)

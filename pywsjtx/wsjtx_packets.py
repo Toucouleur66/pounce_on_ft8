@@ -233,8 +233,7 @@ class HeartBeatPacket(GenericWSJTXPacket):
         self.revision = ps.QInt8()
 
     def __repr__(self):
-        return 'HeartBeatPacket: from {}:{}\n\twsjtx id:{}\tmax_schema:{}\tschema:{}\tversion:{}\trevision:{}' .format(self.addr_port[0], self.addr_port[1],
-                                                                                                      self.wsjtx_id, self.max_schema, self.schema, self.version, self.revision)
+        return 'HeartBeatPacket: from {}:{}\n\twsjtx id:{}\tmax_schema:{}\tschema:{}\tversion:{}\trevision:{}' .format(self.addr_port[0], self.addr_port[1], self.wsjtx_id, self.max_schema, self.schema, self.version, self.revision)
     @classmethod
     # make a heartbeat packet (a byte array) we can send to a 'client'. This should be it's own class.
     def Builder(cls,wsjtx_id='pywsjtx', max_schema=2, version=1, revision=1):
@@ -252,6 +251,7 @@ class StatusPacket(GenericWSJTXPacket):
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
         GenericWSJTXPacket.__init__(self, addr_port, magic, schema, pkt_type, id, pkt)
         ps = PacketReader(pkt)
+        
         the_type = ps.QInt32()
         self.wsjtx_id = ps.QString()
         self.dial_frequency = ps.QInt64()
@@ -268,9 +268,7 @@ class StatusPacket(GenericWSJTXPacket):
         self.rx_df = ps.QInt32()
         self.tx_df = ps.QInt32()
 
-
         self.de_call = ps.QString()
-
         self.de_grid = ps.QString()
         self.dx_grid = ps.QString()
 
@@ -282,11 +280,32 @@ class StatusPacket(GenericWSJTXPacket):
         self.special_op_mode = ps.QInt8()
 
     def __repr__(self):
-        str =  'StatusPacket: from {}:{}\n\twsjtx id:{}\tde_call:{}\tde_grid:{}\n'.format(self.addr_port[0], self.addr_port[1],self.wsjtx_id,
-                                                                                                 self.de_call, self.de_grid)
-        str += "\tfrequency:{}\trx_df:{}\ttx_df:{}\tdx_call:{}\tdx_grid:{}\treport:{}\n".format(self.dial_frequency, self.rx_df, self.tx_df, self.dx_call, self.dx_grid, self.report)
-        str += "\ttransmitting:{}\t decoding:{}\ttx_enabled:{}\ttx_watchdog:{}\tsub_mode:{}\tfast_mode:{}\tspecial_op_mode:{}".format(self.transmitting, self.decoding, self.tx_enabled, self.tx_watchdog,
-                                                                                                                  self.sub_mode, self.fast_mode, self.special_op_mode)
+        str =  'StatusPacket: from {}:{}\n\twsjtx id:{}\t\tde_call:{}\tde_grid:{}\n'.format(
+            self.addr_port[0],
+            self.addr_port[1],
+            self.wsjtx_id,
+            self.de_call,
+            self.de_grid
+        )
+
+        str += "\tfrequency:{}\trx_df:{}\ttx_df:{}\tdx_call:{}\tdx_grid:{}\treport:{}\n".format(
+            self.dial_frequency,
+            self.rx_df,
+            self.tx_df,
+            self.dx_call,
+            self.dx_grid,
+            self.report
+        )
+        str += "\ttransmitting:{}\tdecoding:{}\ttx_enabled:{}\ttx_watchdog:{}\tmode:{}\tsub_mode:{}\tfast_mode:{}\tspecial_op_mode:{}".format(
+            self.transmitting,
+            self.decoding,
+            self.tx_enabled,
+            self.tx_watchdog,
+            self.mode,
+            self.sub_mode,
+            self.fast_mode,
+            self.special_op_mode
+        )
         return str
 
 
@@ -310,16 +329,20 @@ class DecodePacket(GenericWSJTXPacket):
         self.off_air = ps.QInt8()
 
     def __repr__(self):
-        str = 'DecodePacket: from {}:{}\n\twsjtx id:{}\tmessage:{}\n'.format(self.addr_port[0],
-                                                                                         self.addr_port[1],
-                                                                                         self.wsjtx_id,
-                                                                                         self.message)
-        str += "\tdelta_f:{}\tnew:{}\ttime:{}\tsnr:{}\tdelta_f:{}\tmode:{}".format(self.delta_f,
-                                                                                                self.new_decode,
-                                                                                                self.time,
-                                                                                                self.snr,
-                                                                                                self.delta_f,
-                                                                                                self.mode)
+        str = 'DecodePacket: from {}:{}\n\twsjtx id:{}\tmessage:{}\n'.format(
+            self.addr_port[0],
+            self.addr_port[1],
+            self.wsjtx_id,
+            self.message
+        )
+        str += "\tdelta_f:{}\tnew:{}\ttime:{}\tsnr:{}\tdelta_f:{}\tmode:{}".format(
+            self.delta_f,
+            self.new_decode,
+            self.time,
+            self.snr,
+            self.delta_f,
+            self.mode
+        )
         return str
 
 class ClearPacket(GenericWSJTXPacket):
@@ -404,6 +427,16 @@ class HaltTxPacket(GenericWSJTXPacket):
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
         GenericWSJTXPacket.__init__(self, addr_port, magic, schema, pkt_type, id, pkt)
         # handle packet-specific stuff.
+
+    @classmethod
+    def Builder(cls,to_wsjtx_id='WSJT-X', auto_tx_only=False):
+        # build the packet to send
+        pkt = PacketWriter()
+        print('To_wsjtx_id ',to_wsjtx_id,' auto_tx_only ',auto_tx_only)
+        pkt.write_QInt32(FreeTextPacket.TYPE_VALUE)
+        pkt.write_QString(to_wsjtx_id)
+        pkt.write_QInt8(auto_tx_only)
+        return pkt.packet    
 
 class FreeTextPacket(GenericWSJTXPacket):
     TYPE_VALUE = 9

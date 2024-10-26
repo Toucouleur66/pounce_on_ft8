@@ -240,9 +240,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.last_decode_packet_time            = None
         self.last_heartbeat_time                = None
 
-        self.wanted_callsign_detected_sound     = QSound("sounds/716445__scottyd0es__tone12_error.wav")
-        self.directed_to_my_call_sound          = QSound("sounds/495650__matrixxx__supershort-ping-or-short-notification.wav")
-        self.confirm_contact_sound     = QSound("sounds/716447__scottyd0es__tone12_msg_notification_1.wav")
+        self.wanted_callsign_detected_sound     = QSound("sounds/495650__matrixxx__supershort-ping-or-short-notification.wav")
+        self.directed_to_my_call_sound          = QSound("sounds/716445__scottyd0es__tone12_error.wav")
+        self.ready_to_log_sound                 = QSound("sounds/716447__scottyd0es__tone12_msg_notification_1.wav")
 
         self.setWindowTitle(GUI_LABEL_VERSION)
         self.setGeometry(100, 100, 900, 700)
@@ -458,16 +458,19 @@ class MainApp(QtWidgets.QMainWindow):
                     message.get('last_decode_packet_time'),
                     message.get('last_heartbeat_time')
                 )
-            elif message_type == 'wanted_callsign_detected':
+            else:
                 formatted_message = message.get('formatted_message')
+
                 if formatted_message is not None:
-                    if self.enable_alert_checkbox.isChecked():
-                        self.play_sound(message_type)
+                    if message_type == 'wanted_callsign_detected':
+                        if self.enable_alert_checkbox.isChecked():
+                            self.play_sound(message_type)
+                    elif message_type in {'directed_to_my_call', 'ready_to_log'}:
+                        if self.enable_alert_checkbox.isChecked():
+                                self.play_sound(message_type)
+
                     contains_my_call = message.get('contains_my_call')                        
-                    self.update_focus_frame(formatted_message, contains_my_call)
-            elif message_type in {'directed_to_my_call', 'confirm_contact'}:
-                if self.enable_alert_checkbox.isChecked():
-                        self.play_sound(message_type)
+                    self.update_focus_frame(formatted_message, contains_my_call)                            
         else:
             self.append_output_text(str(message) + "\n")     
 
@@ -477,8 +480,8 @@ class MainApp(QtWidgets.QMainWindow):
                 self.wanted_callsign_detected_sound.play()
             elif sound_name == 'directed_to_my_call':
                 self.directed_to_my_call_sound.play()
-            elif sound_name == 'confirm_contact':
-                self.confirm_contact_sound.play()
+            elif sound_name == 'ready_to_log':
+                self.ready_to_log_sound.play()
             else:
                 print(f"Unknown sound: {sound_name}")
         except Exception as e:
