@@ -51,6 +51,14 @@ class PacketUtil:
         else:
             year = C - 4715
         return (year,month,day)
+    
+    @classmethod
+    def datetime_to_julian_day(cls, dt):
+        a = (14 - dt.month) // 12
+        y = dt.year + 4800 - a
+        m = dt.month + 12 * a - 3
+        jd = dt.day + ((153 * m + 2) // 5) + 365 * y + y // 4 - y // 100 + y // 400 - 32045
+        return jd    
 
 
 class PacketWriter(object):
@@ -99,6 +107,16 @@ class PacketWriter(object):
         length = len(b_values)
         self.write_QInt32(length)
         self.packet.extend(b_values)
+
+    def write_QDateTime(self, datetime_obj, spec=1, offset_seconds=0):
+        jd = PacketUtil.datetime_to_julian_day(datetime_obj)
+        self.write_QInt64(jd)
+        midnight = datetime.datetime.combine(datetime_obj.date(), datetime.time(0, 0, 0))
+        millis_since_midnight = int((datetime_obj - midnight).total_seconds() * 1000)
+        self.write_QInt32(millis_since_midnight)
+        self.write_QInt8(spec)
+        if spec == 2:
+            self.write_QInt32(offset_seconds)        
 
     def write_QColor(self, color_val):
         # see Qt serialization for QColor format; unfortunately thes serialization is nothing like what's in that.

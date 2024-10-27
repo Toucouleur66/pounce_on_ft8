@@ -1,23 +1,30 @@
+# wsjtx_listener.py
+
 import pywsjtx.extra.simple_server
+
 import threading
 import traceback
 import socket
 import requests
 import re
-import random
 import traceback
-from datetime import datetime,timedelta
-import pandas
+
+from wsjtx_packet_sender import WSJTXPacketSender
+from datetime import datetime
 from termcolor import colored
 from logger import LOGGER as log
+from utils import get_local_ip_address
 
 class Listener:
     def __init__(
             self,
             q,
             config,
-            ip_address,
-            port,
+            primary_udp_server_address,
+            primary_udp_server_port,
+            secondary_udp_server_address,
+            secondary_udp_server_port,
+            enable_sending_to_secondary_server,
             wanted_callsigns,
             message_callback=None
         ):
@@ -51,40 +58,39 @@ class Listener:
         self.unseen_lock = threading.Lock()
 
         self.stopped = False
-        self.ip_address = ip_address
-        self.port = port
+
+        self.primary_udp_server_address = primary_udp_server_address or get_local_ip_address()
+        self.primary_udp_server_port = primary_udp_server_port or 2237
+
+        self.secondary_udp_server_address = secondary_udp_server_address or get_local_ip_address()
+        self.secondary_udp_server_port = secondary_udp_server_port or 2237
+
+        self.enable_sending_to_secondary_server = enable_sending_to_secondary_server or False
 
         self._running = True
 
-        self.s = pywsjtx.extra.simple_server.SimpleServer(ip_address, port)
+        self.s = pywsjtx.extra.simple_server.SimpleServer(
+            self.primary_udp_server_address,
+            self.primary_udp_server_port
+        )
         self.s.sock.settimeout(1.0)
 
-        self.initAdif()
+        self.packet_sender = WSJTXPacketSender(
+            self.secondary_udp_server_address,
+            self.secondary_udp_server_port
+        )
 
-    def initAdif(self):
-        filePaths = self.config.get('ADIF_FILES','paths').splitlines()
-        if self.config.get('OPTS','load_adif_files_on_start'):
-            for filepath in filePaths:
-                self.q.addAdifFile(filepath,True)
-            self.loadLotw()
-
-    def loadLotw(self):
-        if self.config.get('LOTW','enable'):
-            username = self.config.get('LOTW','username')
-            password = self.config.get('LOTW','password')
-            if username and password:
-                self.q.loadLotw(username,password)
-
-    def webhook_event(self,event):
-        events = self.config.get('WEBHOOKS','events').split(',')
-        for webhook in self.config.get('WEBHOOKS','hooks').splitlines():
-            try:
-                for sendEvent in events:
-                    if event[sendEvent]:
-                        requests.post(webhook, data=event)
-                        break
-            except Exception as e:
-                log.warn('webhook {} failed: event {} error {}'.format(webhook,event,e))
+    def get_local_ip_address(self):
+        import socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            s.connect(('10.255.255.255', 1))
+            IP = s.getsockname()[0]
+        except Exception:
+            IP = '127.0.0.1'
+        finally:
+            s.close()
+        return IP                
 
     def send_reply(self,data):
         packet = pywsjtx.ReplyPacket.Builder(data['packet'])
@@ -116,7 +122,7 @@ class Listener:
 
     def listen(self):
         self.t = threading.Thread(target=self.doListen, daemon=True)
-        log.info("Listener started "+self.ip_address+":"+str(self.port))
+        log.info("Listener started {}:{}".format(self.primary_udp_server_address, self.primary_udp_server_port))
         self.t.start()
 
     def heartbeat(self):
@@ -246,15 +252,17 @@ class Listener:
                 callsign != self.ongoing_callsign and            
                 wanted_data is not None
             ):
-                log.warning("Waiting to decode |{}| but we are about to switch on |{}|".format(self.ongoing_callsign, callsign))
+                log.warning("Waiting to decode [ {} ] but we are about to switch on [ {} ]".format(self.ongoing_callsign, callsign))
                 self.reset_ongoing_contact()
 
             if directed == self.my_call and msg in {"RR73", "73"}:
-                log.warning("Ready to log |{}|".format(callsign))
+                log.warning("Found message to log [ {} ]".format(callsign))
 
                 if self.ongoing_callsign == callsign:
                     self.qso_time_off = decode_time
                     self.log_qso_to_adif()
+                    if self.enable_sending_to_secondary_server:
+                        self.log_qso_to_udp()
                     self.reset_ongoing_contact()
                 else:
                     log.error(f"Received |{msg}| from <{callsign}> but ongoing callsign is <{self.ongoing_callsign}>")
@@ -265,10 +273,10 @@ class Listener:
                         'formatted_message': formatted_message
                     })        
             elif directed == self.my_call:
-                log.warning("Found message directed to my call |{}| from callsign |{}| (SNR {} dB)".format(directed, callsign, msg))
+                log.warning("Found message directed to my call [ {} ] from [ {} ]".format(directed, callsign))
 
                 if wanted_data is not None and self.ongoing_callsign is None:
-                    log.warning("Start focus on callsign |{}|".format(callsign))
+                    log.warning("Start focus on callsign [ {} ]".format(callsign))
                     self.ongoing_callsign   = callsign                    
                     self.grid               = grid or ''                    
                     self.qso_time_on        = decode_time
@@ -299,10 +307,7 @@ class Listener:
                         'contains_my_call': contains_my_call
                     })                    
 
-                # Start the webhook event in a new thread if needed
-                threading.Thread(target=self.webhook_event, args=(wanted_data,), daemon=True).start()
-
-                debug_message = "Found message directed to |{}| from callsign |{}| (SNR {} dB)".format(directed, callsign, msg)
+                debug_message = "Found message directed to [ {} ] from callsign [ {} ]. Report: {}".format(directed, callsign, msg)
                 log.warning(debug_message)
 
                 try:
@@ -389,9 +394,44 @@ class Listener:
         try:
             with open("wsjtx_log.adif", "a") as adif_file:
                 adif_file.write(adif_entry)
-            log.info("Contact saved in ADIF file")
+            log.warning("QSOLogged [ {} ]".format(self.ongoing_callsign))
         except Exception as e:
-            log.error(f"Can't write in ADIF file {e}")
+            log.error(f"Can't write ADIF file {e}")
+
+    def log_qso_to_udp(self):
+        try:
+            self.packet_sender.send_qso_logged_packet(
+                wsjtx_id        = self.the_packet.wsjtx_id,
+                datetime_off    = self.qso_time_off,
+                call            = self.ongoing_callsign,
+                grid            = self.ongoing_callsign_grid or '',
+                frequency       = self.frequency,
+                mode            = self.mode,
+                report_sent     = self.rst_sent,
+                report_recv     = self.rst_rcvd,
+                tx_power        = '', 
+                comments        = '',
+                name            = '',
+                datetime_on     = self.qso_time_on,
+                op_call         = '',
+                my_call         = self.my_call,
+                my_grid         = self.my_grid,
+                exchange_sent   = self.rst_sent,
+                exchange_recv   = self.rst_rcvd
+            )
+            log.warning("QSOLoggedPacket sent via UDP for [ {} ]".format(self.ongoing_callsign))
+        except Exception as e:
+            log.error(f"Error sending QSOLoggedPacket via UDP: {e}")
+            log.error("Caught an error while trying to send QSOLoggedPacket packet: error {}\n{}".format(e, traceback.format_exc()))
+
+    def send_heartbeat(self):
+        max_schema = max(self.the_packet.max_schema, 3)
+        self.packet_sender.send_heartbeat_packet(
+            wsjtx_id=self.the_packet.wsjtx_id,
+            max_schema=max_schema,
+            version=self.the_packet.version,
+            revision=self.the_packet.revision
+        )
 
     def get_amateur_band(self, frequency):
         bands = {

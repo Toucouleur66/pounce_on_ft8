@@ -11,9 +11,11 @@ import threading
 import datetime
 import re
 import time
-from PIL import Image, ImageDraw
 import pyperclip
 import wait_and_pounce
+
+from PIL import Image, ImageDraw
+from utils import get_local_ip_address
 
 if platform.system() == 'Windows':
     from pystray import Icon, MenuItem
@@ -40,6 +42,8 @@ END_COLOR = (240, 240, 240)
 
 EVEN_COLOR = "#9dfffe"
 ODD_COLOR = "#fffe9f"
+
+DEFAULT_UDP_PORT = 2237
 
 gui_queue = queue.Queue()
 inputs_enabled = True
@@ -72,7 +76,12 @@ class Worker(QObject):
             time_hopping,
             wanted_callsigns,
             mode,
-            stop_event
+            stop_event,
+            primary_udp_server_address,
+            primary_udp_server_port,
+            secondary_udp_server_address,
+            secondary_udp_server_port,
+            enable_sending_to_secondary_server            
         ):
         super(Worker, self).__init__()
         self.frequency = frequency
@@ -80,6 +89,11 @@ class Worker(QObject):
         self.wanted_callsigns = wanted_callsigns
         self.mode = mode
         self.stop_event = stop_event
+        self.primary_udp_server_address = primary_udp_server_address
+        self.primary_udp_server_port = primary_udp_server_port
+        self.secondary_udp_server_address = secondary_udp_server_address
+        self.secondary_udp_server_port = secondary_udp_server_port
+        self.enable_sending_to_secondary_server = enable_sending_to_secondary_server
 
     def run(self):
         try:
@@ -89,6 +103,11 @@ class Worker(QObject):
                 self.wanted_callsigns,
                 self.mode,
                 self.stop_event,
+                primary_udp_server_address=self.primary_udp_server_address,
+                primary_udp_server_port=self.primary_udp_server_port,
+                secondary_udp_server_address=self.secondary_udp_server_address,
+                secondary_udp_server_port=self.secondary_udp_server_port,
+                enable_sending_to_secondary_server=self.enable_sending_to_secondary_server,
                 message_callback=self.message.emit
             )
         except Exception as e:
@@ -197,6 +216,84 @@ def interpolate_color(start_color, end_color, factor):
 def rgb_to_hex(rgb):
     return '#{:02x}{:02x}{:02x}'.format(*rgb)
 
+class SettingsDialog(QtWidgets.QDialog):
+    def __init__(self, parent=None, params=None):
+        super().__init__(parent)
+        self.setWindowTitle("Settings")
+        self.resize(400, 300)
+
+        self.params = params or {}
+
+        layout = QtWidgets.QVBoxLayout(self)
+
+        # Primary UDP Server
+        primary_group = QtWidgets.QGroupBox("Primary UDP Server")
+        primary_layout = QtWidgets.QGridLayout()
+
+        self.primary_udp_server_address = QtWidgets.QLineEdit()
+        self.primary_udp_server_port = QtWidgets.QLineEdit()
+
+        primary_layout.addWidget(QtWidgets.QLabel("UDP Server:"), 0, 0, QtCore.Qt.AlignLeft)
+        primary_layout.addWidget(self.primary_udp_server_address, 0, 1)
+        primary_layout.addWidget(QtWidgets.QLabel("UDP Server port number:"), 1, 0, QtCore.Qt.AlignLeft)
+        primary_layout.addWidget(self.primary_udp_server_port, 1, 1)
+        primary_group.setLayout(primary_layout)
+
+        # Send logged ADIF data Server
+        secondary_group = QtWidgets.QGroupBox("Send logged ADIF data Server")
+        secondary_layout = QtWidgets.QGridLayout()
+
+        self.secondary_udp_server_address = QtWidgets.QLineEdit()
+        self.secondary_udp_server_port = QtWidgets.QLineEdit()
+        self.enable_sending_to_secondary_server = QtWidgets.QCheckBox("Enable sending to secondary UDP server")
+
+        secondary_layout.addWidget(QtWidgets.QLabel("UDP Server:"), 0, 0, QtCore.Qt.AlignLeft)
+        secondary_layout.addWidget(self.secondary_udp_server_address, 0, 1)
+        secondary_layout.addWidget(QtWidgets.QLabel("UDP Server port number:"), 1, 0, QtCore.Qt.AlignLeft)
+        secondary_layout.addWidget(self.secondary_udp_server_port, 1, 1)
+        secondary_layout.addWidget(self.enable_sending_to_secondary_server, 2, 0, 1, 2)
+        secondary_group.setLayout(secondary_layout)
+
+        self.load_params()
+
+        button_box = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+        )
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+
+        layout.addWidget(primary_group)
+        layout.addWidget(secondary_group)
+        layout.addWidget(button_box)
+
+    def load_params(self):
+        local_ip_address = get_local_ip_address()
+
+        self.primary_udp_server_address.setText(
+            self.params.get('primary_udp_server_address', local_ip_address)
+        )
+        self.primary_udp_server_port.setText(
+            str(self.params.get('primary_udp_server_port', DEFAULT_UDP_PORT))
+        )
+
+        self.secondary_udp_server_address.setText(
+            self.params.get('secondary_udp_server_address', local_ip_address)
+        )
+        self.secondary_udp_server_port.setText(
+            str(self.params.get('secondary_udp_server_port', DEFAULT_UDP_PORT))
+        )
+        self.enable_sending_to_secondary_server.setChecked(
+            self.params.get('enable_sending_to_secondary_server', False)
+        )
+
+    def get_result(self):
+        return {
+            'primary_udp_server_address'        : self.primary_udp_server_address.text(),
+            'primary_udp_server_port'           : self.primary_udp_server_port.text(),
+            'secondary_udp_server_address'      : self.secondary_udp_server_address.text(),
+            'secondary_udp_server_port'         : self.secondary_udp_server_port.text(),
+            'enable_sending_to_secondary_server': self.enable_sending_to_secondary_server.isChecked()
+        }
 
 class CustomDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, initial_value="", title="Edit Wanted Callsigns"):
@@ -235,6 +332,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.stop_event = threading.Event()
         self.error_occurred.connect(self.show_error_message)
         self.message_received.connect(self.handle_message_received)
+        self.monitoring_has_been_started = False
 
         self.decode_packet_count                = 0
         self.last_decode_packet_time            = None
@@ -302,8 +400,8 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.text_formats['bright_green'].setForeground(QtGui.QBrush(QtGui.QColor('green')))
 
-        # Load saved parameters
         params = self.load_params()
+
         self.wanted_callsigns_history = self.load_wanted_callsigns()
 
         self.frequency_var.setText(params.get("frequency", ""))
@@ -372,6 +470,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.clear_button.setEnabled(False)
         self.clear_button.clicked.connect(self.clear_output_text)
 
+        self.settings = QtWidgets.QPushButton("Settings")
+        self.settings.clicked.connect(self.open_settings)
+
         self.enable_alert_checkbox = QtWidgets.QCheckBox("Enable Sound")
         self.enable_alert_checkbox.setChecked(True)
 
@@ -416,6 +517,7 @@ class MainApp(QtWidgets.QMainWindow):
         main_layout.addWidget(self.output_text, 8, 0, 1, 4)
 
         button_layout = QtWidgets.QHBoxLayout()
+        button_layout.addWidget(self.settings)
         button_layout.addWidget(self.clear_button)
         button_layout.addWidget(self.restart_button)
         button_layout.addWidget(self.quit_button)
@@ -522,6 +624,20 @@ class MainApp(QtWidgets.QMainWindow):
     def on_close(self, event):
         self.save_window_position()
         event.accept()
+
+    def open_settings(self):
+        params = self.load_params()
+
+        dialog = SettingsDialog(self, params)
+        if dialog.exec_() == QtWidgets.QDialog.Accepted:
+            new_params = dialog.get_result()
+        
+            params.update(new_params)
+            self.save_params(params)
+
+            if self.monitoring_has_been_started:
+                self.stop_monitoring()
+                self.start_monitoring()
 
     def quit_application(self):
         self.save_window_position()
@@ -731,19 +847,30 @@ class MainApp(QtWidgets.QMainWindow):
             tray_icon_thread = threading.Thread(target=tray_icon.start, daemon=True)
             tray_icon_thread.start()
 
-        frequency = self.frequency_var.text()
-        time_hopping = self.time_hopping_var.text()
-        wanted_callsigns = self.wanted_callsigns_var.text()
-        mode = self.mode_var.checkedButton().text()
+        frequency           = self.frequency_var.text()
+        time_hopping        = self.time_hopping_var.text()
+        wanted_callsigns    = self.wanted_callsigns_var.text()
+        mode                = self.mode_var.checkedButton().text()
+
+        # Charger les paramètres existants
+        params              = self.load_params()
+
+        local_ip_address    = get_local_ip_address()
+
+        primary_udp_server_address          = params.get('primary_udp_server_address') or local_ip_address
+        primary_udp_server_port             = int(params.get('primary_udp_server_port') or DEFAULT_UDP_PORT)
+        secondary_udp_server_address        = params.get('secondary_udp_server_address') or local_ip_address
+        secondary_udp_server_port           = int(params.get('secondary_udp_server_port') or DEFAULT_UDP_PORT)
+        enable_sending_to_secondary_server  = params.get('enable_sending_to_secondary_server', False)
 
         self.update_wanted_callsigns_history(wanted_callsigns)
 
-        params = {
+        params.update({
             "frequency": frequency,
             "time_hopping": time_hopping,
             "wanted_callsigns": wanted_callsigns,
             "mode": mode
-        }
+        })
         self.save_params(params)
 
         self.counter_value_label.setText(WAITING_DATA_PACKETS_LABEL)    
@@ -758,7 +885,12 @@ class MainApp(QtWidgets.QMainWindow):
             time_hopping,
             wanted_callsigns,
             mode,
-            self.stop_event
+            self.stop_event,
+            primary_udp_server_address,
+            primary_udp_server_port,
+            secondary_udp_server_address,
+            secondary_udp_server_port,
+            enable_sending_to_secondary_server
         )
         self.worker.moveToThread(self.thread)
 
@@ -774,6 +906,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.worker.message.connect(self.handle_message_received)
 
         self.thread.start()
+        self.monitoring_has_been_started = True
+
 
     def stop_monitoring(self):
         global tray_icon
@@ -787,6 +921,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.run_button.setEnabled(True)
         self.run_button.setText(WAIT_POUNCE_LABEL)
         self.run_button.setStyleSheet("")
+
+        self.monitoring_has_been_started = False
 
         self.counter_value_label.setStyleSheet("background-color: #D3D3D3;")
         self.enable_inputs()

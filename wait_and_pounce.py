@@ -11,30 +11,9 @@ class MockQueue:
     def __init__(self):
         self.defered = False
 
-    def addAdifFile(self, filepath, flag):
-        pass
-
-    def loadLotw(self, username, password):
-        pass
-
-    def needDataByBandAndCall(self, band, call, grid):
-        return {}
-
-    def addQso(self, qso):
-        pass
-
 class MockConfig:
-    def get(self, section, option):
-        default_values = {
-            ('ADIF_FILES', 'paths'): '',
-            ('OPTS', 'load_adif_files_on_start'): False,
-            ('LOTW', 'enable'): False,
-            ('LOTW', 'username'): '',
-            ('LOTW', 'password'): '',
-            ('WEBHOOKS', 'events'): '',
-            ('WEBHOOKS', 'hooks'): '',
-        }
-        return default_values.get((section, option), '')
+    def get(self, section, option):        
+        return None
 
 import logging
 
@@ -42,7 +21,7 @@ logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
 def signal_handler(sig, frame):
-    print("\nArrêt manuel du script.")
+    print("\Manual stop.")
     sys.exit(0)
 
 signal.signal(signal.SIGINT, signal_handler)
@@ -53,16 +32,22 @@ class MyListener(Listener):
             self,
             q,
             config,
-            ip_address,
-            port,
+            primary_udp_server_address,
+            primary_udp_server_port,
+            secondary_udp_server_address,
+            secondary_udp_server_port,
+            enable_sending_to_secondary_server,
             wanted_callsigns,
             message_callback=None
         ):
         super().__init__(
             q,
             config,
-            ip_address,
-            port,
+            primary_udp_server_address,
+            primary_udp_server_port,
+            secondary_udp_server_address,
+            secondary_udp_server_port,
+            enable_sending_to_secondary_server,
             wanted_callsigns,
             message_callback=message_callback
         )
@@ -106,11 +91,13 @@ def main(
         wanted_callsigns,
         mode,
         stop_event,
+        primary_udp_server_address,
+        primary_udp_server_port,
+        secondary_udp_server_address,
+        secondary_udp_server_port,
+        enable_sending_to_secondary_server,
         message_callback=None
     ):
-
-    ip_address = '192.168.1.30'
-    port = 2237
 
     q = MockQueue()
     config = MockConfig()
@@ -121,8 +108,11 @@ def main(
     listener = MyListener(
         q,
         config,
-        ip_address,
-        port,
+        primary_udp_server_address,
+        primary_udp_server_port,
+        secondary_udp_server_address,
+        secondary_udp_server_port,
+        enable_sending_to_secondary_server,
         wanted_callsigns=wanted_callsigns,
         message_callback=message_callback
     )
@@ -132,7 +122,7 @@ def main(
         while not stop_event.is_set():
             time.sleep(0.1)  
     except KeyboardInterrupt:
-        print("\nArrêt du script.")
+        print("\Stop everything.")
     finally:
         listener.stop()
         listener.t.join()
