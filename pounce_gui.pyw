@@ -18,6 +18,7 @@ import wait_and_pounce
 
 from PIL import Image, ImageDraw
 from utils import get_local_ip_address, get_log_filename
+from logger import LOGGER as log
 
 if platform.system() == 'Windows':
     from pystray import Icon, MenuItem
@@ -200,32 +201,6 @@ class ToolTip(QtWidgets.QWidget):
     def hide_tooltip(self):
         QtWidgets.QToolTip.hideText()
 
-
-class DebugRedirector(QtCore.QObject):
-    new_text = QtCore.pyqtSignal(str)
-
-    def __init__(self, log_filename, enable_pounce_log):
-        super().__init__()
-        self.log_filename = log_filename
-        self.enable_pounce_log = enable_pounce_log
-
-    def write(self, string):
-        clean_string = self.remove_tag_codes(string)
-        if self.enable_pounce_log:
-            self.write_to_log(clean_string)
-        self.new_text.emit(string)
-
-    def flush(self):
-        pass
-
-    def write_to_log(self, clean_string):
-        with open(self.log_filename, "a") as log_file:
-            timestamp = datetime.datetime.now().strftime("%y%m%d_%H%M%S")
-            log_file.write(f"{timestamp} {clean_string}")
-
-    def remove_tag_codes(self, string):
-        tag_escape = re.compile(r'\[/?[a-zA-Z_]+\]')
-        return tag_escape.sub('', string)
 
 class SettingsDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, params=None):
@@ -604,9 +579,9 @@ class MainApp(QtWidgets.QMainWindow):
 
         # Initialize the stdout redirection
         self.enable_pounce_log = params.get('enable_pounce_log', True)
-        self.debug_redirector = DebugRedirector(get_log_filename(), self.enable_pounce_log)
-        self.debug_redirector.new_text.connect(self.append_output_text)
-        sys.stdout = self.debug_redirector
+       
+        if self.enable_pounce_log:
+            log.add_file_handler(get_log_filename())
 
         self.check_fields()
         self.load_window_position()
@@ -706,11 +681,18 @@ class MainApp(QtWidgets.QMainWindow):
         if dialog.exec_() == QtWidgets.QDialog.Accepted:
             new_params = dialog.get_result()
         
+            previous_enable_pounce_log = self.enable_pounce_log
+            self.enable_pounce_log = new_params.get('enable_pounce_log', True)
+
             params.update(new_params)
             self.save_params(params)
 
-            self.enable_pounce_log = params.get('enable_pounce_log', True)
-            self.debug_redirector.enable_pounce_log = self.enable_pounce_log
+            log_filename = get_log_filename()
+
+            if self.enable_pounce_log and not previous_enable_pounce_log:
+                log.add_file_handler(log_filename)
+            elif not self.enable_pounce_log and previous_enable_pounce_log:
+                log.remove_file_handler()
 
             if self._running:
                 self.stop_monitoring()
