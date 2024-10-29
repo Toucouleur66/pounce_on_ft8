@@ -24,7 +24,9 @@ class Listener:
             enable_secondary_udp_server,
             enable_sending_reply,
             enable_debug_output,
-            enable_pounce_log,            
+            enable_pounce_log,        
+            enable_log_packet_data, 
+            enable_show_all_decoded,
             wanted_callsigns,
             message_callback=None
         ):
@@ -66,17 +68,35 @@ class Listener:
         self.enable_sending_reply           = enable_sending_reply
         self.enable_debug_output            = enable_debug_output
         self.enable_pounce_log              = enable_pounce_log 
+        self.enable_log_packet_data         = enable_log_packet_data
+        self.enable_show_all_decoded        = enable_show_all_decoded
 
         self.wanted_callsigns               = set(wanted_callsigns)
         self.message_callback               = message_callback
 
         self._running = True
 
-        self.s = pywsjtx.extra.simple_server.SimpleServer(
-            self.primary_udp_server_address,
-            self.primary_udp_server_port
-        )
-        self.s.sock.settimeout(1.0)
+        try:
+            self.s = pywsjtx.extra.simple_server.SimpleServer(
+                self.primary_udp_server_address,
+                self.primary_udp_server_port
+            )
+            self.s.sock.settimeout(1.0)
+        except socket.error as e:
+            if e.errno == 49:  # Can't assign requested address
+                custom_message = (
+                    f"Can't create server - {self.primary_udp_server_address}:{self.primary_udp_server_port}.\n"
+                    "Please check your network settings or Primary UDP Server address."
+                )
+                log.error(custom_message)
+                if self.message_callback:
+                    self.message_callback(custom_message)
+            else:
+                error_message = f"Socket error de socket : {e}"
+                log.error(error_message, exc_info=True)
+                if self.message_callback:
+                    self.message_callback(error_message)
+            raise
 
         self.packet_sender = WSJTXPacketSender(
             self.secondary_udp_server_address,
@@ -107,9 +127,10 @@ class Listener:
         while self._running:
             try:
                 self.pkt, self.addr_port = self.s.sock.recvfrom(8192)
-                message = f"Received packet of length {len(self.pkt)} from {self.addr_port}"
-                message += f"\nPacket data: {self.pkt.hex()}"
-                log.info(message)
+                if self.enable_log_packet_data:
+                    message = f"Received packet of length {len(self.pkt)} from {self.addr_port}"
+                    message += f"\nPacket data: {self.pkt.hex()}"
+                    log.info(message)
                 self.the_packet = pywsjtx.WSJTXPacketClassFactory.from_udp_packet(self.addr_port, self.pkt)
                 self.handle_packet()
             except socket.timeout:
@@ -134,7 +155,8 @@ class Listener:
         self.s.send_packet(self.addr_port, reply_beat_packet)
 
     def update_status(self):
-        log.debug('wsjt-x status {}'.format(self.the_packet))
+        if self.enable_log_packet_data:
+            log.debug('WSJT-X {}'.format(self.the_packet))
         try:
             self.my_call    = self.the_packet.de_call
             self.my_grid    = self.the_packet.de_grid
@@ -198,20 +220,21 @@ class Listener:
         self.frequency              = None
 
     def decode_parse_packet(self):
-        wanted_data = None
+        if self.enable_log_packet_data:
+            log.debug('{}'.format(self.the_packet))
 
-        log.debug('{}'.format(self.the_packet))
         try:
+            wanted_data     = None
+            directed        = None
+            msg             = None
+            callsign        = None
+            grid            = None     
+
             message         = self.the_packet.message
             decode_time     = self.the_packet.time
             snr             = self.the_packet.snr
             delta_t         = self.the_packet.delta_t
             delta_f         = self.the_packet.delta_f     
-
-            directed        = None
-            msg             = None
-            callsign        = None
-            grid            = None     
 
             time_str = decode_time.strftime('%H%M%S')
 
@@ -360,8 +383,8 @@ class Listener:
         callsign        = self.ongoing_callsign
         grid            = self.ongoing_callsign_grid or ''
         mode            = self.mode
-        rst_sent        = self.rst_sent
-        rst_rcvd        = self.rst_rcvd
+        rst_sent        = self.get_clean_rst(self.rst_sent)
+        rst_rcvd        = self.get_clean_rst(self.rst_rcvd)
         freq_rx         = f"{round((self.frequency + self.rx_df) / 1_000_000, 6):.6f}"
         freq            = f"{round((self.frequency + self.tx_df) / 1_000_000, 6):.6f}"
         band            = self.get_amateur_band(self.frequency)
@@ -397,6 +420,10 @@ class Listener:
 
     def log_qso_to_udp(self):
         try:
+
+            awaited_rst_sent = self.get_clean_rst(self.rst_sent)
+            awaited_rst_rcvd = self.get_clean_rst(self.rst_rcvd)
+
             self.packet_sender.send_qso_logged_packet(
                 wsjtx_id        = self.the_packet.wsjtx_id,
                 datetime_off    = self.qso_time_off,
@@ -404,8 +431,8 @@ class Listener:
                 grid            = self.ongoing_callsign_grid or '',
                 frequency       = self.frequency,
                 mode            = self.mode,
-                report_sent     = self.rst_sent,
-                report_recv     = self.rst_rcvd,
+                report_sent     = awaited_rst_sent,
+                report_recv     = awaited_rst_rcvd,
                 tx_power        = '', 
                 comments        = '',
                 name            = '',
@@ -413,22 +440,16 @@ class Listener:
                 op_call         = '',
                 my_call         = self.my_call,
                 my_grid         = self.my_grid,
-                exchange_sent   = self.rst_sent,
-                exchange_recv   = self.rst_rcvd
+                exchange_sent   = awaited_rst_sent,
+                exchange_recv   = awaited_rst_rcvd
             )
             log.warning("QSOLoggedPacket sent via UDP for [ {} ]".format(self.ongoing_callsign))
         except Exception as e:
             log.error(f"Error sending QSOLoggedPacket via UDP: {e}")
             log.error("Caught an error while trying to send QSOLoggedPacket packet: error {}\n{}".format(e, traceback.format_exc()))
 
-    def send_heartbeat(self):
-        max_schema = max(self.the_packet.max_schema, 3)
-        self.packet_sender.send_heartbeat_packet(
-            wsjtx_id=self.the_packet.wsjtx_id,
-            max_schema=max_schema,
-            version=self.the_packet.version,
-            revision=self.the_packet.revision
-        )
+    def get_clean_rst(rst):
+        return re.sub(r'R([+-]?\d+)', r'\1', rst)
 
     def get_amateur_band(self, frequency):
         bands = {

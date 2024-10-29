@@ -38,6 +38,8 @@ class MyListener(Listener):
             enable_sending_reply,
             enable_debug_output,
             enable_pounce_log,
+            enable_log_packet_data, 
+            enable_show_all_decoded,
             wanted_callsigns,
             message_callback=None
         ):
@@ -50,6 +52,8 @@ class MyListener(Listener):
             enable_sending_reply,
             enable_debug_output,
             enable_pounce_log,
+            enable_log_packet_data, 
+            enable_show_all_decoded,
             wanted_callsigns,
             message_callback=message_callback
         )
@@ -66,6 +70,7 @@ class MyListener(Listener):
                     self.message_callback(message)
 
             elif isinstance(self.the_packet, pywsjtx.DecodePacket):
+                is_from_wanted          = False
                 decode_time             = self.the_packet.time
                 decode_time_str         = decode_time.strftime('%Y-%m-%d %H:%M:%S')
 
@@ -76,6 +81,7 @@ class MyListener(Listener):
 
                 message_color_text      = "white_on_blue"
                 if is_in_wanted(message_text, self.wanted_callsigns):
+                    is_from_wanted = True
                     message_color_text  = "black_on_yellow"
 
                 display_message = (
@@ -85,9 +91,12 @@ class MyListener(Listener):
                     f"{delta_frequency:+6d}Hz ~ "
                     f"[{message_color_text}]{message_text:<21.21}[/{message_color_text}]"
                 )
-                log.info(display_message)
-                if self.message_callback:
-                    self.message_callback(display_message)
+
+                if self.enable_show_all_decoded or is_from_wanted:
+                    log.info(display_message)
+                    if self.message_callback:
+                        self.message_callback(display_message)
+                        
         except Exception as e:
             log.error(f"Error handling packet: {e}", exc_info=True)
             if self.message_callback:
@@ -107,6 +116,8 @@ def main(
         enable_sending_reply,
         enable_debug_output,
         enable_pounce_log,
+        enable_log_packet_data,
+        enable_show_all_decoded,
         message_callback=None
     ):
 
@@ -122,6 +133,8 @@ def main(
         enable_sending_reply,
         enable_debug_output,
         enable_pounce_log,
+        enable_log_packet_data,
+        enable_show_all_decoded,
         wanted_callsigns=wanted_callsigns,
         message_callback=message_callback
     )

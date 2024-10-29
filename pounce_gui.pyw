@@ -86,22 +86,26 @@ class Worker(QObject):
             enable_secondary_udp_server,
             enable_sending_reply,
             enable_debug_output,
-            enable_pounce_log                        
+            enable_pounce_log,
+            enable_log_packet_data,
+            enable_show_all_decoded                        
         ):
         super(Worker, self).__init__()
-        self.frequency = frequency
-        self.time_hopping = time_hopping
-        self.wanted_callsigns = wanted_callsigns
-        self.mode = mode
-        self.stop_event = stop_event
-        self.primary_udp_server_address = primary_udp_server_address
-        self.primary_udp_server_port = primary_udp_server_port
-        self.secondary_udp_server_address = secondary_udp_server_address
-        self.secondary_udp_server_port = secondary_udp_server_port
-        self.enable_secondary_udp_server = enable_secondary_udp_server
-        self.enable_sending_reply = enable_sending_reply
-        self.enable_debug_output = enable_debug_output
-        self.enable_pounce_log = enable_pounce_log        
+        self.frequency                      = frequency
+        self.time_hopping                   = time_hopping
+        self.wanted_callsigns               = wanted_callsigns
+        self.mode                           = mode
+        self.stop_event                     = stop_event
+        self.primary_udp_server_address     = primary_udp_server_address
+        self.primary_udp_server_port        = primary_udp_server_port
+        self.secondary_udp_server_address   = secondary_udp_server_address
+        self.secondary_udp_server_port      = secondary_udp_server_port
+        self.enable_secondary_udp_server    = enable_secondary_udp_server
+        self.enable_sending_reply           = enable_sending_reply
+        self.enable_debug_output            = enable_debug_output
+        self.enable_pounce_log              = enable_pounce_log   
+        self.enable_log_packet_data         = enable_log_packet_data
+        self.enable_show_all_decoded        = enable_show_all_decoded     
 
     def run(self):
         try:
@@ -118,7 +122,9 @@ class Worker(QObject):
                 enable_secondary_udp_server=self.enable_secondary_udp_server,
                 enable_sending_reply=self.enable_sending_reply,
                 enable_debug_output=self.enable_debug_output,
-                enable_pounce_log=self.enable_pounce_log,                
+                enable_pounce_log=self.enable_pounce_log,    
+                enable_log_packet_data=self.enable_log_packet_data,
+                enable_show_all_decoded=self.enable_show_all_decoded,            
                 message_callback=self.message.emit
             )
         except Exception as e:
@@ -225,7 +231,7 @@ class SettingsDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, params=None):
         super().__init__(parent)
         self.setWindowTitle("Settings")
-        self.resize(400, 550)
+        self.resize(450, 600)
 
         self.params = params or {}
 
@@ -237,7 +243,7 @@ class SettingsDialog(QtWidgets.QDialog):
         notice_label = QtWidgets.QLabel(notice_text)
         notice_label.setWordWrap(True)
         small_font = QtGui.QFont()
-        small_font.setPointSize(7)  
+        small_font.setPointSize(12)  
         notice_label.setFont(small_font)
         notice_label.setStyleSheet("background-color: #f6f6f5; padding: 5px; font-size: 12px;")
         notice_label.setTextFormat(QtCore.Qt.RichText)  # Pour interpréter le HTML
@@ -275,12 +281,21 @@ class SettingsDialog(QtWidgets.QDialog):
         debug_layout = QtWidgets.QGridLayout()
 
         self.enable_sending_reply = QtWidgets.QCheckBox("Enable sending Reply UDP Packet")
-        self.enable_debug_output = QtWidgets.QCheckBox("Enable debug output")
-        self.enable_pounce_log = QtWidgets.QCheckBox(f"Write log to {get_log_filename()}")
+        self.enable_pounce_log = QtWidgets.QCheckBox(f"Save log to {get_log_filename()}")
+        self.enable_log_packet_data = QtWidgets.QCheckBox("Save received packet data")
+        self.enable_debug_output = QtWidgets.QCheckBox("Show debug output")                
+        self.enable_show_all_decoded = QtWidgets.QCheckBox("Show all decoded messages, not only Wanted Callsigns")
+
+        self.enable_log_packet_data.setChecked(False)
+        self.enable_show_all_decoded.setChecked(False)
     
-        debug_layout.addWidget(self.enable_sending_reply, 0, 0, 1, 2)
-        debug_layout.addWidget(self.enable_debug_output, 1, 0, 1, 2)
-        debug_layout.addWidget(self.enable_pounce_log, 2, 0, 1, 2)
+        debug_layout.addWidget(self.enable_sending_reply, 0, 0, 1, 2)        
+        debug_layout.addWidget(self.enable_pounce_log, 1, 0, 1, 2)
+        debug_layout.addWidget(self.enable_log_packet_data, 2, 0, 1, 2)        
+        debug_layout.addWidget(self.enable_debug_output, 3, 0, 1, 2)        
+        debug_layout.addWidget(self.enable_show_all_decoded, 4, 0, 1, 2)
+
+        debug_layout.setSpacing(12)
 
         debug_group.setLayout(debug_layout)
 
@@ -325,6 +340,12 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_pounce_log.setChecked(
             self.params.get('enable_pounce_log', True)
         )
+        self.enable_log_packet_data.setChecked(
+            self.params.get('enable_log_packet_data', False)
+        )
+        self.enable_show_all_decoded.setChecked(
+            self.params.get('enable_show_all_decoded', False)
+        )
 
     def get_result(self):
         return {
@@ -332,10 +353,12 @@ class SettingsDialog(QtWidgets.QDialog):
             'primary_udp_server_port'           : self.primary_udp_server_port.text(),
             'secondary_udp_server_address'      : self.secondary_udp_server_address.text(),
             'secondary_udp_server_port'         : self.secondary_udp_server_port.text(),
-            'enable_secondary_udp_server': self.enable_secondary_udp_server.isChecked(),
+            'enable_secondary_udp_server'       : self.enable_secondary_udp_server.isChecked(),
             'enable_sending_reply'              : self.enable_sending_reply.isChecked(),
             'enable_debug_output'               : self.enable_debug_output.isChecked(),
-            'enable_pounce_log'                 : self.enable_pounce_log.isChecked()
+            'enable_pounce_log'                 : self.enable_pounce_log.isChecked(),
+            'enable_log_packet_data'            : self.enable_log_packet_data.isChecked(),
+            'enable_show_all_decoded'           : self.enable_show_all_decoded.isChecked()            
         }
 
 class CustomDialog(QtWidgets.QDialog):
@@ -911,10 +934,12 @@ class MainApp(QtWidgets.QMainWindow):
         primary_udp_server_port             = int(params.get('primary_udp_server_port') or DEFAULT_UDP_PORT)
         secondary_udp_server_address        = params.get('secondary_udp_server_address') or local_ip_address
         secondary_udp_server_port           = int(params.get('secondary_udp_server_port') or DEFAULT_UDP_PORT)
-        enable_secondary_udp_server  = params.get('enable_secondary_udp_server', False)
+        enable_secondary_udp_server         = params.get('enable_secondary_udp_server', False)
         enable_sending_reply                = params.get('enable_sending_reply', True)
         enable_debug_output                 = params.get('enable_debug_output', True)
         enable_pounce_log                   = params.get('enable_pounce_log', True)
+        enable_log_packet_data              = params.get('enable_log_packet_data', False)
+        enable_show_all_decoded             = params.get('enable_show_all_decoded', False)
 
         self.update_wanted_callsigns_history(wanted_callsigns)
 
@@ -946,7 +971,9 @@ class MainApp(QtWidgets.QMainWindow):
             enable_secondary_udp_server,
             enable_sending_reply,
             enable_debug_output,
-            enable_pounce_log
+            enable_pounce_log,
+            enable_log_packet_data,
+            enable_show_all_decoded            
         )
         self.worker.moveToThread(self.thread)
 
