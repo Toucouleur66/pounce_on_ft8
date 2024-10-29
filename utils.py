@@ -1,6 +1,7 @@
 # utils.py
 
 import socket
+import datetime
 
 def get_local_ip_address():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -12,3 +13,14 @@ def get_local_ip_address():
     finally:
         s.close()
     return local_ip_address
+
+def get_log_filename():
+    today = datetime.datetime.now().strftime("%y%m%d")
+    return f"{today}_pounce.log"
+
+def is_in_wanted(message, wanted_callsigns):
+    for callsign in wanted_callsigns:
+        if callsign in message:
+            return True
+    return False 
+     

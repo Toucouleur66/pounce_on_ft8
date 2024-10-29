@@ -144,6 +144,9 @@ class PacketReader(object):
         self.max_ptr_pos = len(packet)-1
         self.skip_header()
 
+    def bytes_left(self):
+        return self.max_ptr_pos - self.ptr_pos + 1        
+
     def at_eof(self):
         return self.ptr_pos > self.max_ptr_pos
 
@@ -353,13 +356,12 @@ class DecodePacket(GenericWSJTXPacket):
             self.wsjtx_id,
             self.message
         )
-        str += "\tdelta_f:{}\tnew:{}\ttime:{}\tsnr:{}\tdelta_f:{}\tmode:{}".format(
+        str += "\tdelta_f:{}\tnew:{}\ttime:{}\tsnr:{}\tdelta_f:{}".format(
             self.delta_f,
             self.new_decode,
             self.time,
             self.snr,
-            self.delta_f,
-            self.mode
+            self.delta_f
         )
         return str
 
@@ -396,7 +398,6 @@ class QSOLoggedPacket(GenericWSJTXPacket):
     TYPE_VALUE = 5
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
         GenericWSJTXPacket.__init__(self, addr_port, magic, schema, pkt_type, id, pkt)
-        # handle packet-specific stuff.
         ps = PacketReader(pkt)
         the_type = ps.QInt32()
         self.wsjtx_id = ps.QString()
@@ -414,8 +415,19 @@ class QSOLoggedPacket(GenericWSJTXPacket):
         self.op_call = ps.QString()
         self.my_call = ps.QString()
         self.my_grid = ps.QString()
-        self.exchange_sent = ps.QString()
-        self.exchange_recv = ps.QString()
+        
+        if self.schema >= 3 and ps.bytes_left() >= 4:
+            try:
+                self.exchange_sent = ps.QString()
+                self.exchange_recv = ps.QString()
+            except Exception as e:
+                self.exchange_sent = None
+                self.exchange_recv = None
+                print(f"Warning: can't read exchange report: {e}")
+        else:
+            self.exchange_sent = None
+            self.exchange_recv = None
+
 
     def __repr__(self):
         str = 'QSOLoggedPacket: call {} @ {}\n\tdatetime:{}\tfreq:{}\n'.format(self.call,
@@ -542,7 +554,9 @@ class WSJTXPacketClassFactory(GenericWSJTXPacket):
         ReplayPacket.TYPE_VALUE:    ReplayPacket,
         HaltTxPacket.TYPE_VALUE:    HaltTxPacket,
         FreeTextPacket.TYPE_VALUE:  FreeTextPacket,
-        WSPRDecodePacket.TYPE_VALUE: WSPRDecodePacket
+        WSPRDecodePacket.TYPE_VALUE: WSPRDecodePacket,
+        LoggedADIFPacket.TYPE_VALUE: LoggedADIFPacket,  
+        HighlightCallsignPacket.TYPE_VALUE: HighlightCallsignPacket 
     }
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
         self.addr_port = addr_port

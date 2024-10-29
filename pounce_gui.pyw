@@ -1,3 +1,5 @@
+# pounce_gui.pyw
+
 from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtCore import QObject, pyqtSignal, QThread
 from PyQt5.QtMultimedia import QSound
@@ -15,7 +17,7 @@ import pyperclip
 import wait_and_pounce
 
 from PIL import Image, ImageDraw
-from utils import get_local_ip_address
+from utils import get_local_ip_address, get_log_filename
 
 if platform.system() == 'Windows':
     from pystray import Icon, MenuItem
@@ -30,7 +32,7 @@ POSITION_FILE                       = "window_position.pkl"
 WANTED_CALLSIGNS_FILE               = "wanted_callsigns.pkl"
 WANTED_CALLSIGNS_HISTORY_SIZE       = 50
 
-GUI_LABEL_VERSION                   = f"Wait and Pounce v{version_number} with UDP (by F5UKW under GNU GPL Licence)"
+GUI_LABEL_VERSION                   = f"Wait and Pounce v{version_number} with UDP"
 RUNNING_TEXT_BUTTON                 = "Running..."
 WAIT_POUNCE_LABEL                   = "Listen UDP Packets & Pounce"
 NOTHING_YET                         = "Nothing yet"
@@ -81,7 +83,10 @@ class Worker(QObject):
             primary_udp_server_port,
             secondary_udp_server_address,
             secondary_udp_server_port,
-            enable_sending_to_secondary_server            
+            enable_secondary_udp_server,
+            enable_sending_reply,
+            enable_debug_output,
+            enable_pounce_log                        
         ):
         super(Worker, self).__init__()
         self.frequency = frequency
@@ -93,7 +98,10 @@ class Worker(QObject):
         self.primary_udp_server_port = primary_udp_server_port
         self.secondary_udp_server_address = secondary_udp_server_address
         self.secondary_udp_server_port = secondary_udp_server_port
-        self.enable_sending_to_secondary_server = enable_sending_to_secondary_server
+        self.enable_secondary_udp_server = enable_secondary_udp_server
+        self.enable_sending_reply = enable_sending_reply
+        self.enable_debug_output = enable_debug_output
+        self.enable_pounce_log = enable_pounce_log        
 
     def run(self):
         try:
@@ -107,7 +115,10 @@ class Worker(QObject):
                 primary_udp_server_port=self.primary_udp_server_port,
                 secondary_udp_server_address=self.secondary_udp_server_address,
                 secondary_udp_server_port=self.secondary_udp_server_port,
-                enable_sending_to_secondary_server=self.enable_sending_to_secondary_server,
+                enable_secondary_udp_server=self.enable_secondary_udp_server,
+                enable_sending_reply=self.enable_sending_reply,
+                enable_debug_output=self.enable_debug_output,
+                enable_pounce_log=self.enable_pounce_log,                
                 message_callback=self.message.emit
             )
         except Exception as e:
@@ -124,7 +135,7 @@ class TrayIcon:
         self.current_color = self.color1
         self.icon = None
         self.blink_thread = None
-        self.running = False
+        self._running = False
 
     def create_icon(self, color, size=(64, 64)):
         img = Image.new('RGB', size, color)
@@ -133,18 +144,18 @@ class TrayIcon:
         return img
 
     def blink_icon(self):
-        while self.running:
+        while self._running:
             self.icon.icon = self.create_icon(self.current_color)
             self.icon.update_menu()
             self.current_color = self.color2 if self.current_color == self.color1 else self.color1
             time.sleep(1)
 
     def quit_action(self, icon):
-        self.running = False
+        self._running = False
         icon.stop()
 
     def start(self):
-        self.running = True
+        self._running = True
         self.icon = Icon('Pounce Icon', self.create_icon(self.color1))
 
         self.blink_thread = threading.Thread(target=self.blink_icon, daemon=True)
@@ -153,7 +164,7 @@ class TrayIcon:
         self.icon.run()
 
     def stop(self):
-        self.running = False
+        self._running = False
         if self.icon:
             self.icon.stop()
 
@@ -187,13 +198,15 @@ class ToolTip(QtWidgets.QWidget):
 class DebugRedirector(QtCore.QObject):
     new_text = QtCore.pyqtSignal(str)
 
-    def __init__(self, log_filename):
+    def __init__(self, log_filename, enable_pounce_log):
         super().__init__()
         self.log_filename = log_filename
+        self.enable_pounce_log = enable_pounce_log
 
     def write(self, string):
         clean_string = self.remove_tag_codes(string)
-        self.write_to_log(clean_string)
+        if self.enable_pounce_log:
+            self.write_to_log(clean_string)
         self.new_text.emit(string)
 
     def flush(self):
@@ -208,23 +221,26 @@ class DebugRedirector(QtCore.QObject):
         tag_escape = re.compile(r'\[/?[a-zA-Z_]+\]')
         return tag_escape.sub('', string)
 
-
-def interpolate_color(start_color, end_color, factor):
-    return tuple(int(start + (end - start) * factor) for start, end in zip(start_color, end_color))
-
-
-def rgb_to_hex(rgb):
-    return '#{:02x}{:02x}{:02x}'.format(*rgb)
-
 class SettingsDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, params=None):
         super().__init__(parent)
         self.setWindowTitle("Settings")
-        self.resize(400, 300)
+        self.resize(400, 550)
 
         self.params = params or {}
 
         layout = QtWidgets.QVBoxLayout(self)
+
+        notice_text = (
+            "For JTDX users, you have to disable automatic logging of QSO (Make sure <u>Settings > Reporting > Logging > Enable automatic logging of QSO</u> is unchecked)<br /><br />You might also need to accept UDP Reply messages from any messages (<u>Misc Menu > Accept UDP Reply Messages > any messages</u>)."
+        )
+        notice_label = QtWidgets.QLabel(notice_text)
+        notice_label.setWordWrap(True)
+        small_font = QtGui.QFont()
+        small_font.setPointSize(7)  
+        notice_label.setFont(small_font)
+        notice_label.setStyleSheet("background-color: #f6f6f5; padding: 5px; font-size: 12px;")
+        notice_label.setTextFormat(QtCore.Qt.RichText)  # Pour interpréter le HTML
 
         # Primary UDP Server
         primary_group = QtWidgets.QGroupBox("Primary UDP Server")
@@ -240,19 +256,33 @@ class SettingsDialog(QtWidgets.QDialog):
         primary_group.setLayout(primary_layout)
 
         # Send logged ADIF data Server
-        secondary_group = QtWidgets.QGroupBox("Send logged ADIF data Server")
+        secondary_group = QtWidgets.QGroupBox("Second UDP Server (Send logged QSO ADIF data)")
         secondary_layout = QtWidgets.QGridLayout()
 
         self.secondary_udp_server_address = QtWidgets.QLineEdit()
         self.secondary_udp_server_port = QtWidgets.QLineEdit()
-        self.enable_sending_to_secondary_server = QtWidgets.QCheckBox("Enable sending to secondary UDP server")
+        self.enable_secondary_udp_server = QtWidgets.QCheckBox("Enable sending to secondary UDP server")
 
         secondary_layout.addWidget(QtWidgets.QLabel("UDP Server:"), 0, 0, QtCore.Qt.AlignLeft)
         secondary_layout.addWidget(self.secondary_udp_server_address, 0, 1)
         secondary_layout.addWidget(QtWidgets.QLabel("UDP Server port number:"), 1, 0, QtCore.Qt.AlignLeft)
         secondary_layout.addWidget(self.secondary_udp_server_port, 1, 1)
-        secondary_layout.addWidget(self.enable_sending_to_secondary_server, 2, 0, 1, 2)
+        secondary_layout.addWidget(self.enable_secondary_udp_server, 2, 0, 1, 2)
         secondary_group.setLayout(secondary_layout)
+
+        # Debug
+        debug_group = QtWidgets.QGroupBox("Options")
+        debug_layout = QtWidgets.QGridLayout()
+
+        self.enable_sending_reply = QtWidgets.QCheckBox("Enable sending Reply UDP Packet")
+        self.enable_debug_output = QtWidgets.QCheckBox("Enable debug output")
+        self.enable_pounce_log = QtWidgets.QCheckBox(f"Write log to {get_log_filename()}")
+    
+        debug_layout.addWidget(self.enable_sending_reply, 0, 0, 1, 2)
+        debug_layout.addWidget(self.enable_debug_output, 1, 0, 1, 2)
+        debug_layout.addWidget(self.enable_pounce_log, 2, 0, 1, 2)
+
+        debug_group.setLayout(debug_layout)
 
         self.load_params()
 
@@ -262,8 +292,10 @@ class SettingsDialog(QtWidgets.QDialog):
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
 
+        layout.addWidget(notice_label)
         layout.addWidget(primary_group)
         layout.addWidget(secondary_group)
+        layout.addWidget(debug_group)
         layout.addWidget(button_box)
 
     def load_params(self):
@@ -275,15 +307,23 @@ class SettingsDialog(QtWidgets.QDialog):
         self.primary_udp_server_port.setText(
             str(self.params.get('primary_udp_server_port', DEFAULT_UDP_PORT))
         )
-
         self.secondary_udp_server_address.setText(
             self.params.get('secondary_udp_server_address', local_ip_address)
         )
         self.secondary_udp_server_port.setText(
             str(self.params.get('secondary_udp_server_port', DEFAULT_UDP_PORT))
         )
-        self.enable_sending_to_secondary_server.setChecked(
-            self.params.get('enable_sending_to_secondary_server', False)
+        self.enable_secondary_udp_server.setChecked(
+            self.params.get('enable_secondary_udp_server', False)
+        )
+        self.enable_sending_reply.setChecked(
+            self.params.get('enable_sending_reply', True)
+        )
+        self.enable_debug_output.setChecked(
+            self.params.get('enable_debug_output', True)
+        )
+        self.enable_pounce_log.setChecked(
+            self.params.get('enable_pounce_log', True)
         )
 
     def get_result(self):
@@ -292,7 +332,10 @@ class SettingsDialog(QtWidgets.QDialog):
             'primary_udp_server_port'           : self.primary_udp_server_port.text(),
             'secondary_udp_server_address'      : self.secondary_udp_server_address.text(),
             'secondary_udp_server_port'         : self.secondary_udp_server_port.text(),
-            'enable_sending_to_secondary_server': self.enable_sending_to_secondary_server.isChecked()
+            'enable_secondary_udp_server': self.enable_secondary_udp_server.isChecked(),
+            'enable_sending_reply'              : self.enable_sending_reply.isChecked(),
+            'enable_debug_output'               : self.enable_debug_output.isChecked(),
+            'enable_pounce_log'                 : self.enable_pounce_log.isChecked()
         }
 
 class CustomDialog(QtWidgets.QDialog):
@@ -332,7 +375,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.stop_event = threading.Event()
         self.error_occurred.connect(self.show_error_message)
         self.message_received.connect(self.handle_message_received)
-        self.monitoring_has_been_started = False
+        self._running = False
 
         self.decode_packet_count                = 0
         self.last_decode_packet_time            = None
@@ -341,6 +384,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.wanted_callsign_detected_sound     = QSound("sounds/495650__matrixxx__supershort-ping-or-short-notification.wav")
         self.directed_to_my_call_sound          = QSound("sounds/716445__scottyd0es__tone12_error.wav")
         self.ready_to_log_sound                 = QSound("sounds/716447__scottyd0es__tone12_msg_notification_1.wav")
+        self.error_occurred_sound               = QSound("sounds/142608__autistic-lucario__error.wav")
 
         self.setWindowTitle(GUI_LABEL_VERSION)
         self.setGeometry(100, 100, 900, 700)
@@ -407,6 +451,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.frequency_var.setText(params.get("frequency", ""))
         self.time_hopping_var.setText(params.get("time_hopping", ""))
         self.wanted_callsigns_var.setText(params.get("wanted_callsigns", ""))
+
         mode = params.get("mode", "Normal")
         if mode == "Normal":
             radio_normal.setChecked(True)
@@ -535,8 +580,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.timer.start(200)
 
         # Initialize the stdout redirection
-        log_filename = self.get_log_filename()
-        self.debug_redirector = DebugRedirector(log_filename)
+        self.enable_pounce_log = params.get('enable_pounce_log', True)
+        self.debug_redirector = DebugRedirector(get_log_filename(), self.enable_pounce_log)
         self.debug_redirector.new_text.connect(self.append_output_text)
         sys.stdout = self.debug_redirector
 
@@ -564,10 +609,12 @@ class MainApp(QtWidgets.QMainWindow):
                 formatted_message = message.get('formatted_message')
 
                 if formatted_message is not None:
-                    if message_type == 'wanted_callsign_detected':
-                        if self.enable_alert_checkbox.isChecked():
-                            self.play_sound(message_type)
-                    elif message_type in {'directed_to_my_call', 'ready_to_log'}:
+                    if message_type in {
+                        'wanted_callsign_detected',
+                        'directed_to_my_call',
+                        'ready_to_log',
+                        'error_occurred'
+                    }:
                         if self.enable_alert_checkbox.isChecked():
                                 self.play_sound(message_type)
 
@@ -584,6 +631,8 @@ class MainApp(QtWidgets.QMainWindow):
                 self.directed_to_my_call_sound.play()
             elif sound_name == 'ready_to_log':
                 self.ready_to_log_sound.play()
+            elif sound_name == 'error_occurred':
+                self.error_occurred.play()                
             else:
                 print(f"Unknown sound: {sound_name}")
         except Exception as e:
@@ -623,6 +672,8 @@ class MainApp(QtWidgets.QMainWindow):
 
     def on_close(self, event):
         self.save_window_position()
+        if self._running:
+            self.stop_monitoring()
         event.accept()
 
     def open_settings(self):
@@ -635,7 +686,10 @@ class MainApp(QtWidgets.QMainWindow):
             params.update(new_params)
             self.save_params(params)
 
-            if self.monitoring_has_been_started:
+            self.enable_pounce_log = params.get('enable_pounce_log', True)
+            self.debug_redirector.enable_pounce_log = self.enable_pounce_log
+
+            if self._running:
                 self.stop_monitoring()
                 self.start_monitoring()
 
@@ -757,10 +811,6 @@ class MainApp(QtWidgets.QMainWindow):
         pyperclip.copy(text)
         print(f"Copied to clipboard: {text}")
 
-    def get_log_filename(self):
-        today = datetime.datetime.now().strftime("%y%m%d")
-        return f"{today}_pounce.log"
-
     def append_output_text(self, text):
         cursor = self.output_text.textCursor()
         cursor.movePosition(QtGui.QTextCursor.End)
@@ -861,7 +911,10 @@ class MainApp(QtWidgets.QMainWindow):
         primary_udp_server_port             = int(params.get('primary_udp_server_port') or DEFAULT_UDP_PORT)
         secondary_udp_server_address        = params.get('secondary_udp_server_address') or local_ip_address
         secondary_udp_server_port           = int(params.get('secondary_udp_server_port') or DEFAULT_UDP_PORT)
-        enable_sending_to_secondary_server  = params.get('enable_sending_to_secondary_server', False)
+        enable_secondary_udp_server  = params.get('enable_secondary_udp_server', False)
+        enable_sending_reply                = params.get('enable_sending_reply', True)
+        enable_debug_output                 = params.get('enable_debug_output', True)
+        enable_pounce_log                   = params.get('enable_pounce_log', True)
 
         self.update_wanted_callsigns_history(wanted_callsigns)
 
@@ -890,23 +943,26 @@ class MainApp(QtWidgets.QMainWindow):
             primary_udp_server_port,
             secondary_udp_server_address,
             secondary_udp_server_port,
-            enable_sending_to_secondary_server
+            enable_secondary_udp_server,
+            enable_sending_reply,
+            enable_debug_output,
+            enable_pounce_log
         )
         self.worker.moveToThread(self.thread)
 
         # Connect signals and slots
         self.thread.started.connect(self.worker.run)
         self.worker.finished.connect(self.thread.quit)
-        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
 
         # Connect worker's signals to the GUI slots
-        self.worker.finished.connect(self.stop_monitoring)
+        # self.worker.finished.connect(self.stop_monitoring)
         self.worker.error.connect(self.show_error_message)
         self.worker.message.connect(self.handle_message_received)
 
         self.thread.start()
-        self.monitoring_has_been_started = True
+        self._running = True
 
 
     def stop_monitoring(self):
@@ -916,16 +972,25 @@ class MainApp(QtWidgets.QMainWindow):
             tray_icon.stop()
             tray_icon = None
 
-        self.stop_event.set()
-        
-        self.run_button.setEnabled(True)
-        self.run_button.setText(WAIT_POUNCE_LABEL)
-        self.run_button.setStyleSheet("")
+        if self._running:
+            self.stop_event.set()
 
-        self.monitoring_has_been_started = False
+            if hasattr(self, 'thread') and self.thread.isRunning():
+                self.thread.quit()
+                self.thread.wait()
+                self.thread = None
 
-        self.counter_value_label.setStyleSheet("background-color: #D3D3D3;")
-        self.enable_inputs()
+            # Ne pas supprimer le worker ici, il sera supprimé automatiquement
+            self.worker = None
+
+            self.run_button.setEnabled(True)
+            self.run_button.setText(WAIT_POUNCE_LABEL)
+            self.run_button.setStyleSheet("")
+
+            self._running = False
+
+            self.counter_value_label.setStyleSheet("background-color: #D3D3D3;")
+            self.enable_inputs()
 
     def log_exception_to_file(self, filename, message):
         timestamp = datetime.datetime.now().strftime("%y%m%d_%H%M%S")

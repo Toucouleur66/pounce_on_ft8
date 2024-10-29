@@ -5,7 +5,6 @@ import pywsjtx.extra.simple_server
 import threading
 import traceback
 import socket
-import requests
 import re
 import traceback
 
@@ -18,25 +17,23 @@ from utils import get_local_ip_address
 class Listener:
     def __init__(
             self,
-            q,
-            config,
             primary_udp_server_address,
             primary_udp_server_port,
             secondary_udp_server_address,
             secondary_udp_server_port,
-            enable_sending_to_secondary_server,
+            enable_secondary_udp_server,
+            enable_sending_reply,
+            enable_debug_output,
+            enable_pounce_log,            
             wanted_callsigns,
             message_callback=None
         ):
-        log.debug('New Listener: ' + str(q))
-        self.config = config
+        log.debug('New Listener just Started')
+        
         self.my_call    = None
         self.my_grid    = None
         self.band       = None
         self.dx_call    = None
-
-        self.wanted_callsigns = set(wanted_callsigns)
-        self.message_callback = message_callback
 
         self.decode_packet_count = 0
         self.last_decode_packet_time = None
@@ -53,19 +50,25 @@ class Listener:
         self.rx_df                      = None
         self.tx_df                      = None
 
-        self.q = q
         self.unseen = []
         self.unseen_lock = threading.Lock()
 
         self.stopped = False
 
-        self.primary_udp_server_address = primary_udp_server_address or get_local_ip_address()
-        self.primary_udp_server_port = primary_udp_server_port or 2237
+        self.primary_udp_server_address     = primary_udp_server_address or get_local_ip_address()
+        self.primary_udp_server_port        = primary_udp_server_port or 2237
 
-        self.secondary_udp_server_address = secondary_udp_server_address or get_local_ip_address()
-        self.secondary_udp_server_port = secondary_udp_server_port or 2237
+        self.secondary_udp_server_address   = secondary_udp_server_address or get_local_ip_address()
+        self.secondary_udp_server_port      = secondary_udp_server_port or 2237
 
-        self.enable_sending_to_secondary_server = enable_sending_to_secondary_server or False
+        self.enable_secondary_udp_server    = enable_secondary_udp_server or False
+
+        self.enable_sending_reply           = enable_sending_reply
+        self.enable_debug_output            = enable_debug_output
+        self.enable_pounce_log              = enable_pounce_log 
+
+        self.wanted_callsigns               = set(wanted_callsigns)
+        self.message_callback               = message_callback
 
         self._running = True
 
@@ -136,16 +139,21 @@ class Listener:
             self.my_call    = self.the_packet.de_call
             self.my_grid    = self.the_packet.de_grid
             self.dx_call    = self.the_packet.dx_call
-            self.rx_df      = self.the_packet.rx_df            
+            self.tx_df      = self.the_packet.tx_df
+            self.rst_sent   = self.the_packet.report            
+            self.rx_df      = self.the_packet.rx_df  
+            self.mode       = self.the_packet.mode            
             self.band       = str(self.the_packet.dial_frequency / 1_000) + 'Khz'
-            self.frequency  = self.the_packet.dial_frequency  
+            self.frequency  = self.the_packet.dial_frequency            
 
-            # Todo: Handle next condition instead
-            # if self.ongoing_callsign is not None and self.ongoing_callsign == self.dx_call:
-            if self.ongoing_callsign is not None:
-                self.tx_df      = self.the_packet.tx_df
-                self.rst_sent   = self.the_packet.report
-                self.time_off   = datetime.now()
+            if self.ongoing_callsign is not None and self.ongoing_callsign == self.dx_call:
+                self.time_off   = datetime.now()  
+            elif self.ongoing_callsign is not None:
+                log.error('We should call [ {} ] not [ {} ]'.format(self.ongoing_callsign, self.dx_call))   
+                self.message_callback({
+                    'type': 'error_occurred',                
+                })
+
         except Exception as e:
             pass 
 
@@ -236,8 +244,6 @@ class Listener:
                     callsign = match.group(2)
                     msg = match.group(3)
 
-                    # log.debug(f"Duall-call message | directed={directed} callsign={callsign} msg={msg}")
-
                     if callsign in self.wanted_callsigns:
                         wanted_data = {
                             'cuarto': 15 * (datetime.now().second // 15),
@@ -261,7 +267,7 @@ class Listener:
                 if self.ongoing_callsign == callsign:
                     self.qso_time_off = decode_time
                     self.log_qso_to_adif()
-                    if self.enable_sending_to_secondary_server:
+                    if self.enable_secondary_udp_server:
                         self.log_qso_to_udp()
                     self.reset_ongoing_contact()
                 else:
@@ -281,7 +287,8 @@ class Listener:
                     self.grid               = grid or ''                    
                     self.qso_time_on        = decode_time
                     self.rst_rcvd           = msg
-                    self.mode               = self.the_packet.mode
+                    # We can't use self.the_packet.mode as it returns ~
+                    # self.mode               = self.the_packet.mode
 
                 if self.message_callback:
                     self.message_callback({
@@ -310,25 +317,15 @@ class Listener:
                 debug_message = "Found message directed to [ {} ] from callsign [ {} ]. Report: {}".format(directed, callsign, msg)
                 log.warning(debug_message)
 
-                try:
-                    bg = pywsjtx.QCOLOR.Red()
-                    fg = pywsjtx.QCOLOR.White()
+                if self.enable_sending_reply:
+                    try:
+                        reply_pkt = pywsjtx.ReplyPacket.Builder(self.the_packet)
+                        log.debug(f"Sending ReplyPacket: {reply_pkt}")
+                        self.s.send_packet(self.addr_port, reply_pkt)
+                        log.debug("ReplyPacket sent successfully.")
 
-                    # color_pkt = pywsjtx.HighlightCallsignPacket.Builder(
-                    #    self.the_packet.wsjtx_id, callsign, bg, fg, True
-                    # )
-                    # log.debug(f"Sending HighlightCallsignPacket: {color_pkt}")
-                    # self.s.send_packet(self.addr_port, color_pkt)
-                    # log.debug("HighlightCallsignPacket sent successfully.")
-
-                    # Construction et envoi du paquet Reply
-                    reply_pkt = pywsjtx.ReplyPacket.Builder(self.the_packet)
-                    log.debug(f"Sending ReplyPacket: {reply_pkt}")
-                    self.s.send_packet(self.addr_port, reply_pkt)
-                    log.debug("ReplyPacket sent successfully.")
-
-                except Exception as e:
-                    log.error(f"Error sending packets: {e}\n{traceback.format_exc()}")
+                    except Exception as e:
+                        log.error(f"Error sending packets: {e}\n{traceback.format_exc()}")
 
                 # Use message_callback to communicate with the GUI
                 if self.message_callback:
@@ -343,16 +340,16 @@ class Listener:
 
     def log_qso_to_adif(self):
         required_fields = {
-            'ongoing_callsign': self.ongoing_callsign,
-            'mode': self.mode,
-            'rst_sent': self.rst_sent,
-            'rst_rcvd': self.rst_rcvd,
-            'frequency': self.frequency,
-            'rx_df': self.rx_df,
-            'tx_df': self.tx_df,
-            'my_call': self.my_call,
-            'qso_time_on': self.qso_time_on,
-            'qso_time_off': self.qso_time_off
+            'ongoing_callsign'      : self.ongoing_callsign,
+            'mode'                  : self.mode,
+            'rst_sent'              : self.rst_sent,
+            'rst_rcvd'              : self.rst_rcvd,
+            'frequency'             : self.frequency,
+            'rx_df'                 : self.rx_df,
+            'tx_df'                 : self.tx_df,
+            'my_call'               : self.my_call,
+            'qso_time_on'           : self.qso_time_on,
+            'qso_time_off'          : self.qso_time_off
         }
 
         missing_fields = [name for name, value in required_fields.items() if not value]
