@@ -3,11 +3,11 @@
 import logging
 import sys
 from colorama import init, Back, Fore, Style
-from termcolor import colored
 
+# Init colorama for Windows
 init()
 
-LOG_FORMAT = "%(asctime)s | %(message)s"
+LOG_FORMAT = "%(asctime)s | %(name)s | %(levelname)s | %(message)s"
 
 class ColoredFormatter(logging.Formatter):
     COLOR_MAP = {
@@ -24,53 +24,45 @@ class ColoredFormatter(logging.Formatter):
         if color:
             message = f"{color}{message}{Style.RESET_ALL}"
         return message
-    
 
-class Logger(object):
-    def __init__(self, logger):
-        self.logger = logger
-        self.file_handler = None
+def configure_root_logger():
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)
 
-    def add_file_handler(self, filename):
-        if not self.file_handler:
-            file_handler = logging.FileHandler(filename)
-            file_formatter = logging.Formatter(LOG_FORMAT)
-            file_handler.setFormatter(file_formatter)
-            self.logger.addHandler(file_handler)
-            self.file_handler = file_handler
-            self.logger.info(f"FileHandler set for {filename}")
-
-    def remove_file_handler(self):
-        if self.file_handler:
-            self.logger.removeHandler(self.file_handler)
-            self.file_handler.close()
-            self.file_handler = None
-            self.logger.info("FileHandler removed")
-
-    def __getattr__(self, attr_name):
-        if attr_name == 'warn':
-            attr_name = 'warning'
-        if attr_name not in ['debug', 'info', 'warning', 'error', 'critical']:
-            return getattr(self.logger, attr_name)
-        log_level = getattr(logging, attr_name.upper())
-
-        def wrapped_attr(msg, *args, **kwargs):
-            if not self.logger.isEnabledFor(log_level):
-                return
-            # Do not use any ANSI code here
-            return self.logger._log(log_level, msg, args, **kwargs)
-        return wrapped_attr
-
-def get_logger(name):
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
+    if root_logger.hasHandlers():
+        root_logger.handlers.clear()
 
     console_handler = logging.StreamHandler(sys.stderr)
     console_formatter = ColoredFormatter(LOG_FORMAT)
     console_handler.setFormatter(console_formatter)
-    logger.addHandler(console_handler)
+    root_logger.addHandler(console_handler)
 
-    return logger
+def add_file_handler(filename):
+    root_logger = logging.getLogger()
+    file_handler = logging.FileHandler(filename)
+    file_formatter = logging.Formatter(LOG_FORMAT)
+    file_handler.setFormatter(file_formatter)
+    root_logger.addHandler(file_handler)
+    root_logger.info(f"FileHandler set for {filename}")
+    return file_handler
 
-logging.basicConfig(format=LOG_FORMAT, level=logging.DEBUG, stream=sys.stderr)
-LOGGER = Logger(get_logger(__name__))
+def remove_file_handler(file_handler):
+    root_logger = logging.getLogger()
+    root_logger.removeHandler(file_handler)
+    file_handler.close()
+    root_logger.info("FileHandler removed")
+
+configure_root_logger()
+
+def get_logger(name):
+    return logging.getLogger(name)
+
+LOGGER = get_logger(__name__)
+LOGGER.setLevel(logging.WARNING)
+LOGGER.propagate = False  
+
+def get_gui_logger():
+    gui_logger = get_logger('gui')
+    gui_logger.setLevel(logging.INFO)
+    gui_logger.propagate = False 
+    return gui_logger

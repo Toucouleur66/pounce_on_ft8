@@ -2,31 +2,27 @@
 
 import pywsjtx.extra.simple_server
 import threading
-import sys
 import signal
 import time
-import datetime
 import logging
 
+from logger import get_logger
 from wsjtx_listener import Listener
 from utils import is_in_wanted
 
-# Configuration du logging
-logging.basicConfig(level=logging.DEBUG)
-log = logging.getLogger(__name__)
+# logging.basicConfig(level=logging.DEBUG)
+log = get_logger(__name__)
+gui_log = get_logger('gui')
 
-# Gestion de l'événement d'arrêt global
 stop_event = threading.Event()
 
-# Gestionnaire de signaux pour arrêter proprement le programme
 def signal_handler(sig, frame):
-    print("Manual stop.")
+    log.info("Manual stop.")
     stop_event.set()
 
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
-# Classe personnalisée MyListener héritant de Listener
 class MyListener(Listener):
     def __init__(
             self,
@@ -63,11 +59,18 @@ class MyListener(Listener):
         try:
             super().handle_packet()
 
-            if isinstance(self.the_packet, (pywsjtx.HeartBeatPacket, pywsjtx.StatusPacket)) and self.enable_debug_output:
-                message = f"{self.the_packet}"
-                log.info(message)
-                if self.message_callback:
-                    self.message_callback(message)
+            if isinstance(self.the_packet, (pywsjtx.HeartBeatPacket, pywsjtx.StatusPacket)):
+                
+                # Needed to handle GUI window title
+                wsjtx_id = self.the_packet.wsjtx_id  
+                wsjtx_id_message = f"wsjtx_id:{wsjtx_id}"
+                self.message_callback(wsjtx_id_message)
+
+                if self.enable_debug_output:
+                    message = f"{self.the_packet}"
+                    log.info(message)
+                    if self.message_callback:
+                        self.message_callback(message)
 
             elif isinstance(self.the_packet, pywsjtx.DecodePacket):
                 is_from_wanted          = False
@@ -93,9 +96,7 @@ class MyListener(Listener):
                 )
 
                 if self.enable_show_all_decoded or is_from_wanted:
-                    log.info(display_message)
-                    if self.message_callback:
-                        self.message_callback(display_message)
+                    gui_log.info(display_message)
                         
         except Exception as e:
             log.error(f"Error handling packet: {e}", exc_info=True)
@@ -145,7 +146,7 @@ def main(
         while not stop_event.is_set():
             time.sleep(0.1)
     except KeyboardInterrupt:
-        print("Stop everything.")
+        log.info("Stop all.")
         stop_event.set()
     finally:
         listener.stop()

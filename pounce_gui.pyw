@@ -15,10 +15,12 @@ import re
 import time
 import pyperclip
 import wait_and_pounce
+import logging
 
 from PIL import Image, ImageDraw
 from utils import get_local_ip_address, get_log_filename
-from logger import LOGGER as log
+from logger import get_logger, add_file_handler, remove_file_handler
+from gui_handler import GUIHandler
 
 if platform.system() == 'Windows':
     from pystray import Icon, MenuItem
@@ -362,6 +364,15 @@ class CustomDialog(QtWidgets.QDialog):
     def get_result(self):
         return self.entry.toPlainText().strip()
 
+class GuiHandler(logging.Handler):
+    log_signal = pyqtSignal(str)
+    
+    def __init__(self):
+        super().__init__()
+    
+    def emit(self, record):
+        msg = self.format(record)
+        self.log_signal.emit(msg)
 
 class MainApp(QtWidgets.QMainWindow):
     error_occurred = QtCore.pyqtSignal(str)    
@@ -384,8 +395,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.ready_to_log_sound                 = QSound("sounds/716447__scottyd0es__tone12_msg_notification_1.wav")
         self.error_occurred_sound               = QSound("sounds/142608__autistic-lucario__error.wav")
 
-        self.setWindowTitle(GUI_LABEL_VERSION)
         self.setGeometry(100, 100, 900, 700)
+        self.base_title = GUI_LABEL_VERSION
+        self.setWindowTitle(self.base_title)
         
         # Main layout
         central_widget = QtWidgets.QWidget()
@@ -580,8 +592,17 @@ class MainApp(QtWidgets.QMainWindow):
         # Initialize the stdout redirection
         self.enable_pounce_log = params.get('enable_pounce_log', True)
        
+        self.file_handler = None
         if self.enable_pounce_log:
-            log.add_file_handler(get_log_filename())
+            self.file_handler = add_file_handler(get_log_filename())
+
+        self.gui_handler = GUIHandler(self.message_received.emit)
+        gui_logger = get_logger('gui')
+        gui_logger.addHandler(self.gui_handler)
+        gui_logger.setLevel(logging.INFO)
+
+        formatter = logging.Formatter("%(message)s")
+        self.gui_handler.setFormatter(formatter)
 
         self.check_fields()
         self.load_window_position()
@@ -619,7 +640,19 @@ class MainApp(QtWidgets.QMainWindow):
                     contains_my_call = message.get('contains_my_call')                        
                     self.update_focus_frame(formatted_message, contains_my_call)                            
         else:
-            self.append_output_text(str(message) + "\n")     
+            # Use this to handle window title update
+            if isinstance(message, str) and message.startswith("wsjtx_id:"):
+                wsjtx_id = message.split("wsjtx_id:")[1].strip()
+                self.update_window_title(wsjtx_id)
+            else:
+                self.append_output_text(str(message) + "\n")
+
+    def update_window_title(self, wsjtx_id):
+            new_title = f"{self.base_title} - {wsjtx_id}"
+            self.setWindowTitle(new_title)
+
+    def reset_window_title(self):
+        self.setWindowTitle(self.base_title)               
 
     def play_sound(self, sound_name):
         try:
@@ -690,9 +723,10 @@ class MainApp(QtWidgets.QMainWindow):
             log_filename = get_log_filename()
 
             if self.enable_pounce_log and not previous_enable_pounce_log:
-                log.add_file_handler(log_filename)
+                self.file_handler = add_file_handler(log_filename)
             elif not self.enable_pounce_log and previous_enable_pounce_log:
-                log.remove_file_handler()
+                remove_file_handler(self.file_handler)
+                self.file_handler = None
 
             if self._running:
                 self.stop_monitoring()
@@ -812,9 +846,9 @@ class MainApp(QtWidgets.QMainWindow):
             self.update_wanted_callsigns_history_counter()
 
     def copy_to_clipboard(self, event):
-        text = self.focus_value_label.text()
-        pyperclip.copy(text)
-        print(f"Copied to clipboard: {text}")
+        message = self.focus_value_label.text()
+        pyperclip.copy(message)
+        print(f"Copied to clipboard: {message}")
 
     def append_output_text(self, text):
         cursor = self.output_text.textCursor()
@@ -989,17 +1023,16 @@ class MainApp(QtWidgets.QMainWindow):
                 self.thread.wait()
                 self.thread = None
 
-            # Ne pas supprimer le worker ici, il sera supprimé automatiquement
             self.worker = None
+            self._running = False
 
             self.run_button.setEnabled(True)
             self.run_button.setText(WAIT_POUNCE_LABEL)
             self.run_button.setStyleSheet("")
 
-            self._running = False
-
             self.counter_value_label.setStyleSheet("background-color: #D3D3D3;")
             self.enable_inputs()
+            self.reset_window_title()
 
     def log_exception_to_file(self, filename, message):
         timestamp = datetime.datetime.now().strftime("%y%m%d_%H%M%S")
