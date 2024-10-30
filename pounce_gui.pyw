@@ -35,7 +35,7 @@ POSITION_FILE                       = "window_position.pkl"
 WANTED_CALLSIGNS_FILE               = "wanted_callsigns.pkl"
 WANTED_CALLSIGNS_HISTORY_SIZE       = 50
 
-GUI_LABEL_VERSION                   = f"Wait and Pounce v{version_number} with UDP"
+GUI_LABEL_VERSION                   = f"Wait and Pounce v{version_number} by F5UKW"
 RUNNING_TEXT_BUTTON                 = "Running..."
 WAIT_POUNCE_LABEL                   = "Listen UDP Packets & Pounce"
 NOTHING_YET                         = "Nothing yet"
@@ -57,16 +57,12 @@ inputs_enabled = True
 courier_font                = QtGui.QFont("Courier", 10)
 courier_font_bold           = QtGui.QFont("Courier", 12, QtGui.QFont.Bold)
 
-custom_font                 = QtGui.QFont("Helvetica", 12)
-custom_font_lg              = QtGui.QFont("Helvetica", 18)
-custom_font_bold            = QtGui.QFont("Helvetica", 12, QtGui.QFont.Bold)
-
 if platform.system() == 'Windows':
     custom_font             = QtGui.QFont("Consolas", 12)
     custom_font_lg          = QtGui.QFont("Consolas", 18)
     custom_font_bold        = QtGui.QFont("Consolas", 12, QtGui.QFont.Bold)
 elif platform.system() == 'Darwin':
-    custom_font             = QtGui.QFont("Menlo", 12)
+    custom_font             = QtGui.QFont("Menlo", 14)
     custom_font_lg          = QtGui.QFont("Menlo", 18)
     custom_font_bold        = QtGui.QFont("Menlo", 12, QtGui.QFont.Bold)
 
@@ -364,7 +360,7 @@ class CustomDialog(QtWidgets.QDialog):
     def get_result(self):
         return self.entry.toPlainText().strip()
 
-class GuiHandler(logging.Handler):
+class GuiHandler(logging.Handler, QObject):
     log_signal = pyqtSignal(str)
     
     def __init__(self):
@@ -648,7 +644,7 @@ class MainApp(QtWidgets.QMainWindow):
                 self.append_output_text(str(message) + "\n")
 
     def update_window_title(self, wsjtx_id):
-            new_title = f"{self.base_title} - {wsjtx_id}"
+            new_title = f"{self.base_title} - Connected to {wsjtx_id}"
             self.setWindowTitle(new_title)
 
     def reset_window_title(self):

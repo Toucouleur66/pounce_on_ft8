@@ -2,6 +2,8 @@
 
 ## About
 
+"Wait and Pounce" lets you respond to incoming messages from wanted callsigns.
+
 This repository contains the source code used to handle FT8 QSO automation for `WSJT-X` or `JTDX`. This type of automation is not recommended but remains usefull to avoid to spend your entire life waiting in front of your screen because listening to audio alone does not allow you to decode anything in `FT8` (or `SuperFox`). This did not prevent me from having to make many iterations to this program to make it work. Basically, it will read your `ALL.TXT` log files, check for some sequences, and will Enable or Disable TX on your `JTDX` or `WSJT-X` instance. It does support `SuperFox Mode (S/F)`.
 
 Please check the `TODO`.

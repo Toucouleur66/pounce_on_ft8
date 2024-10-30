@@ -6,13 +6,13 @@ import signal
 import time
 import logging
 
-from logger import get_logger
+from logger import get_logger, get_gui_logger
 from wsjtx_listener import Listener
 from utils import is_in_wanted
 
 # logging.basicConfig(level=logging.DEBUG)
 log = get_logger(__name__)
-gui_log = get_logger('gui')
+gui_log = get_gui_logger()
 
 stop_event = threading.Event()
 
@@ -88,15 +88,15 @@ class MyListener(Listener):
                     message_color_text  = "black_on_yellow"
 
                 display_message = (
-                    f"Decode at {decode_time_str} "
-                    f"SNR {snr:+3d} dB "
+                    f"{decode_time_str} "
+                    f"{snr:+3d} dB "
                     f"{delta_time:+5.1f}s "
                     f"{delta_frequency:+6d}Hz ~ "
                     f"[{message_color_text}]{message_text:<21.21}[/{message_color_text}]"
                 )
 
                 if self.enable_show_all_decoded or is_from_wanted:
-                    gui_log.info(display_message)
+                    gui_log.info(display_message, extra={'to_gui': True})
                         
         except Exception as e:
             log.error(f"Error handling packet: {e}", exc_info=True)
