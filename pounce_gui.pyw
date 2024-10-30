@@ -18,7 +18,7 @@ import wait_and_pounce
 import logging
 
 from PIL import Image, ImageDraw
-from utils import get_local_ip_address, get_log_filename
+from utils import get_local_ip_address, get_log_filename, force_uppercase
 from logger import get_logger, add_file_handler, remove_file_handler
 from gui_handler import GUIHandler
 
@@ -334,7 +334,7 @@ class SettingsDialog(QtWidgets.QDialog):
             'enable_show_all_decoded'           : self.enable_show_all_decoded.isChecked()            
         }
 
-class CustomDialog(QtWidgets.QDialog):
+class EditWantedDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, initial_value="", title="Edit Wanted Callsigns"):
         super().__init__(parent)
         self.setWindowTitle(title)
@@ -347,6 +347,7 @@ class CustomDialog(QtWidgets.QDialog):
 
         self.entry = QtWidgets.QTextEdit()
         self.entry.setText(initial_value)
+        self.entry.textChanged.connect(lambda: force_uppercase(self.entry))
         layout.addWidget(self.entry)
 
         button_box = QtWidgets.QDialogButtonBox(
@@ -467,7 +468,7 @@ class MainApp(QtWidgets.QMainWindow):
             radio_superfox.setChecked(True)
 
         # Signals
-        self.wanted_callsigns_var.textChanged.connect(self.force_uppercase)
+        self.wanted_callsigns_var.textChanged.connect(lambda: force_uppercase(self.wanted_callsigns_var))
         self.wanted_callsigns_var.textChanged.connect(self.check_fields)
 
         # Wanted callsigns label
@@ -738,9 +739,6 @@ class MainApp(QtWidgets.QMainWindow):
         QtCore.QProcess.startDetached(sys.executable, sys.argv)
         QtWidgets.QApplication.quit()
 
-    def force_uppercase(self):
-        self.wanted_callsigns_var.setText(self.wanted_callsigns_var.text().upper())
-
     def check_fields(self):
         if self.wanted_callsigns_var.text():
             self.run_button.setEnabled(True)
@@ -832,7 +830,7 @@ class MainApp(QtWidgets.QMainWindow):
         if not selected_items:
             return
         current_callsign = selected_items[0].text()
-        dialog = CustomDialog(self, initial_value=current_callsign)
+        dialog = EditWantedDialog(self, initial_value=current_callsign)
         if dialog.exec_() == QtWidgets.QDialog.Accepted:
             new_callsign = dialog.get_result()
             index = self.listbox.row(selected_items[0])

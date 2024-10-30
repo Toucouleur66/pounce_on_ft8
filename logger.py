@@ -7,7 +7,8 @@ from colorama import init, Back, Fore, Style
 # Init colorama for Windows
 init()
 
-LOG_FORMAT = "%(asctime)s | %(name)s | %(levelname)s | %(message)s"
+# LOG_FORMAT = "%(asctime)s @%(name)s [%(levelname)s] | %(message)s"
+LOG_FORMAT = "[%(asctime)s]\t@%(name)s [%(levelname)s] --:\n\t%(message)s"
 
 class ColoredFormatter(logging.Formatter):
     COLOR_MAP = {
@@ -19,6 +20,8 @@ class ColoredFormatter(logging.Formatter):
     }
 
     def format(self, record):
+        # Use first name only for log level
+        record.level_short = record.levelname[0]
         color = self.COLOR_MAP.get(record.levelname, "")
         message = super().format(record)
         if color:
@@ -32,15 +35,17 @@ def configure_root_logger():
     if root_logger.hasHandlers():
         root_logger.handlers.clear()
 
+    date_format = "%y%m%d_%H%M%S"  # YYMMDD_HHMMSS        
+
     console_handler = logging.StreamHandler(sys.stderr)
-    console_formatter = ColoredFormatter(LOG_FORMAT)
+    console_formatter = ColoredFormatter(LOG_FORMAT, datefmt=date_format)
     console_handler.setFormatter(console_formatter)
     root_logger.addHandler(console_handler)
 
 def add_file_handler(filename):
     root_logger = logging.getLogger()
+    file_formatter = logging.Formatter(LOG_FORMAT, datefmt="%y%m%d_%H%M%S")    
     file_handler = logging.FileHandler(filename)
-    file_formatter = logging.Formatter(LOG_FORMAT)
     file_handler.setFormatter(file_formatter)
     root_logger.addHandler(file_handler)
     root_logger.info(f"FileHandler set for {filename}")

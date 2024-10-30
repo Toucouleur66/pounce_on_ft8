@@ -301,23 +301,23 @@ class StatusPacket(GenericWSJTXPacket):
         self.special_op_mode = ps.QInt8()
 
     def __repr__(self):
-        str =  'StatusPacket: from {}:{}\n\twsjtx id:{}\t\tde_call:{}\tde_grid:{}\n'.format(
+        str =  'StatusPacket: from {}:{}\n\twsjtx id:{}\t\tde_call:{}\tde_grid:{}\tfrequency:{}\n'.format(
             self.addr_port[0],
             self.addr_port[1],
             self.wsjtx_id,
             self.de_call,
-            self.de_grid
+            self.de_grid,
+            self.dial_frequency / 1_000            
         )
 
-        str += "\tfrequency:{}\trx_df:{}\ttx_df:{}\tdx_call:{}\tdx_grid:{}\treport:{}\n".format(
-            self.dial_frequency,
+        str += "\trx_df:{}\ttx_df:{}\tdx_call:{}\tdx_grid:{}\treport:{}\n".format(
             self.rx_df,
             self.tx_df,
             self.dx_call,
             self.dx_grid,
             self.report
         )
-        str += "\ttransmitting:{}\tdecoding:{}\ttx_enabled:{}\ttx_watchdog:{}\tmode:{}\tsub_mode:{}\tfast_mode:{}\tspecial_op_mode:{}".format(
+        str += "\ttransmitting:{}\tdecoding:{}\ttx_enabled:{}\ttx_watchdog:{}\tmode:{}\n\tsub_mode:{}\tfast_mode:{}\tspecial_op_mode:{}".format(
             self.transmitting,
             self.decoding,
             self.tx_enabled,

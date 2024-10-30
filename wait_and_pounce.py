@@ -95,6 +95,10 @@ class MyListener(Listener):
                     f"[{message_color_text}]{message_text:<21.21}[/{message_color_text}]"
                 )
 
+                if self.enable_debug_output:
+                    message = f"{self.the_packet.message}"
+                    log.info(message)
+
                 if self.enable_show_all_decoded or is_from_wanted:
                     gui_log.info(display_message, extra={'to_gui': True})
                         
@@ -146,9 +150,7 @@ def main(
         while not stop_event.is_set():
             time.sleep(0.1)
     except KeyboardInterrupt:
-        log.info("Stop all.")
         stop_event.set()
     finally:
         listener.stop()
         listener.t.join()
-        log.info("Listener stopped.")

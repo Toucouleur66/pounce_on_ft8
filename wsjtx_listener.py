@@ -11,8 +11,10 @@ import traceback
 from wsjtx_packet_sender import WSJTXPacketSender
 from datetime import datetime
 from termcolor import colored
-from logger import LOGGER as log
+from logger import get_logger, get_gui_logger
 from utils import get_local_ip_address
+
+log = get_logger(__name__)
 
 class Listener:
     def __init__(
@@ -30,8 +32,7 @@ class Listener:
             wanted_callsigns,
             message_callback=None
         ):
-        log.debug('New Listener just Started')
-        
+      
         self.my_call    = None
         self.my_grid    = None
         self.band       = None
@@ -146,7 +147,7 @@ class Listener:
 
     def listen(self):
         self.t = threading.Thread(target=self.doListen, daemon=True)
-        log.info("Listener started {}:{}".format(self.primary_udp_server_address, self.primary_udp_server_port))
+        log.info("Listener:{}:{} started".format(self.primary_udp_server_address, self.primary_udp_server_port))
         self.t.start()
 
     def heartbeat(self):
@@ -161,14 +162,14 @@ class Listener:
             self.my_call    = self.the_packet.de_call
             self.my_grid    = self.the_packet.de_grid
             self.dx_call    = self.the_packet.dx_call
-            self.tx_df      = self.the_packet.tx_df
-            self.rst_sent   = self.the_packet.report            
+            self.tx_df      = self.the_packet.tx_df       
             self.rx_df      = self.the_packet.rx_df  
             self.mode       = self.the_packet.mode            
             self.band       = str(self.the_packet.dial_frequency / 1_000) + 'Khz'
             self.frequency  = self.the_packet.dial_frequency            
 
             if self.ongoing_callsign is not None and self.ongoing_callsign == self.dx_call:
+                self.rst_sent   = self.the_packet.report     
                 self.time_off   = datetime.now()  
             elif self.ongoing_callsign is not None:
                 log.error('We should call [ {} ] not [ {} ]'.format(self.ongoing_callsign, self.dx_call))   
@@ -224,7 +225,7 @@ class Listener:
             log.debug('{}'.format(self.the_packet))
 
         try:
-            wanted_data     = None
+            wanted_callsign = None
             directed        = None
             msg             = None
             callsign        = None
@@ -250,8 +251,7 @@ class Listener:
                 grid        = match.group(4)
 
                 if callsign in self.wanted_callsigns:
-                    wanted_data = {
-                        'cuarto': 15 * (datetime.now().second // 15),
+                    wanted_callsign = {
                         'directed': directed,
                         'callsign': callsign,
                         'grid': grid,
@@ -268,8 +268,7 @@ class Listener:
                     msg = match.group(3)
 
                     if callsign in self.wanted_callsigns:
-                        wanted_data = {
-                            'cuarto': 15 * (datetime.now().second // 15),
+                        wanted_callsign = {
                             'directed': directed,
                             'callsign': callsign,
                             'msg': msg
@@ -279,39 +278,46 @@ class Listener:
                 self.qso_time_on is not None and
                 (datetime.now() - self.qso_time_on).total_seconds() > 120 and
                 callsign != self.ongoing_callsign and            
-                wanted_data is not None
+                wanted_callsign is not None
             ):
-                log.warning("Waiting to decode [ {} ] but we are about to switch on [ {} ]".format(self.ongoing_callsign, callsign))
+                log.warning("Waiting [ {} ] but we are about to switch on [ {} ]".format(self.ongoing_callsign, callsign))
                 self.reset_ongoing_contact()
 
             if directed == self.my_call and msg in {"RR73", "73"}:
-                log.warning("Found message to log [ {} ]".format(callsign))
-
                 if self.ongoing_callsign == callsign:
+                    log.warning("Found message to log [ {} ]".format(self.ongoing_callsign))
                     self.qso_time_off = decode_time
                     self.log_qso_to_adif()
                     if self.enable_secondary_udp_server:
                         self.log_qso_to_udp()
                     self.reset_ongoing_contact()
-                else:
-                    log.error(f"Received |{msg}| from <{callsign}> but ongoing callsign is <{self.ongoing_callsign}>")
+                    # Make sure to remove this callsign once QSO done
+                    self.wanted_callsigns.remove(callsign)
 
-                if self.message_callback:
-                    self.message_callback({
-                        'type': 'ready_to_log',
-                        'formatted_message': formatted_message
-                    })        
+                    if self.message_callback:
+                        self.message_callback({
+                            'type': 'ready_to_log',
+                            'formatted_message': formatted_message
+                        })        
+                else:
+                    log.error(f"Received |{msg}| from [ {callsign} ] but ongoing callsign is [ {self.ongoing_callsign} ]")
+                    if self.message_callback:
+                        self.message_callback({
+                            'type': 'error_occurred',                
+                        })
+                
             elif directed == self.my_call:
                 log.warning("Found message directed to my call [ {} ] from [ {} ]".format(directed, callsign))
 
-                if wanted_data is not None and self.ongoing_callsign is None:
-                    log.warning("Start focus on callsign [ {} ]".format(callsign))
+                if wanted_callsign is not None and self.ongoing_callsign is None:                    
                     self.ongoing_callsign   = callsign                    
                     self.grid               = grid or ''                    
                     self.qso_time_on        = decode_time
                     self.rst_rcvd           = msg
-                    # We can't use self.the_packet.mode as it returns ~
-                    # self.mode               = self.the_packet.mode
+
+                    log.warning("Start focus on callsign [ {} ] {}".format(self.ongoing_callsign, self.rst_rcvd))
+                    # We can't use self.the_packet.mode as it returns "~"
+                    # self.mode             = self.the_packet.mode
 
                 if self.message_callback:
                     self.message_callback({
@@ -320,11 +326,11 @@ class Listener:
                         'contains_my_call': True
                     })                            
 
-            elif wanted_data is not None:
-                wanted_data['packet'] = self.the_packet
-                wanted_data['addr_port'] = self.addr_port
-                log.debug("Listener wanted_data {}".format(wanted_data))
-                self.unseen.append(wanted_data)
+            elif wanted_callsign is not None:
+                wanted_callsign['packet'] = self.the_packet
+                wanted_callsign['addr_port'] = self.addr_port
+                log.debug("Listener wanted_callsign {}".format(wanted_callsign))
+                self.unseen.append(wanted_callsign)
 
                 contains_my_call = False
                 if self.my_call in message:
@@ -420,7 +426,6 @@ class Listener:
 
     def log_qso_to_udp(self):
         try:
-
             awaited_rst_sent = self.get_clean_rst(self.rst_sent)
             awaited_rst_rcvd = self.get_clean_rst(self.rst_rcvd)
 
