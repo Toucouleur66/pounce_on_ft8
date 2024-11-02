@@ -48,6 +48,9 @@ END_COLOR = (240, 240, 240)
 EVEN_COLOR = "#9dfffe"
 ODD_COLOR = "#fffe9f"
 
+BG_COLOR_MY_CALL = "#80d0d0"
+FG_COLOR_MY_CALL = "#000000"
+
 DEFAULT_UDP_PORT = 2237
 
 gui_queue = queue.Queue()
@@ -346,6 +349,7 @@ class EditWantedDialog(QtWidgets.QDialog):
         layout.addWidget(label)
 
         self.entry = QtWidgets.QTextEdit()
+        self.entry.setAcceptRichText(False)
         self.entry.setText(initial_value)
         self.entry.textChanged.connect(lambda: force_uppercase(self.entry))
         layout.addWidget(self.entry)
@@ -429,6 +433,7 @@ class MainApp(QtWidgets.QMainWindow):
             'white_on_red': QtGui.QTextCharFormat(),
             'white_on_blue': QtGui.QTextCharFormat(),
             'bright_green': QtGui.QTextCharFormat(),
+            'bright_for_my_call': QtGui.QTextCharFormat(),            
         }
 
         self.text_formats['black_on_purple'].setForeground(QtGui.QBrush(QtGui.QColor('black')))
@@ -450,6 +455,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.text_formats['white_on_blue'].setBackground(QtGui.QBrush(QtGui.QColor('blue')))
 
         self.text_formats['bright_green'].setForeground(QtGui.QBrush(QtGui.QColor('green')))
+
+        self.text_formats['bright_for_my_call'].setForeground(QtGui.QBrush(QtGui.QColor(FG_COLOR_MY_CALL)))
+        self.text_formats['bright_for_my_call'].setBackground(QtGui.QBrush(QtGui.QColor(BG_COLOR_MY_CALL)))
 
         params = self.load_params()
 
@@ -477,6 +485,7 @@ class MainApp(QtWidgets.QMainWindow):
         # Listbox (wanted callsigns)
         self.listbox = QtWidgets.QListWidget()
         self.listbox.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self.listbox.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.listbox.itemClicked.connect(self.on_listbox_select)
 
         # Context menu for listbox
@@ -594,12 +603,11 @@ class MainApp(QtWidgets.QMainWindow):
             self.file_handler = add_file_handler(get_log_filename())
 
         self.gui_handler = GUIHandler(self.message_received.emit)
+        self.gui_handler.setFormatter(logging.Formatter("%(message)s"))
+
         gui_logger = get_logger('gui')
         gui_logger.addHandler(self.gui_handler)
-        gui_logger.setLevel(logging.INFO)
-
-        formatter = logging.Formatter("%(message)s")
-        self.gui_handler.setFormatter(formatter)
+        gui_logger.setLevel(logging.DEBUG)
 
         self.check_fields()
         self.load_window_position()
@@ -623,9 +631,11 @@ class MainApp(QtWidgets.QMainWindow):
                 )
             else:
                 formatted_message = message.get('formatted_message')
-
-                if formatted_message is not None:
-                    if message_type in {
+                if formatted_message is not None:                    
+                    contains_my_call = message.get('contains_my_call')                        
+                    self.update_focus_frame(formatted_message, contains_my_call)                            
+                
+                if message_type in {
                         'wanted_callsign_detected',
                         'directed_to_my_call',
                         'ready_to_log',
@@ -633,9 +643,7 @@ class MainApp(QtWidgets.QMainWindow):
                     }:
                         if self.enable_alert_checkbox.isChecked():
                                 self.play_sound(message_type)
-
-                    contains_my_call = message.get('contains_my_call')                        
-                    self.update_focus_frame(formatted_message, contains_my_call)                            
+    
         else:
             # Use this to handle window title update
             if isinstance(message, str) and message.startswith("wsjtx_id:"):
@@ -660,7 +668,7 @@ class MainApp(QtWidgets.QMainWindow):
             elif sound_name == 'ready_to_log':
                 self.ready_to_log_sound.play()
             elif sound_name == 'error_occurred':
-                self.error_occurred.play()                
+                self.error_occurred_sound.play()                
             else:
                 print(f"Unknown sound: {sound_name}")
         except Exception as e:
@@ -669,11 +677,12 @@ class MainApp(QtWidgets.QMainWindow):
     def update_focus_frame(self, formatted_message, contains_my_call):
         self.focus_value_label.setText(formatted_message)
         if contains_my_call:
-            bg_color_hex = "#80d0d0"
-            fg_color_hex = "#000000"
+            bg_color_hex = BG_COLOR_MY_CALL
+            fg_color_hex = FG_COLOR_MY_CALL
         else:
             bg_color_hex = "#000000"
             fg_color_hex = "#01ffff"
+            
         self.focus_value_label.setStyleSheet(f"background-color: {bg_color_hex}; color: {fg_color_hex}; padding: 10px;")
         self.focus_frame.show()
 
@@ -963,8 +972,6 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.counter_value_label.setText(WAITING_DATA_PACKETS_LABEL)    
         self.counter_value_label.setStyleSheet("background-color: yellow; color: black;")
-
-        message_callback = self.message_received.emit
 
         # Create a QThread and a Worker object
         self.thread = QThread()

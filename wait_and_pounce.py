@@ -1,17 +1,16 @@
 # wait_and_pounce.py
 
 import pywsjtx.extra.simple_server
+
 import threading
 import signal
 import time
-import logging
 
 from logger import get_logger, get_gui_logger
 from wsjtx_listener import Listener
 from utils import is_in_wanted
 
-# logging.basicConfig(level=logging.DEBUG)
-log = get_logger(__name__)
+log     = get_logger(__name__)
 gui_log = get_gui_logger()
 
 stop_event = threading.Event()
@@ -59,17 +58,20 @@ class MyListener(Listener):
         try:
             super().handle_packet()
 
-            if isinstance(self.the_packet, (pywsjtx.HeartBeatPacket, pywsjtx.StatusPacket)):
+            if isinstance(self.the_packet, (
+                pywsjtx.HeartBeatPacket,
+                pywsjtx.StatusPacket
+            )):
                 
                 # Needed to handle GUI window title
                 wsjtx_id = self.the_packet.wsjtx_id  
                 wsjtx_id_message = f"wsjtx_id:{wsjtx_id}"
                 self.message_callback(wsjtx_id_message)
 
-                if self.enable_debug_output:
+                if self.enable_pounce_log:
                     message = f"{self.the_packet}"
                     log.info(message)
-                    if self.message_callback:
+                    if self.message_callback and self.enable_debug_output:
                         self.message_callback(message)
 
             elif isinstance(self.the_packet, pywsjtx.DecodePacket):
@@ -77,25 +79,28 @@ class MyListener(Listener):
                 decode_time             = self.the_packet.time
                 decode_time_str         = decode_time.strftime('%Y-%m-%d %H:%M:%S')
 
-                message_text            = self.the_packet.message
+                msg                     = self.the_packet.message
                 snr                     = self.the_packet.snr
                 delta_time              = self.the_packet.delta_t
                 delta_frequency         = self.the_packet.delta_f
 
-                message_color_text      = "white_on_blue"
-                if is_in_wanted(message_text, self.wanted_callsigns):
+                msg_color_text          = "white_on_blue"
+                if is_in_wanted(msg, self.wanted_callsigns):
                     is_from_wanted = True
-                    message_color_text  = "black_on_yellow"
+                    if self.my_call in msg:
+                        msg_color_text = "bright_for_my_call"
+                    else:                           
+                        msg_color_text  = "black_on_yellow"
 
                 display_message = (
                     f"{decode_time_str} "
                     f"{snr:+3d} dB "
                     f"{delta_time:+5.1f}s "
                     f"{delta_frequency:+6d}Hz ~ "
-                    f"[{message_color_text}]{message_text:<21.21}[/{message_color_text}]"
+                    f"[{msg_color_text}]{msg:<21.21}[/{msg_color_text}]"
                 )
 
-                if self.enable_debug_output:
+                if self.enable_pounce_log:
                     message = f"{self.the_packet.message}"
                     log.info(message)
 

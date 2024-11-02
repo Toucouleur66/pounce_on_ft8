@@ -8,7 +8,7 @@ from colorama import init, Back, Fore, Style
 init()
 
 # LOG_FORMAT = "%(asctime)s @%(name)s [%(levelname)s] | %(message)s"
-LOG_FORMAT = "[%(asctime)s]\t@%(name)s [%(levelname)s] --:\n\t%(message)s"
+LOG_FORMAT = "[%(asctime)s @%(name)s] %(levelname)s --:\n\t%(message)s"
 
 class ColoredFormatter(logging.Formatter):
     COLOR_MAP = {
@@ -68,6 +68,6 @@ LOGGER.propagate = False
 
 def get_gui_logger():
     gui_logger = get_logger('gui')
-    gui_logger.setLevel(logging.INFO)
+    gui_logger.setLevel(logging.DEBUG)
     gui_logger.propagate = False 
     return gui_logger
