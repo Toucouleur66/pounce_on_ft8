@@ -2,6 +2,7 @@
 
 import socket
 import datetime
+import re
 
 from PyQt5.QtWidgets import QTextEdit, QLineEdit
 from PyQt5.QtGui import QTextCursor
@@ -20,6 +21,40 @@ def get_local_ip_address():
 def get_log_filename():
     today = datetime.datetime.now().strftime("%y%m%d")
     return f"{today}_pounce.log"
+
+def parse_wsjtx_message(message, wanted_callsigns):
+    directed  = None
+    callsign  = None
+    grid      = None
+    msg       = None
+    cq        = False
+    wanted    = False
+
+    match = re.match(r"^CQ\s+(?:(\w{2,3})\s+)?([A-Z0-9/]+)(?:\s+([A-Z]{2}\d{2}))?", message)
+    if match:
+        cq = True
+        directed = match.group(1)
+        callsign = match.group(2)
+        grid = match.group(3)
+
+    else:
+        match = re.match(r"^([A-Z0-9/]+)\s+([A-Z0-9/]+)\s+([A-Z0-9+-]+)", message)
+        if match:
+            directed = match.group(1)
+            callsign = match.group(2)
+            msg = match.group(3)
+
+    if callsign in wanted_callsigns:
+        wanted = True         
+
+    return {
+        'directed' : directed,
+        'callsign' : callsign,
+        'grid'     : grid,
+        'msg'      : msg,
+        'cq'       : cq,
+        'wanted'   : wanted
+    }
 
 def is_in_wanted(message, wanted_callsigns):
     for callsign in wanted_callsigns:

@@ -8,7 +8,7 @@ import time
 
 from logger import get_logger, get_gui_logger
 from wsjtx_listener import Listener
-from utils import is_in_wanted
+from utils import is_in_wanted, parse_wsjtx_message
 
 log     = get_logger(__name__)
 gui_log = get_gui_logger()
@@ -31,6 +31,7 @@ class MyListener(Listener):
             secondary_udp_server_port,
             enable_secondary_udp_server,
             enable_sending_reply,
+            enable_watchdog_bypass,
             enable_debug_output,
             enable_pounce_log,
             enable_log_packet_data, 
@@ -45,6 +46,7 @@ class MyListener(Listener):
             secondary_udp_server_port,
             enable_secondary_udp_server,
             enable_sending_reply,
+            enable_watchdog_bypass,
             enable_debug_output,
             enable_pounce_log,
             enable_log_packet_data, 
@@ -124,6 +126,7 @@ def main(
         secondary_udp_server_port,
         enable_secondary_udp_server,
         enable_sending_reply,
+        enable_watchdog_bypass,
         enable_debug_output,
         enable_pounce_log,
         enable_log_packet_data,
@@ -141,6 +144,7 @@ def main(
         secondary_udp_server_port,
         enable_secondary_udp_server,
         enable_sending_reply,
+        enable_watchdog_bypass,
         enable_debug_output,
         enable_pounce_log,
         enable_log_packet_data,

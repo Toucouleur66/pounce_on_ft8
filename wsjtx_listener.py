@@ -6,13 +6,15 @@ import threading
 import traceback
 import socket
 import re
+import bisect
 import traceback
 
 from wsjtx_packet_sender import WSJTXPacketSender
 from datetime import datetime
+from collections import deque
 
 from logger import get_logger
-from utils import get_local_ip_address
+from utils import get_local_ip_address, parse_wsjtx_message
 
 log     = get_logger(__name__)
 
@@ -25,6 +27,7 @@ class Listener:
             secondary_udp_server_port,
             enable_secondary_udp_server,
             enable_sending_reply,
+            enable_watchdog_bypass,
             enable_debug_output,
             enable_pounce_log,        
             enable_log_packet_data, 
@@ -38,9 +41,9 @@ class Listener:
         self.band       = None
         self.dx_call    = None
 
-        self.decode_packet_count = 0
-        self.last_decode_packet_time = None
-        self.last_heartbeat_time = None
+        self.decode_packet_count        = 0
+        self.last_decode_packet_time    = None
+        self.last_heartbeat_time        = None
 
         self.dx_being_called            = None
         self.grid_being_called          = None
@@ -54,10 +57,8 @@ class Listener:
         self.rx_df                      = None
         self.tx_df                      = None
 
-        self.unseen = []
-        self.unseen_lock = threading.Lock()
-
-        self.stopped = False
+        self.unseen                     = []
+        self.unseen_lock                = threading.Lock()
 
         self.primary_udp_server_address     = primary_udp_server_address or get_local_ip_address()
         self.primary_udp_server_port        = primary_udp_server_port or 2237
@@ -68,6 +69,7 @@ class Listener:
         self.enable_secondary_udp_server    = enable_secondary_udp_server or False
 
         self.enable_sending_reply           = enable_sending_reply
+        self.enable_watchdog_bypass         = enable_watchdog_bypass
         self.enable_debug_output            = enable_debug_output
         self.enable_pounce_log              = enable_pounce_log 
         self.enable_log_packet_data         = enable_log_packet_data
@@ -76,7 +78,14 @@ class Listener:
         self.wanted_callsigns               = set(wanted_callsigns)
         self.message_callback               = message_callback
 
-        self._running = True
+        self._running                       = True
+
+        # To check gap, we keep a list of used df
+        self.last_period_index              = None
+        self.used_frequencies               = {
+            'even'                          : deque([set()], maxlen=2),
+            'odd'                           : deque([set()], maxlen=2)
+        }
 
         try:
             self.s = pywsjtx.extra.simple_server.SimpleServer(
@@ -172,21 +181,24 @@ class Listener:
             self.band       = str(self.the_packet.dial_frequency / 1_000) + 'Khz'
             self.frequency  = self.the_packet.dial_frequency            
 
-            # watchdog or Tx disabled
-            if (
-                self.the_packet.tx_watchdog == 1 or 
-                (
-                    self.the_packet.tx_enabled == 0 and 
-                    self.dx_being_called is not None
-                )
-            ):
-                self.reset_ongoing_contact()
-                if self.the_packet.tx_watchdog == 1:
-                    log.error('Watchdog enabled')   
-                else:
-                    log.error('Tx disabled')   
+            error_found     = False
 
-                if self.message_callback:
+            log.warning('Used frequencies: {}'.format(self.used_frequencies))
+
+            # Handle logic when we get watchdog or Tx disabled
+            if self.dx_being_called is not None:
+                if self.the_packet.tx_watchdog == 1:
+                    error_found = True
+                    log.error('Watchdog enabled')
+                    if self.enable_watchdog_bypass :
+                        self.reset_ongoing_contact()
+
+                elif self.the_packet.tx_enabled == 0:
+                    error_found = True
+                    log.error('Tx disabled')   
+                    self.reset_ongoing_contact()
+
+                if error_found and self.message_callback:
                     self.message_callback({
                         'type': 'error_occurred',                
                     })
@@ -205,17 +217,18 @@ class Listener:
             pass 
 
     def handle_packet(self):
-        if type(self.the_packet) == pywsjtx.HeartBeatPacket:
+        if isinstance(self.the_packet, pywsjtx.HeartBeatPacket):
             self.last_heartbeat_time = datetime.now()
             self.heartbeat()
             self.send_status_update()
-        elif type(self.the_packet) == pywsjtx.StatusPacket:
+        elif isinstance(self.the_packet, pywsjtx.StatusPacket):
             self.update_status()
-        elif type(self.the_packet) == pywsjtx.QSOLoggedPacket:
+        elif isinstance(self.the_packet, pywsjtx.QSOLoggedPacket):
             log.error('QSOLoggedPacket should not be handle due to JTDX restrictions')   
-        elif type(self.the_packet) == pywsjtx.DecodePacket:
+        elif isinstance(self.the_packet, pywsjtx.DecodePacket):
             self.last_decode_packet_time = datetime.now()
             self.decode_packet_count += 1
+            self.collect_used_frequencies()
             if self.my_call:
                 self.decode_parse_packet()
             else:
@@ -244,6 +257,70 @@ class Listener:
         self.grid                       = None
         self.mode                       = None
         self.frequency                  = None
+
+    def collect_used_frequencies(self):
+        try:
+            current_period = self.odd_or_even_period()
+            current_period_index = self.get_period_index()
+            if current_period is None or current_period_index is None:
+                log.error("Cannot determine current period or period index.")
+                return
+
+            if current_period_index != self.last_period_index:
+                self.used_frequencies[current_period].append([])
+                self.last_period_index = current_period_index
+
+            current_frequencies = self.used_frequencies[current_period][-1]
+            bisect.insort(current_frequencies, self.the_packet.delta_f)
+        except Exception as e:
+            log.error(f"Error collecting frequency usage: {e}\n{traceback.format_exc()}")
+
+    def get_period_index(self):
+        if not self.the_packet or not self.the_packet.time:
+            log.error("Packet time is not available.")
+            return None
+        
+        if self.mode == "FT4" or (self.the_packet and self.the_packet.mode == "FT4"):
+            duration = 7.5
+        else:
+            duration = 15
+
+        return int(self.the_packet.time.timestamp() // duration)
+
+    def odd_or_even_period(self):
+        period_index = self.get_period_index()
+        if period_index is None:
+            return None
+        return 'even' if period_index % 2 == 0 else 'odd'
+
+    def find_free_frequency(self, period):
+        used_frequencies_sets = self.used_frequencies.get(period, deque())
+        used_frequencies = set()
+        for freq_set in used_frequencies_sets:
+            used_frequencies.update(freq_set)
+
+        used_frequencies = sorted(used_frequencies)
+
+        freq_min = 200
+        freq_max = 3000
+
+        frequency_range = [freq_min] + used_frequencies + [freq_max]
+
+        gaps = []
+        for i in range(len(frequency_range) - 1):
+            gap_start = frequency_range[i]
+            gap_end = frequency_range[i + 1]
+            if gap_end - gap_start > 50:  
+                gaps.append((gap_start, gap_end))
+
+        if gaps:
+            largest_gap = max(gaps, key=lambda x: x[1] - x[0])
+            free_frequency = int((largest_gap[0] + largest_gap[1]) / 2)
+            log.info(f"Found free frequency at {free_frequency} Hz on {period} cycle.")
+            return free_frequency
+        else:
+            log.info(f"No free frequency found on {period} cycle.")
+            return None
 
     def decode_parse_packet(self):
         if self.enable_log_packet_data:
@@ -329,7 +406,7 @@ class Listener:
                             'type': 'ready_to_log',
                             'formatted_message': formatted_message
                         })        
-                else:
+                elif self.dx_being_called is not None:
                     log.error(f"Received |{msg}| from [ {callsign} ] but ongoing callsign is [ {self.dx_being_called} ]")
                     if self.message_callback:
                         self.message_callback({
@@ -393,7 +470,7 @@ class Listener:
             self.the_packet.message, e, traceback.format_exc()))
         except Exception as e:
             log.error("Caught an error parsing packet: {}; error {}\n{}".format(
-                self.the_packet.message, e, traceback.format_exc()))
+                self.the_packet.message, e, traceback.format_exc()))   
 
     def reply_to_message(self):
         try:
@@ -406,7 +483,7 @@ class Listener:
 
     def log_qso_to_adif(self):
         required_fields = {
-            'dx_being_called' : self.dx_being_called,
+            'dx_being_called'       : self.dx_being_called,
             'mode'                  : self.mode,
             'rst_sent'              : self.rst_sent,
             'rst_rcvd'              : self.rst_rcvd_from_being_called,

@@ -87,6 +87,7 @@ class Worker(QObject):
             secondary_udp_server_port,
             enable_secondary_udp_server,
             enable_sending_reply,
+            enable_watchdog_bypass,
             enable_debug_output,
             enable_pounce_log,
             enable_log_packet_data,
@@ -104,6 +105,7 @@ class Worker(QObject):
         self.secondary_udp_server_port      = secondary_udp_server_port
         self.enable_secondary_udp_server    = enable_secondary_udp_server
         self.enable_sending_reply           = enable_sending_reply
+        self.enable_watchdog_bypass         = enable_watchdog_bypass
         self.enable_debug_output            = enable_debug_output
         self.enable_pounce_log              = enable_pounce_log   
         self.enable_log_packet_data         = enable_log_packet_data
@@ -117,17 +119,18 @@ class Worker(QObject):
                 self.wanted_callsigns,
                 self.mode,
                 self.stop_event,
-                primary_udp_server_address=self.primary_udp_server_address,
-                primary_udp_server_port=self.primary_udp_server_port,
-                secondary_udp_server_address=self.secondary_udp_server_address,
-                secondary_udp_server_port=self.secondary_udp_server_port,
-                enable_secondary_udp_server=self.enable_secondary_udp_server,
-                enable_sending_reply=self.enable_sending_reply,
-                enable_debug_output=self.enable_debug_output,
-                enable_pounce_log=self.enable_pounce_log,    
-                enable_log_packet_data=self.enable_log_packet_data,
-                enable_show_all_decoded=self.enable_show_all_decoded,            
-                message_callback=self.message.emit
+                primary_udp_server_address      = self.primary_udp_server_address,
+                primary_udp_server_port         = self.primary_udp_server_port,
+                secondary_udp_server_address    = self.secondary_udp_server_address,
+                secondary_udp_server_port       = self.secondary_udp_server_port,
+                enable_secondary_udp_server     = self.enable_secondary_udp_server,
+                enable_sending_reply            = self.enable_sending_reply,
+                enable_watchdog_bypass          = self.enable_watchdog_bypass,
+                enable_debug_output             = self.enable_debug_output,
+                enable_pounce_log               = self.enable_pounce_log,    
+                enable_log_packet_data          = self.enable_log_packet_data,
+                enable_show_all_decoded         = self.enable_show_all_decoded,            
+                message_callback                = self.message.emit
             )
         except Exception as e:
             error_message = f"Erreur lors de l'exécution du script : {e}"
@@ -257,19 +260,22 @@ class SettingsDialog(QtWidgets.QDialog):
         debug_layout = QtWidgets.QGridLayout()
 
         self.enable_sending_reply = QtWidgets.QCheckBox("Enable sending Reply UDP Packet")
+        self.enable_watchdog_bypass = QtWidgets.QCheckBox("Enable Watchdog bypass")
         self.enable_pounce_log = QtWidgets.QCheckBox(f"Save log to {get_log_filename()}")
-        self.enable_log_packet_data = QtWidgets.QCheckBox("Save received packet data")
+        self.enable_log_packet_data = QtWidgets.QCheckBox("Save all received Packet Data to log")
         self.enable_debug_output = QtWidgets.QCheckBox("Show debug output")                
         self.enable_show_all_decoded = QtWidgets.QCheckBox("Show all decoded messages, not only Wanted Callsigns")
 
         self.enable_log_packet_data.setChecked(False)
         self.enable_show_all_decoded.setChecked(False)
+        self.enable_watchdog_bypass.setChecked(False)
     
-        debug_layout.addWidget(self.enable_sending_reply, 0, 0, 1, 2)        
-        debug_layout.addWidget(self.enable_pounce_log, 1, 0, 1, 2)
-        debug_layout.addWidget(self.enable_log_packet_data, 2, 0, 1, 2)        
-        debug_layout.addWidget(self.enable_debug_output, 3, 0, 1, 2)        
-        debug_layout.addWidget(self.enable_show_all_decoded, 4, 0, 1, 2)
+        debug_layout.addWidget(self.enable_sending_reply, 0, 0, 1, 2)       
+        debug_layout.addWidget(self.enable_watchdog_bypass, 1, 0, 1, 2)        
+        debug_layout.addWidget(self.enable_pounce_log, 2, 0, 1, 2)
+        debug_layout.addWidget(self.enable_log_packet_data, 3, 0, 1, 2)        
+        debug_layout.addWidget(self.enable_debug_output, 4, 0, 1, 2)        
+        debug_layout.addWidget(self.enable_show_all_decoded, 5, 0, 1, 2)
 
         debug_layout.setSpacing(12)
 
@@ -310,6 +316,9 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_sending_reply.setChecked(
             self.params.get('enable_sending_reply', True)
         )
+        self.enable_watchdog_bypass.setChecked(
+            self.params.get('enable_watchdog_bypass', False)
+        )
         self.enable_debug_output.setChecked(
             self.params.get('enable_debug_output', True)
         )
@@ -331,6 +340,7 @@ class SettingsDialog(QtWidgets.QDialog):
             'secondary_udp_server_port'         : self.secondary_udp_server_port.text(),
             'enable_secondary_udp_server'       : self.enable_secondary_udp_server.isChecked(),
             'enable_sending_reply'              : self.enable_sending_reply.isChecked(),
+            'enable_watchdog_bypass'            : self.enable_watchdog_bypass.isChecked(),
             'enable_debug_output'               : self.enable_debug_output.isChecked(),
             'enable_pounce_log'                 : self.enable_pounce_log.isChecked(),
             'enable_log_packet_data'            : self.enable_log_packet_data.isChecked(),
@@ -955,6 +965,7 @@ class MainApp(QtWidgets.QMainWindow):
         secondary_udp_server_port           = int(params.get('secondary_udp_server_port') or DEFAULT_UDP_PORT)
         enable_secondary_udp_server         = params.get('enable_secondary_udp_server', False)
         enable_sending_reply                = params.get('enable_sending_reply', True)
+        enable_watchdog_bypass              = params.get('enable_watchdog_bypass', True)
         enable_debug_output                 = params.get('enable_debug_output', True)
         enable_pounce_log                   = params.get('enable_pounce_log', True)
         enable_log_packet_data              = params.get('enable_log_packet_data', False)
@@ -987,6 +998,7 @@ class MainApp(QtWidgets.QMainWindow):
             secondary_udp_server_port,
             enable_secondary_udp_server,
             enable_sending_reply,
+            enable_watchdog_bypass,
             enable_debug_output,
             enable_pounce_log,
             enable_log_packet_data,
