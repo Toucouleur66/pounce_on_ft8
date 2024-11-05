@@ -48,8 +48,11 @@ END_COLOR = (240, 240, 240)
 EVEN_COLOR = "#9dfffe"
 ODD_COLOR = "#fffe9f"
 
-BG_COLOR_MY_CALL = "#80d0d0"
-FG_COLOR_MY_CALL = "#000000"
+BG_COLOR_FOCUS_MY_CALL = "#80d0d0"
+FG_COLOR_FOCUS_MY_CALL = "#000000"
+
+BG_COLOR_REGULAR_FOCUS = "#000000"
+FG_COLOR_REGULAR_FOCUS = "#01ffff"
 
 DEFAULT_UDP_PORT = 2237
 
@@ -141,8 +144,8 @@ class Worker(QObject):
 
 class TrayIcon:
     def __init__(self):
-        self.color1 = "#01ffff"
-        self.color2 = "#000000"
+        self.color1 = FG_COLOR_REGULAR_FOCUS
+        self.color2 = BG_COLOR_REGULAR_FOCUS
         self.current_color = self.color1
         self.icon = None
         self.blink_thread = None
@@ -188,6 +191,8 @@ class ToolTip(QtWidgets.QWidget):
         self.tooltip_window = None
         self.widget.installEventFilter(self)
 
+        QtWidgets.QToolTip.setFont(custom_font)
+
     def eventFilter(self, obj, event):
         if obj == self.widget:
             if event.type() == QtCore.QEvent.Enter:
@@ -197,7 +202,7 @@ class ToolTip(QtWidgets.QWidget):
         return super().eventFilter(obj, event)
 
     def show_tooltip(self):
-        self.text = self.widget.text()
+        self.text = self.widget.text().replace(",", "<br/>")
         if not self.text:
             return
         QtWidgets.QToolTip.showText(QtGui.QCursor.pos(), self.text, self.widget)
@@ -373,7 +378,10 @@ class EditWantedDialog(QtWidgets.QDialog):
         button_box.rejected.connect(self.reject)
 
     def get_result(self):
-        return self.entry.toPlainText().strip()
+        text = self.entry.toPlainText().strip()
+        callsigns = [call.strip() for call in text.split(",") if call.strip()]
+        sorted_callsigns = sorted(callsigns)
+        return ",".join(sorted_callsigns)
 
 class GuiHandler(logging.Handler, QObject):
     log_signal = pyqtSignal(str)
@@ -436,14 +444,14 @@ class MainApp(QtWidgets.QMainWindow):
         radio_normal.setChecked(True)
             
         self.text_formats = {
-            'black_on_purple': QtGui.QTextCharFormat(),
-            'black_on_brown': QtGui.QTextCharFormat(),
-            'black_on_white': QtGui.QTextCharFormat(),
-            'black_on_yellow': QtGui.QTextCharFormat(),
-            'white_on_red': QtGui.QTextCharFormat(),
-            'white_on_blue': QtGui.QTextCharFormat(),
-            'bright_green': QtGui.QTextCharFormat(),
-            'bright_for_my_call': QtGui.QTextCharFormat(),            
+            'black_on_purple'   : QtGui.QTextCharFormat(),
+            'black_on_brown'    : QtGui.QTextCharFormat(),
+            'black_on_white'    : QtGui.QTextCharFormat(),
+            'black_on_yellow'   : QtGui.QTextCharFormat(),
+            'white_on_red'      : QtGui.QTextCharFormat(),
+            'white_on_blue'     : QtGui.QTextCharFormat(),
+            'bright_green'      : QtGui.QTextCharFormat(),
+            'bright_for_my_call': QtGui.QTextCharFormat()      
         }
 
         self.text_formats['black_on_purple'].setForeground(QtGui.QBrush(QtGui.QColor('black')))
@@ -466,8 +474,8 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.text_formats['bright_green'].setForeground(QtGui.QBrush(QtGui.QColor('green')))
 
-        self.text_formats['bright_for_my_call'].setForeground(QtGui.QBrush(QtGui.QColor(FG_COLOR_MY_CALL)))
-        self.text_formats['bright_for_my_call'].setBackground(QtGui.QBrush(QtGui.QColor(BG_COLOR_MY_CALL)))
+        self.text_formats['bright_for_my_call'].setForeground(QtGui.QBrush(QtGui.QColor(FG_COLOR_FOCUS_MY_CALL)))
+        self.text_formats['bright_for_my_call'].setBackground(QtGui.QBrush(QtGui.QColor(BG_COLOR_FOCUS_MY_CALL)))
 
         params = self.load_params()
 
@@ -535,7 +543,8 @@ class MainApp(QtWidgets.QMainWindow):
         # Log and clear button
         self.output_text = QtWidgets.QTextEdit(self)
         self.output_text.setFont(custom_font)
-        self.output_text.setStyleSheet("background-color: #D3D3D3;")
+        self.output_text.setStyleSheet("background-color: #FFFFFF; ")
+        self.output_text.setReadOnly(True)
 
         self.clear_button = QtWidgets.QPushButton("Clear Log")
         self.clear_button.setEnabled(False)
@@ -687,11 +696,11 @@ class MainApp(QtWidgets.QMainWindow):
     def update_focus_frame(self, formatted_message, contains_my_call):
         self.focus_value_label.setText(formatted_message)
         if contains_my_call:
-            bg_color_hex = BG_COLOR_MY_CALL
-            fg_color_hex = FG_COLOR_MY_CALL
+            bg_color_hex = BG_COLOR_FOCUS_MY_CALL
+            fg_color_hex = FG_COLOR_FOCUS_MY_CALL
         else:
-            bg_color_hex = "#000000"
-            fg_color_hex = "#01ffff"
+            bg_color_hex = BG_COLOR_REGULAR_FOCUS
+            fg_color_hex = FG_COLOR_REGULAR_FOCUS
             
         self.focus_value_label.setStyleSheet(f"background-color: {bg_color_hex}; color: {fg_color_hex}; padding: 10px;")
         self.focus_frame.show()
@@ -832,7 +841,7 @@ class MainApp(QtWidgets.QMainWindow):
         if action == remove_action:
             self.remove_callsign_from_history()
         elif action == edit_action:
-            self.edit_callsign()
+            self.edit_callsigns()
 
     def remove_callsign_from_history(self):
         selected_items = self.listbox.selectedItems()
@@ -844,17 +853,17 @@ class MainApp(QtWidgets.QMainWindow):
         self.save_wanted_callsigns(self.wanted_callsigns_history)
         self.update_wanted_callsigns_history_counter()
 
-    def edit_callsign(self):
+    def edit_callsigns(self):
         selected_items = self.listbox.selectedItems()
         if not selected_items:
             return
-        current_callsign = selected_items[0].text()
-        dialog = EditWantedDialog(self, initial_value=current_callsign)
+        current_entry = selected_items[0].text()
+        dialog = EditWantedDialog(self, initial_value=current_entry)
         if dialog.exec_() == QtWidgets.QDialog.Accepted:
-            new_callsign = dialog.get_result()
+            new_callsigns = dialog.get_result()
             index = self.listbox.row(selected_items[0])
-            self.wanted_callsigns_history[index] = new_callsign
-            self.listbox.item(index).setText(new_callsign)
+            self.wanted_callsigns_history[index] = new_callsigns
+            self.listbox.item(index).setText(new_callsigns)
             self.save_wanted_callsigns(self.wanted_callsigns_history)
             self.update_wanted_callsigns_history_counter()
 
@@ -868,29 +877,44 @@ class MainApp(QtWidgets.QMainWindow):
         cursor.movePosition(QtGui.QTextCursor.End)
 
         pattern = re.compile(r'\[(\/?[a-zA-Z_]+)\]')
-        pos = 0
-        current_format = QtGui.QTextCharFormat()
+        lines = text.split('\n')
 
-        while True:
-            match = pattern.search(text, pos)
-            if not match:
-                cursor.insertText(text[pos:], current_format)
-                break
-            else:
-                start, end = match.span()
-                tag = match.group(1)
-                cursor.insertText(text[pos:start], current_format)
-                pos = end  
+        for index, line in enumerate(lines):
+            if index > 0:
+                cursor.insertBlock()
 
-                if tag.startswith('/'):
-                    current_format = QtGui.QTextCharFormat()
+            block_format = cursor.blockFormat()
+            block_format.setTopMargin(0)
+            block_format.setBottomMargin(0)
+            cursor.setBlockFormat(block_format)
+
+            pos = 0
+            current_format = QtGui.QTextCharFormat()
+
+            while True:
+                match = pattern.search(line, pos)
+                if not match:
+                    text_to_insert = line[pos:]
+                    cursor.insertText(text_to_insert, current_format)
+                    break
                 else:
-                    format = self.text_formats.get(tag)
-                    if format:
-                        current_format = format
-                    else:                    
-                        pass
+                    start, end = match.span()
+                    tag = match.group(1)
+                    cursor.insertText(line[pos:start], current_format)
+                    pos = end  
 
+                    if tag.startswith('/'):
+                        current_format = QtGui.QTextCharFormat()
+                    else:
+                        format = self.text_formats.get(tag)
+                        if format:
+                            current_format = format
+                            current_format.setProperty(QtGui.QTextFormat.FullWidthSelection, True)
+                        else:                    
+                            pass
+
+        cursor.movePosition(QtGui.QTextCursor.End)
+        self.output_text.setTextCursor(cursor)
         self.output_text.ensureCursorVisible()
         self.clear_button.setEnabled(True)
 

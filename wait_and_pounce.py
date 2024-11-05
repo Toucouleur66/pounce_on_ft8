@@ -77,36 +77,41 @@ class MyListener(Listener):
                         self.message_callback(message)
 
             elif isinstance(self.the_packet, pywsjtx.DecodePacket):
-                is_from_wanted          = False
                 decode_time             = self.the_packet.time
                 decode_time_str         = decode_time.strftime('%Y-%m-%d %H:%M:%S')
-
-                msg                     = self.the_packet.message
+               
                 snr                     = self.the_packet.snr
                 delta_time              = self.the_packet.delta_t
                 delta_frequency         = self.the_packet.delta_f
+                msg                     = self.the_packet.message                
 
-                msg_color_text          = "white_on_blue"
-                if is_in_wanted(msg, self.wanted_callsigns):
-                    is_from_wanted = True
-                    if self.my_call in msg:
-                        msg_color_text = "bright_for_my_call"
-                    else:                           
-                        msg_color_text  = "black_on_yellow"
+                parsed_data             = parse_wsjtx_message(msg, self.wanted_callsigns)
+                directed                = parsed_data['directed']
+                wanted                  = parsed_data['wanted']                
+            
+                if directed == self.my_call:
+                    msg_color_text      = "bright_for_my_call"
+                elif wanted is True:
+                    msg_color_text      = "black_on_yellow"
+                elif directed in self.wanted_callsigns:  
+                    msg_color_text      = "white_on_blue"
+                else:
+                    msg_color_text      = None
 
+                if msg_color_text:
+                    formatted_msg = f"[{msg_color_text}]{msg:<21.21}[/{msg_color_text}]"
+                else:
+                    formatted_msg = f"{msg:<21.21}"                    
+                    
                 display_message = (
                     f"{decode_time_str} "
                     f"{snr:+3d} dB "
                     f"{delta_time:+5.1f}s "
                     f"{delta_frequency:+6d}Hz ~ "
-                    f"[{msg_color_text}]{msg:<21.21}[/{msg_color_text}]"
+                    f"{formatted_msg}"
                 )
 
-                if self.enable_pounce_log:
-                    message = f"{self.the_packet.message}"
-                    log.info(message)
-
-                if self.enable_show_all_decoded or is_from_wanted:
+                if self.enable_show_all_decoded or msg_color_text:
                     gui_log.info(display_message, extra={'to_gui': True})
                         
         except Exception as e:

@@ -36,18 +36,20 @@ class Listener:
             message_callback=None
         ):
       
-        self.my_call    = None
-        self.my_grid    = None
-        self.band       = None
-        self.dx_call    = None
+        self.my_call                    = None
+        self.my_grid                    = None
+        self.band                       = None
+        self.dx_call                    = None
 
         self.decode_packet_count        = 0
         self.last_decode_packet_time    = None
         self.last_heartbeat_time        = None
 
-        self.dx_being_called            = None
+        self.targeted_call              = None
+        self.targeted_call_period       = None
         self.grid_being_called          = None
         self.rst_rcvd_from_being_called = None
+        self.reply_to_packet_time       = None
         self.qso_time_on                = None
         self.qso_time_off               = None
         self.rst_rcvd                   = None
@@ -56,9 +58,6 @@ class Listener:
         self.frequency                  = None
         self.rx_df                      = None
         self.tx_df                      = None
-
-        self.unseen                     = []
-        self.unseen_lock                = threading.Lock()
 
         self.primary_udp_server_address     = primary_udp_server_address or get_local_ip_address()
         self.primary_udp_server_port        = primary_udp_server_port or 2237
@@ -119,16 +118,12 @@ class Listener:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
             s.connect(('10.255.255.255', 1))
-            IP = s.getsockname()[0]
+            my_ip_address = s.getsockname()[0]
         except Exception:
-            IP = '127.0.0.1'
+            my_ip_address = '127.0.0.1'
         finally:
             s.close()
-        return IP                
-
-    def send_reply(self,data):
-        packet = pywsjtx.ReplyPacket.Builder(data['packet'])
-        self.s.send_packet(data['addr_port'], packet)
+        return my_ip_address                
 
     def stop(self):
         self._running = False
@@ -182,39 +177,47 @@ class Listener:
             self.frequency  = self.the_packet.dial_frequency            
 
             error_found     = False
+            
+            if self.targeted_call is not None:
+                log.warning('Used frequencies: {}\n\tSuggested frequency on {}: {}'.format(
+                    self.used_frequencies,
+                    self.targeted_call_period,
+                    self.get_suggested_frequency(self.targeted_call_period)
+                ))
 
-            log.warning('Used frequencies: {}'.format(self.used_frequencies))
+                status_had_time_to_update = (datetime.now() - self.reply_to_packet_time).total_seconds() > 30
 
-            # Handle logic when we get watchdog or Tx disabled
-            if self.dx_being_called is not None:
-                if self.the_packet.tx_watchdog == 1:
-                    error_found = True
-                    log.error('Watchdog enabled')
-                    if self.enable_watchdog_bypass :
-                        self.reset_ongoing_contact()
-
-                elif self.the_packet.tx_enabled == 0:
+                if (
+                    status_had_time_to_update and
+                    self.the_packet.tx_enabled == 0 and 
+                    self.the_packet.dx_call is not None and
+                    self.reply_to_packet_time is not None                    
+                ):
                     error_found = True
                     log.error('Tx disabled')   
                     self.reset_ongoing_contact()
+                elif self.the_packet.tx_watchdog == 1:
+                    error_found = True
+                    log.error('Watchdog enabled')
+                    if self.enable_watchdog_bypass :
+                        self.reset_ongoing_contact()            
+                elif self.targeted_call == self.dx_call:
+                    self.rst_sent   = self.the_packet.report     
+                    self.time_off   = datetime.now()  
+                elif (
+                    status_had_time_to_update and   
+                    self.dx_call is not None
+                ):
+                    error_found = True
+                    log.error('We should call [ {} ] not [ {} ]'.format(self.targeted_call, self.dx_call))   
 
                 if error_found and self.message_callback:
                     self.message_callback({
                         'type': 'error_occurred',                
                     })
-
-            if self.dx_being_called is not None and self.dx_being_called == self.dx_call:
-                self.rst_sent   = self.the_packet.report     
-                self.time_off   = datetime.now()  
-            elif self.dx_being_called is not None and self.dx_call is not None:
-                log.error('We should call [ {} ] not [ {} ]'.format(self.dx_being_called, self.dx_call))   
-                if self.message_callback:
-                    self.message_callback({
-                        'type': 'error_occurred',                
-                    })
-
+                
         except Exception as e:
-            pass 
+            log.error("Caught an error on status handler: error {}\n{}".format(e, traceback.format_exc()))   
 
     def handle_packet(self):
         if isinstance(self.the_packet, pywsjtx.HeartBeatPacket):
@@ -247,8 +250,10 @@ class Listener:
             })
 
     def reset_ongoing_contact(self):
-        self.dx_being_called            = None
+        self.targeted_call              = None
+        self.targeted_call_period       = None
         self.grid_being_called          = None
+        self.reply_to_packet_time       = None
         self.qso_time_on                = None
         self.qso_time_off               = None        
         self.rst_rcvd_from_being_called = None
@@ -280,9 +285,10 @@ class Listener:
             log.error("Packet time is not available.")
             return None
         
-        if self.mode == "FT4" or (self.the_packet and self.the_packet.mode == "FT4"):
+        if self.mode == 'FT4':
             duration = 7.5
         else:
+            # FT8
             duration = 15
 
         return int(self.the_packet.time.timestamp() // duration)
@@ -293,7 +299,7 @@ class Listener:
             return None
         return 'even' if period_index % 2 == 0 else 'odd'
 
-    def find_free_frequency(self, period):
+    def get_suggested_frequency(self, period):
         used_frequencies_sets = self.used_frequencies.get(period, deque())
         used_frequencies = set()
         for freq_set in used_frequencies_sets:
@@ -315,11 +321,8 @@ class Listener:
 
         if gaps:
             largest_gap = max(gaps, key=lambda x: x[1] - x[0])
-            free_frequency = int((largest_gap[0] + largest_gap[1]) / 2)
-            log.info(f"Found free frequency at {free_frequency} Hz on {period} cycle.")
-            return free_frequency
+            return int((largest_gap[0] + largest_gap[1]) / 2)            
         else:
-            log.info(f"No free frequency found on {period} cycle.")
             return None
 
     def decode_parse_packet(self):
@@ -327,12 +330,6 @@ class Listener:
             log.debug('{}'.format(self.the_packet))
 
         try:
-            wanted_callsign = None
-            directed        = None
-            msg             = None
-            callsign        = None
-            grid            = None     
-
             message         = self.the_packet.message
             decode_time     = self.the_packet.time
             snr             = self.the_packet.snr
@@ -345,54 +342,31 @@ class Listener:
 
             log.debug("DecodePacket: {}".format(formatted_message))
 
-            # Pattern for CQ calls
-            match = re.match(r"^CQ\s+(?:(\w{2,3})\s+)?([A-Z0-9/]+)(?:\s+([A-Z]{2}\d{2}))?", message)
-            if match:
-                directed    = match.group(1)
-                callsign    = match.group(2)
-                grid        = match.group(3)
-
-                if callsign in self.wanted_callsigns:
-                    wanted_callsign = {
-                        'directed': directed,                    
-                        'callsign': callsign,
-                        'grid': grid,
-                        'cq': True
-                    }
-                    self.grid_being_called = grid
-
-            else:
-                # Pattern for dual-call messages
-                match = re.match(r"^([A-Z0-9/]+)\s+([A-Z0-9/]+)\s+([A-Z0-9+-]+)", message)
-
-                # log.warning(match)
-                if match:
-                    directed = match.group(1)
-                    callsign = match.group(2)
-                    msg = match.group(3)
-
-                    if callsign in self.wanted_callsigns:
-                        wanted_callsign = {
-                            'directed': directed,
-                            'callsign': callsign,
-                            'msg': msg
-                        }                    
+            # Pase message
+            parsed_data = parse_wsjtx_message(message, self.wanted_callsigns)
+            directed    = parsed_data['directed']
+            callsign    = parsed_data['callsign']
+            grid        = parsed_data['grid']
+            msg         = parsed_data['msg']
+            cqing       = parsed_data['cqing']
+            wanted      = parsed_data['wanted']
             
             if (
-                self.qso_time_on is not None and
+                self.qso_time_on is not None                              and
+                self.targeted_call is not None                            and
                 (datetime.now() - self.qso_time_on).total_seconds() > 120 and
-                callsign != self.dx_being_called and            
-                wanted_callsign is not None
+                callsign != self.targeted_call                            and            
+                wanted is True
             ):
-                log.warning("Waiting [ {} ] but we are about to switch on [ {} ]".format(self.dx_being_called, callsign))
+                log.warning("Waiting [ {} ] but we are about to switch on [ {} ]".format(self.targeted_call, callsign))
                 self.reset_ongoing_contact()
 
             # if msg is not None and "73" in msg:
-            #    log.warning("dx_being_called:{}\tdirected:{}\tcallsign:{}\trst_rcvd_from_being_called:{}".format(self.dx_being_called, directed, callsign, self.rst_rcvd_from_being_called))
+            #    log.warning("targeted_call:{}\tdirected:{}\tcallsign:{}\trst_rcvd_from_being_called:{}".format(self.targeted_call, directed, callsign, self.rst_rcvd_from_being_called))
 
             if directed == self.my_call and msg in {"RR73", "73"}:
-                if self.dx_being_called == callsign:
-                    log.warning("Found message to log [ {} ]".format(self.dx_being_called))
+                if self.targeted_call == callsign:
+                    log.warning("Found message to log [ {} ]".format(self.targeted_call))
                     self.qso_time_off = decode_time
                     self.log_qso_to_adif()
                     if self.enable_secondary_udp_server:
@@ -400,23 +374,24 @@ class Listener:
                     self.reset_ongoing_contact()
                     # Make sure to remove this callsign once QSO done
                     self.wanted_callsigns.remove(callsign)
-
-                    if self.message_callback:
-                        self.message_callback({
-                            'type': 'ready_to_log',
-                            'formatted_message': formatted_message
-                        })        
-                elif self.dx_being_called is not None:
-                    log.error(f"Received |{msg}| from [ {callsign} ] but ongoing callsign is [ {self.dx_being_called} ]")
+     
+                elif self.targeted_call is not None:
+                    log.error(f"Received |{msg}| from [ {callsign} ] but ongoing callsign is [ {self.targeted_call} ]")
                     if self.message_callback:
                         self.message_callback({
                             'type': 'error_occurred',                
                         })
+
+                if self.message_callback:
+                    self.message_callback({
+                        'type': 'ready_to_log',
+                        'formatted_message': formatted_message
+                    })                           
                 
             elif directed == self.my_call:
                 log.warning("Found message directed to my call [ {} ] from [ {} ]".format(directed, callsign))
 
-                if wanted_callsign is not None:                                        
+                if wanted is True:                                        
                     self.rst_rcvd_from_being_called = msg                 
                     self.grid                       = grid or ''                    
                     self.qso_time_on                = decode_time
@@ -424,7 +399,7 @@ class Listener:
                     log.warning("Start focus on callsign [ {} ]\treport:{}".format(callsign, self.rst_rcvd_from_being_called))
                     # We can't use self.the_packet.mode as it returns "~"
                     # self.mode             = self.the_packet.mode
-                    self.reply_to_message()  
+                    self.reply_to_packet()  
 
                 if self.message_callback:
                     self.message_callback({
@@ -433,33 +408,29 @@ class Listener:
                         'contains_my_call': True
                     })                            
 
-            elif wanted_callsign is not None:
-                wanted_callsign['packet'] = self.the_packet
-                wanted_callsign['addr_port'] = self.addr_port
-                log.debug("Listener wanted_callsign {}".format(wanted_callsign))
-                self.unseen.append(wanted_callsign)
+            elif wanted is True:
+                log.debug("Listener wanted_callsign {}".format(callsign))                
 
-                contains_my_call = False
-                if self.my_call in message:
-                    contains_my_call = True
-
-                # Do not use callback message if wanted callsign allready gave us a report
+                # Do not use callback message if wanted callsign already gave us a report
                 if self.message_callback and self.rst_rcvd_from_being_called is None:
                     self.message_callback({
                         'type': 'wanted_callsign_detected',
                         'formatted_message': formatted_message,
-                        'contains_my_call': contains_my_call
+                        'contains_my_call': directed == self.my_call
                     })                    
 
-                if wanted_callsign.get('cq'):
-                    debug_message = "Found CQ message from callsign [ {} ]. Message: {}".format(callsign, msg)
+                if cqing is True:
+                    debug_message = "Found CQ message from callsign [ {} ]".format(callsign)
                 else:
                     debug_message = "Found message directed to [ {} ] from callsign [ {} ]. Message: {}".format(directed, callsign, msg)
                 log.warning(debug_message)
 
-                if self.enable_sending_reply and self.dx_being_called is None:
-                    self.dx_being_called = callsign   
-                    self.reply_to_message()                    
+                if (
+                    self.enable_sending_reply and 
+                    self.targeted_call is None
+                ):
+                    self.targeted_call = callsign   
+                    self.reply_to_packet()                    
 
                 # Use message_callback to communicate with the GUI
                 if self.message_callback and self.enable_debug_output:
@@ -472,9 +443,11 @@ class Listener:
             log.error("Caught an error parsing packet: {}; error {}\n{}".format(
                 self.the_packet.message, e, traceback.format_exc()))   
 
-    def reply_to_message(self):
+    def reply_to_packet(self):
         try:
-            reply_pkt = pywsjtx.ReplyPacket.Builder(self.the_packet)
+            self.reply_to_packet_time   = datetime.now()
+            self.targeted_call_period   = self.odd_or_even_period()
+            reply_pkt                   = pywsjtx.ReplyPacket.Builder(self.the_packet)
             log.warning(f"Sending ReplyPacket: {reply_pkt}")
             self.s.send_packet(self.addr_port, reply_pkt)
             log.debug("ReplyPacket sent successfully.")                
@@ -483,7 +456,7 @@ class Listener:
 
     def log_qso_to_adif(self):
         required_fields = {
-            'dx_being_called'       : self.dx_being_called,
+            'targeted_call'       : self.targeted_call,
             'mode'                  : self.mode,
             'rst_sent'              : self.rst_sent,
             'rst_rcvd'              : self.rst_rcvd_from_being_called,
@@ -500,7 +473,10 @@ class Listener:
             log.error(f"Missing data: {', '.join(missing_fields)}")
             return
 
-        callsign        = self.dx_being_called
+        # Todo remove this log
+        log.warning(required_fields)
+
+        callsign        = self.targeted_call
         grid            = self.grid_being_called or ''
         mode            = self.mode
         rst_sent        = self.get_clean_rst(self.rst_sent)
@@ -534,19 +510,22 @@ class Listener:
         try:
             with open("wsjtx_log.adif", "a") as adif_file:
                 adif_file.write(adif_entry)
-            log.warning("QSOLogged [ {} ]".format(self.dx_being_called))
+            log.warning("QSOLogged [ {} ]".format(self.targeted_call))
         except Exception as e:
             log.error(f"Can't write ADIF file {e}")
 
     def log_qso_to_udp(self):
         try:
+            # Todo remove Debug
+            log.warning("self.rst_sent: {}\tself.rst_rcvd_from_being_called: {}\n\tawaited_rst_sent: {}\tawaited_rst_rcvd: {}".format(self.rst_sent, self.rst_rcvd_from_being_called,self.get_clean_rst(self.rst_sent), self.get_clean_rst(self.rst_rcvd_from_being_called)))
+
             awaited_rst_sent = self.get_clean_rst(self.rst_sent)
             awaited_rst_rcvd = self.get_clean_rst(self.rst_rcvd_from_being_called)
 
             self.packet_sender.send_qso_logged_packet(
                 wsjtx_id        = self.the_packet.wsjtx_id,
                 datetime_off    = self.qso_time_off,
-                call            = self.dx_being_called,
+                call            = self.targeted_call,
                 grid            = self.grid_being_called or '',
                 frequency       = self.frequency,
                 mode            = self.mode,
@@ -562,19 +541,20 @@ class Listener:
                 exchange_sent   = awaited_rst_sent,
                 exchange_recv   = awaited_rst_rcvd
             )
-            log.warning("QSOLoggedPacket sent via UDP for [ {} ]".format(self.dx_being_called))
+            log.warning("QSOLoggedPacket sent via UDP for [ {} ]".format(self.targeted_call))
         except Exception as e:
             log.error(f"Error sending QSOLoggedPacket via UDP: {e}")
             log.error("Caught an error while trying to send QSOLoggedPacket packet: error {}\n{}".format(e, traceback.format_exc()))
 
-    def get_cuarto(self):
+    def get_cuarto():
         return 15 * (datetime.now().second // 15)
 
     def get_clean_rst(self, rst):
         def repl(match):
-            sign = match.group(1)
-            number = match.group(2).zfill(2)[:2]
+            sign = match.group(1)       
+            number = match.group(2).zfill(2)
             return f"{sign}{number}"
+        
         pattern = r'^R?([+-]?)(\d+)$'
         cleaned_rst = re.sub(pattern, repl, rst)
         return cleaned_rst

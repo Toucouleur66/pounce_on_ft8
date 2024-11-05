@@ -27,12 +27,12 @@ def parse_wsjtx_message(message, wanted_callsigns):
     callsign  = None
     grid      = None
     msg       = None
-    cq        = False
+    cqing     = False
     wanted    = False
 
     match = re.match(r"^CQ\s+(?:(\w{2,3})\s+)?([A-Z0-9/]+)(?:\s+([A-Z]{2}\d{2}))?", message)
     if match:
-        cq = True
+        cqing = True
         directed = match.group(1)
         callsign = match.group(2)
         grid = match.group(3)
@@ -52,7 +52,7 @@ def parse_wsjtx_message(message, wanted_callsigns):
         'callsign' : callsign,
         'grid'     : grid,
         'msg'      : msg,
-        'cq'       : cq,
+        'cqing'    : cqing,
         'wanted'   : wanted
     }
 
