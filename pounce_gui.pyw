@@ -421,6 +421,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.message_received.connect(self.handle_message_received)
         self._running = False
 
+        self.connection_check_timer = QtCore.QTimer()
+        self.connection_check_timer.timeout.connect(self.check_connection_status)
+
         self.decode_packet_count                = 0
         self.last_decode_packet_time            = None
         self.last_heartbeat_time                = None
@@ -660,7 +663,7 @@ class MainApp(QtWidgets.QMainWindow):
         if isinstance(message, dict):
             message_type = message.get('type')
             if message_type == 'update_status':
-                self.update_status_label(
+                self.check_connection_status(
                     message.get('decode_packet_count', 0),
                     message.get('last_decode_packet_time'),
                     message.get('last_heartbeat_time')
@@ -722,26 +725,58 @@ class MainApp(QtWidgets.QMainWindow):
         self.focus_value_label.setStyleSheet(f"background-color: {bg_color_hex}; color: {fg_color_hex}; padding: 10px;")
         self.focus_frame.show()
 
-    def update_status_label(self, decode_packet_count, last_decode_packet_time, last_heartbeat_time):
+    def check_connection_status(
+        self,
+        decode_packet_count=None,
+        last_decode_packet_time=None,
+        last_heartbeat_time=None
+    ):
+        if decode_packet_count is not None:
+            self.decode_packet_count = decode_packet_count
+        if last_decode_packet_time is not None:
+            self.last_decode_packet_time = last_decode_packet_time
+        if last_heartbeat_time is not None:
+            self.last_heartbeat_time = last_heartbeat_time
+
         now = datetime.datetime.now()
-        status_text = f"DecodePackets: #{decode_packet_count}\n"
-        self.counter_value_label.setStyleSheet("background-color: yellow; color: black;")
+        connection_lost = False
 
-        if last_decode_packet_time:
-            time_since_last_decode = (now - last_decode_packet_time).total_seconds()
-            if time_since_last_decode > 60:
-                status_text += f"No DecodePacket for more than 60 secondes.\n"
-                self.counter_value_label.setStyleSheet("background-color: red; color: white;")
+        status_text_array = []
+        status_text_array.append(f"DecodePackets: #{self.decode_packet_count}")
+
+        HEARTBEAT_TIMEOUT_THRESHOLD = 30  # secondes
+        DECODE_PACKET_TIMEOUT_THRESHOLD = 60  # secondes
+
+        if self.last_decode_packet_time:
+            time_since_last_decode = (now - self.last_decode_packet_time).total_seconds()
+            if time_since_last_decode > DECODE_PACKET_TIMEOUT_THRESHOLD:
+                status_text_array.append(f"No DecodePacket for more than {DECODE_PACKET_TIMEOUT_THRESHOLD} seconds.")
+                connection_lost = True
+            else:
+                status_text_array.append(f"Last DecodePacket {int(time_since_last_decode)} seconds ago.")
         else:
-            status_text += "No DecodePacket received yet.\n"
+            status_text_array.append("No DecodePacket received yet.")
 
-        if last_heartbeat_time:
-            last_heartbeat_str = last_heartbeat_time.strftime('%Y-%m-%d %H:%M:%S')
-            status_text += f"Last HeartBeat @ {last_heartbeat_str}"
+        if self.last_heartbeat_time:
+            time_since_last_heartbeat = (now - self.last_heartbeat_time).total_seconds()
+            if time_since_last_heartbeat > HEARTBEAT_TIMEOUT_THRESHOLD:
+                status_text_array.append(f"No HeartBeat for more than {HEARTBEAT_TIMEOUT_THRESHOLD} seconds.")
+                connection_lost = True
+            else:
+                last_heartbeat_str = self.last_heartbeat_time.strftime('%Y-%m-%d %H:%M:%S')
+                status_text_array.append(f"Last HeartBeat @ {last_heartbeat_str}")
         else:
-            status_text += "No HeartBeat."
+            status_text_array.append("No HeartBeat received yet.")
 
-        self.counter_value_label.setText(status_text)        
+        self.counter_value_label.setText('\n'.join(status_text_array))
+
+        if connection_lost:
+            self.counter_value_label.setStyleSheet("background-color: red; color: white;")
+            if not self.connection_lost_shown:
+                self.connection_lost_shown = True
+        else:
+            self.connection_lost_shown = False
+            self.counter_value_label.setStyleSheet("background-color: yellow; color: black;")              
 
     def on_close(self, event):
         self.save_window_position()
@@ -977,6 +1012,8 @@ class MainApp(QtWidgets.QMainWindow):
     def start_monitoring(self):
         global tray_icon
 
+        self.connection_check_timer.start(5_000)
+
         # self.output_text.clear()
         self.run_button.setEnabled(False)
         self.run_button.setText(RUNNING_TEXT_BUTTON)
@@ -1064,6 +1101,8 @@ class MainApp(QtWidgets.QMainWindow):
 
     def stop_monitoring(self):
         global tray_icon
+
+        self.connection_check_timer.stop()
 
         if tray_icon:
             tray_icon.stop()
