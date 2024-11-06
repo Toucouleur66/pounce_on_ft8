@@ -520,6 +520,20 @@ class LoggedADIFPacket(GenericWSJTXPacket):
         pkt.write_QString(to_wsjtx_id)
         pkt.write_QString(adif_text)
         return pkt.packet
+    
+class SetTxDeltaFreqPacket(GenericWSJTXPacket):
+    TYPE_VALUE = 50
+    def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
+        GenericWSJTXPacket.__init__(self, addr_port, magic, schema, pkt_type, id, pkt)
+
+    @classmethod
+    def Builder(cls,to_wsjtx_id='WSJT-X', delta_f=0):
+        # build the packet to send
+        pkt = PacketWriter()
+        pkt.write_QInt32(SetTxDeltaFreqPacket.TYPE_VALUE)
+        pkt.write_QString(to_wsjtx_id)
+        pkt.write_QInt32(delta_f)
+        return pkt.packet    
 
 class HighlightCallsignPacket(GenericWSJTXPacket):
     TYPE_VALUE = 13
@@ -556,6 +570,7 @@ class WSJTXPacketClassFactory(GenericWSJTXPacket):
         FreeTextPacket.TYPE_VALUE:  FreeTextPacket,
         WSPRDecodePacket.TYPE_VALUE: WSPRDecodePacket,
         LoggedADIFPacket.TYPE_VALUE: LoggedADIFPacket,  
+        SetTxDeltaFreqPacket.TYPE_VALUE: SetTxDeltaFreqPacket,
         HighlightCallsignPacket.TYPE_VALUE: HighlightCallsignPacket 
     }
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):

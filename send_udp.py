@@ -265,6 +265,30 @@ def send_decode_packet(
         sock.sendto(packet_data, (UDP_IP, UDP_PORT))
         print(f"Packet sent to {UDP_IP}:{UDP_PORT}")
 
+def setting_tx_delta_df(
+        wsjtx_id="WSJT-X",
+        delta_f=0,
+        ip_address="127.0.0.1",
+        udp_port=2237
+    ):
+    UDP_IP = ip_address
+    UDP_PORT = udp_port
+
+    pkt_writer = PacketWriter()
+
+    pkt_writer.write_QInt32(50)
+    pkt_writer.write_QString(wsjtx_id)
+    pkt_writer.write_QInt32(delta_f)
+    
+    packet_data = pkt_writer.packet
+
+    print(PacketUtil.hexdump(packet_data))
+
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+        sock.sendto(packet_data, (UDP_IP, UDP_PORT))
+        print(f"HeartBeat Packet sent to {UDP_IP}:{UDP_PORT}")      
+
+
 def send_heartbeat_packet(
         wsjtx_id="WSJT-X",
         max_schema=3,
@@ -291,7 +315,7 @@ def send_heartbeat_packet(
 
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
         sock.sendto(packet_data, (UDP_IP, UDP_PORT))
-        print(f"HeartBeat Packet sent to {UDP_IP}:{UDP_PORT}")      
+        print(f"HeartBeat Packet sent to {UDP_IP}:{UDP_PORT}")              
 
 def send_qso_logged_packet(
         wsjtx_id="WSJT-X",
@@ -355,8 +379,7 @@ def send_qso_logged_packet(
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Try to send to UDP server sample Packet.")
 
-    parser.add_argument('--packet_type', type=str, default='decode', choices=['decode', 'heartbeat', 'qso_logged'],
-                        help='Type of packet to send')
+    parser.add_argument('--packet_type', type=str, default='decode', choices=['decode', 'heartbeat', 'setting_tx_delta_df', 'qso_logged'], help='Type of packet to send')
 
     parser.add_argument('--wsjtx_id', type=str, default="WSJT-X", help='ID for WSJT-X (default: WSJT-X).')
     parser.add_argument('--mode', type=str, default="FT8", help='Transmission Mode (default: FT8).')
@@ -412,6 +435,13 @@ if __name__ == "__main__":
             ip_address=args.ip_address,
             udp_port=args.udp_port
         )
+    elif args.packet_type == 'setting_tx_delta_df':
+        setting_tx_delta_df(
+            wsjtx_id=args.wsjtx_id,
+            delta_f=args.delta_f,
+            ip_address=args.ip_address,
+            udp_port=args.udp_port
+        )
     elif args.packet_type == 'heartbeat':
         send_heartbeat_packet(
             wsjtx_id=args.wsjtx_id,
@@ -420,7 +450,7 @@ if __name__ == "__main__":
             revision=args.revision,
             ip_address=args.ip_address,
             udp_port=args.udp_port
-        )
+        )        
     elif args.packet_type == 'qso_logged':
         datetime_on = None
         datetime_off = None

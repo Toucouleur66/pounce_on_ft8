@@ -8,6 +8,7 @@ import socket
 import re
 import bisect
 import traceback
+import random
 
 from wsjtx_packet_sender import WSJTXPacketSender
 from datetime import datetime
@@ -18,6 +19,16 @@ from utils import get_local_ip_address, parse_wsjtx_message
 
 log     = get_logger(__name__)
 
+from constants import (
+    EVEN,
+    ODD,
+    MODE_FOX_HOUND,
+    MODE_NORMAL,
+    FREQ_MINIMUM,
+    FREQ_MAXIMUM,
+    FREQ_MINIMUM_FOX_HOUND
+)
+
 class Listener:
     def __init__(
             self,
@@ -27,12 +38,16 @@ class Listener:
             secondary_udp_server_port,
             enable_secondary_udp_server,
             enable_sending_reply,
+            enable_gap_finder,
             enable_watchdog_bypass,
             enable_debug_output,
             enable_pounce_log,        
             enable_log_packet_data, 
             enable_show_all_decoded,
+            frequencies,
+            time_hopping,
             wanted_callsigns,
+            special_mode,
             message_callback=None
         ):
       
@@ -46,6 +61,7 @@ class Listener:
         self.last_heartbeat_time        = None
 
         self.targeted_call              = None
+        self.targeted_call_frequencies  = set()
         self.targeted_call_period       = None
         self.grid_being_called          = None
         self.rst_rcvd_from_being_called = None
@@ -56,6 +72,7 @@ class Listener:
         self.rst_sent                   = None
         self.mode                       = None
         self.frequency                  = None
+        self.suggested_frequency        = None
         self.rx_df                      = None
         self.tx_df                      = None
 
@@ -68,6 +85,7 @@ class Listener:
         self.enable_secondary_udp_server    = enable_secondary_udp_server or False
 
         self.enable_sending_reply           = enable_sending_reply
+        self.enable_gap_finder               = enable_gap_finder
         self.enable_watchdog_bypass         = enable_watchdog_bypass
         self.enable_debug_output            = enable_debug_output
         self.enable_pounce_log              = enable_pounce_log 
@@ -75,6 +93,7 @@ class Listener:
         self.enable_show_all_decoded        = enable_show_all_decoded
 
         self.wanted_callsigns               = set(wanted_callsigns)
+        self.special_mode                   = special_mode
         self.message_callback               = message_callback
 
         self._running                       = True
@@ -82,8 +101,8 @@ class Listener:
         # To check gap, we keep a list of used df
         self.last_period_index              = None
         self.used_frequencies               = {
-            'even'                          : deque([set()], maxlen=2),
-            'odd'                           : deque([set()], maxlen=2)
+            EVEN                            : deque([set()], maxlen=2),
+            ODD                             : deque([set()], maxlen=2)
         }
 
         try:
@@ -152,7 +171,7 @@ class Listener:
 
     def listen(self):
         self.t = threading.Thread(target=self.doListen, daemon=True)
-        display_message = "Listener:{}:{} started".format(self.primary_udp_server_address, self.primary_udp_server_port)
+        display_message = "Listener:{}:{} started (mode: {})".format(self.primary_udp_server_address, self.primary_udp_server_port, self.special_mode)
         log.info(display_message)
         if self.enable_debug_output and self.message_callback:
             self.message_callback(display_message)
@@ -179,11 +198,12 @@ class Listener:
             error_found     = False
             
             if self.targeted_call is not None:
-                log.warning('Used frequencies: {}\n\tSuggested frequency on {}: {}'.format(
-                    self.used_frequencies,
-                    self.targeted_call_period,
-                    self.get_suggested_frequency(self.targeted_call_period)
-                ))
+                if self.enable_gap_finder:
+                    log.warning('Used frequencies: {}\n\tSuggested frequency ({}): {}Hz'.format(
+                        self.used_frequencies,
+                        self.targeted_call_period,
+                        self.get_frequency_suggestion(self.targeted_call_period)
+                    ))
 
                 status_had_time_to_update = (datetime.now() - self.reply_to_packet_time).total_seconds() > 30
 
@@ -231,7 +251,9 @@ class Listener:
         elif isinstance(self.the_packet, pywsjtx.DecodePacket):
             self.last_decode_packet_time = datetime.now()
             self.decode_packet_count += 1
-            self.collect_used_frequencies()
+            if self.enable_gap_finder:
+                self.collect_used_frequencies()     
+
             if self.my_call:
                 self.decode_parse_packet()
             else:
@@ -252,6 +274,7 @@ class Listener:
     def reset_ongoing_contact(self):
         self.targeted_call              = None
         self.targeted_call_period       = None
+        self.targeted_call_frequencies  = set()
         self.grid_being_called          = None
         self.reply_to_packet_time       = None
         self.qso_time_on                = None
@@ -262,6 +285,7 @@ class Listener:
         self.grid                       = None
         self.mode                       = None
         self.frequency                  = None
+        self.suggested_frequency        = None
 
     def collect_used_frequencies(self):
         try:
@@ -297,9 +321,9 @@ class Listener:
         period_index = self.get_period_index()
         if period_index is None:
             return None
-        return 'even' if period_index % 2 == 0 else 'odd'
+        return EVEN if period_index % 2 == 0 else ODD
 
-    def get_suggested_frequency(self, period):
+    def get_frequency_suggestion(self, period):
         used_frequencies_sets = self.used_frequencies.get(period, deque())
         used_frequencies = set()
         for freq_set in used_frequencies_sets:
@@ -307,21 +331,34 @@ class Listener:
 
         used_frequencies = sorted(used_frequencies)
 
-        freq_min = 200
-        freq_max = 3000
-
-        frequency_range = [freq_min] + used_frequencies + [freq_max]
+        frequency_range = [FREQ_MINIMUM_FOX_HOUND if self.special_mode == MODE_FOX_HOUND else FREQ_MINIMUM] + used_frequencies + [FREQ_MAXIMUM]
 
         gaps = []
         for i in range(len(frequency_range) - 1):
             gap_start = frequency_range[i]
             gap_end = frequency_range[i + 1]
-            if gap_end - gap_start > 50:  
-                gaps.append((gap_start, gap_end))
+            if gap_end - gap_start > 50:
+                adjusted_gaps = [(gap_start, gap_end)]
+                if self.special_mode == MODE_NORMAL and self.targeted_call_frequencies:
+                    min_targeted = min(self.targeted_call_frequencies)
+                    max_targeted = max(self.targeted_call_frequencies)
+                    new_adjusted_gaps = []
+                    for agap_start, agap_end in adjusted_gaps:
+                        # Si le gap ne chevauche pas la plage ciblée, on le garde tel quel
+                        if agap_end <= min_targeted or agap_start >= max_targeted:
+                            new_adjusted_gaps.append((agap_start, agap_end))
+                        else:
+                            # Le gap chevauche la plage ciblée, on ajuste
+                            if agap_start < min_targeted:
+                                new_adjusted_gaps.append((agap_start, min_targeted))
+                            if agap_end > max_targeted:
+                                new_adjusted_gaps.append((max_targeted, agap_end))
+                    adjusted_gaps = new_adjusted_gaps
+                gaps.extend(adjusted_gaps)
 
         if gaps:
             largest_gap = max(gaps, key=lambda x: x[1] - x[0])
-            return int((largest_gap[0] + largest_gap[1]) / 2)            
+            return int((largest_gap[0] + largest_gap[1]) / 2)
         else:
             return None
 
@@ -409,7 +446,9 @@ class Listener:
                     })                            
 
             elif wanted is True:
-                log.debug("Listener wanted_callsign {}".format(callsign))                
+                log.debug("Listener wanted_callsign {}".format(callsign))  
+                if self.enable_gap_finder:
+                    self.targeted_call_frequencies.add(delta_f)     
 
                 # Do not use callback message if wanted callsign already gave us a report
                 if self.message_callback and self.rst_rcvd_from_being_called is None:
@@ -447,16 +486,33 @@ class Listener:
         try:
             self.reply_to_packet_time   = datetime.now()
             self.targeted_call_period   = self.odd_or_even_period()
-            reply_pkt                   = pywsjtx.ReplyPacket.Builder(self.the_packet)
+            my_period                   = ODD if self.targeted_call_period == EVEN else EVEN
+
+            if (
+                self.enable_gap_finder and
+                self.suggested_frequency is None                
+            ):
+                self.suggested_frequency = self.get_frequency_suggestion(my_period)
+                self.set_delta_f_packet(self.suggested_frequency)
+
+            reply_pkt = pywsjtx.ReplyPacket.Builder(self.the_packet)
             log.warning(f"Sending ReplyPacket: {reply_pkt}")
             self.s.send_packet(self.addr_port, reply_pkt)
             log.debug("ReplyPacket sent successfully.")                
         except Exception as e:
             log.error(f"Error sending packets: {e}\n{traceback.format_exc()}")
 
+    def set_delta_f_packet(self, frequency):        
+        try:
+            delta_f_paquet = pywsjtx.SetTxDeltaFreqPacket.Builder(self.the_packet.wsjtx_id, frequency)
+            log.warning(f"Sending SetTxDeltaFreqPacket: {delta_f_paquet}")
+            self.s.send_packet(self.addr_port, delta_f_paquet)
+        except Exception as e:
+            log.error(f"Error sending packets: {e}\n{traceback.format_exc()}")
+
     def log_qso_to_adif(self):
         required_fields = {
-            'targeted_call'       : self.targeted_call,
+            'targeted_call'         : self.targeted_call,
             'mode'                  : self.mode,
             'rst_sent'              : self.rst_sent,
             'rst_rcvd'              : self.rst_rcvd_from_being_called,
@@ -473,8 +529,7 @@ class Listener:
             log.error(f"Missing data: {', '.join(missing_fields)}")
             return
 
-        # Todo remove this log
-        log.warning(required_fields)
+        # log.warning(required_fields)
 
         callsign        = self.targeted_call
         grid            = self.grid_being_called or ''

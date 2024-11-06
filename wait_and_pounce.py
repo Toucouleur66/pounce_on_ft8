@@ -8,7 +8,7 @@ import time
 
 from logger import get_logger, get_gui_logger
 from wsjtx_listener import Listener
-from utils import is_in_wanted, parse_wsjtx_message
+from utils import parse_wsjtx_message
 
 log     = get_logger(__name__)
 gui_log = get_gui_logger()
@@ -31,13 +31,17 @@ class MyListener(Listener):
             secondary_udp_server_port,
             enable_secondary_udp_server,
             enable_sending_reply,
+            enable_gap_finder,
             enable_watchdog_bypass,
             enable_debug_output,
             enable_pounce_log,
             enable_log_packet_data, 
             enable_show_all_decoded,
+            frequencies,
+            time_hopping,
             wanted_callsigns,
-            message_callback=None
+            special_mode,
+            message_callback = None
         ):
         super().__init__(
             primary_udp_server_address,
@@ -46,12 +50,16 @@ class MyListener(Listener):
             secondary_udp_server_port,
             enable_secondary_udp_server,
             enable_sending_reply,
+            enable_gap_finder,
             enable_watchdog_bypass,
             enable_debug_output,
             enable_pounce_log,
             enable_log_packet_data, 
             enable_show_all_decoded,
+            frequencies,
+            time_hopping,
             wanted_callsigns,
+            special_mode,
             message_callback=message_callback
         )
         self.message_callback = message_callback
@@ -82,7 +90,7 @@ class MyListener(Listener):
                
                 snr                     = self.the_packet.snr
                 delta_time              = self.the_packet.delta_t
-                delta_frequency         = self.the_packet.delta_f
+                delta_frequencies         = self.the_packet.delta_f
                 msg                     = self.the_packet.message                
 
                 parsed_data             = parse_wsjtx_message(msg, self.wanted_callsigns)
@@ -107,7 +115,7 @@ class MyListener(Listener):
                     f"{decode_time_str} "
                     f"{snr:+3d} dB "
                     f"{delta_time:+5.1f}s "
-                    f"{delta_frequency:+6d}Hz ~ "
+                    f"{delta_frequencies:+6d}Hz ~ "
                     f"{formatted_msg}"
                 )
 
@@ -120,10 +128,10 @@ class MyListener(Listener):
                 self.message_callback(f"Error handling packet: {e}")
 
 def main(
-        frequency,
+        frequencies,
         time_hopping,
         wanted_callsigns,
-        mode,
+        special_mode,
         stop_event,
         primary_udp_server_address,
         primary_udp_server_port,
@@ -131,33 +139,37 @@ def main(
         secondary_udp_server_port,
         enable_secondary_udp_server,
         enable_sending_reply,
+        enable_gap_finder,
         enable_watchdog_bypass,
         enable_debug_output,
         enable_pounce_log,
         enable_log_packet_data,
         enable_show_all_decoded,
-        message_callback=None
+        message_callback = None
     ):
 
     if isinstance(wanted_callsigns, str):
         wanted_callsigns = [callsign.strip() for callsign in wanted_callsigns.split(',')]
 
     listener = MyListener(
-        primary_udp_server_address,
-        primary_udp_server_port,
-        secondary_udp_server_address,
-        secondary_udp_server_port,
-        enable_secondary_udp_server,
-        enable_sending_reply,
-        enable_watchdog_bypass,
-        enable_debug_output,
-        enable_pounce_log,
-        enable_log_packet_data,
-        enable_show_all_decoded,
-        wanted_callsigns=wanted_callsigns,
-        message_callback=message_callback
+        primary_udp_server_address      = primary_udp_server_address,
+        primary_udp_server_port         = primary_udp_server_port,
+        secondary_udp_server_address    = secondary_udp_server_address,
+        secondary_udp_server_port       = secondary_udp_server_port,
+        enable_secondary_udp_server     = enable_secondary_udp_server,
+        enable_sending_reply            = enable_sending_reply,
+        enable_gap_finder                = enable_gap_finder,
+        enable_watchdog_bypass          = enable_watchdog_bypass,
+        enable_debug_output             = enable_debug_output,
+        enable_pounce_log               = enable_pounce_log,
+        enable_log_packet_data          = enable_log_packet_data,
+        enable_show_all_decoded         = enable_show_all_decoded,
+        frequencies                     = frequencies,
+        time_hopping                    = time_hopping,
+        wanted_callsigns                = wanted_callsigns,
+        special_mode                    = special_mode,
+        message_callback                = message_callback
     )
-
     listener.listen()
 
     try:

@@ -22,39 +22,35 @@ from utils import get_local_ip_address, get_log_filename, force_uppercase
 from logger import get_logger, add_file_handler, remove_file_handler
 from gui_handler import GUIHandler
 
+from constants import (
+    DEFAULT_UDP_PORT,
+    EVEN_COLOR,
+    ODD_COLOR,
+    FG_COLOR_FOCUS_MY_CALL,
+    BG_COLOR_FOCUS_MY_CALL,
+    FG_COLOR_REGULAR_FOCUS,
+    BG_COLOR_REGULAR_FOCUS,
+    PARAMS_FILE,
+    POSITION_FILE,
+    WANTED_CALLSIGNS_FILE,
+    WANTED_CALLSIGNS_HISTORY_SIZE,
+    GUI_LABEL_VERSION,
+    RUNNING_TEXT_BUTTON,
+    WAIT_POUNCE_LABEL,
+    NOTHING_YET,
+    WAITING_DATA_PACKETS_LABEL,
+    WANTED_CALLSIGNS_HISTORY_LABEL,
+    MODE_FOX_HOUND,
+    MODE_NORMAL,
+    MODE_SUPER_FOX
+)
+
 if platform.system() == 'Windows':
     from pystray import Icon, MenuItem
 
 stop_event = threading.Event()
-version_number = 2.0
 
 tray_icon = None
-
-PARAMS_FILE                         = "params.pkl"
-POSITION_FILE                       = "window_position.pkl"
-WANTED_CALLSIGNS_FILE               = "wanted_callsigns.pkl"
-WANTED_CALLSIGNS_HISTORY_SIZE       = 50
-
-GUI_LABEL_VERSION                   = f"Wait and Pounce v{version_number} by F5UKW"
-RUNNING_TEXT_BUTTON                 = "Running..."
-WAIT_POUNCE_LABEL                   = "Listen UDP Packets & Pounce"
-NOTHING_YET                         = "Nothing yet"
-WAITING_DATA_PACKETS_LABEL          = "Waiting for UDP Packets"
-WANTED_CALLSIGNS_HISTORY_LABEL      = "Wanted Callsigns History (%d):"
-
-START_COLOR = (255, 255, 0)
-END_COLOR = (240, 240, 240)
-
-EVEN_COLOR = "#9dfffe"
-ODD_COLOR = "#fffe9f"
-
-BG_COLOR_FOCUS_MY_CALL = "#80d0d0"
-FG_COLOR_FOCUS_MY_CALL = "#000000"
-
-BG_COLOR_REGULAR_FOCUS = "#000000"
-FG_COLOR_REGULAR_FOCUS = "#01ffff"
-
-DEFAULT_UDP_PORT = 2237
 
 gui_queue = queue.Queue()
 inputs_enabled = True
@@ -79,7 +75,7 @@ class Worker(QObject):
 
     def __init__(
             self,
-            frequency,
+            frequencies,
             time_hopping,
             wanted_callsigns,
             mode,
@@ -90,6 +86,7 @@ class Worker(QObject):
             secondary_udp_server_port,
             enable_secondary_udp_server,
             enable_sending_reply,
+            enable_gap_finder,
             enable_watchdog_bypass,
             enable_debug_output,
             enable_pounce_log,
@@ -97,7 +94,7 @@ class Worker(QObject):
             enable_show_all_decoded                        
         ):
         super(Worker, self).__init__()
-        self.frequency                      = frequency
+        self.frequencies                      = frequencies
         self.time_hopping                   = time_hopping
         self.wanted_callsigns               = wanted_callsigns
         self.mode                           = mode
@@ -108,6 +105,7 @@ class Worker(QObject):
         self.secondary_udp_server_port      = secondary_udp_server_port
         self.enable_secondary_udp_server    = enable_secondary_udp_server
         self.enable_sending_reply           = enable_sending_reply
+        self.enable_gap_finder               = enable_gap_finder
         self.enable_watchdog_bypass         = enable_watchdog_bypass
         self.enable_debug_output            = enable_debug_output
         self.enable_pounce_log              = enable_pounce_log   
@@ -117,7 +115,7 @@ class Worker(QObject):
     def run(self):
         try:
             wait_and_pounce.main(
-                self.frequency,
+                self.frequencies,
                 self.time_hopping,
                 self.wanted_callsigns,
                 self.mode,
@@ -128,6 +126,7 @@ class Worker(QObject):
                 secondary_udp_server_port       = self.secondary_udp_server_port,
                 enable_secondary_udp_server     = self.enable_secondary_udp_server,
                 enable_sending_reply            = self.enable_sending_reply,
+                enable_gap_finder                = self.enable_gap_finder,
                 enable_watchdog_bypass          = self.enable_watchdog_bypass,
                 enable_debug_output             = self.enable_debug_output,
                 enable_pounce_log               = self.enable_pounce_log,    
@@ -215,7 +214,7 @@ class SettingsDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, params=None):
         super().__init__(parent)
         self.setWindowTitle("Settings")
-        self.resize(450, 600)
+        self.resize(450, 650)
 
         self.params = params or {}
 
@@ -230,9 +229,8 @@ class SettingsDialog(QtWidgets.QDialog):
         small_font.setPointSize(12)  
         notice_label.setFont(small_font)
         notice_label.setStyleSheet("background-color: #f6f6f5; padding: 5px; font-size: 12px;")
-        notice_label.setTextFormat(QtCore.Qt.RichText)  # Pour interpréter le HTML
+        notice_label.setTextFormat(QtCore.Qt.RichText)
 
-        # Primary UDP Server
         primary_group = QtWidgets.QGroupBox("Primary UDP Server")
         primary_layout = QtWidgets.QGridLayout()
 
@@ -243,14 +241,15 @@ class SettingsDialog(QtWidgets.QDialog):
         primary_layout.addWidget(self.primary_udp_server_address, 0, 1)
         primary_layout.addWidget(QtWidgets.QLabel("UDP Server port number:"), 1, 0, QtCore.Qt.AlignLeft)
         primary_layout.addWidget(self.primary_udp_server_port, 1, 1)
+
         primary_group.setLayout(primary_layout)
 
-        # Send logged ADIF data Server
         secondary_group = QtWidgets.QGroupBox("Second UDP Server (Send logged QSO ADIF data)")
         secondary_layout = QtWidgets.QGridLayout()
 
         self.secondary_udp_server_address = QtWidgets.QLineEdit()
         self.secondary_udp_server_port = QtWidgets.QLineEdit()
+
         self.enable_secondary_udp_server = QtWidgets.QCheckBox("Enable sending to secondary UDP server")
 
         secondary_layout.addWidget(QtWidgets.QLabel("UDP Server:"), 0, 0, QtCore.Qt.AlignLeft)
@@ -258,14 +257,30 @@ class SettingsDialog(QtWidgets.QDialog):
         secondary_layout.addWidget(QtWidgets.QLabel("UDP Server port number:"), 1, 0, QtCore.Qt.AlignLeft)
         secondary_layout.addWidget(self.secondary_udp_server_port, 1, 1)
         secondary_layout.addWidget(self.enable_secondary_udp_server, 2, 0, 1, 2)
+
         secondary_group.setLayout(secondary_layout)
 
-        # Debug
-        debug_group = QtWidgets.QGroupBox("Options")
-        debug_layout = QtWidgets.QGridLayout()
+        udp_options_group = QtWidgets.QGroupBox("UDP Settings")
 
-        self.enable_sending_reply = QtWidgets.QCheckBox("Enable sending Reply UDP Packet")
-        self.enable_watchdog_bypass = QtWidgets.QCheckBox("Enable Watchdog bypass")
+        udp_options_widget = QtWidgets.QWidget()
+        udp_options_layout = QtWidgets.QGridLayout(udp_options_widget)
+        
+        self.enable_sending_reply = QtWidgets.QCheckBox("Enable reply")
+        self.enable_gap_finder = QtWidgets.QCheckBox("Enable frequencies offset updater")
+        self.enable_watchdog_bypass = QtWidgets.QCheckBox("Enable watchdog bypass")
+        
+        udp_options_layout.addWidget(self.enable_sending_reply, 0, 0, 1, 2)       
+        udp_options_layout.addWidget(self.enable_gap_finder, 1, 0, 1, 2)       
+        udp_options_layout.addWidget(self.enable_watchdog_bypass, 2, 0, 1, 2)
+        
+        udp_options_widget.setStyleSheet(f"background-color: {BG_COLOR_FOCUS_MY_CALL}; color: {FG_COLOR_FOCUS_MY_CALL};")
+        udp_options_group.setLayout(QtWidgets.QVBoxLayout())
+        udp_options_group.layout().setContentsMargins(0, 0, 0, 0)
+        udp_options_group.layout().addWidget(udp_options_widget)
+
+        log_options_group = QtWidgets.QGroupBox("Log Settings")
+        log_options_layout = QtWidgets.QGridLayout()
+
         self.enable_pounce_log = QtWidgets.QCheckBox(f"Save log to {get_log_filename()}")
         self.enable_log_packet_data = QtWidgets.QCheckBox("Save all received Packet Data to log")
         self.enable_debug_output = QtWidgets.QCheckBox("Show debug output")                
@@ -274,17 +289,13 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_log_packet_data.setChecked(False)
         self.enable_show_all_decoded.setChecked(False)
         self.enable_watchdog_bypass.setChecked(False)
-    
-        debug_layout.addWidget(self.enable_sending_reply, 0, 0, 1, 2)       
-        debug_layout.addWidget(self.enable_watchdog_bypass, 1, 0, 1, 2)        
-        debug_layout.addWidget(self.enable_pounce_log, 2, 0, 1, 2)
-        debug_layout.addWidget(self.enable_log_packet_data, 3, 0, 1, 2)        
-        debug_layout.addWidget(self.enable_debug_output, 4, 0, 1, 2)        
-        debug_layout.addWidget(self.enable_show_all_decoded, 5, 0, 1, 2)
 
-        debug_layout.setSpacing(12)
+        log_options_layout.addWidget(self.enable_pounce_log, 0, 0, 1, 2)
+        log_options_layout.addWidget(self.enable_log_packet_data, 1, 0, 1, 2)        
+        log_options_layout.addWidget(self.enable_debug_output, 2, 0, 1, 2)        
+        log_options_layout.addWidget(self.enable_show_all_decoded, 3, 0, 1, 2)
 
-        debug_group.setLayout(debug_layout)
+        log_options_group.setLayout(log_options_layout)
 
         self.load_params()
 
@@ -297,7 +308,8 @@ class SettingsDialog(QtWidgets.QDialog):
         layout.addWidget(notice_label)
         layout.addWidget(primary_group)
         layout.addWidget(secondary_group)
-        layout.addWidget(debug_group)
+        layout.addWidget(udp_options_group)
+        layout.addWidget(log_options_group)
         layout.addWidget(button_box)
 
     def load_params(self):
@@ -320,6 +332,9 @@ class SettingsDialog(QtWidgets.QDialog):
         )
         self.enable_sending_reply.setChecked(
             self.params.get('enable_sending_reply', True)
+        )
+        self.enable_gap_finder.setChecked(
+            self.params.get('enable_gap_finder', True)
         )
         self.enable_watchdog_bypass.setChecked(
             self.params.get('enable_watchdog_bypass', False)
@@ -345,6 +360,7 @@ class SettingsDialog(QtWidgets.QDialog):
             'secondary_udp_server_port'         : self.secondary_udp_server_port.text(),
             'enable_secondary_udp_server'       : self.enable_secondary_udp_server.isChecked(),
             'enable_sending_reply'              : self.enable_sending_reply.isChecked(),
+            'enable_gap_finder'                  : self.enable_gap_finder.isChecked(),
             'enable_watchdog_bypass'            : self.enable_watchdog_bypass.isChecked(),
             'enable_debug_output'               : self.enable_debug_output.isChecked(),
             'enable_pounce_log'                 : self.enable_pounce_log.isChecked(),
@@ -411,7 +427,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.wanted_callsign_detected_sound     = QSound("sounds/495650__matrixxx__supershort-ping-or-short-notification.wav")
         self.directed_to_my_call_sound          = QSound("sounds/716445__scottyd0es__tone12_error.wav")
-        self.ready_to_log_sound                 = QSound("sounds/716447__scottyd0es__tone12_msg_notification_1.wav")
+        self.ready_to_log_sound                 = QSound("sounds/709072__scottyd0es__aeroce-dualtone-5.wav")
         self.error_occurred_sound               = QSound("sounds/142608__autistic-lucario__error.wav")
 
         self.setGeometry(100, 100, 900, 700)
@@ -426,20 +442,21 @@ class MainApp(QtWidgets.QMainWindow):
 
         # Variables
         self.wanted_callsigns_var = QtWidgets.QLineEdit()
-        self.frequency_var = QtWidgets.QLineEdit()
-        self.frequency_var.setDisabled(True)
+        self.frequencies_var = QtWidgets.QLineEdit()
+        self.frequencies_var.setDisabled(True)
         self.time_hopping_var = QtWidgets.QLineEdit()
         self.time_hopping_var.setDisabled(True)
 
         # Mode buttons (radio buttons)
-        self.mode_var = QtWidgets.QButtonGroup()
-        radio_normal = QtWidgets.QRadioButton("Normal")
-        radio_foxhound = QtWidgets.QRadioButton("Fox/Hound")
-        radio_superfox = QtWidgets.QRadioButton("SuperFox")
+        self.special_mode_var = QtWidgets.QButtonGroup()
 
-        self.mode_var.addButton(radio_normal)
-        self.mode_var.addButton(radio_foxhound)
-        self.mode_var.addButton(radio_superfox)
+        radio_normal = QtWidgets.QRadioButton(MODE_NORMAL)
+        radio_foxhound = QtWidgets.QRadioButton(MODE_FOX_HOUND)
+        radio_superfox = QtWidgets.QRadioButton(MODE_SUPER_FOX)
+
+        self.special_mode_var.addButton(radio_normal)
+        self.special_mode_var.addButton(radio_foxhound)
+        self.special_mode_var.addButton(radio_superfox)
 
         radio_normal.setChecked(True)
             
@@ -481,16 +498,16 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.wanted_callsigns_history = self.load_wanted_callsigns()
 
-        self.frequency_var.setText(params.get("frequency", ""))
+        self.frequencies_var.setText(params.get("frequencies", ""))
         self.time_hopping_var.setText(params.get("time_hopping", ""))
         self.wanted_callsigns_var.setText(params.get("wanted_callsigns", ""))
 
-        mode = params.get("mode", "Normal")
-        if mode == "Normal":
+        special_mode = params.get("special_mode", "Normal")
+        if special_mode == "Normal":
             radio_normal.setChecked(True)
-        elif mode == "Fox/Hound":
+        elif special_mode == "Fox/Hound":
             radio_foxhound.setChecked(True)
-        elif mode == "SuperFox":
+        elif special_mode == "SuperFox":
             radio_superfox.setChecked(True)
 
         # Signals
@@ -572,7 +589,7 @@ class MainApp(QtWidgets.QMainWindow):
         main_layout.addWidget(self.focus_frame, 0, 0, 1, 4)
 
         main_layout.addWidget(QtWidgets.QLabel("Frequencies (comma-separated):"), 2, 0)
-        main_layout.addWidget(self.frequency_var, 2, 1)
+        main_layout.addWidget(self.frequencies_var, 2, 1)
         main_layout.addWidget(QtWidgets.QLabel("Time Hopping (minutes):"), 3, 0)
         main_layout.addWidget(self.time_hopping_var, 3, 1)
         main_layout.addWidget(QtWidgets.QLabel("Wanted Callsign(s) (comma-separated):"), 4, 0)
@@ -776,14 +793,14 @@ class MainApp(QtWidgets.QMainWindow):
     def disable_inputs(self):
         global inputs_enabled
         inputs_enabled = False
-        self.frequency_var.setEnabled(False)
+        self.frequencies_var.setEnabled(False)
         self.time_hopping_var.setEnabled(False)
         self.wanted_callsigns_var.setEnabled(False)
 
     def enable_inputs(self):
         global inputs_enabled
         inputs_enabled = True
-        self.frequency_var.setEnabled(True)
+        self.frequencies_var.setEnabled(True)
         self.time_hopping_var.setEnabled(True)
         self.wanted_callsigns_var.setEnabled(True)
 
@@ -960,7 +977,7 @@ class MainApp(QtWidgets.QMainWindow):
     def start_monitoring(self):
         global tray_icon
 
-        self.output_text.clear()
+        # self.output_text.clear()
         self.run_button.setEnabled(False)
         self.run_button.setText(RUNNING_TEXT_BUTTON)
         self.run_button.setStyleSheet("background-color: red; color: #ffffff")
@@ -973,15 +990,13 @@ class MainApp(QtWidgets.QMainWindow):
             tray_icon_thread = threading.Thread(target=tray_icon.start, daemon=True)
             tray_icon_thread.start()
 
-        frequency           = self.frequency_var.text()
-        time_hopping        = self.time_hopping_var.text()
-        wanted_callsigns    = self.wanted_callsigns_var.text()
-        mode                = self.mode_var.checkedButton().text()
+        frequencies                         = self.frequencies_var.text()
+        time_hopping                        = self.time_hopping_var.text()
+        wanted_callsigns                    = self.wanted_callsigns_var.text()
+        special_mode                        = self.special_mode_var.checkedButton().text()
 
-        # Charger les paramètres existants
-        params              = self.load_params()
-
-        local_ip_address    = get_local_ip_address()
+        params                              = self.load_params()
+        local_ip_address                    = get_local_ip_address()
 
         primary_udp_server_address          = params.get('primary_udp_server_address') or local_ip_address
         primary_udp_server_port             = int(params.get('primary_udp_server_port') or DEFAULT_UDP_PORT)
@@ -989,6 +1004,7 @@ class MainApp(QtWidgets.QMainWindow):
         secondary_udp_server_port           = int(params.get('secondary_udp_server_port') or DEFAULT_UDP_PORT)
         enable_secondary_udp_server         = params.get('enable_secondary_udp_server', False)
         enable_sending_reply                = params.get('enable_sending_reply', True)
+        enable_gap_finder                    = params.get('enable_gap_finder', True)
         enable_watchdog_bypass              = params.get('enable_watchdog_bypass', True)
         enable_debug_output                 = params.get('enable_debug_output', True)
         enable_pounce_log                   = params.get('enable_pounce_log', True)
@@ -998,10 +1014,10 @@ class MainApp(QtWidgets.QMainWindow):
         self.update_wanted_callsigns_history(wanted_callsigns)
 
         params.update({
-            "frequency": frequency,
+            "frequencies": frequencies,
             "time_hopping": time_hopping,
             "wanted_callsigns": wanted_callsigns,
-            "mode": mode
+            "special_mode": special_mode
         })
         self.save_params(params)
 
@@ -1011,10 +1027,10 @@ class MainApp(QtWidgets.QMainWindow):
         # Create a QThread and a Worker object
         self.thread = QThread()
         self.worker = Worker(
-            frequency,
+            frequencies,
             time_hopping,
             wanted_callsigns,
-            mode,
+            special_mode,
             self.stop_event,
             primary_udp_server_address,
             primary_udp_server_port,
@@ -1022,6 +1038,7 @@ class MainApp(QtWidgets.QMainWindow):
             secondary_udp_server_port,
             enable_secondary_udp_server,
             enable_sending_reply,
+            enable_gap_finder,
             enable_watchdog_bypass,
             enable_debug_output,
             enable_pounce_log,

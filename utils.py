@@ -56,12 +56,6 @@ def parse_wsjtx_message(message, wanted_callsigns):
         'wanted'   : wanted
     }
 
-def is_in_wanted(message, wanted_callsigns):
-    for callsign in wanted_callsigns:
-        if callsign in message:
-            return True
-    return False 
-
 def force_uppercase(widget):
     try:
         if isinstance(widget, QTextEdit):
