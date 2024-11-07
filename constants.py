@@ -1,5 +1,9 @@
 # constants.py
+
+from datetime import datetime
+
 version_number                  = 2.0
+EXPIRATION_DATE                 = datetime(2024, 11, 30)
 
 EVEN                            = 'EVEN'
 ODD                             = 'ODD'

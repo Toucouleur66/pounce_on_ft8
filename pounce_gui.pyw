@@ -23,6 +23,7 @@ from logger import get_logger, add_file_handler, remove_file_handler
 from gui_handler import GUIHandler
 
 from constants import (
+    EXPIRATION_DATE,
     DEFAULT_UDP_PORT,
     EVEN_COLOR,
     ODD_COLOR,
@@ -1146,8 +1147,33 @@ class MainApp(QtWidgets.QMainWindow):
         with open(filename, "a") as log_file:
             log_file.write(f"{timestamp} {message}\n")
 
+def check_expiration():
+    current_date = datetime.datetime.now()
+    if current_date > EXPIRATION_DATE:
+        app = QtWidgets.QApplication(sys.argv)
+        
+        expiration_date_str = EXPIRATION_DATE.strftime('%B %d, %Y')
+
+        msg_box = QtWidgets.QMessageBox()
+        msg_box.setWindowTitle("Program Expired")
+
+        label = QtWidgets.QLabel(f"{GUI_LABEL_VERSION} expired on <u>{expiration_date_str}</u>. Please contact author.")
+        small_font = QtGui.QFont()
+        small_font.setPointSize(12)  
+        label.setFont(small_font)
+        label.setTextFormat(QtCore.Qt.RichText)
+        
+        msg_box.setText("")
+        msg_box.layout().addWidget(label, 0, 1)
+        
+        msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+        msg_box.resize(450, 650)
+        msg_box.exec_()
+        sys.exit()
 
 def main():
+    check_expiration()
+
     app = QtWidgets.QApplication(sys.argv)
     window = MainApp()
     window.show()
