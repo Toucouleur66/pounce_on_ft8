@@ -3,6 +3,7 @@
 import socket
 import datetime
 import re
+import fnmatch
 
 from PyQt5.QtWidgets import QTextEdit, QLineEdit
 from PyQt5.QtGui import QTextCursor
@@ -22,7 +23,7 @@ def get_log_filename():
     today = datetime.datetime.now().strftime("%y%m%d")
     return f"{today}_pounce.log"
 
-def parse_wsjtx_message(message, wanted_callsigns):
+def parse_wsjtx_message(message, wanted_callsigns, exclude_callsigns = set()):
     directed  = None
     callsign  = None
     grid      = None
@@ -44,8 +45,17 @@ def parse_wsjtx_message(message, wanted_callsigns):
             callsign = match.group(2)
             msg = match.group(3)
 
-    if callsign in wanted_callsigns:
-        wanted = True         
+    if callsign:
+        callsign_upper = callsign.upper()
+
+        is_wanted = any(fnmatch.fnmatch(callsign_upper, pattern.upper()) for pattern in wanted_callsigns)
+        
+        is_excluded = any(fnmatch.fnmatch(callsign_upper, pattern.upper()) for pattern in exclude_callsigns)
+
+        wanted = is_wanted and not is_excluded
+    else:
+        wanted = False
+
 
     return {
         'directed' : directed,

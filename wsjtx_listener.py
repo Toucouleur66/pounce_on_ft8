@@ -93,6 +93,7 @@ class Listener:
         self.enable_show_all_decoded        = enable_show_all_decoded
 
         self.wanted_callsigns               = set(wanted_callsigns)
+        self.exclude_callsigns              = set()
         self.special_mode                   = special_mode
         self.message_callback               = message_callback
 
@@ -130,19 +131,7 @@ class Listener:
         self.packet_sender = WSJTXPacketSender(
             self.secondary_udp_server_address,
             self.secondary_udp_server_port
-        )
-
-    def get_local_ip_address(self):
-        import socket
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        try:
-            s.connect(('10.255.255.255', 1))
-            my_ip_address = s.getsockname()[0]
-        except Exception:
-            my_ip_address = '127.0.0.1'
-        finally:
-            s.close()
-        return my_ip_address                
+        )        
 
     def stop(self):
         self._running = False
@@ -380,7 +369,7 @@ class Listener:
             log.debug("DecodePacket: {}".format(formatted_message))
 
             # Pase message
-            parsed_data = parse_wsjtx_message(message, self.wanted_callsigns)
+            parsed_data = parse_wsjtx_message(message, self.wanted_callsigns, self.exclude_callsigns)
             directed    = parsed_data['directed']
             callsign    = parsed_data['callsign']
             grid        = parsed_data['grid']
@@ -411,6 +400,7 @@ class Listener:
                     self.reset_ongoing_contact()
                     # Make sure to remove this callsign once QSO done
                     self.wanted_callsigns.remove(callsign)
+                    self.exclude_callsigns.add(callsign)
      
                 elif self.targeted_call is not None:
                     log.error(f"Received |{msg}| from [ {callsign} ] but ongoing callsign is [ {self.targeted_call} ]")
@@ -509,6 +499,11 @@ class Listener:
             self.s.send_packet(self.addr_port, delta_f_paquet)
         except Exception as e:
             log.error(f"Error sending packets: {e}\n{traceback.format_exc()}")
+
+    def configure_packet(self):
+        configure_paquet = pywsjtx.ConfigurePacket.Builder(self.the_packet.wsjtx_id, "FT4")
+        log.warning(f"Sending ConfigurePacket: {configure_paquet}")
+        self.s.send_packet(self.addr_port, configure_paquet)        
 
     def log_qso_to_adif(self):
         required_fields = {

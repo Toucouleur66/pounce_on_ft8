@@ -1,8 +1,8 @@
+# wsjtx_packets.py
 
 import struct
 import datetime
 import math
-
 
 class PacketUtil:
     @classmethod
@@ -334,7 +334,7 @@ class DecodePacket(GenericWSJTXPacket):
     TYPE_VALUE = 2
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
         GenericWSJTXPacket.__init__(self, addr_port, magic, schema, pkt_type, id, pkt)
-        # handle packet-specific stuff.
+        
         ps = PacketReader(pkt)
         the_type = ps.QInt32()
         self.wsjtx_id = ps.QString()
@@ -369,13 +369,11 @@ class ClearPacket(GenericWSJTXPacket):
     TYPE_VALUE = 3
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
         GenericWSJTXPacket.__init__(self, addr_port, magic, schema, pkt_type, id, pkt)
-        # handle packet-specific stuff.
 
 class ReplyPacket(GenericWSJTXPacket):
     TYPE_VALUE = 4
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
         GenericWSJTXPacket.__init__(self, addr_port, magic, schema, pkt_type, id, pkt)
-        # handle packet-specific stuff.
 
     @classmethod
     def Builder(cls, decode_packet):
@@ -444,19 +442,16 @@ class ClosePacket(GenericWSJTXPacket):
     TYPE_VALUE = 6
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
         GenericWSJTXPacket.__init__(self, addr_port, magic, schema, pkt_type, id, pkt)
-        # handle packet-specific stuff.
 
 class ReplayPacket(GenericWSJTXPacket):
     TYPE_VALUE = 7
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
         GenericWSJTXPacket.__init__(self, addr_port, magic, schema, pkt_type, id, pkt)
-        # handle packet-specific stuff.
 
 class HaltTxPacket(GenericWSJTXPacket):
     TYPE_VALUE = 8
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
         GenericWSJTXPacket.__init__(self, addr_port, magic, schema, pkt_type, id, pkt)
-        # handle packet-specific stuff.
 
     @classmethod
     def Builder(cls,to_wsjtx_id='WSJT-X', auto_tx_only=False):
@@ -472,7 +467,6 @@ class FreeTextPacket(GenericWSJTXPacket):
     TYPE_VALUE = 9
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
         GenericWSJTXPacket.__init__(self, addr_port, magic, schema, pkt_type, id, pkt)
-        # handle packet-specific stuff.
 
     @classmethod
     def Builder(cls,to_wsjtx_id='WSJT-X', text="", send=False):
@@ -489,13 +483,11 @@ class WSPRDecodePacket(GenericWSJTXPacket):
     TYPE_VALUE = 10
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
         GenericWSJTXPacket.__init__(self, addr_port, magic, schema, pkt_type, id, pkt)
-        # handle packet-specific stuff.
 
 class LocationChangePacket(GenericWSJTXPacket):
     TYPE_VALUE = 11
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
         GenericWSJTXPacket.__init__(self, addr_port, magic, schema, pkt_type, id, pkt)
-        # handle packet-specific stuff.
 
     @classmethod
     def Builder(cls, to_wsjtx_id='WSJT-X', new_grid=""):
@@ -510,7 +502,6 @@ class LoggedADIFPacket(GenericWSJTXPacket):
     TYPE_VALUE = 12
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
         GenericWSJTXPacket.__init__(self, addr_port, magic, schema, pkt_type, id, pkt)
-        # handle packet-specific stuff.
 
     @classmethod
     def Builder(cls, to_wsjtx_id='WSJT-X', adif_text=""):
@@ -539,9 +530,6 @@ class HighlightCallsignPacket(GenericWSJTXPacket):
     TYPE_VALUE = 13
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
         GenericWSJTXPacket.__init__(self, addr_port, magic, schema, pkt_type, id, pkt)
-        # handle packet-specific stuff.
-
-    # the callsign field can contain text, callsigns, entire lines.
 
     @classmethod
     def Builder(cls, to_wsjtx_id='WSJT-X', callsign="K1JT", background_color=None, foreground_color=None, highlight_last_only=True ):
@@ -553,6 +541,40 @@ class HighlightCallsignPacket(GenericWSJTXPacket):
         pkt.write_QColor(background_color)
         pkt.write_QColor(foreground_color)
         pkt.write_QBool(highlight_last_only)
+        return pkt.packet
+    
+class ConfigurePacket(GenericWSJTXPacket):
+    TYPE_VALUE = 15
+    def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
+        GenericWSJTXPacket.__init__(self, addr_port, magic, schema, pkt_type, id, pkt)
+
+    @classmethod
+    def Builder(
+        cls,
+        to_wsjtx_id='WSJT-X',
+        mode="",
+        frequency_tolerance=0,
+        sub_mode="",
+        fast_mode="",
+        tr_period=0,
+        rx_df=600,
+        dx_call="",
+        dx_grid="",
+        generate_messages=False
+        ):
+        # build the packet to send
+        pkt = PacketWriter()
+        pkt.write_QInt32(ConfigurePacket.TYPE_VALUE)
+        pkt.write_QString(to_wsjtx_id)
+        pkt.write_QString(mode)
+        pkt.write_QInt32(frequency_tolerance)
+        pkt.write_QString(sub_mode)
+        pkt.write_QBool(fast_mode)
+        pkt.write_QInt32(tr_period)
+        pkt.write_QInt32(rx_df)
+        pkt.write_QString(dx_call)
+        pkt.write_QString(dx_grid)
+        pkt.write_QBool(generate_messages)
         return pkt.packet
 
 class WSJTXPacketClassFactory(GenericWSJTXPacket):
@@ -571,7 +593,8 @@ class WSJTXPacketClassFactory(GenericWSJTXPacket):
         WSPRDecodePacket.TYPE_VALUE: WSPRDecodePacket,
         LoggedADIFPacket.TYPE_VALUE: LoggedADIFPacket,  
         SetTxDeltaFreqPacket.TYPE_VALUE: SetTxDeltaFreqPacket,
-        HighlightCallsignPacket.TYPE_VALUE: HighlightCallsignPacket 
+        HighlightCallsignPacket.TYPE_VALUE: HighlightCallsignPacket,
+        ConfigurePacket.TYPE_VALUE: ConfigurePacket
     }
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
         self.addr_port = addr_port
