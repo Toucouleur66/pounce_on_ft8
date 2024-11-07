@@ -1,5 +1,5 @@
 # constants.py
-version_number          = 2.0
+version_number                  = 2.0
 
 EVEN                            = 'EVEN'
 ODD                             = 'ODD'

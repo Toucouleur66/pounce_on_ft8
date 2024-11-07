@@ -75,8 +75,8 @@ class Worker(QObject):
 
     def __init__(
             self,
-            frequencies,
-            time_hopping,
+            important_callsigns,
+            excluded_callsigns,
             wanted_callsigns,
             mode,
             stop_event,
@@ -94,8 +94,8 @@ class Worker(QObject):
             enable_show_all_decoded                        
         ):
         super(Worker, self).__init__()
-        self.frequencies                      = frequencies
-        self.time_hopping                   = time_hopping
+        self.important_callsigns            = important_callsigns
+        self.excluded_callsigns             = excluded_callsigns
         self.wanted_callsigns               = wanted_callsigns
         self.mode                           = mode
         self.stop_event                     = stop_event
@@ -115,8 +115,8 @@ class Worker(QObject):
     def run(self):
         try:
             wait_and_pounce.main(
-                self.frequencies,
-                self.time_hopping,
+                self.important_callsigns,
+                self.excluded_callsigns,
                 self.wanted_callsigns,
                 self.mode,
                 self.stop_event,
@@ -432,6 +432,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.directed_to_my_call_sound          = QSound("sounds/716445__scottyd0es__tone12_error.wav")
         self.ready_to_log_sound                 = QSound("sounds/709072__scottyd0es__aeroce-dualtone-5.wav")
         self.error_occurred_sound               = QSound("sounds/142608__autistic-lucario__error.wav")
+        self.important_callsign_detected_sound  = QSound("sounds/716442__scottyd0es__tone12_alert_3.wav")
 
         self.setGeometry(100, 100, 900, 700)
         self.base_title = GUI_LABEL_VERSION
@@ -445,10 +446,8 @@ class MainApp(QtWidgets.QMainWindow):
 
         # Variables
         self.wanted_callsigns_var = QtWidgets.QLineEdit()
-        self.frequencies_var = QtWidgets.QLineEdit()
-        self.frequencies_var.setDisabled(True)
-        self.time_hopping_var = QtWidgets.QLineEdit()
-        self.time_hopping_var.setDisabled(True)
+        self.important_callsigns_var = QtWidgets.QLineEdit()
+        self.excluded_callsigns_var = QtWidgets.QLineEdit()
 
         # Mode buttons (radio buttons)
         self.special_mode_var = QtWidgets.QButtonGroup()
@@ -501,8 +500,8 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.wanted_callsigns_history = self.load_wanted_callsigns()
 
-        self.frequencies_var.setText(params.get("frequencies", ""))
-        self.time_hopping_var.setText(params.get("time_hopping", ""))
+        self.important_callsigns_var.setText(params.get("important_callsigns", ""))
+        self.excluded_callsigns_var.setText(params.get("excluded_callsigns", ""))
         self.wanted_callsigns_var.setText(params.get("wanted_callsigns", ""))
 
         special_mode = params.get("special_mode", "Normal")
@@ -516,6 +515,12 @@ class MainApp(QtWidgets.QMainWindow):
         # Signals
         self.wanted_callsigns_var.textChanged.connect(lambda: force_uppercase(self.wanted_callsigns_var))
         self.wanted_callsigns_var.textChanged.connect(self.check_fields)
+
+        self.important_callsigns_var.textChanged.connect(lambda: force_uppercase(self.important_callsigns_var))
+        self.important_callsigns_var.textChanged.connect(self.check_fields)
+
+        self.excluded_callsigns_var.textChanged.connect(lambda: force_uppercase(self.excluded_callsigns_var))
+        self.excluded_callsigns_var.textChanged.connect(self.check_fields)
 
         # Wanted callsigns label
         self.wanted_callsigns_label = QtWidgets.QLabel(WANTED_CALLSIGNS_HISTORY_LABEL % len(self.wanted_callsigns_history))
@@ -591,11 +596,11 @@ class MainApp(QtWidgets.QMainWindow):
         # Organize UI components
         main_layout.addWidget(self.focus_frame, 0, 0, 1, 4)
 
-        main_layout.addWidget(QtWidgets.QLabel("Frequencies (comma-separated):"), 2, 0)
-        main_layout.addWidget(self.frequencies_var, 2, 1)
-        main_layout.addWidget(QtWidgets.QLabel("Time Hopping (minutes):"), 3, 0)
-        main_layout.addWidget(self.time_hopping_var, 3, 1)
-        main_layout.addWidget(QtWidgets.QLabel("Wanted Callsign(s) (comma-separated):"), 4, 0)
+        main_layout.addWidget(QtWidgets.QLabel("Important Callsign(s):"), 2, 0)
+        main_layout.addWidget(self.important_callsigns_var, 2, 1)
+        main_layout.addWidget(QtWidgets.QLabel("Excluded Callsign(s):"), 3, 0)
+        main_layout.addWidget(self.excluded_callsigns_var, 3, 1)
+        main_layout.addWidget(QtWidgets.QLabel("Wanted Callsign(s):"), 4, 0)
         main_layout.addWidget(self.wanted_callsigns_var, 4, 1)
 
         # Mode section
@@ -828,15 +833,15 @@ class MainApp(QtWidgets.QMainWindow):
     def disable_inputs(self):
         global inputs_enabled
         inputs_enabled = False
-        self.frequencies_var.setEnabled(False)
-        self.time_hopping_var.setEnabled(False)
+        self.important_callsigns_var.setEnabled(False)
+        self.excluded_callsigns_var.setEnabled(False)
         self.wanted_callsigns_var.setEnabled(False)
 
     def enable_inputs(self):
         global inputs_enabled
         inputs_enabled = True
-        self.frequencies_var.setEnabled(True)
-        self.time_hopping_var.setEnabled(True)
+        self.important_callsigns_var.setEnabled(True)
+        self.excluded_callsigns_var.setEnabled(True)
         self.wanted_callsigns_var.setEnabled(True)
 
     def save_params(self, params):
@@ -1027,8 +1032,8 @@ class MainApp(QtWidgets.QMainWindow):
             tray_icon_thread = threading.Thread(target=tray_icon.start, daemon=True)
             tray_icon_thread.start()
 
-        frequencies                         = self.frequencies_var.text()
-        time_hopping                        = self.time_hopping_var.text()
+        important_callsigns                 = self.important_callsigns_var.text()
+        excluded_callsigns                  = self.excluded_callsigns_var.text()
         wanted_callsigns                    = self.wanted_callsigns_var.text()
         special_mode                        = self.special_mode_var.checkedButton().text()
 
@@ -1051,8 +1056,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.update_wanted_callsigns_history(wanted_callsigns)
 
         params.update({
-            "frequencies": frequencies,
-            "time_hopping": time_hopping,
+            "important_callsigns": important_callsigns,
+            "excluded_callsigns": excluded_callsigns,
             "wanted_callsigns": wanted_callsigns,
             "special_mode": special_mode
         })
@@ -1064,8 +1069,8 @@ class MainApp(QtWidgets.QMainWindow):
         # Create a QThread and a Worker object
         self.thread = QThread()
         self.worker = Worker(
-            frequencies,
-            time_hopping,
+            important_callsigns,
+            excluded_callsigns,
             wanted_callsigns,
             special_mode,
             self.stop_event,

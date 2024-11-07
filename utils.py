@@ -23,47 +23,53 @@ def get_log_filename():
     today = datetime.datetime.now().strftime("%y%m%d")
     return f"{today}_pounce.log"
 
-def parse_wsjtx_message(message, wanted_callsigns, exclude_callsigns = set()):
+def parse_wsjtx_message(
+        message,
+        wanted_callsigns,
+        excluded_callsigns = set(),
+        important_callsigns = set()
+    ):
     directed  = None
     callsign  = None
     grid      = None
     msg       = None
     cqing     = False
     wanted    = False
+    important = False
 
     match = re.match(r"^CQ\s+(?:(\w{2,3})\s+)?([A-Z0-9/]+)(?:\s+([A-Z]{2}\d{2}))?", message)
     if match:
-        cqing = True
+        cqing    = True
         directed = match.group(1)
         callsign = match.group(2)
-        grid = match.group(3)
+        grid     = match.group(3)
 
     else:
         match = re.match(r"^([A-Z0-9/]+)\s+([A-Z0-9/]+)\s+([A-Z0-9+-]+)", message)
         if match:
             directed = match.group(1)
             callsign = match.group(2)
-            msg = match.group(3)
+            msg      = match.group(3)
 
     if callsign:
-        callsign_upper = callsign.upper()
+        def matches_any(patterns, callsign):
+            return any(fnmatch.fnmatch(callsign, pattern) for pattern in patterns)
 
-        is_wanted = any(fnmatch.fnmatch(callsign_upper, pattern.upper()) for pattern in wanted_callsigns)
-        
-        is_excluded = any(fnmatch.fnmatch(callsign_upper, pattern.upper()) for pattern in exclude_callsigns)
+        is_wanted    = matches_any(wanted_callsigns, callsign)
+        is_excluded  = matches_any(excluded_callsigns, callsign)
+        is_important = matches_any(important_callsigns, callsign)
 
-        wanted = is_wanted and not is_excluded
-    else:
-        wanted = False
-
+        wanted    = is_wanted and not is_excluded
+        important = is_important and not is_excluded
 
     return {
-        'directed' : directed,
-        'callsign' : callsign,
-        'grid'     : grid,
-        'msg'      : msg,
-        'cqing'    : cqing,
-        'wanted'   : wanted
+        'directed'  : directed,
+        'callsign'  : callsign,
+        'grid'      : grid,
+        'msg'       : msg,
+        'cqing'     : cqing,
+        'wanted'    : wanted,
+        'important' : important
     }
 
 def force_uppercase(widget):

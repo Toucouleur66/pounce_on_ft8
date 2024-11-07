@@ -44,8 +44,8 @@ class Listener:
             enable_pounce_log,        
             enable_log_packet_data, 
             enable_show_all_decoded,
-            frequencies,
-            time_hopping,
+            important_callsigns,
+            excluded_callsigns,
             wanted_callsigns,
             special_mode,
             message_callback=None
@@ -93,7 +93,8 @@ class Listener:
         self.enable_show_all_decoded        = enable_show_all_decoded
 
         self.wanted_callsigns               = set(wanted_callsigns)
-        self.exclude_callsigns              = set()
+        self.excluded_callsigns             = set(excluded_callsigns)
+        self.important_callsigns            = set(important_callsigns)
         self.special_mode                   = special_mode
         self.message_callback               = message_callback
 
@@ -369,7 +370,12 @@ class Listener:
             log.debug("DecodePacket: {}".format(formatted_message))
 
             # Pase message
-            parsed_data = parse_wsjtx_message(message, self.wanted_callsigns, self.exclude_callsigns)
+            parsed_data = parse_wsjtx_message(
+                message,
+                self.wanted_callsigns,
+                self.excluded_callsigns,
+                self.important_callsigns
+            )
             directed    = parsed_data['directed']
             callsign    = parsed_data['callsign']
             grid        = parsed_data['grid']
@@ -400,7 +406,7 @@ class Listener:
                     self.reset_ongoing_contact()
                     # Make sure to remove this callsign once QSO done
                     self.wanted_callsigns.remove(callsign)
-                    self.exclude_callsigns.add(callsign)
+                    self.excluded_callsigns.add(callsign)
      
                 elif self.targeted_call is not None:
                     log.error(f"Received |{msg}| from [ {callsign} ] but ongoing callsign is [ {self.targeted_call} ]")

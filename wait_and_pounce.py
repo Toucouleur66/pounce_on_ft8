@@ -37,8 +37,8 @@ class MyListener(Listener):
             enable_pounce_log,
             enable_log_packet_data, 
             enable_show_all_decoded,
-            frequencies,
-            time_hopping,
+            important_callsigns,
+            excluded_callsigns,
             wanted_callsigns,
             special_mode,
             message_callback = None
@@ -56,8 +56,8 @@ class MyListener(Listener):
             enable_pounce_log,
             enable_log_packet_data, 
             enable_show_all_decoded,
-            frequencies,
-            time_hopping,
+            important_callsigns,
+            excluded_callsigns,
             wanted_callsigns,
             special_mode,
             message_callback=message_callback
@@ -90,17 +90,25 @@ class MyListener(Listener):
                
                 snr                     = self.the_packet.snr
                 delta_time              = self.the_packet.delta_t
-                delta_frequencies         = self.the_packet.delta_f
+                delta_frequencies       = self.the_packet.delta_f
                 msg                     = self.the_packet.message                
 
-                parsed_data             = parse_wsjtx_message(msg, self.wanted_callsigns)
+                parsed_data             = parse_wsjtx_message(
+                                            msg,
+                                            self.wanted_callsigns,
+                                            self.excluded_callsigns,
+                                            self.important_callsigns,
+                                        )
                 directed                = parsed_data['directed']
-                wanted                  = parsed_data['wanted']                
+                wanted                  = parsed_data['wanted']
+                important               = parsed_data['important']                
             
                 if directed == self.my_call:
                     msg_color_text      = "bright_for_my_call"
                 elif wanted is True:
                     msg_color_text      = "black_on_yellow"
+                elif important is True:
+                    msg_color_text      = "black_on_brown"                    
                 elif directed in self.wanted_callsigns:  
                     msg_color_text      = "white_on_blue"
                 else:
@@ -128,8 +136,8 @@ class MyListener(Listener):
                 self.message_callback(f"Error handling packet: {e}")
 
 def main(
-        frequencies,
-        time_hopping,
+        important_callsigns,
+        excluded_callsigns,
         wanted_callsigns,
         special_mode,
         stop_event,
@@ -151,6 +159,12 @@ def main(
     if isinstance(wanted_callsigns, str):
         wanted_callsigns = [callsign.strip() for callsign in wanted_callsigns.split(',')]
 
+    if isinstance(excluded_callsigns, str):
+        excluded_callsigns = [callsign.strip() for callsign in excluded_callsigns.split(',')]        
+
+    if isinstance(important_callsigns, str):
+        important_callsigns = [callsign.strip() for callsign in important_callsigns.split(',')]                
+
     listener = MyListener(
         primary_udp_server_address      = primary_udp_server_address,
         primary_udp_server_port         = primary_udp_server_port,
@@ -164,8 +178,8 @@ def main(
         enable_pounce_log               = enable_pounce_log,
         enable_log_packet_data          = enable_log_packet_data,
         enable_show_all_decoded         = enable_show_all_decoded,
-        frequencies                     = frequencies,
-        time_hopping                    = time_hopping,
+        important_callsigns             = important_callsigns,
+        excluded_callsigns              = excluded_callsigns,
         wanted_callsigns                = wanted_callsigns,
         special_mode                    = special_mode,
         message_callback                = message_callback
