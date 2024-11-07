@@ -251,6 +251,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.secondary_udp_server_port = QtWidgets.QLineEdit()
 
         self.enable_secondary_udp_server = QtWidgets.QCheckBox("Enable sending to secondary UDP server")
+        self.enable_secondary_udp_server.setChecked(False)
 
         secondary_layout.addWidget(QtWidgets.QLabel("UDP Server:"), 0, 0, QtCore.Qt.AlignLeft)
         secondary_layout.addWidget(self.secondary_udp_server_address, 0, 1)
@@ -266,8 +267,13 @@ class SettingsDialog(QtWidgets.QDialog):
         udp_options_layout = QtWidgets.QGridLayout(udp_options_widget)
         
         self.enable_sending_reply = QtWidgets.QCheckBox("Enable reply")
+        self.enable_sending_reply.setChecked(True)
+
         self.enable_gap_finder = QtWidgets.QCheckBox("Enable frequencies offset updater")
+        self.enable_gap_finder.setChecked(False)
+
         self.enable_watchdog_bypass = QtWidgets.QCheckBox("Enable watchdog bypass")
+        self.enable_watchdog_bypass.setChecked(False)
         
         udp_options_layout.addWidget(self.enable_sending_reply, 0, 0, 1, 2)       
         udp_options_layout.addWidget(self.enable_gap_finder, 1, 0, 1, 2)       
@@ -282,14 +288,17 @@ class SettingsDialog(QtWidgets.QDialog):
         log_options_layout = QtWidgets.QGridLayout()
 
         self.enable_pounce_log = QtWidgets.QCheckBox(f"Save log to {get_log_filename()}")
+        self.enable_pounce_log.setChecked(False)
+
         self.enable_log_packet_data = QtWidgets.QCheckBox("Save all received Packet Data to log")
-        self.enable_debug_output = QtWidgets.QCheckBox("Show debug output")                
-        self.enable_show_all_decoded = QtWidgets.QCheckBox("Show all decoded messages, not only Wanted Callsigns")
-
         self.enable_log_packet_data.setChecked(False)
-        self.enable_show_all_decoded.setChecked(False)
-        self.enable_watchdog_bypass.setChecked(False)
-
+        
+        self.enable_debug_output = QtWidgets.QCheckBox("Show debug output")                
+        self.enable_debug_output.setChecked(False)
+        
+        self.enable_show_all_decoded = QtWidgets.QCheckBox("Show all decoded messages, not only Wanted Callsigns")
+        self.enable_show_all_decoded.setChecked(True)
+    
         log_options_layout.addWidget(self.enable_pounce_log, 0, 0, 1, 2)
         log_options_layout.addWidget(self.enable_log_packet_data, 1, 0, 1, 2)        
         log_options_layout.addWidget(self.enable_debug_output, 2, 0, 1, 2)        

@@ -150,13 +150,24 @@ class Listener:
                 self.handle_packet()
             except socket.timeout:
                 continue
+            except OSError as e:
+                if e.winerror == 10038:
+                    break
+                else:
+                    error_message = f"Exception in doListen: {e}\n{traceback.format_exc()}"
+                    log.info(error_message)
+                    if self.message_callback:
+                        self.message_callback(error_message)
             except Exception as e:
                 error_message = f"Exception in doListen: {e}\n{traceback.format_exc()}"
                 log.info(error_message)
                 if self.message_callback:
                     self.message_callback(error_message)
         
-        self.s.sock.close()
+        try:
+            self.s.sock.close()
+        except Exception:
+            pass
         log.info("Listener stopped")                       
 
     def listen(self):
@@ -314,6 +325,7 @@ class Listener:
         return EVEN if period_index % 2 == 0 else ODD
 
     def get_frequency_suggestion(self, period):
+        # Suggests a frequency in the middle of the largest available segment
         used_frequencies_sets = self.used_frequencies.get(period, deque())
         used_frequencies = set()
         for freq_set in used_frequencies_sets:
@@ -321,36 +333,39 @@ class Listener:
 
         used_frequencies = sorted(used_frequencies)
 
-        frequency_range = [FREQ_MINIMUM_FOX_HOUND if self.special_mode == MODE_FOX_HOUND else FREQ_MINIMUM] + used_frequencies + [FREQ_MAXIMUM]
+        freq_min = FREQ_MINIMUM_FOX_HOUND if self.special_mode == MODE_FOX_HOUND else FREQ_MINIMUM
+        freq_max = FREQ_MAXIMUM
+
+        frequency_range = [freq_min] + used_frequencies + [freq_max]
 
         gaps = []
         for i in range(len(frequency_range) - 1):
             gap_start = frequency_range[i]
             gap_end = frequency_range[i + 1]
-            if gap_end - gap_start > 50:
-                adjusted_gaps = [(gap_start, gap_end)]
-                if self.special_mode == MODE_NORMAL and self.targeted_call_frequencies:
-                    min_targeted = min(self.targeted_call_frequencies)
-                    max_targeted = max(self.targeted_call_frequencies)
-                    new_adjusted_gaps = []
-                    for agap_start, agap_end in adjusted_gaps:
-                        # Si le gap ne chevauche pas la plage ciblée, on le garde tel quel
-                        if agap_end <= min_targeted or agap_start >= max_targeted:
-                            new_adjusted_gaps.append((agap_start, agap_end))
-                        else:
-                            # Le gap chevauche la plage ciblée, on ajuste
-                            if agap_start < min_targeted:
-                                new_adjusted_gaps.append((agap_start, min_targeted))
-                            if agap_end > max_targeted:
-                                new_adjusted_gaps.append((max_targeted, agap_end))
-                    adjusted_gaps = new_adjusted_gaps
-                gaps.extend(adjusted_gaps)
+            gap_size = gap_end - gap_start
+            if gap_size > 50:
+                gaps.append((gap_start, gap_end))
 
-        if gaps:
-            largest_gap = max(gaps, key=lambda x: x[1] - x[0])
-            return int((largest_gap[0] + largest_gap[1]) / 2)
-        else:
+        if self.special_mode == MODE_NORMAL and self.targeted_call_frequencies:
+            min_targeted = min(self.targeted_call_frequencies)
+            max_targeted = max(self.targeted_call_frequencies)
+            adjusted_gaps = []
+            for gap_start, gap_end in gaps:
+                if gap_start < min_targeted < gap_end:
+                    adjusted_gaps.append((gap_start, min_targeted))
+                if gap_start < max_targeted < gap_end:
+                    adjusted_gaps.append((max_targeted, gap_end))
+                if not (gap_start < min_targeted < gap_end or gap_start < max_targeted < gap_end):
+                    adjusted_gaps.append((gap_start, gap_end))
+            gaps = adjusted_gaps
+
+        if not gaps:
             return None
+
+        largest_gap = max(gaps, key=lambda x: x[1] - x[0])
+        suggested_freq = (largest_gap[0] + largest_gap[1]) / 2
+
+        return int(suggested_freq)
 
     def decode_parse_packet(self):
         if self.enable_log_packet_data:
@@ -489,7 +504,8 @@ class Listener:
                 self.suggested_frequency is None                
             ):
                 self.suggested_frequency = self.get_frequency_suggestion(my_period)
-                self.set_delta_f_packet(self.suggested_frequency)
+                if self.suggested_frequency is not None:
+                    self.set_delta_f_packet(self.suggested_frequency)
 
             reply_pkt = pywsjtx.ReplyPacket.Builder(self.the_packet)
             log.warning(f"Sending ReplyPacket: {reply_pkt}")
