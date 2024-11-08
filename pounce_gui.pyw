@@ -43,8 +43,17 @@ from constants import (
     WANTED_CALLSIGNS_HISTORY_LABEL,
     MODE_FOX_HOUND,
     MODE_NORMAL,
-    MODE_SUPER_FOX
-)
+    MODE_SUPER_FOX,
+    CURRENT_DIR,
+    DEFAULT_SECONDARY_UDP_SERVER,
+    DEFAULT_SENDING_REPLY,
+    DEFAULT_GAP_FINDER,
+    DEFAULT_WATCHDOG_BYPASS,
+    DEFAULT_DEBUG_OUTPUT,
+    DEFAULT_POUNCE_LOG,
+    DEFAULT_LOG_PACKET_DATA,
+    DEFAULT_SHOW_ALL_DECODED 
+    )
 
 if platform.system() == 'Windows':
     from pystray import Icon, MenuItem
@@ -76,7 +85,7 @@ class Worker(QObject):
 
     def __init__(
             self,
-            important_callsigns,
+            monitored_callsigns,
             excluded_callsigns,
             wanted_callsigns,
             mode,
@@ -95,7 +104,7 @@ class Worker(QObject):
             enable_show_all_decoded                        
         ):
         super(Worker, self).__init__()
-        self.important_callsigns            = important_callsigns
+        self.monitored_callsigns            = monitored_callsigns
         self.excluded_callsigns             = excluded_callsigns
         self.wanted_callsigns               = wanted_callsigns
         self.mode                           = mode
@@ -116,7 +125,7 @@ class Worker(QObject):
     def run(self):
         try:
             wait_and_pounce.main(
-                self.important_callsigns,
+                self.monitored_callsigns,
                 self.excluded_callsigns,
                 self.wanted_callsigns,
                 self.mode,
@@ -252,7 +261,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.secondary_udp_server_port = QtWidgets.QLineEdit()
 
         self.enable_secondary_udp_server = QtWidgets.QCheckBox("Enable sending to secondary UDP server")
-        self.enable_secondary_udp_server.setChecked(False)
+        self.enable_secondary_udp_server.setChecked(DEFAULT_SECONDARY_UDP_SERVER)
 
         secondary_layout.addWidget(QtWidgets.QLabel("UDP Server:"), 0, 0, QtCore.Qt.AlignLeft)
         secondary_layout.addWidget(self.secondary_udp_server_address, 0, 1)
@@ -268,13 +277,13 @@ class SettingsDialog(QtWidgets.QDialog):
         udp_options_layout = QtWidgets.QGridLayout(udp_options_widget)
         
         self.enable_sending_reply = QtWidgets.QCheckBox("Enable reply")
-        self.enable_sending_reply.setChecked(True)
+        self.enable_sending_reply.setChecked(DEFAULT_SENDING_REPLY)
 
         self.enable_gap_finder = QtWidgets.QCheckBox("Enable frequencies offset updater")
-        self.enable_gap_finder.setChecked(False)
+        self.enable_gap_finder.setChecked(DEFAULT_GAP_FINDER)
 
         self.enable_watchdog_bypass = QtWidgets.QCheckBox("Enable watchdog bypass")
-        self.enable_watchdog_bypass.setChecked(False)
+        self.enable_watchdog_bypass.setChecked(DEFAULT_WATCHDOG_BYPASS)
         
         udp_options_layout.addWidget(self.enable_sending_reply, 0, 0, 1, 2)       
         udp_options_layout.addWidget(self.enable_gap_finder, 1, 0, 1, 2)       
@@ -288,17 +297,17 @@ class SettingsDialog(QtWidgets.QDialog):
         log_options_group = QtWidgets.QGroupBox("Log Settings")
         log_options_layout = QtWidgets.QGridLayout()
 
+        self.enable_debug_output = QtWidgets.QCheckBox("Show debug output")                
+        self.enable_debug_output.setChecked(DEFAULT_DEBUG_OUTPUT)
+        
         self.enable_pounce_log = QtWidgets.QCheckBox(f"Save log to {get_log_filename()}")
-        self.enable_pounce_log.setChecked(False)
+        self.enable_pounce_log.setChecked(DEFAULT_POUNCE_LOG)
 
         self.enable_log_packet_data = QtWidgets.QCheckBox("Save all received Packet Data to log")
-        self.enable_log_packet_data.setChecked(False)
-        
-        self.enable_debug_output = QtWidgets.QCheckBox("Show debug output")                
-        self.enable_debug_output.setChecked(False)
+        self.enable_log_packet_data.setChecked(DEFAULT_LOG_PACKET_DATA)
         
         self.enable_show_all_decoded = QtWidgets.QCheckBox("Show all decoded messages, not only Wanted Callsigns")
-        self.enable_show_all_decoded.setChecked(True)
+        self.enable_show_all_decoded.setChecked(DEFAULT_SHOW_ALL_DECODED)
     
         log_options_layout.addWidget(self.enable_pounce_log, 0, 0, 1, 2)
         log_options_layout.addWidget(self.enable_log_packet_data, 1, 0, 1, 2)        
@@ -338,28 +347,28 @@ class SettingsDialog(QtWidgets.QDialog):
             str(self.params.get('secondary_udp_server_port', DEFAULT_UDP_PORT))
         )
         self.enable_secondary_udp_server.setChecked(
-            self.params.get('enable_secondary_udp_server', False)
+            self.params.get('enable_secondary_udp_server', DEFAULT_SECONDARY_UDP_SERVER)
         )
         self.enable_sending_reply.setChecked(
-            self.params.get('enable_sending_reply', True)
+            self.params.get('enable_sending_reply', DEFAULT_SENDING_REPLY)
         )
         self.enable_gap_finder.setChecked(
-            self.params.get('enable_gap_finder', True)
+            self.params.get('enable_gap_finder', DEFAULT_GAP_FINDER)
         )
         self.enable_watchdog_bypass.setChecked(
-            self.params.get('enable_watchdog_bypass', False)
+            self.params.get('enable_watchdog_bypass', DEFAULT_WATCHDOG_BYPASS)
         )
         self.enable_debug_output.setChecked(
-            self.params.get('enable_debug_output', True)
+            self.params.get('enable_debug_output', DEFAULT_DEBUG_OUTPUT)
         )
         self.enable_pounce_log.setChecked(
-            self.params.get('enable_pounce_log', True)
+            self.params.get('enable_pounce_log', DEFAULT_POUNCE_LOG)
         )
         self.enable_log_packet_data.setChecked(
-            self.params.get('enable_log_packet_data', False)
+            self.params.get('enable_log_packet_data', DEFAULT_LOG_PACKET_DATA)
         )
         self.enable_show_all_decoded.setChecked(
-            self.params.get('enable_show_all_decoded', False)
+            self.params.get('enable_show_all_decoded', DEFAULT_SHOW_ALL_DECODED)
         )
 
     def get_result(self):
@@ -437,12 +446,13 @@ class MainApp(QtWidgets.QMainWindow):
         self.decode_packet_count                = 0
         self.last_decode_packet_time            = None
         self.last_heartbeat_time                = None
+        self.last_sound_played_time             = datetime.datetime.min
 
-        self.wanted_callsign_detected_sound     = QSound("sounds/495650__matrixxx__supershort-ping-or-short-notification.wav")
-        self.directed_to_my_call_sound          = QSound("sounds/716445__scottyd0es__tone12_error.wav")
-        self.ready_to_log_sound                 = QSound("sounds/709072__scottyd0es__aeroce-dualtone-5.wav")
-        self.error_occurred_sound               = QSound("sounds/142608__autistic-lucario__error.wav")
-        self.important_callsign_detected_sound  = QSound("sounds/716442__scottyd0es__tone12_alert_3.wav")
+        self.wanted_callsign_detected_sound     = QSound(f"{CURRENT_DIR}/sounds/495650__matrixxx__supershort-ping-or-short-notification.wav")
+        self.directed_to_my_call_sound          = QSound(f"{CURRENT_DIR}/sounds/716445__scottyd0es__tone12_error.wav")
+        self.ready_to_log_sound                 = QSound(f"{CURRENT_DIR}/sounds/709072__scottyd0es__aeroce-dualtone-5.wav")
+        self.error_occurred_sound               = QSound(f"{CURRENT_DIR}/sounds/142608__autistic-lucario__error.wav")
+        self.monitored_callsign_detected_sound  = QSound(f"{CURRENT_DIR}/sounds/716442__scottyd0es__tone12_alert_3.wav")
 
         self.setGeometry(100, 100, 900, 700)
         self.base_title = GUI_LABEL_VERSION
@@ -456,7 +466,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         # Variables
         self.wanted_callsigns_var = QtWidgets.QLineEdit()
-        self.important_callsigns_var = QtWidgets.QLineEdit()
+        self.monitored_callsigns_var = QtWidgets.QLineEdit()
         self.excluded_callsigns_var = QtWidgets.QLineEdit()
 
         # Mode buttons (radio buttons)
@@ -474,10 +484,10 @@ class MainApp(QtWidgets.QMainWindow):
             
         self.text_formats = {
             'black_on_purple'   : QtGui.QTextCharFormat(),
-            'black_on_brown'    : QtGui.QTextCharFormat(),
+            'white_on_brown'    : QtGui.QTextCharFormat(),
             'black_on_white'    : QtGui.QTextCharFormat(),
             'black_on_yellow'   : QtGui.QTextCharFormat(),
-            'white_on_red'      : QtGui.QTextCharFormat(),
+            'red_on_grey'       : QtGui.QTextCharFormat(),
             'white_on_blue'     : QtGui.QTextCharFormat(),
             'bright_green'      : QtGui.QTextCharFormat(),
             'bright_for_my_call': QtGui.QTextCharFormat()      
@@ -486,17 +496,14 @@ class MainApp(QtWidgets.QMainWindow):
         self.text_formats['black_on_purple'].setForeground(QtGui.QBrush(QtGui.QColor('black')))
         self.text_formats['black_on_purple'].setBackground(QtGui.QBrush(QtGui.QColor('#D080d0')))
 
-        self.text_formats['black_on_brown'].setForeground(QtGui.QBrush(QtGui.QColor('black')))
-        self.text_formats['black_on_brown'].setBackground(QtGui.QBrush(QtGui.QColor('#C08000')))
-
         self.text_formats['black_on_white'].setForeground(QtGui.QBrush(QtGui.QColor('black')))
         self.text_formats['black_on_white'].setBackground(QtGui.QBrush(QtGui.QColor('white')))
 
         self.text_formats['black_on_yellow'].setForeground(QtGui.QBrush(QtGui.QColor('black')))
         self.text_formats['black_on_yellow'].setBackground(QtGui.QBrush(QtGui.QColor('yellow')))
 
-        self.text_formats['white_on_red'].setForeground(QtGui.QBrush(QtGui.QColor('white')))
-        self.text_formats['white_on_red'].setBackground(QtGui.QBrush(QtGui.QColor('red')))
+        self.text_formats['red_on_grey'].setForeground(QtGui.QBrush(QtGui.QColor('red')))
+        self.text_formats['red_on_grey'].setBackground(QtGui.QBrush(QtGui.QColor('#EEEEEE')))
 
         self.text_formats['white_on_blue'].setForeground(QtGui.QBrush(QtGui.QColor('white')))
         self.text_formats['white_on_blue'].setBackground(QtGui.QBrush(QtGui.QColor('blue')))
@@ -510,7 +517,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.wanted_callsigns_history = self.load_wanted_callsigns()
 
-        self.important_callsigns_var.setText(params.get("important_callsigns", ""))
+        self.monitored_callsigns_var.setText(params.get("monitored_callsigns", ""))
         self.excluded_callsigns_var.setText(params.get("excluded_callsigns", ""))
         self.wanted_callsigns_var.setText(params.get("wanted_callsigns", ""))
 
@@ -526,8 +533,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.wanted_callsigns_var.textChanged.connect(lambda: force_uppercase(self.wanted_callsigns_var))
         self.wanted_callsigns_var.textChanged.connect(self.check_fields)
 
-        self.important_callsigns_var.textChanged.connect(lambda: force_uppercase(self.important_callsigns_var))
-        self.important_callsigns_var.textChanged.connect(self.check_fields)
+        self.monitored_callsigns_var.textChanged.connect(lambda: force_uppercase(self.monitored_callsigns_var))
+        self.monitored_callsigns_var.textChanged.connect(self.check_fields)
 
         self.excluded_callsigns_var.textChanged.connect(lambda: force_uppercase(self.excluded_callsigns_var))
         self.excluded_callsigns_var.textChanged.connect(self.check_fields)
@@ -606,12 +613,12 @@ class MainApp(QtWidgets.QMainWindow):
         # Organize UI components
         main_layout.addWidget(self.focus_frame, 0, 0, 1, 4)
 
-        main_layout.addWidget(QtWidgets.QLabel("Important Callsign(s):"), 2, 0)
-        main_layout.addWidget(self.important_callsigns_var, 2, 1)
-        main_layout.addWidget(QtWidgets.QLabel("Excluded Callsign(s):"), 3, 0)
-        main_layout.addWidget(self.excluded_callsigns_var, 3, 1)
-        main_layout.addWidget(QtWidgets.QLabel("Wanted Callsign(s):"), 4, 0)
-        main_layout.addWidget(self.wanted_callsigns_var, 4, 1)
+        main_layout.addWidget(QtWidgets.QLabel("Wanted Callsign(s):"), 2, 0)
+        main_layout.addWidget(self.wanted_callsigns_var, 2, 1)
+        main_layout.addWidget(QtWidgets.QLabel("Monitored Callsign(s):"), 3, 0)
+        main_layout.addWidget(self.monitored_callsigns_var, 3, 1)
+        main_layout.addWidget(QtWidgets.QLabel("Excluded Callsign(s):"), 4, 0)
+        main_layout.addWidget(self.excluded_callsigns_var, 4, 1)
 
         # Mode section
         mode_layout = QtWidgets.QHBoxLayout()
@@ -671,7 +678,7 @@ class MainApp(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot(str)
     def show_error_message(self, message):
-        self.append_output_text(f"[white_on_red]{message}[/white_on_red]\n")
+        self.append_output_text(f"[red_on_grey]{message}[/red_on_grey]\n")
 
     @QtCore.pyqtSlot(object)
     def handle_message_received(self, message):
@@ -692,11 +699,12 @@ class MainApp(QtWidgets.QMainWindow):
                 if message_type in {
                         'wanted_callsign_detected',
                         'directed_to_my_call',
+                        'monitored_callsign_detected',
                         'ready_to_log',
                         'error_occurred'
                     }:
-                        if self.enable_alert_checkbox.isChecked():
-                                self.play_sound(message_type)
+                        if self.enable_alert_checkbox.isChecked():                            
+                            self.play_sound(message_type)
     
         else:
             # Use this to handle window title update
@@ -713,18 +721,26 @@ class MainApp(QtWidgets.QMainWindow):
     def reset_window_title(self):
         self.setWindowTitle(self.base_title)               
 
-    def play_sound(self, sound_name):
-        try:
+    def play_sound(self, sound_name, delay = 600):
+        # Todo: add delay to settings
+        try:           
+            current_time = datetime.datetime.now()
+
             if sound_name == 'wanted_callsign_detected':
                 self.wanted_callsign_detected_sound.play()
             elif sound_name == 'directed_to_my_call':
                 self.directed_to_my_call_sound.play()
+            elif sound_name == 'monitored_callsign_detected':
+                print(f"What should be the delay? {(current_time - self.last_sound_played_time).total_seconds()}")
+                if (current_time - self.last_sound_played_time).total_seconds() > delay:
+                    self.monitored_callsign_detected_sound.play()       
+                    self.last_sound_played_time = current_time                         
             elif sound_name == 'ready_to_log':
                 self.ready_to_log_sound.play()
             elif sound_name == 'error_occurred':
                 self.error_occurred_sound.play()                
             else:
-                print(f"Unknown sound: {sound_name}")
+                print(f"Unknown sound: {sound_name}")            
         except Exception as e:
             print(f"Failed to play alert sound: {e}")            
 
@@ -843,14 +859,14 @@ class MainApp(QtWidgets.QMainWindow):
     def disable_inputs(self):
         global inputs_enabled
         inputs_enabled = False
-        self.important_callsigns_var.setEnabled(False)
+        self.monitored_callsigns_var.setEnabled(False)
         self.excluded_callsigns_var.setEnabled(False)
         self.wanted_callsigns_var.setEnabled(False)
 
     def enable_inputs(self):
         global inputs_enabled
         inputs_enabled = True
-        self.important_callsigns_var.setEnabled(True)
+        self.monitored_callsigns_var.setEnabled(True)
         self.excluded_callsigns_var.setEnabled(True)
         self.wanted_callsigns_var.setEnabled(True)
 
@@ -1042,7 +1058,7 @@ class MainApp(QtWidgets.QMainWindow):
             tray_icon_thread = threading.Thread(target=tray_icon.start, daemon=True)
             tray_icon_thread.start()
 
-        important_callsigns                 = self.important_callsigns_var.text()
+        monitored_callsigns                 = self.monitored_callsigns_var.text()
         excluded_callsigns                  = self.excluded_callsigns_var.text()
         wanted_callsigns                    = self.wanted_callsigns_var.text()
         special_mode                        = self.special_mode_var.checkedButton().text()
@@ -1054,19 +1070,19 @@ class MainApp(QtWidgets.QMainWindow):
         primary_udp_server_port             = int(params.get('primary_udp_server_port') or DEFAULT_UDP_PORT)
         secondary_udp_server_address        = params.get('secondary_udp_server_address') or local_ip_address
         secondary_udp_server_port           = int(params.get('secondary_udp_server_port') or DEFAULT_UDP_PORT)
-        enable_secondary_udp_server         = params.get('enable_secondary_udp_server', False)
-        enable_sending_reply                = params.get('enable_sending_reply', True)
-        enable_gap_finder                    = params.get('enable_gap_finder', True)
-        enable_watchdog_bypass              = params.get('enable_watchdog_bypass', True)
-        enable_debug_output                 = params.get('enable_debug_output', True)
-        enable_pounce_log                   = params.get('enable_pounce_log', True)
-        enable_log_packet_data              = params.get('enable_log_packet_data', False)
-        enable_show_all_decoded             = params.get('enable_show_all_decoded', False)
+        enable_secondary_udp_server         = params.get('enable_secondary_udp_server', DEFAULT_SECONDARY_UDP_SERVER)
+        enable_sending_reply                = params.get('enable_sending_reply', DEFAULT_SENDING_REPLY)
+        enable_gap_finder                    = params.get('enable_gap_finder', DEFAULT_GAP_FINDER)
+        enable_watchdog_bypass              = params.get('enable_watchdog_bypass', DEFAULT_WATCHDOG_BYPASS)
+        enable_debug_output                 = params.get('enable_debug_output', DEFAULT_DEBUG_OUTPUT)
+        enable_pounce_log                   = params.get('enable_pounce_log', DEFAULT_POUNCE_LOG)
+        enable_log_packet_data              = params.get('enable_log_packet_data', DEFAULT_LOG_PACKET_DATA)
+        enable_show_all_decoded             = params.get('enable_show_all_decoded', DEFAULT_SHOW_ALL_DECODED)
 
         self.update_wanted_callsigns_history(wanted_callsigns)
 
         params.update({
-            "important_callsigns": important_callsigns,
+            "monitored_callsigns": monitored_callsigns,
             "excluded_callsigns": excluded_callsigns,
             "wanted_callsigns": wanted_callsigns,
             "special_mode": special_mode
@@ -1079,7 +1095,7 @@ class MainApp(QtWidgets.QMainWindow):
         # Create a QThread and a Worker object
         self.thread = QThread()
         self.worker = Worker(
-            important_callsigns,
+            monitored_callsigns,
             excluded_callsigns,
             wanted_callsigns,
             special_mode,

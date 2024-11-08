@@ -37,7 +37,7 @@ class MyListener(Listener):
             enable_pounce_log,
             enable_log_packet_data, 
             enable_show_all_decoded,
-            important_callsigns,
+            monitored_callsigns,
             excluded_callsigns,
             wanted_callsigns,
             special_mode,
@@ -56,7 +56,7 @@ class MyListener(Listener):
             enable_pounce_log,
             enable_log_packet_data, 
             enable_show_all_decoded,
-            important_callsigns,
+            monitored_callsigns,
             excluded_callsigns,
             wanted_callsigns,
             special_mode,
@@ -97,18 +97,18 @@ class MyListener(Listener):
                                             msg,
                                             self.wanted_callsigns,
                                             self.excluded_callsigns,
-                                            self.important_callsigns,
+                                            self.monitored_callsigns,
                                         )
                 directed                = parsed_data['directed']
                 wanted                  = parsed_data['wanted']
-                important               = parsed_data['important']                
+                monitored               = parsed_data['monitored']                
             
                 if directed == self.my_call:
                     msg_color_text      = "bright_for_my_call"
                 elif wanted is True:
                     msg_color_text      = "black_on_yellow"
-                elif important is True:
-                    msg_color_text      = "black_on_brown"                    
+                elif monitored is True:
+                    msg_color_text      = "black_on_purple"                    
                 elif directed in self.wanted_callsigns:  
                     msg_color_text      = "white_on_blue"
                 else:
@@ -136,7 +136,7 @@ class MyListener(Listener):
                 self.message_callback(f"Error handling packet: {e}")
 
 def main(
-        important_callsigns,
+        monitored_callsigns,
         excluded_callsigns,
         wanted_callsigns,
         special_mode,
@@ -162,8 +162,8 @@ def main(
     if isinstance(excluded_callsigns, str):
         excluded_callsigns = [callsign.strip() for callsign in excluded_callsigns.split(',')]        
 
-    if isinstance(important_callsigns, str):
-        important_callsigns = [callsign.strip() for callsign in important_callsigns.split(',')]                
+    if isinstance(monitored_callsigns, str):
+        monitored_callsigns = [callsign.strip() for callsign in monitored_callsigns.split(',')]                
 
     listener = MyListener(
         primary_udp_server_address      = primary_udp_server_address,
@@ -178,7 +178,7 @@ def main(
         enable_pounce_log               = enable_pounce_log,
         enable_log_packet_data          = enable_log_packet_data,
         enable_show_all_decoded         = enable_show_all_decoded,
-        important_callsigns             = important_callsigns,
+        monitored_callsigns             = monitored_callsigns,
         excluded_callsigns              = excluded_callsigns,
         wanted_callsigns                = wanted_callsigns,
         special_mode                    = special_mode,

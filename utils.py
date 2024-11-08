@@ -3,10 +3,14 @@
 import socket
 import datetime
 import re
+import os
+import sys
 import fnmatch
 
 from PyQt5.QtWidgets import QTextEdit, QLineEdit
-from PyQt5.QtGui import QTextCursor
+from PyQt5.QtCore import QCoreApplication, QStandardPaths
+
+QCoreApplication.setApplicationName("Wait and Pounce")
 
 def get_local_ip_address():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -19,15 +23,27 @@ def get_local_ip_address():
         s.close()
     return local_ip_address
 
+def get_app_data_dir():
+    if getattr(sys, 'frozen', False):
+        app_data_dir = QStandardPaths.writableLocation(QStandardPaths.AppDataLocation)
+    else:
+        app_data_dir = os.path.abspath(".")
+
+    if not os.path.exists(app_data_dir):
+        os.makedirs(app_data_dir)
+
+    return app_data_dir
+
 def get_log_filename():
     today = datetime.datetime.now().strftime("%y%m%d")
-    return f"{today}_pounce.log"
+
+    return os.path.join(get_app_data_dir(), f"{today}_pounce.log")
 
 def parse_wsjtx_message(
         message,
         wanted_callsigns,
         excluded_callsigns = set(),
-        important_callsigns = set()
+        monitored_callsigns = set()
     ):
     directed  = None
     callsign  = None
@@ -35,7 +51,7 @@ def parse_wsjtx_message(
     msg       = None
     cqing     = False
     wanted    = False
-    important = False
+    monitored = False
 
     match = re.match(r"^CQ\s+(?:(\w{2,3})\s+)?([A-Z0-9/]+)(?:\s+([A-Z]{2}\d{2}))?", message)
     if match:
@@ -57,10 +73,10 @@ def parse_wsjtx_message(
 
         is_wanted    = matches_any(wanted_callsigns, callsign)
         is_excluded  = matches_any(excluded_callsigns, callsign)
-        is_important = matches_any(important_callsigns, callsign)
+        is_monitored = matches_any(monitored_callsigns, callsign)
 
         wanted    = is_wanted and not is_excluded
-        important = is_important and not is_excluded
+        monitored = is_monitored and not is_excluded
 
     return {
         'directed'  : directed,
@@ -69,7 +85,7 @@ def parse_wsjtx_message(
         'msg'       : msg,
         'cqing'     : cqing,
         'wanted'    : wanted,
-        'important' : important
+        'monitored' : monitored
     }
 
 def force_uppercase(widget):

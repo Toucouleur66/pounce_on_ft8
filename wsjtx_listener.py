@@ -44,7 +44,7 @@ class Listener:
             enable_pounce_log,        
             enable_log_packet_data, 
             enable_show_all_decoded,
-            important_callsigns,
+            monitored_callsigns,
             excluded_callsigns,
             wanted_callsigns,
             special_mode,
@@ -94,7 +94,7 @@ class Listener:
 
         self.wanted_callsigns               = set(wanted_callsigns)
         self.excluded_callsigns             = set(excluded_callsigns)
-        self.important_callsigns            = set(important_callsigns)
+        self.monitored_callsigns            = set(monitored_callsigns)
         self.special_mode                   = special_mode
         self.message_callback               = message_callback
 
@@ -389,7 +389,7 @@ class Listener:
                 message,
                 self.wanted_callsigns,
                 self.excluded_callsigns,
-                self.important_callsigns
+                self.monitored_callsigns
             )
             directed    = parsed_data['directed']
             callsign    = parsed_data['callsign']
@@ -397,6 +397,7 @@ class Listener:
             msg         = parsed_data['msg']
             cqing       = parsed_data['cqing']
             wanted      = parsed_data['wanted']
+            monitored   = parsed_data['monitored']
             
             if (
                 self.qso_time_on is not None                              and
@@ -485,6 +486,13 @@ class Listener:
                 # Use message_callback to communicate with the GUI
                 if self.message_callback and self.enable_debug_output:
                     self.message_callback(debug_message)
+
+            elif monitored is True:
+                if self.message_callback:
+                    self.message_callback({
+                        'type': 'monitored_callsign_detected',
+                        'formatted_message': formatted_message
+                    })                                 
 
         except TypeError as e:
             log.error("Caught a type error in parsing packet: {}; error {}\n{}".format(
