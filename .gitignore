@@ -1,0 +1,9 @@
+/dist/
+/build/
+
+*.log
+
+*.pkl
+
+*.spec
+*.adif
