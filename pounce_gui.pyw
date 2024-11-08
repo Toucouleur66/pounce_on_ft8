@@ -558,7 +558,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.update_listbox()
 
         # ToolTip
-        self.tooltip = ToolTip(self.wanted_callsigns_var)
+        self.tooltip_wanted     = ToolTip(self.wanted_callsigns_var)
+        self.tooltip_monitored  = ToolTip(self.monitored_callsigns_var)
+        self.tooltip_excluded   = ToolTip(self.excluded_callsigns_var)
 
         # Focus value (sequence)
         self.focus_frame = QtWidgets.QFrame()
@@ -601,8 +603,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.quit_button = QtWidgets.QPushButton("Quit")
         self.quit_button.clicked.connect(self.quit_application)
 
-        self.restart_button = QtWidgets.QPushButton("Restart")
-        self.restart_button.clicked.connect(self.restart_application)
+        if platform.system() == 'Darwin':
+            self.restart_button = QtWidgets.QPushButton("Restart")
+            self.restart_button.clicked.connect(self.restart_application)
 
         # Timer and start/stop buttons
         self.run_button = QtWidgets.QPushButton(WAIT_POUNCE_LABEL)
@@ -612,6 +615,10 @@ class MainApp(QtWidgets.QMainWindow):
 
         # Organize UI components
         main_layout.addWidget(self.focus_frame, 0, 0, 1, 4)
+
+        self.callsign_notice = QtWidgets.QLabel("Comma-separated. Wildcard with * allowed.")
+    
+        main_layout.addWidget(self.callsign_notice, 1, 1)
 
         main_layout.addWidget(QtWidgets.QLabel("Wanted Callsign(s):"), 2, 0)
         main_layout.addWidget(self.wanted_callsigns_var, 2, 1)
@@ -641,7 +648,10 @@ class MainApp(QtWidgets.QMainWindow):
         button_layout = QtWidgets.QHBoxLayout()
         button_layout.addWidget(self.settings)
         button_layout.addWidget(self.clear_button)
-        button_layout.addWidget(self.restart_button)
+
+        if platform.system() == 'Darwin':
+            button_layout.addWidget(self.restart_button)
+
         button_layout.addWidget(self.quit_button)
 
         bottom_layout = QtWidgets.QHBoxLayout()
@@ -1052,6 +1062,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.disable_inputs()
         self.stop_event.clear()
         self.focus_frame.hide()
+        self.callsign_notice.hide()
 
         if platform.system() == 'Windows':
             tray_icon = TrayIcon()
@@ -1153,6 +1164,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.run_button.setEnabled(True)
             self.run_button.setText(WAIT_POUNCE_LABEL)
             self.run_button.setStyleSheet("")
+            self.callsign_notice.show()
 
             self.counter_value_label.setStyleSheet("background-color: #D3D3D3;")
             self.enable_inputs()
