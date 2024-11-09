@@ -514,6 +514,18 @@ class MainApp(QtWidgets.QMainWindow):
     def __init__(self):
         super(MainApp, self).__init__()
 
+        # Window size, title and icon
+        self.setGeometry(100, 100, 900, 700)
+        self.base_title = GUI_LABEL_VERSION
+        self.setWindowTitle(self.base_title)
+        if platform.system() == 'Windows':
+            if getattr(sys, 'frozen', False):  # Indique que l'application est "frozen" avec PyInstaller
+                icon_path = os.path.join(sys._MEIPASS, "pounce.ico")
+            else:
+                icon_path = "pounce.ico"
+
+            self.setWindowIcon(QtGui.QIcon(icon_path))    
+
         self.stop_event = threading.Event()
         self.error_occurred.connect(self.show_error_message)
         self.message_received.connect(self.handle_message_received)
@@ -532,12 +544,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.ready_to_log_sound                 = QSound(f"{CURRENT_DIR}/sounds/709072__scottyd0es__aeroce-dualtone-5.wav")
         self.error_occurred_sound               = QSound(f"{CURRENT_DIR}/sounds/142608__autistic-lucario__error.wav")
         self.monitored_callsign_detected_sound  = QSound(f"{CURRENT_DIR}/sounds/716442__scottyd0es__tone12_alert_3.wav")
-
-        self.setGeometry(100, 100, 900, 700)
-        self.base_title = GUI_LABEL_VERSION
-        self.setWindowTitle(self.base_title)
-        if platform.system() == 'Windows':
-            self.setWindowIcon(QtGui.QIcon("pounce.ico"))
         
         # Main layout
         central_widget = QtWidgets.QWidget()
