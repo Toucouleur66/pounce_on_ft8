@@ -103,7 +103,7 @@ class MyListener(Listener):
                 wanted                  = parsed_data['wanted']
                 monitored               = parsed_data['monitored']                
             
-                if directed == self.my_call:
+                if directed == self.my_call and self.my_call is not None:
                     msg_color_text      = "bright_for_my_call"
                 elif wanted is True:
                     msg_color_text      = "black_on_yellow"

@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 from utils import get_app_data_dir
 
-version_number                  = 2.0
+version_number                  = "2.0.1"
 EXPIRATION_DATE                 = datetime(2024, 11, 30)
 
 EVEN                            = "EVEN"
@@ -19,17 +19,30 @@ FG_COLOR_FOCUS_MY_CALL          = "#000000"
 BG_COLOR_REGULAR_FOCUS          = "#000000"
 FG_COLOR_REGULAR_FOCUS          = "#01FFFF"
 
+BG_COLOR_BLACK_ON_YELLOW        = "yellow"
+FG_COLOR_BLACK_ON_YELLOW        = "#000000"
+
+BG_COLOR_WHITE_ON_BLUE          = "blue"
+FG_COLOR_WHITE_ON_BLUE          = "white"
+
+BG_COLOR_BLACK_ON_PURPLE        = "#D080D0"
+FG_COLOR_BLACK_ON_PURPLE        = "#000000"
+
+BG_COLOR_BLACK_ON_WHITE         = "#000000"
+FG_COLOR_BLACK_ON_WHITE         = "white"
+
 PARAMS_FILE                     = os.path.join(get_app_data_dir(), "params.pkl")
 POSITION_FILE                   = os.path.join(get_app_data_dir(), "window_position.pkl")
 WANTED_CALLSIGNS_FILE           = os.path.join(get_app_data_dir(), "wanted_callsigns.pkl")
 WANTED_CALLSIGNS_HISTORY_SIZE   = 50
 
 GUI_LABEL_VERSION               = f"Wait and Pounce v{version_number} by F5UKW"
-RUNNING_TEXT_BUTTON             = "Running..."
-WAIT_POUNCE_LABEL               = "Wait for UDP Packets"
+RUNNING_TEXT_BUTTON             = "Monitoring..."
+WAIT_POUNCE_LABEL               = "Start Monitoring"
 NOTHING_YET                     = "Nothing yet"
 WAITING_DATA_PACKETS_LABEL      = "Waiting for UDP Packets"
 WANTED_CALLSIGNS_HISTORY_LABEL  = "Wanted Callsigns History (%d):"
+CALLSIGN_NOTICE_LABEL           = "Comma separated list of callsigns - Wildcard allowed (*)"
 
 MODE_NORMAL                     = "Normal"
 MODE_FOX_HOUND                  = "Fox/Hound"
@@ -51,3 +64,4 @@ DEFAULT_DEBUG_OUTPUT            = False
 DEFAULT_POUNCE_LOG              = True
 DEFAULT_LOG_PACKET_DATA         = False
 DEFAULT_SHOW_ALL_DECODED        = True
+DEFAULT_DELAY_BETWEEN_SOUND     = 120

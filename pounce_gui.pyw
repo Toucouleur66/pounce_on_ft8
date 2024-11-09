@@ -25,34 +25,51 @@ from gui_handler import GUIHandler
 from constants import (
     EXPIRATION_DATE,
     DEFAULT_UDP_PORT,
+    # Colors
     EVEN_COLOR,
     ODD_COLOR,
     FG_COLOR_FOCUS_MY_CALL,
     BG_COLOR_FOCUS_MY_CALL,
     FG_COLOR_REGULAR_FOCUS,
     BG_COLOR_REGULAR_FOCUS,
+    BG_COLOR_BLACK_ON_YELLOW,
+    FG_COLOR_BLACK_ON_YELLOW,
+    BG_COLOR_WHITE_ON_BLUE,
+    FG_COLOR_WHITE_ON_BLUE,
+    BG_COLOR_BLACK_ON_PURPLE,
+    FG_COLOR_BLACK_ON_PURPLE,
+    BG_COLOR_BLACK_ON_WHITE,
+    FG_COLOR_BLACK_ON_WHITE,
+    # Parameters
     PARAMS_FILE,
     POSITION_FILE,
     WANTED_CALLSIGNS_FILE,
     WANTED_CALLSIGNS_HISTORY_SIZE,
+    # Labels
     GUI_LABEL_VERSION,
     RUNNING_TEXT_BUTTON,
     WAIT_POUNCE_LABEL,
     NOTHING_YET,
     WAITING_DATA_PACKETS_LABEL,
     WANTED_CALLSIGNS_HISTORY_LABEL,
+    CALLSIGN_NOTICE_LABEL,
+    # Modes
     MODE_FOX_HOUND,
     MODE_NORMAL,
     MODE_SUPER_FOX,
+    # Working directory
     CURRENT_DIR,
+    # UDP related
     DEFAULT_SECONDARY_UDP_SERVER,
     DEFAULT_SENDING_REPLY,
+    # Default settings
     DEFAULT_GAP_FINDER,
     DEFAULT_WATCHDOG_BYPASS,
     DEFAULT_DEBUG_OUTPUT,
     DEFAULT_POUNCE_LOG,
     DEFAULT_LOG_PACKET_DATA,
-    DEFAULT_SHOW_ALL_DECODED 
+    DEFAULT_SHOW_ALL_DECODED,
+    DEFAULT_DELAY_BETWEEN_SOUND
     )
 
 if platform.system() == 'Windows':
@@ -224,22 +241,23 @@ class SettingsDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, params=None):
         super().__init__(parent)
         self.setWindowTitle("Settings")
-        self.resize(450, 650)
+        self.resize(750, 900)
 
         self.params = params or {}
 
         layout = QtWidgets.QVBoxLayout(self)
 
-        notice_text = (
+        small_font = QtGui.QFont()
+        small_font.setPointSize(11)  
+
+        jtdx_notice_text = (
             "For JTDX users, you have to disable automatic logging of QSO (Make sure <u>Settings > Reporting > Logging > Enable automatic logging of QSO</u> is unchecked)<br /><br />You might also need to accept UDP Reply messages from any messages (<u>Misc Menu > Accept UDP Reply Messages > any messages</u>)."
         )
-        notice_label = QtWidgets.QLabel(notice_text)
-        notice_label.setWordWrap(True)
-        small_font = QtGui.QFont()
-        small_font.setPointSize(12)  
-        notice_label.setFont(small_font)
-        notice_label.setStyleSheet("background-color: #f6f6f5; padding: 5px; font-size: 12px;")
-        notice_label.setTextFormat(QtCore.Qt.RichText)
+        jtdx_notice_label = QtWidgets.QLabel(jtdx_notice_text)
+        jtdx_notice_label.setWordWrap(True)
+        jtdx_notice_label.setFont(small_font)
+        jtdx_notice_label.setStyleSheet("background-color: #f6f6f5; padding: 5px; font-size: 12px;")
+        jtdx_notice_label.setTextFormat(QtCore.Qt.RichText)
 
         primary_group = QtWidgets.QGroupBox("Primary UDP Server")
         primary_layout = QtWidgets.QGridLayout()
@@ -271,10 +289,10 @@ class SettingsDialog(QtWidgets.QDialog):
 
         secondary_group.setLayout(secondary_layout)
 
-        udp_options_group = QtWidgets.QGroupBox("UDP Settings")
+        udp_settings_group = QtWidgets.QGroupBox("UDP Settings")
 
-        udp_options_widget = QtWidgets.QWidget()
-        udp_options_layout = QtWidgets.QGridLayout(udp_options_widget)
+        udp_settings_widget = QtWidgets.QWidget()
+        udp_settings_layout = QtWidgets.QGridLayout(udp_settings_widget)
         
         self.enable_sending_reply = QtWidgets.QCheckBox("Enable reply")
         self.enable_sending_reply.setChecked(DEFAULT_SENDING_REPLY)
@@ -285,17 +303,60 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_watchdog_bypass = QtWidgets.QCheckBox("Enable watchdog bypass")
         self.enable_watchdog_bypass.setChecked(DEFAULT_WATCHDOG_BYPASS)
         
-        udp_options_layout.addWidget(self.enable_sending_reply, 0, 0, 1, 2)       
-        udp_options_layout.addWidget(self.enable_gap_finder, 1, 0, 1, 2)       
-        udp_options_layout.addWidget(self.enable_watchdog_bypass, 2, 0, 1, 2)
+        udp_settings_layout.addWidget(self.enable_sending_reply, 0, 0, 1, 2)       
+        udp_settings_layout.addWidget(self.enable_gap_finder, 1, 0, 1, 2)       
+        udp_settings_layout.addWidget(self.enable_watchdog_bypass, 2, 0, 1, 2)
         
-        udp_options_widget.setStyleSheet(f"background-color: {BG_COLOR_FOCUS_MY_CALL}; color: {FG_COLOR_FOCUS_MY_CALL};")
-        udp_options_group.setLayout(QtWidgets.QVBoxLayout())
-        udp_options_group.layout().setContentsMargins(0, 0, 0, 0)
-        udp_options_group.layout().addWidget(udp_options_widget)
+        udp_settings_widget.setStyleSheet(f"background-color: {BG_COLOR_FOCUS_MY_CALL}; color: {FG_COLOR_FOCUS_MY_CALL};")
+        udp_settings_group.setLayout(QtWidgets.QVBoxLayout())
+        udp_settings_group.layout().setContentsMargins(0, 0, 0, 0)
+        udp_settings_group.layout().addWidget(udp_settings_widget)
 
-        log_options_group = QtWidgets.QGroupBox("Log Settings")
-        log_options_layout = QtWidgets.QGridLayout()
+        sound_notice_text = (
+            "You can enable or disable the sounds as per your requirement. You can even set a delay between each sound triggered by a message where a monitored callsign has been found. This mainly helps you to be notified when the band opens or when you have a callsign on the air that you want to monitor.<br /><br />Monitored callsigns will never get reply from this program. Only <u>Wanted callsigns will get a reply</u>."
+        )
+    
+        sound_notice_label = QtWidgets.QLabel(sound_notice_text)
+        sound_notice_label.setStyleSheet("background-color: #f6f6f5; padding: 5px; font-size: 12px;")
+        sound_notice_label.setWordWrap(True)
+        sound_notice_label.setFont(small_font)
+
+        sound_settings_group = QtWidgets.QGroupBox("Sounds Settings")
+        sound_settings_layout = QtWidgets.QGridLayout()
+
+        play_sound_notice_label = QtWidgets.QLabel("Play Sounds when:")
+        play_sound_notice_label.setFont(small_font)
+
+        self.enable_sound_wanted_callsigns = QtWidgets.QCheckBox("Message from any Wanted Callsign")                
+        self.enable_sound_wanted_callsigns.setChecked(True)
+
+        self.enable_sound_directed_my_callsign = QtWidgets.QCheckBox("Message directed to my Callsign")                
+        self.enable_sound_directed_my_callsign.setChecked(True)
+
+        self.enable_sound_monitored_callsigns = QtWidgets.QCheckBox("Message from any Monitored Callsign")                
+        self.enable_sound_monitored_callsigns.setChecked(True)
+
+        self.delay_between_sound_for_monitored_callsign = QtWidgets.QLineEdit()
+        self.delay_between_sound_for_monitored_callsign.setFixedWidth(50)
+
+        delay_layout = QtWidgets.QHBoxLayout()
+        delay_layout.addWidget(self.delay_between_sound_for_monitored_callsign)
+        delay_layout.addWidget(QtWidgets.QLabel("seconds"))
+
+        delay_layout.addStretch() 
+
+        sound_settings_layout.addWidget(play_sound_notice_label, 0, 0, 1, 2)
+        sound_settings_layout.addWidget(self.enable_sound_wanted_callsigns, 1, 0, 1, 2)
+        sound_settings_layout.addWidget(self.enable_sound_directed_my_callsign, 2, 0, 1, 2)
+        sound_settings_layout.addWidget(self.enable_sound_monitored_callsigns, 3, 0, 1, 2)
+
+        sound_settings_layout.addWidget(QtWidgets.QLabel("Delay between each monitored callsigns detected:"), 4, 0, QtCore.Qt.AlignLeft)
+        sound_settings_layout.addLayout(delay_layout, 4, 1, 1, 2)  
+
+        sound_settings_group.setLayout(sound_settings_layout)
+
+        log_settings_group = QtWidgets.QGroupBox("Log Settings")
+        log_settings_layout = QtWidgets.QGridLayout()
 
         self.enable_debug_output = QtWidgets.QCheckBox("Show debug output")                
         self.enable_debug_output.setChecked(DEFAULT_DEBUG_OUTPUT)
@@ -309,12 +370,12 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_show_all_decoded = QtWidgets.QCheckBox("Show all decoded messages, not only Wanted Callsigns")
         self.enable_show_all_decoded.setChecked(DEFAULT_SHOW_ALL_DECODED)
     
-        log_options_layout.addWidget(self.enable_pounce_log, 0, 0, 1, 2)
-        log_options_layout.addWidget(self.enable_log_packet_data, 1, 0, 1, 2)        
-        log_options_layout.addWidget(self.enable_debug_output, 2, 0, 1, 2)        
-        log_options_layout.addWidget(self.enable_show_all_decoded, 3, 0, 1, 2)
+        log_settings_layout.addWidget(self.enable_pounce_log, 0, 0, 1, 2)
+        log_settings_layout.addWidget(self.enable_log_packet_data, 1, 0, 1, 2)        
+        log_settings_layout.addWidget(self.enable_debug_output, 2, 0, 1, 2)        
+        log_settings_layout.addWidget(self.enable_show_all_decoded, 3, 0, 1, 2)
 
-        log_options_group.setLayout(log_options_layout)
+        log_settings_group.setLayout(log_settings_layout)
 
         self.load_params()
 
@@ -324,11 +385,13 @@ class SettingsDialog(QtWidgets.QDialog):
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
 
-        layout.addWidget(notice_label)
+        layout.addWidget(jtdx_notice_label)
         layout.addWidget(primary_group)
         layout.addWidget(secondary_group)
-        layout.addWidget(udp_options_group)
-        layout.addWidget(log_options_group)
+        layout.addWidget(udp_settings_group)
+        layout.addWidget(sound_notice_label)
+        layout.addWidget(sound_settings_group)
+        layout.addWidget(log_settings_group)
         layout.addWidget(button_box)
 
     def load_params(self):
@@ -370,21 +433,37 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_show_all_decoded.setChecked(
             self.params.get('enable_show_all_decoded', DEFAULT_SHOW_ALL_DECODED)
         )
+        self.delay_between_sound_for_monitored_callsign.setText(
+            str(self.params.get('delay_between_sound_for_monitored_callsign', DEFAULT_DELAY_BETWEEN_SOUND))
+        )
+        self.enable_sound_wanted_callsigns.setChecked(
+            self.params.get('enable_sound_wanted_callsigns', True)
+        )
+        self.enable_sound_directed_my_callsign.setChecked(
+            self.params.get('enable_sound_directed_my_callsign', True)
+        )
+        self.enable_sound_monitored_callsigns.setChecked(
+            self.params.get('enable_sound_monitored_callsigns', True)
+        )
 
     def get_result(self):
         return {
-            'primary_udp_server_address'        : self.primary_udp_server_address.text(),
-            'primary_udp_server_port'           : self.primary_udp_server_port.text(),
-            'secondary_udp_server_address'      : self.secondary_udp_server_address.text(),
-            'secondary_udp_server_port'         : self.secondary_udp_server_port.text(),
-            'enable_secondary_udp_server'       : self.enable_secondary_udp_server.isChecked(),
-            'enable_sending_reply'              : self.enable_sending_reply.isChecked(),
-            'enable_gap_finder'                  : self.enable_gap_finder.isChecked(),
-            'enable_watchdog_bypass'            : self.enable_watchdog_bypass.isChecked(),
-            'enable_debug_output'               : self.enable_debug_output.isChecked(),
-            'enable_pounce_log'                 : self.enable_pounce_log.isChecked(),
-            'enable_log_packet_data'            : self.enable_log_packet_data.isChecked(),
-            'enable_show_all_decoded'           : self.enable_show_all_decoded.isChecked()            
+            'primary_udp_server_address'                 : self.primary_udp_server_address.text(),
+            'primary_udp_server_port'                    : self.primary_udp_server_port.text(),
+            'secondary_udp_server_address'               : self.secondary_udp_server_address.text(),
+            'secondary_udp_server_port'                  : self.secondary_udp_server_port.text(),
+            'enable_secondary_udp_server'                : self.enable_secondary_udp_server.isChecked(),
+            'enable_sending_reply'                       : self.enable_sending_reply.isChecked(),
+            'enable_gap_finder'                           : self.enable_gap_finder.isChecked(),
+            'enable_watchdog_bypass'                     : self.enable_watchdog_bypass.isChecked(),
+            'enable_debug_output'                        : self.enable_debug_output.isChecked(),
+            'enable_pounce_log'                          : self.enable_pounce_log.isChecked(),
+            'enable_log_packet_data'                     : self.enable_log_packet_data.isChecked(),
+            'enable_show_all_decoded'                    : self.enable_show_all_decoded.isChecked(),
+            'enable_sound_wanted_callsigns'              : self.enable_sound_wanted_callsigns.isChecked(),
+            'enable_sound_directed_my_callsign'          : self.enable_sound_directed_my_callsign.isChecked(),
+            'enable_sound_monitored_callsigns'           : self.enable_sound_monitored_callsigns.isChecked(),
+            'delay_between_sound_for_monitored_callsign' : self.delay_between_sound_for_monitored_callsign.text()   
         }
 
 class EditWantedDialog(QtWidgets.QDialog):
@@ -395,7 +474,7 @@ class EditWantedDialog(QtWidgets.QDialog):
 
         layout = QtWidgets.QVBoxLayout(self)
 
-        label = QtWidgets.QLabel("Wanted Callsign(s) (comma-separated):")
+        label = QtWidgets.QLabel("Wanted Callsign(s) (Comma separated list):")
         layout.addWidget(label)
 
         self.entry = QtWidgets.QTextEdit()
@@ -484,31 +563,23 @@ class MainApp(QtWidgets.QMainWindow):
             
         self.text_formats = {
             'black_on_purple'   : QtGui.QTextCharFormat(),
-            'white_on_brown'    : QtGui.QTextCharFormat(),
             'black_on_white'    : QtGui.QTextCharFormat(),
             'black_on_yellow'   : QtGui.QTextCharFormat(),
-            'red_on_grey'       : QtGui.QTextCharFormat(),
             'white_on_blue'     : QtGui.QTextCharFormat(),
-            'bright_green'      : QtGui.QTextCharFormat(),
             'bright_for_my_call': QtGui.QTextCharFormat()      
         }
 
-        self.text_formats['black_on_purple'].setForeground(QtGui.QBrush(QtGui.QColor('black')))
-        self.text_formats['black_on_purple'].setBackground(QtGui.QBrush(QtGui.QColor('#D080d0')))
+        self.text_formats['black_on_purple'].setForeground(QtGui.QBrush(QtGui.QColor(FG_COLOR_BLACK_ON_PURPLE)))
+        self.text_formats['black_on_purple'].setBackground(QtGui.QBrush(QtGui.QColor(BG_COLOR_BLACK_ON_PURPLE)))
 
-        self.text_formats['black_on_white'].setForeground(QtGui.QBrush(QtGui.QColor('black')))
-        self.text_formats['black_on_white'].setBackground(QtGui.QBrush(QtGui.QColor('white')))
+        self.text_formats['black_on_white'].setForeground(QtGui.QBrush(QtGui.QColor(FG_COLOR_BLACK_ON_WHITE)))
+        self.text_formats['black_on_white'].setBackground(QtGui.QBrush(QtGui.QColor(BG_COLOR_BLACK_ON_WHITE)))
 
-        self.text_formats['black_on_yellow'].setForeground(QtGui.QBrush(QtGui.QColor('black')))
-        self.text_formats['black_on_yellow'].setBackground(QtGui.QBrush(QtGui.QColor('yellow')))
+        self.text_formats['black_on_yellow'].setForeground(QtGui.QBrush(QtGui.QColor(FG_COLOR_BLACK_ON_YELLOW)))
+        self.text_formats['black_on_yellow'].setBackground(QtGui.QBrush(QtGui.QColor(BG_COLOR_BLACK_ON_YELLOW)))
 
-        self.text_formats['red_on_grey'].setForeground(QtGui.QBrush(QtGui.QColor('red')))
-        self.text_formats['red_on_grey'].setBackground(QtGui.QBrush(QtGui.QColor('#EEEEEE')))
-
-        self.text_formats['white_on_blue'].setForeground(QtGui.QBrush(QtGui.QColor('white')))
-        self.text_formats['white_on_blue'].setBackground(QtGui.QBrush(QtGui.QColor('blue')))
-
-        self.text_formats['bright_green'].setForeground(QtGui.QBrush(QtGui.QColor('green')))
+        self.text_formats['white_on_blue'].setForeground(QtGui.QBrush(QtGui.QColor(FG_COLOR_WHITE_ON_BLUE)))
+        self.text_formats['white_on_blue'].setBackground(QtGui.QBrush(QtGui.QColor(BG_COLOR_WHITE_ON_BLUE)))
 
         self.text_formats['bright_for_my_call'].setForeground(QtGui.QBrush(QtGui.QColor(FG_COLOR_FOCUS_MY_CALL)))
         self.text_formats['bright_for_my_call'].setBackground(QtGui.QBrush(QtGui.QColor(BG_COLOR_FOCUS_MY_CALL)))
@@ -597,8 +668,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.settings = QtWidgets.QPushButton("Settings")
         self.settings.clicked.connect(self.open_settings)
 
-        self.enable_alert_checkbox = QtWidgets.QCheckBox("Enable Sound")
-        self.enable_alert_checkbox.setChecked(True)
+        self.disable_alert_checkbox = QtWidgets.QCheckBox("Disable all Sounds")
+        self.disable_alert_checkbox.setChecked(False)
+        self.disable_alert_checkbox.stateChanged.connect(self.update_alert_label_style)
 
         self.quit_button = QtWidgets.QPushButton("Quit")
         self.quit_button.clicked.connect(self.quit_application)
@@ -616,15 +688,20 @@ class MainApp(QtWidgets.QMainWindow):
         # Organize UI components
         main_layout.addWidget(self.focus_frame, 0, 0, 1, 4)
 
-        self.callsign_notice = QtWidgets.QLabel("Comma-separated. Wildcard with * allowed.")
+        self.callsign_notice = QtWidgets.QLabel(CALLSIGN_NOTICE_LABEL)
+        self.callsign_notice.setStyleSheet("background-color: #9dfffe; color: #555bc2;")
     
         main_layout.addWidget(self.callsign_notice, 1, 1)
 
-        main_layout.addWidget(QtWidgets.QLabel("Wanted Callsign(s):"), 2, 0)
+        self.wanted_label = QtWidgets.QLabel("Wanted Callsign(s):")
+        self.monitored_label = QtWidgets.QLabel("Monitored Callsign(s):")
+        self.excluded_label = QtWidgets.QLabel("Excluded Callsign(s):")
+
+        main_layout.addWidget(self.wanted_label, 2, 0)
         main_layout.addWidget(self.wanted_callsigns_var, 2, 1)
-        main_layout.addWidget(QtWidgets.QLabel("Monitored Callsign(s):"), 3, 0)
+        main_layout.addWidget(self.monitored_label, 3, 0)
         main_layout.addWidget(self.monitored_callsigns_var, 3, 1)
-        main_layout.addWidget(QtWidgets.QLabel("Excluded Callsign(s):"), 4, 0)
+        main_layout.addWidget(self.excluded_label, 4, 0)
         main_layout.addWidget(self.excluded_callsigns_var, 4, 1)
 
         # Mode section
@@ -655,7 +732,7 @@ class MainApp(QtWidgets.QMainWindow):
         button_layout.addWidget(self.quit_button)
 
         bottom_layout = QtWidgets.QHBoxLayout()
-        bottom_layout.addWidget(self.enable_alert_checkbox)
+        bottom_layout.addWidget(self.disable_alert_checkbox)
         bottom_layout.addStretch()  
         bottom_layout.addLayout(button_layout)
 
@@ -668,6 +745,11 @@ class MainApp(QtWidgets.QMainWindow):
 
         # Initialize the stdout redirection
         self.enable_pounce_log = params.get('enable_pounce_log', True)
+        
+        # Get sound configuration
+        self.enable_sound_wanted_callsigns = params.get('enable_sound_wanted_callsigns', True)
+        self.enable_sound_directed_my_callsign = params.get('enable_sound_directed_my_callsign', True)
+        self.enable_sound_monitored_callsigns = params.get('enable_sound_monitored_callsigns', True)
        
         self.file_handler = None
         if self.enable_pounce_log:
@@ -706,15 +788,25 @@ class MainApp(QtWidgets.QMainWindow):
                     contains_my_call = message.get('contains_my_call')                        
                     self.update_focus_frame(formatted_message, contains_my_call)                            
                 
-                if message_type in {
-                        'wanted_callsign_detected',
-                        'directed_to_my_call',
-                        'monitored_callsign_detected',
-                        'ready_to_log',
-                        'error_occurred'
-                    }:
-                        if self.enable_alert_checkbox.isChecked():                            
-                            self.play_sound(message_type)
+                play_sound = False
+                if not self.disable_alert_checkbox.isChecked():      
+                    if message_type == 'wanted_callsign_detected' and self.enable_sound_wanted_callsigns:
+                        play_sound = True
+                    elif message_type == 'directed_to_my_call' and self.enable_sound_directed_my_callsign:
+                        play_sound = True
+                    elif message_type == 'ready_to_log' and self.enable_sound_directed_my_callsign:
+                        play_sound = True
+                    elif message_type == 'error_occurred':
+                        play_sound = True
+                    elif message_type == 'monitored_callsign_detected' and self.enable_sound_monitored_callsigns:
+                        current_time = datetime.datetime.now()
+                        delay = 600                   
+                        if (current_time - self.last_sound_played_time).total_seconds() > delay:                                                 
+                            play_sound = True
+                            self.last_sound_played_time = current_time               
+                
+                if play_sound:
+                    self.play_sound(message_type)
     
         else:
             # Use this to handle window title update
@@ -731,20 +823,15 @@ class MainApp(QtWidgets.QMainWindow):
     def reset_window_title(self):
         self.setWindowTitle(self.base_title)               
 
-    def play_sound(self, sound_name, delay = 600):
+    def play_sound(self, sound_name):
         # Todo: add delay to settings
         try:           
-            current_time = datetime.datetime.now()
-
             if sound_name == 'wanted_callsign_detected':
                 self.wanted_callsign_detected_sound.play()
             elif sound_name == 'directed_to_my_call':
                 self.directed_to_my_call_sound.play()
             elif sound_name == 'monitored_callsign_detected':
-                print(f"What should be the delay? {(current_time - self.last_sound_played_time).total_seconds()}")
-                if (current_time - self.last_sound_played_time).total_seconds() > delay:
-                    self.monitored_callsign_detected_sound.play()       
-                    self.last_sound_played_time = current_time                         
+                self.monitored_callsign_detected_sound.play()                        
             elif sound_name == 'ready_to_log':
                 self.ready_to_log_sound.play()
             elif sound_name == 'error_occurred':
@@ -865,6 +952,12 @@ class MainApp(QtWidgets.QMainWindow):
             self.run_button.setEnabled(True)
         else:
             self.run_button.setEnabled(False)
+
+    def update_alert_label_style(self):
+        if self.disable_alert_checkbox.isChecked():
+            self.disable_alert_checkbox.setStyleSheet("background-color: #ff8888;")
+        else:
+            self.disable_alert_checkbox.setStyleSheet("")
 
     def disable_inputs(self):
         global inputs_enabled
@@ -1064,6 +1157,10 @@ class MainApp(QtWidgets.QMainWindow):
         self.focus_frame.hide()
         self.callsign_notice.hide()
 
+        # For decorative purpose only and to match with color being used on output_text 
+        self.wanted_label.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_YELLOW}; color: {FG_COLOR_BLACK_ON_YELLOW};")
+        self.monitored_label.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_PURPLE}; color: {FG_COLOR_BLACK_ON_PURPLE};")
+
         if platform.system() == 'Windows':
             tray_icon = TrayIcon()
             tray_icon_thread = threading.Thread(target=tray_icon.start, daemon=True)
@@ -1093,10 +1190,10 @@ class MainApp(QtWidgets.QMainWindow):
         self.update_wanted_callsigns_history(wanted_callsigns)
 
         params.update({
-            "monitored_callsigns": monitored_callsigns,
-            "excluded_callsigns": excluded_callsigns,
-            "wanted_callsigns": wanted_callsigns,
-            "special_mode": special_mode
+            "monitored_callsigns"           : monitored_callsigns,
+            "excluded_callsigns"            : excluded_callsigns,
+            "wanted_callsigns"              : wanted_callsigns,
+            "special_mode"                  : special_mode
         })
         self.save_params(params)
 
@@ -1164,6 +1261,10 @@ class MainApp(QtWidgets.QMainWindow):
             self.run_button.setEnabled(True)
             self.run_button.setText(WAIT_POUNCE_LABEL)
             self.run_button.setStyleSheet("")
+
+            self.wanted_label.setStyleSheet("")
+            self.monitored_label.setStyleSheet("")
+
             self.callsign_notice.show()
 
             self.counter_value_label.setStyleSheet("background-color: #D3D3D3;")
