@@ -242,8 +242,6 @@ class SettingsDialog(QtWidgets.QDialog):
         super().__init__(parent)
         self.setWindowTitle("Settings")
         self.resize(750, 900)
-        if platform.system() == 'Windows':
-            self.setWindowIcon(QtGui.QIcon("pounce.ico"))
 
         self.params = params or {}
 
@@ -538,6 +536,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.setGeometry(100, 100, 900, 700)
         self.base_title = GUI_LABEL_VERSION
         self.setWindowTitle(self.base_title)
+        if platform.system() == 'Windows':
+            self.setWindowIcon(QtGui.QIcon("pounce.ico"))
         
         # Main layout
         central_widget = QtWidgets.QWidget()
