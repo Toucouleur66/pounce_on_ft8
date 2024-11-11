@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 from utils import get_app_data_dir
 
-version_number                  = "2.0.1"
+version_number                  = "2.0.2"
 EXPIRATION_DATE                 = datetime(2024, 11, 30)
 
 EVEN                            = "EVEN"
@@ -47,6 +47,8 @@ CALLSIGN_NOTICE_LABEL           = "Comma separated list of callsigns - Wildcard 
 MODE_NORMAL                     = "Normal"
 MODE_FOX_HOUND                  = "Fox/Hound"
 MODE_SUPER_FOX                  = "SuperFox"
+
+DEFAULT_MODE_TIMER_VALUE        = "--:--:--"
 
 FREQ_MINIMUM                    = 200
 FREQ_MAXIMUM                    = 2900

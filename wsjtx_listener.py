@@ -70,6 +70,7 @@ class Listener:
         self.qso_time_off               = None
         self.rst_rcvd                   = None
         self.rst_sent                   = None
+        self.last_mode                  = None
         self.mode                       = None
         self.frequency                  = None
         self.suggested_frequency        = None
@@ -197,6 +198,15 @@ class Listener:
             self.frequency  = self.the_packet.dial_frequency            
 
             error_found     = False
+
+            # Updating mode
+            if self.last_mode != self.mode:
+                self.last_mode = self.mode
+                if self.message_callback:
+                    self.message_callback({
+                        'type': 'update_mode',
+                        'mode': self.mode
+                    })
             
             if self.targeted_call is not None:
                 if self.enable_gap_finder:

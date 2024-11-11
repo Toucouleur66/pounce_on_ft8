@@ -35,7 +35,7 @@ class WSJTXPacketSender:
             exchange_recv   = None
         ):
         if datetime_off is None:
-            datetime_off = datetime.datetime.utcnow()
+            datetime_off = datetime.datetime.now()
         if datetime_on is None:
             datetime_on = datetime_off
 

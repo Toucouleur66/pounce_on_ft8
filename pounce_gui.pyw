@@ -57,6 +57,7 @@ from constants import (
     MODE_FOX_HOUND,
     MODE_NORMAL,
     MODE_SUPER_FOX,
+    DEFAULT_MODE_TIMER_VALUE,
     # Working directory
     CURRENT_DIR,
     # UDP related
@@ -529,15 +530,17 @@ class MainApp(QtWidgets.QMainWindow):
         self.stop_event = threading.Event()
         self.error_occurred.connect(self.show_error_message)
         self.message_received.connect(self.handle_message_received)
+        
         self._running = False
 
-        self.connection_check_timer = QtCore.QTimer()
-        self.connection_check_timer.timeout.connect(self.check_connection_status)
+        self.network_check_status = QtCore.QTimer()
+        self.network_check_status.timeout.connect(self.check_connection_status)
 
         self.decode_packet_count                = 0
         self.last_decode_packet_time            = None
         self.last_heartbeat_time                = None
         self.last_sound_played_time             = datetime.datetime.min
+        self.mode                               = None
 
         self.wanted_callsign_detected_sound     = QSound(f"{CURRENT_DIR}/sounds/495650__matrixxx__supershort-ping-or-short-notification.wav")
         self.directed_to_my_call_sound          = QSound(f"{CURRENT_DIR}/sounds/716445__scottyd0es__tone12_error.wav")
@@ -653,7 +656,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.focus_value_label.mousePressEvent = self.copy_to_clipboard
 
         # Timer value
-        self.timer_value_label = QtWidgets.QLabel("00:00:00")
+        self.timer_value_label = QtWidgets.QLabel(DEFAULT_MODE_TIMER_VALUE)
         self.timer_value_label.setFont(custom_font_lg)
         self.timer_value_label.setStyleSheet("background-color: #9dfffe; color: #555bc2; padding: 10px;")
 
@@ -746,11 +749,6 @@ class MainApp(QtWidgets.QMainWindow):
 
         main_layout.addLayout(bottom_layout, 9, 0, 1, 4)
 
-        # Timer to update time every second
-        self.timer = QtCore.QTimer()
-        self.timer.timeout.connect(self.update_timer_with_ft8_sequence)
-        self.timer.start(200)
-
         # Initialize the stdout redirection
         self.enable_pounce_log = params.get('enable_pounce_log', True)
         
@@ -784,7 +782,9 @@ class MainApp(QtWidgets.QMainWindow):
     def handle_message_received(self, message):
         if isinstance(message, dict):
             message_type = message.get('type')
-            if message_type == 'update_status':
+            if message_type == 'update_mode':
+                self.mode = message.get('mode')
+            elif message_type == 'update_status':
                 self.check_connection_status(
                     message.get('decode_packet_count', 0),
                     message.get('last_decode_packet_time'),
@@ -876,8 +876,13 @@ class MainApp(QtWidgets.QMainWindow):
 
         now = datetime.datetime.now()
         connection_lost = False
+        nothing_to_decode = False
 
         status_text_array = []
+
+        if self.mode is not None:
+            status_text_array.append(f"Mode: {self.mode}")
+
         status_text_array.append(f"DecodePackets: #{self.decode_packet_count}")
 
         HEARTBEAT_TIMEOUT_THRESHOLD = 30  # secondes
@@ -887,7 +892,7 @@ class MainApp(QtWidgets.QMainWindow):
             time_since_last_decode = (now - self.last_decode_packet_time).total_seconds()
             if time_since_last_decode > DECODE_PACKET_TIMEOUT_THRESHOLD:
                 status_text_array.append(f"No DecodePacket for more than {DECODE_PACKET_TIMEOUT_THRESHOLD} seconds.")
-                connection_lost = True
+                nothing_to_decode = True
             else:
                 status_text_array.append(f"Last DecodePacket {int(time_since_last_decode)} seconds ago.")
         else:
@@ -910,6 +915,8 @@ class MainApp(QtWidgets.QMainWindow):
             self.counter_value_label.setStyleSheet("background-color: red; color: white;")
             if not self.connection_lost_shown:
                 self.connection_lost_shown = True
+        elif nothing_to_decode: 
+            self.counter_value_label.setStyleSheet("background-color: white; color: black;")
         else:
             self.connection_lost_shown = False
             self.counter_value_label.setStyleSheet("background-color: yellow; color: black;")              
@@ -1139,11 +1146,16 @@ class MainApp(QtWidgets.QMainWindow):
         else:
             self.setGeometry(100, 100, 900, 700) 
 
-    def update_timer_with_ft8_sequence(self):
-        current_time = datetime.datetime.utcnow()
+    def update_mode_timer(self):
+        current_time = datetime.datetime.now()
         utc_time = current_time.strftime("%H:%M:%S")
 
-        if (current_time.second // 15) % 2 == 0:
+        if self.mode == "FT4":
+            interval = 7.5
+        else:
+            interval = 15
+
+        if (current_time.second // interval) % 2 == 0:
             background_color = EVEN_COLOR
         else:
             background_color = ODD_COLOR
@@ -1154,7 +1166,12 @@ class MainApp(QtWidgets.QMainWindow):
     def start_monitoring(self):
         global tray_icon
 
-        self.connection_check_timer.start(5_000)
+        self.network_check_status.start(5_000)
+
+         # Timer to update time every second
+        self.timer = QtCore.QTimer()
+        self.timer.timeout.connect(self.update_mode_timer)
+        self.timer.start(200)
 
         # self.output_text.clear()
         self.run_button.setEnabled(False)
@@ -1243,13 +1260,13 @@ class MainApp(QtWidgets.QMainWindow):
         self.worker.message.connect(self.handle_message_received)
 
         self.thread.start()
-        self._running = True
-
+        self._running = True       
 
     def stop_monitoring(self):
         global tray_icon
 
-        self.connection_check_timer.stop()
+        self.network_check_status.stop()
+        self.timer_value_label.setText(DEFAULT_MODE_TIMER_VALUE)
 
         if tray_icon:
             tray_icon.stop()
