@@ -47,8 +47,9 @@ from constants import (
     WANTED_CALLSIGNS_HISTORY_SIZE,
     # Labels
     GUI_LABEL_VERSION,
-    RUNNING_TEXT_BUTTON,
-    WAIT_POUNCE_LABEL,
+    MONITORING_RUN_BUTTON_LABEL,
+    DECODING_RUN_BUTTON_LABEL,
+    WAIT_RUN_BUTTON_LABEL,
     NOTHING_YET,
     WAITING_DATA_PACKETS_LABEL,
     WANTED_CALLSIGNS_HISTORY_LABEL,
@@ -533,6 +534,7 @@ class MainApp(QtWidgets.QMainWindow):
         
         self._running = False
 
+        self.network_check_status_interval = 5_000
         self.network_check_status = QtCore.QTimer()
         self.network_check_status.timeout.connect(self.check_connection_status)
 
@@ -661,10 +663,10 @@ class MainApp(QtWidgets.QMainWindow):
         self.timer_value_label.setStyleSheet("background-color: #9dfffe; color: #555bc2; padding: 10px;")
 
         # Log analysis label and value
-        self.counter_value_label = QtWidgets.QLabel(NOTHING_YET)
-        self.counter_value_label.setFont(custom_font)
-        self.counter_value_label.setIndent(5)
-        self.counter_value_label.setStyleSheet("background-color: #D3D3D3;")
+        self.status_label = QtWidgets.QLabel(NOTHING_YET)
+        self.status_label.setFont(custom_font)
+        self.status_label.setIndent(5)
+        self.status_label.setStyleSheet("background-color: #D3D3D3;")
 
         # Log and clear button
         self.output_text = QtWidgets.QTextEdit(self)
@@ -691,7 +693,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.restart_button.clicked.connect(self.restart_application)
 
         # Timer and start/stop buttons
-        self.run_button = QtWidgets.QPushButton(WAIT_POUNCE_LABEL)
+        self.run_button = QtWidgets.QPushButton(WAIT_RUN_BUTTON_LABEL)
         self.run_button.clicked.connect(self.start_monitoring)
         self.stop_button = QtWidgets.QPushButton("Stop all")
         self.stop_button.clicked.connect(self.stop_monitoring)
@@ -725,7 +727,7 @@ class MainApp(QtWidgets.QMainWindow):
         # Timer label and log analysis
         main_layout.addWidget(self.timer_value_label, 0, 3)
         main_layout.addWidget(QtWidgets.QLabel("Status:"), 7, 0)
-        main_layout.addWidget(self.counter_value_label, 7, 1)
+        main_layout.addWidget(self.status_label, 7, 1)
 
         main_layout.addWidget(self.run_button, 7, 2)
         main_layout.addWidget(self.stop_button, 7, 3)
@@ -875,26 +877,47 @@ class MainApp(QtWidgets.QMainWindow):
             self.last_heartbeat_time = last_heartbeat_time
 
         now = datetime.datetime.now()
+        current_mode = ""
         connection_lost = False
         nothing_to_decode = False
 
         status_text_array = []
 
         if self.mode is not None:
-            status_text_array.append(f"Mode: {self.mode}")
+            current_mode = f"({self.mode})"
 
-        status_text_array.append(f"DecodePackets: #{self.decode_packet_count}")
+        status_text_array.append(f"DecodePacket #{self.decode_packet_count}")
 
         HEARTBEAT_TIMEOUT_THRESHOLD = 30  # secondes
         DECODE_PACKET_TIMEOUT_THRESHOLD = 60  # secondes
 
         if self.last_decode_packet_time:
+            style_run_button = "background-color: red; color: #ffffff"
             time_since_last_decode = (now - self.last_decode_packet_time).total_seconds()
+            network_check_status_interval = 5_000
+
             if time_since_last_decode > DECODE_PACKET_TIMEOUT_THRESHOLD:
                 status_text_array.append(f"No DecodePacket for more than {DECODE_PACKET_TIMEOUT_THRESHOLD} seconds.")
-                nothing_to_decode = True
-            else:
-                status_text_array.append(f"Last DecodePacket {int(time_since_last_decode)} seconds ago.")
+                nothing_to_decode = True                
+            else:                
+                if time_since_last_decode < 2:
+                    self.run_button.setText(DECODING_RUN_BUTTON_LABEL)
+                    network_check_status_interval = 100
+                    time_since_last_decode_text = f"{time_since_last_decode:.1f}s"
+                    style_run_button = "background-color: green; color: #ffffff"                    
+                else:
+                    # network_check_status_interval = 1_000
+                    self.run_button.setText(MONITORING_RUN_BUTTON_LABEL)
+                    time_since_last_decode_text = f"{int(time_since_last_decode)}s"
+                    
+                status_text_array.append(f"Last DecodePacket {current_mode}: {time_since_last_decode_text} ago")    
+
+            # Update new interval if necessary
+            if network_check_status_interval != self.network_check_status_interval:
+                self.network_check_status_interval = network_check_status_interval
+                self.network_check_status.setInterval(self.network_check_status_interval)  
+
+                self.run_button.setStyleSheet(style_run_button)                                   
         else:
             status_text_array.append("No DecodePacket received yet.")
 
@@ -904,22 +927,23 @@ class MainApp(QtWidgets.QMainWindow):
                 status_text_array.append(f"No HeartBeat for more than {HEARTBEAT_TIMEOUT_THRESHOLD} seconds.")
                 connection_lost = True
             else:
-                last_heartbeat_str = self.last_heartbeat_time.strftime('%Y-%m-%d %H:%M:%S')
+                last_heartbeat_str = self.last_heartbeat_time.strftime('%Y-%m-%d <u>%H:%M:%S</u>')
                 status_text_array.append(f"Last HeartBeat @ {last_heartbeat_str}")
         else:
             status_text_array.append("No HeartBeat received yet.")
 
-        self.counter_value_label.setText('\n'.join(status_text_array))
+        self.status_label.setTextFormat(QtCore.Qt.RichText)
+        self.status_label.setText('<br>'.join(status_text_array))
 
         if connection_lost:
-            self.counter_value_label.setStyleSheet("background-color: red; color: white;")
+            self.status_label.setStyleSheet("background-color: red; color: white;")
             if not self.connection_lost_shown:
                 self.connection_lost_shown = True
         elif nothing_to_decode: 
-            self.counter_value_label.setStyleSheet("background-color: white; color: black;")
+            self.status_label.setStyleSheet("background-color: white; color: black;")
         else:
             self.connection_lost_shown = False
-            self.counter_value_label.setStyleSheet("background-color: yellow; color: black;")              
+            self.status_label.setStyleSheet("background-color: yellow; color: black;")              
 
     def on_close(self, event):
         self.save_window_position()
@@ -1166,7 +1190,7 @@ class MainApp(QtWidgets.QMainWindow):
     def start_monitoring(self):
         global tray_icon
 
-        self.network_check_status.start(5_000)
+        self.network_check_status.start(self.network_check_status_interval)
 
          # Timer to update time every second
         self.timer = QtCore.QTimer()
@@ -1175,7 +1199,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         # self.output_text.clear()
         self.run_button.setEnabled(False)
-        self.run_button.setText(RUNNING_TEXT_BUTTON)
+        self.run_button.setText(MONITORING_RUN_BUTTON_LABEL)
         self.run_button.setStyleSheet("background-color: red; color: #ffffff")
         self.disable_inputs()
         self.stop_event.clear()
@@ -1222,8 +1246,8 @@ class MainApp(QtWidgets.QMainWindow):
         })
         self.save_params(params)
 
-        self.counter_value_label.setText(WAITING_DATA_PACKETS_LABEL)    
-        self.counter_value_label.setStyleSheet("background-color: yellow; color: black;")
+        self.status_label.setText(WAITING_DATA_PACKETS_LABEL)    
+        self.status_label.setStyleSheet("background-color: yellow; color: black;")
 
         # Create a QThread and a Worker object
         self.thread = QThread()
@@ -1266,6 +1290,8 @@ class MainApp(QtWidgets.QMainWindow):
         global tray_icon
 
         self.network_check_status.stop()
+        
+        self.timer.stop()
         self.timer_value_label.setText(DEFAULT_MODE_TIMER_VALUE)
 
         if tray_icon:
@@ -1284,7 +1310,7 @@ class MainApp(QtWidgets.QMainWindow):
             self._running = False
 
             self.run_button.setEnabled(True)
-            self.run_button.setText(WAIT_POUNCE_LABEL)
+            self.run_button.setText(WAIT_RUN_BUTTON_LABEL)
             self.run_button.setStyleSheet("")
 
             self.wanted_label.setStyleSheet("")
@@ -1292,7 +1318,7 @@ class MainApp(QtWidgets.QMainWindow):
 
             self.callsign_notice.show()
 
-            self.counter_value_label.setStyleSheet("background-color: #D3D3D3;")
+            self.status_label.setStyleSheet("background-color: #D3D3D3;")
             self.enable_inputs()
             self.reset_window_title()
 

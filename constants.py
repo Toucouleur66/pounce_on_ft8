@@ -37,8 +37,9 @@ WANTED_CALLSIGNS_FILE           = os.path.join(get_app_data_dir(), "wanted_calls
 WANTED_CALLSIGNS_HISTORY_SIZE   = 50
 
 GUI_LABEL_VERSION               = f"Wait and Pounce v{version_number} by F5UKW"
-RUNNING_TEXT_BUTTON             = "Monitoring..."
-WAIT_POUNCE_LABEL               = "Start Monitoring"
+MONITORING_RUN_BUTTON_LABEL     = "Monitoring..."
+DECODING_RUN_BUTTON_LABEL       = "Decoding..."
+WAIT_RUN_BUTTON_LABEL           = "Start Monitoring"
 NOTHING_YET                     = "Nothing yet"
 WAITING_DATA_PACKETS_LABEL      = "Waiting for UDP Packets"
 WANTED_CALLSIGNS_HISTORY_LABEL  = "Wanted Callsigns History (%d):"
