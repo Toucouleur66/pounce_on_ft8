@@ -671,7 +671,7 @@ class MainApp(QtWidgets.QMainWindow):
         # Log and clear button
         self.output_text = QtWidgets.QTextEdit(self)
         self.output_text.setFont(custom_font)
-        self.output_text.setStyleSheet("background-color: #FFFFFF; ")
+        # self.output_text.setStyleSheet("background-color: white; color: black")
         self.output_text.setReadOnly(True)
 
         self.clear_button = QtWidgets.QPushButton("Clear Log")
