@@ -13,8 +13,8 @@ if platform.system() == 'Windows':
     pyinstaller_cmd = [
         "pyinstaller",
         "--onefile",
-        "--collect-submodules"
-        "PIL"
+        "--collect-submodules",
+        "PIL",
         "--icon=pounce.ico",
         "--add-data=pounce.ico;.",
         "--add-data=sounds:sounds",
