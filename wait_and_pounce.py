@@ -109,7 +109,7 @@ class MyListener(Listener):
                 
 
                 if callsign is None:
-                    entity = "?"
+                    entity = "Where ?"
                 else:
                     callsign_info = lookup.lookup_callsign(callsign)
                     if callsign_info:

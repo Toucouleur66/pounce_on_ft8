@@ -431,7 +431,8 @@ class Listener:
                         self.log_qso_to_udp()
                     self.reset_ongoing_contact()
                     # Make sure to remove this callsign once QSO done
-                    self.wanted_callsigns.remove(callsign)
+                    if callsign in self.wanted_callsigns:
+                        self.wanted_callsigns.remove(callsign)
                     self.excluded_callsigns.add(callsign)
      
                 elif self.targeted_call is not None:

@@ -62,7 +62,6 @@ from constants import (
     DEFAULT_MODE_TIMER_VALUE,
     # Working directory
     CURRENT_DIR,
-    CTY_XML,
     # UDP related
     DEFAULT_SECONDARY_UDP_SERVER,
     DEFAULT_SENDING_REPLY,
@@ -830,7 +829,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.append_output_text(f"[red_on_grey]{message}[/red_on_grey]\n")
 
     @QtCore.pyqtSlot(object)
-    def handle_message_received(self, message):
+    def handle_message_received(self, message):        
         if isinstance(message, dict):
             message_type = message.get('type')
             if message_type == 'update_mode':
@@ -842,6 +841,8 @@ class MainApp(QtWidgets.QMainWindow):
                     message.get('last_heartbeat_time')
                 )
             else:
+                # print(f"Check Sound config\n\twanted_callsign_detected: {self.enable_sound_wanted_callsigns}\n\tdirected_to_my_call:{self.enable_sound_directed_my_callsign}\n\tmonitored_callsigns:{self.enable_sound_monitored_callsigns}")
+
                 formatted_message = message.get('formatted_message')
                 if formatted_message is not None:                    
                     contains_my_call = message.get('contains_my_call')                        
@@ -1035,6 +1036,10 @@ class MainApp(QtWidgets.QMainWindow):
             self.save_params(params)
 
             log_filename = get_log_filename()
+
+            self.enable_sound_wanted_callsigns = params.get('enable_sound_wanted_callsigns', True)
+            self.enable_sound_directed_my_callsign = params.get('enable_sound_directed_my_callsign', True)
+            self.enable_sound_monitored_callsigns = params.get('enable_sound_monitored_callsigns', True)
 
             if self.enable_pounce_log and not previous_enable_pounce_log:
                 self.file_handler = add_file_handler(log_filename)
