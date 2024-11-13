@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 from utils import get_app_data_dir
 
-version_number                  = "2.0.2"
+version_number                  = "2.0.3"
 EXPIRATION_DATE                 = datetime(2024, 11, 30)
 
 EVEN                            = "EVEN"
@@ -58,6 +58,7 @@ FREQ_MINIMUM_FOX_HOUND          = 1050
 DEFAULT_UDP_PORT                = 2237
 
 CURRENT_DIR                     = os.path.dirname(os.path.realpath(__file__))
+CTY_XML                         = 'cty.xml'
 
 DEFAULT_SECONDARY_UDP_SERVER    = False
 DEFAULT_SENDING_REPLY           = True

@@ -18,6 +18,7 @@ import wait_and_pounce
 import logging
 
 from PIL import Image, ImageDraw
+from callsign_lookup import CallsignLookup
 from utils import get_local_ip_address, get_log_filename, force_uppercase
 from logger import get_logger, add_file_handler, remove_file_handler
 from gui_handler import GUIHandler
@@ -61,6 +62,7 @@ from constants import (
     DEFAULT_MODE_TIMER_VALUE,
     # Working directory
     CURRENT_DIR,
+    CTY_XML,
     # UDP related
     DEFAULT_SECONDARY_UDP_SERVER,
     DEFAULT_SENDING_REPLY,
@@ -82,20 +84,20 @@ stop_event = threading.Event()
 tray_icon = None
 
 gui_queue = queue.Queue()
-inputs_enabled = True
-
-# PyQt equivalent of fonts in tkinter
-courier_font                = QtGui.QFont("Courier", 10)
-courier_font_bold           = QtGui.QFont("Courier", 12, QtGui.QFont.Bold)
 
 if platform.system() == 'Windows':
-    custom_font             = QtGui.QFont("Consolas", 12)
-    custom_font_lg          = QtGui.QFont("Consolas", 18)
+    custom_font             = QtGui.QFont("Segoe UI", 12)
+    custom_font_mono        = QtGui.QFont("Consolas", 12)
+    custom_font_mono_lg     = QtGui.QFont("Consolas", 18)
     custom_font_bold        = QtGui.QFont("Consolas", 12, QtGui.QFont.Bold)
 elif platform.system() == 'Darwin':
-    custom_font             = QtGui.QFont("Menlo", 14)
-    custom_font_lg          = QtGui.QFont("Menlo", 18)
-    custom_font_bold        = QtGui.QFont("Menlo", 12, QtGui.QFont.Bold)
+    custom_font             = QtGui.QFont("Lucida Grande", 13)
+    custom_font_mono        = QtGui.QFont("Monaco", 13)
+    custom_font_mono_lg     = QtGui.QFont("Monaco", 18)
+    custom_font_bold        = QtGui.QFont("Monaco", 12, QtGui.QFont.Bold)
+
+small_font                  = QtGui.QFont()
+small_font.setPointSize(11)      
 
 class Worker(QObject):
     finished = pyqtSignal()
@@ -219,7 +221,7 @@ class ToolTip(QtWidgets.QWidget):
         self.tooltip_window = None
         self.widget.installEventFilter(self)
 
-        QtWidgets.QToolTip.setFont(custom_font)
+        QtWidgets.QToolTip.setFont(custom_font_mono)
 
     def eventFilter(self, obj, event):
         if obj == self.widget:
@@ -238,7 +240,6 @@ class ToolTip(QtWidgets.QWidget):
     def hide_tooltip(self):
         QtWidgets.QToolTip.hideText()
 
-
 class SettingsDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, params=None):
         super().__init__(parent)
@@ -248,9 +249,6 @@ class SettingsDialog(QtWidgets.QDialog):
         self.params = params or {}
 
         layout = QtWidgets.QVBoxLayout(self)
-
-        small_font = QtGui.QFont()
-        small_font.setPointSize(11)  
 
         jtdx_notice_text = (
             "For JTDX users, you have to disable automatic logging of QSO (Make sure <u>Settings > Reporting > Logging > Enable automatic logging of QSO</u> is unchecked)<br /><br />You might also need to accept UDP Reply messages from any messages (<u>Misc Menu > Accept UDP Reply Messages > any messages</u>)."
@@ -468,20 +466,64 @@ class SettingsDialog(QtWidgets.QDialog):
             'delay_between_sound_for_monitored_callsign' : self.delay_between_sound_for_monitored_callsign.text()   
         }
 
+class UpdateWantedDialog(QtWidgets.QDialog):
+    def __init__(self, parent=None, selected_callsign=""):
+        super().__init__(parent)
+
+        self.setWindowTitle("Update Wanted Callsigns")
+        self.resize(450, 100)
+        self.selected_callsign = selected_callsign
+
+        layout = QtWidgets.QVBoxLayout(self)
+        
+        message_label = QtWidgets.QLabel('Do you want to update Wanted Callsign(s) with:')
+        layout.addWidget(message_label)
+        
+        self.entry = QtWidgets.QWidget()
+        self.entry = QtWidgets.QLabel(self.selected_callsign)
+        self.entry.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
+        self.entry.setWordWrap(True)
+        self.entry.setFont(custom_font_mono)
+        self.entry.setStyleSheet("background-color: white;")
+        self.entry.setContentsMargins(5, 5, 5, 5)
+        layout.addWidget(self.entry)
+        
+        button_box = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Yes | QtWidgets.QDialogButtonBox.No
+        )
+        layout.addWidget(button_box)
+
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+
+        self.adjust_dialog_size()
+
+    def adjust_dialog_size(self):
+        self.entry.adjustSize()
+    
+        self.adjustSize()
+        
+        min_width = max(450, self.entry.width() + 40)  
+        min_height = max(50, self.entry.height() + 120)
+        
+        self.setMinimumSize(min_width, min_height)        
+
 class EditWantedDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, initial_value="", title="Edit Wanted Callsigns"):
         super().__init__(parent)
+
         self.setWindowTitle(title)
-        self.resize(400, 200)
+        self.resize(600, 200)
 
         layout = QtWidgets.QVBoxLayout(self)
 
-        label = QtWidgets.QLabel("Wanted Callsign(s) (Comma separated list):")
-        layout.addWidget(label)
+        message_label = QtWidgets.QLabel("Wanted Callsign(s) (Comma separated list):")
+        layout.addWidget(message_label)
 
         self.entry = QtWidgets.QTextEdit()
         self.entry.setAcceptRichText(False)
         self.entry.setText(initial_value)
+        self.entry.setFont(custom_font_mono)
         self.entry.textChanged.connect(lambda: force_uppercase(self.entry))
         layout.addWidget(self.entry)
 
@@ -558,8 +600,11 @@ class MainApp(QtWidgets.QMainWindow):
 
         # Variables
         self.wanted_callsigns_var = QtWidgets.QLineEdit()
+        self.wanted_callsigns_var.setFont(custom_font)
         self.monitored_callsigns_var = QtWidgets.QLineEdit()
+        self.monitored_callsigns_var.setFont(custom_font)
         self.excluded_callsigns_var = QtWidgets.QLineEdit()
+        self.excluded_callsigns_var.setFont(custom_font)
 
         # Mode buttons (radio buttons)
         self.special_mode_var = QtWidgets.QButtonGroup()
@@ -629,8 +674,10 @@ class MainApp(QtWidgets.QMainWindow):
         # Listbox (wanted callsigns)
         self.listbox = QtWidgets.QListWidget()
         self.listbox.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self.listbox.setFont(custom_font)
         self.listbox.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.listbox.itemClicked.connect(self.on_listbox_select)
+        self.listbox.itemDoubleClicked.connect(self.on_listbox_double_click)
 
         # Context menu for listbox
         self.listbox.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
@@ -651,7 +698,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.focus_frame_layout = QtWidgets.QHBoxLayout()
         self.focus_frame.setLayout(self.focus_frame_layout)
         self.focus_value_label = QtWidgets.QLabel("")
-        self.focus_value_label.setFont(custom_font_lg)
+        self.focus_value_label.setFont(custom_font_mono_lg)
         self.focus_value_label.setStyleSheet("padding: 10px;")
         self.focus_frame_layout.addWidget(self.focus_value_label)
         self.focus_frame.hide()
@@ -659,18 +706,18 @@ class MainApp(QtWidgets.QMainWindow):
 
         # Timer value
         self.timer_value_label = QtWidgets.QLabel(DEFAULT_MODE_TIMER_VALUE)
-        self.timer_value_label.setFont(custom_font_lg)
+        self.timer_value_label.setFont(custom_font_mono_lg)
         self.timer_value_label.setStyleSheet("background-color: #9dfffe; color: #555bc2; padding: 10px;")
 
         # Log analysis label and value
         self.status_label = QtWidgets.QLabel(NOTHING_YET)
-        self.status_label.setFont(custom_font)
         self.status_label.setIndent(5)
+        self.status_label.setFont(custom_font_mono)
         self.status_label.setStyleSheet("background-color: #D3D3D3;")
 
         # Log and clear button
         self.output_text = QtWidgets.QTextEdit(self)
-        self.output_text.setFont(custom_font)
+        self.output_text.setFont(custom_font_mono)
         # self.output_text.setStyleSheet("background-color: white; color: black")
         self.output_text.setReadOnly(True)
 
@@ -687,6 +734,8 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.quit_button = QtWidgets.QPushButton("Quit")
         self.quit_button.clicked.connect(self.quit_application)
+
+        self.inputs_enabled = True
 
         if platform.system() == 'Darwin':
             self.restart_button = QtWidgets.QPushButton("Restart")
@@ -831,10 +880,30 @@ class MainApp(QtWidgets.QMainWindow):
             self.setWindowTitle(new_title)
 
     def reset_window_title(self):
-        self.setWindowTitle(self.base_title)               
+        self.setWindowTitle(self.base_title)  
+
+    def on_listbox_double_click(self, item):
+        if self._running:
+            selected_callsign = item.text()
+            dialog = UpdateWantedDialog(self, selected_callsign=selected_callsign)
+            result = dialog.exec_()
+            if result == QtWidgets.QDialog.Accepted:
+                self.wanted_callsigns_var.setText(selected_callsign)
+                if self._running:
+                    self.stop_monitoring()
+                    self.start_monitoring()
+
+    def update_current_callsign_highlight(self):
+        for index in range(self.listbox.count()):
+            item = self.listbox.item(index)
+            if item.text() == self.wanted_callsigns_var.text() and self._running:
+                item.setBackground(QtGui.QBrush(QtGui.QColor('yellow')))
+                item.setForeground(QtGui.QBrush(QtGui.QColor('black')))
+            else:
+                item.setBackground(QtGui.QBrush())
+                item.setForeground(QtGui.QBrush())             
 
     def play_sound(self, sound_name):
-        # Todo: add delay to settings
         try:           
             if sound_name == 'wanted_callsign_detected':
                 self.wanted_callsign_detected_sound.play()
@@ -900,13 +969,14 @@ class MainApp(QtWidgets.QMainWindow):
                 status_text_array.append(f"No DecodePacket for more than {DECODE_PACKET_TIMEOUT_THRESHOLD} seconds.")
                 nothing_to_decode = True                
             else:                
-                if time_since_last_decode < 2:
+                if time_since_last_decode < 3:
                     self.run_button.setText(DECODING_RUN_BUTTON_LABEL)
                     network_check_status_interval = 100
                     time_since_last_decode_text = f"{time_since_last_decode:.1f}s"
                     style_run_button = "background-color: green; color: #ffffff"                    
                 else:
-                    # network_check_status_interval = 1_000
+                    if time_since_last_decode < 15:
+                        network_check_status_interval = 1_000
                     self.run_button.setText(MONITORING_RUN_BUTTON_LABEL)
                     time_since_last_decode_text = f"{int(time_since_last_decode)}s"
                     
@@ -999,15 +1069,13 @@ class MainApp(QtWidgets.QMainWindow):
             self.disable_alert_checkbox.setStyleSheet("")
 
     def disable_inputs(self):
-        global inputs_enabled
-        inputs_enabled = False
+        self.inputs_enabled = False
         self.monitored_callsigns_var.setEnabled(False)
         self.excluded_callsigns_var.setEnabled(False)
         self.wanted_callsigns_var.setEnabled(False)
 
     def enable_inputs(self):
-        global inputs_enabled
-        inputs_enabled = True
+        self.inputs_enabled = True
         self.monitored_callsigns_var.setEnabled(True)
         self.excluded_callsigns_var.setEnabled(True)
         self.wanted_callsigns_var.setEnabled(True)
@@ -1050,7 +1118,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.wanted_callsigns_label.setText(WANTED_CALLSIGNS_HISTORY_LABEL % len(self.wanted_callsigns_history))
 
     def on_listbox_select(self):
-        if not inputs_enabled:
+        if not self.inputs_enabled:
             return
         selected_item = self.listbox.currentItem()
         if selected_item:
@@ -1190,6 +1258,8 @@ class MainApp(QtWidgets.QMainWindow):
     def start_monitoring(self):
         global tray_icon
 
+        self._running = True   
+
         self.network_check_status.start(self.network_check_status_interval)
 
          # Timer to update time every second
@@ -1237,6 +1307,7 @@ class MainApp(QtWidgets.QMainWindow):
         enable_show_all_decoded             = params.get('enable_show_all_decoded', DEFAULT_SHOW_ALL_DECODED)
 
         self.update_wanted_callsigns_history(wanted_callsigns)
+        self.update_current_callsign_highlight()
 
         params.update({
             "monitored_callsigns"           : monitored_callsigns,
@@ -1283,8 +1354,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.worker.error.connect(self.show_error_message)
         self.worker.message.connect(self.handle_message_received)
 
-        self.thread.start()
-        self._running = True       
+        self.thread.start()    
 
     def stop_monitoring(self):
         global tray_icon
@@ -1319,6 +1389,8 @@ class MainApp(QtWidgets.QMainWindow):
             self.callsign_notice.show()
 
             self.status_label.setStyleSheet("background-color: #D3D3D3;")
+            
+            self.update_current_callsign_highlight()
             self.enable_inputs()
             self.reset_window_title()
 
@@ -1329,17 +1401,13 @@ class MainApp(QtWidgets.QMainWindow):
 
 def check_expiration():
     current_date = datetime.datetime.now()
-    if current_date > EXPIRATION_DATE:
-        app = QtWidgets.QApplication(sys.argv)
-        
+    if current_date > EXPIRATION_DATE:      
         expiration_date_str = EXPIRATION_DATE.strftime('%B %d, %Y')
 
         msg_box = QtWidgets.QMessageBox()
         msg_box.setWindowTitle("Program Expired")
 
         label = QtWidgets.QLabel(f"{GUI_LABEL_VERSION} expired on <u>{expiration_date_str}</u>. Please contact author.")
-        small_font = QtGui.QFont()
-        small_font.setPointSize(12)  
         label.setFont(small_font)
         label.setTextFormat(QtCore.Qt.RichText)
         
