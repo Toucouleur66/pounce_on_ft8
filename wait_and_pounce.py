@@ -6,14 +6,12 @@ import threading
 import signal
 import time
 
-from logger import get_logger, get_gui_logger
+from logger import get_logger
 from wsjtx_listener import Listener
 from utils import parse_wsjtx_message
 from callsign_lookup import CallsignLookup
 
 log         = get_logger(__name__)
-gui_log     = get_gui_logger()
-
 lookup      = CallsignLookup()
 
 stop_event = threading.Event()
@@ -107,7 +105,6 @@ class MyListener(Listener):
                 monitored               = parsed_data['monitored']  
                 callsign                = parsed_data['callsign']
                 
-
                 if callsign is None:
                     entity = "Where ?"
                 else:
@@ -128,10 +125,7 @@ class MyListener(Listener):
                 else:
                     msg_color_text      = None
 
-                if msg_color_text:
-                    formatted_msg = f"[{msg_color_text}]{msg:<21.21}[/{msg_color_text}]"                    
-                else:
-                    formatted_msg = f"{msg:<21.21}"                                        
+                formatted_msg = f"{msg:<21.21}"                                        
                     
                 display_message = (
                     f"{decode_time_str} "
@@ -144,7 +138,17 @@ class MyListener(Listener):
                 )
 
                 if self.enable_show_all_decoded or msg_color_text:
-                    gui_log.info(display_message, extra={'to_gui': True})
+                    if self.message_callback:
+                        self.message_callback({                        
+                        'decode_time_str'   : decode_time_str,
+                        'snr'               : snr,
+                        'delta_time'        : delta_time,
+                        'delta_freq'        : delta_frequencies,
+                        'formatted_msg'     : formatted_msg.strip(),
+                        'entity'            : entity,
+                        'msg_color_text'    : msg_color_text,
+                        'display_message'   : display_message
+                    })
                         
         except Exception as e:
             log.error(f"Error handling packet: {e}", exc_info=True)

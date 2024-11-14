@@ -11,7 +11,7 @@ import traceback
 import random
 
 from wsjtx_packet_sender import WSJTXPacketSender
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import deque
 
 from logger import get_logger
@@ -234,7 +234,7 @@ class Listener:
                         self.reset_ongoing_contact()            
                 elif self.targeted_call == self.dx_call:
                     self.rst_sent   = self.the_packet.report     
-                    self.time_off   = datetime.now()  
+                    self.time_off   = datetime.now(timezone.utc)
                 elif (
                     status_had_time_to_update and   
                     self.dx_call is not None
@@ -252,7 +252,7 @@ class Listener:
 
     def handle_packet(self):
         if isinstance(self.the_packet, pywsjtx.HeartBeatPacket):
-            self.last_heartbeat_time = datetime.now()
+            self.last_heartbeat_time = datetime.now(timezone.utc)
             self.heartbeat()
             self.send_status_update()
         elif isinstance(self.the_packet, pywsjtx.StatusPacket):
@@ -260,7 +260,7 @@ class Listener:
         elif isinstance(self.the_packet, pywsjtx.QSOLoggedPacket):
             log.error('QSOLoggedPacket should not be handle due to JTDX restrictions')   
         elif isinstance(self.the_packet, pywsjtx.DecodePacket):
-            self.last_decode_packet_time = datetime.now()
+            self.last_decode_packet_time = datetime.now(timezone.utc)
             self.decode_packet_count += 1
             if self.enable_gap_finder:
                 self.collect_used_frequencies()     
@@ -412,7 +412,7 @@ class Listener:
             if (
                 self.qso_time_on is not None                              and
                 self.targeted_call is not None                            and
-                (datetime.now() - self.qso_time_on).total_seconds() > 120 and
+                (datetime.now(timezone.utc) - self.qso_time_on).total_seconds() > 120 and
                 callsign != self.targeted_call                            and            
                 wanted is True
             ):
@@ -514,7 +514,7 @@ class Listener:
 
     def reply_to_packet(self):
         try:
-            self.reply_to_packet_time   = datetime.now()
+            self.reply_to_packet_time   = datetime.now(timezone.utc)
             self.targeted_call_period   = self.odd_or_even_period()
             my_period                   = ODD if self.targeted_call_period == EVEN else EVEN
 

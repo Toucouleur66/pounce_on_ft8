@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 from utils import get_app_data_dir
 
-version_number                  = "2.0.4"
+version_number                  = "2.0.5"
 EXPIRATION_DATE                 = datetime(2024, 11, 30)
 
 EVEN                            = "EVEN"
@@ -14,7 +14,7 @@ EVEN_COLOR                      = "#9DFFFE"
 ODD_COLOR                       = "#FFFE9F"
 
 BG_COLOR_FOCUS_MY_CALL          = "#80D0D0"
-FG_COLOR_FOCUS_MY_CALL          = "#000000"
+FG_COLOR_FOCUS_MY_CALL          = "red"
 
 BG_COLOR_REGULAR_FOCUS          = "#000000"
 FG_COLOR_REGULAR_FOCUS          = "#01FFFF"
@@ -25,7 +25,7 @@ FG_COLOR_BLACK_ON_YELLOW        = "#000000"
 BG_COLOR_WHITE_ON_BLUE          = "blue"
 FG_COLOR_WHITE_ON_BLUE          = "white"
 
-BG_COLOR_BLACK_ON_PURPLE        = "#D080D0"
+BG_COLOR_BLACK_ON_PURPLE        = "#FFBDFF"
 FG_COLOR_BLACK_ON_PURPLE        = "#000000"
 
 BG_COLOR_BLACK_ON_WHITE         = "#000000"

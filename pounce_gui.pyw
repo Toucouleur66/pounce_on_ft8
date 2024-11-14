@@ -1,6 +1,7 @@
 # pounce_gui.pyw
 
 from PyQt5 import QtWidgets, QtCore, QtGui
+from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem
 from PyQt5.QtCore import QObject, pyqtSignal, QThread
 from PyQt5.QtMultimedia import QSound
 
@@ -10,13 +11,13 @@ import pickle
 import os
 import queue
 import threading
-import datetime
 import re
 import time
 import pyperclip
 import wait_and_pounce
 import logging
 
+from datetime import datetime, timezone
 from PIL import Image, ImageDraw
 from callsign_lookup import CallsignLookup
 from utils import get_local_ip_address, get_log_filename, force_uppercase
@@ -306,7 +307,7 @@ class SettingsDialog(QtWidgets.QDialog):
         udp_settings_layout.addWidget(self.enable_gap_finder, 1, 0, 1, 2)       
         udp_settings_layout.addWidget(self.enable_watchdog_bypass, 2, 0, 1, 2)
         
-        udp_settings_widget.setStyleSheet(f"background-color: {BG_COLOR_FOCUS_MY_CALL}; color: {FG_COLOR_FOCUS_MY_CALL};")
+        udp_settings_widget.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_PURPLE}; color: {FG_COLOR_BLACK_ON_PURPLE};")
         udp_settings_group.setLayout(QtWidgets.QVBoxLayout())
         udp_settings_group.layout().setContentsMargins(0, 0, 0, 0)
         udp_settings_group.layout().addWidget(udp_settings_widget)
@@ -582,7 +583,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.decode_packet_count                = 0
         self.last_decode_packet_time            = None
         self.last_heartbeat_time                = None
-        self.last_sound_played_time             = datetime.datetime.min
+        self.last_sound_played_time             = datetime.min
         self.mode                               = None
 
         self.wanted_callsign_detected_sound     = QSound(f"{CURRENT_DIR}/sounds/495650__matrixxx__supershort-ping-or-short-notification.wav")
@@ -710,19 +711,44 @@ class MainApp(QtWidgets.QMainWindow):
 
         # Log analysis label and value
         self.status_label = QtWidgets.QLabel(NOTHING_YET)
-        self.status_label.setIndent(5)
         self.status_label.setFont(custom_font_mono)
-        self.status_label.setStyleSheet("background-color: #D3D3D3;")
+        self.status_label.setStyleSheet("background-color: #D3D3D3; border: 1px solid #bbbbbb; border-radius: 10px; padding: 10px;")
 
         # Log and clear button
-        self.output_text = QtWidgets.QTextEdit(self)
-        self.output_text.setFont(custom_font_mono)
-        # self.output_text.setStyleSheet("background-color: white; color: black")
-        self.output_text.setReadOnly(True)
+        self.output_table = QTableWidget(self)
+        self.output_table.setColumnCount(6)
+        header_labels = ['Time', 'Report', 'DT', 'Freq', 'Message', 'Country']
+        for i, label in enumerate(header_labels):
+            header_item = QTableWidgetItem(label)
+            if label in ['Report', 'DT', 'Freq']:
+                header_item.setTextAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+            else:
+                header_item.setTextAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
+            self.output_table.setHorizontalHeaderItem(i, header_item)
+
+        self.output_table.setFont(custom_font)
+        self.output_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        self.output_table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+        self.output_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Interactive)
+        self.output_table.horizontalHeader().setStretchLastSection(True)
+        self.output_table.verticalHeader().setVisible(False)
+        self.output_table.verticalHeader().setDefaultSectionSize(24)
+        self.output_table.setAlternatingRowColors(True)
+        self.output_table.setStyleSheet("""
+        QTableWidget {
+            background-color: white;
+            alternate-background-color: #f4f5f5;
+        }
+        """)
+        self.output_table.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.output_table.setColumnWidth(4, 200)
+        self.output_table.setColumnWidth(5, 100)
+
+        self.load_column_widths()
 
         self.clear_button = QtWidgets.QPushButton("Clear Log")
         self.clear_button.setEnabled(False)
-        self.clear_button.clicked.connect(self.clear_output_text)
+        self.clear_button.clicked.connect(self.clear_output_table)
 
         self.settings = QtWidgets.QPushButton("Settings")
         self.settings.clicked.connect(self.open_settings)
@@ -780,8 +806,7 @@ class MainApp(QtWidgets.QMainWindow):
         main_layout.addWidget(self.run_button, 7, 2)
         main_layout.addWidget(self.stop_button, 7, 3)
 
-        # Add output text and buttons
-        main_layout.addWidget(self.output_text, 8, 0, 1, 4)
+        main_layout.addWidget(self.output_table, 8, 0, 1, 4)
 
         button_layout = QtWidgets.QHBoxLayout()
         button_layout.addWidget(self.settings)
@@ -826,12 +851,25 @@ class MainApp(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot(str)
     def show_error_message(self, message):
-        self.append_output_text(f"[red_on_grey]{message}[/red_on_grey]\n")
+        row_position = self.output_table.rowCount()
+        self.output_table.insertRow(row_position)
+
+        error_item = QTableWidgetItem(message)
+        error_item.setForeground(QtGui.QBrush(QtGui.QColor('white')))
+        error_item.setBackground(QtGui.QBrush(QtGui.QColor('red')))
+        error_item.setTextAlignment(QtCore.Qt.AlignCenter)
+
+        self.output_table.setItem(row_position, 0, error_item)
+        self.output_table.setSpan(row_position, 0, 1, self.output_table.columnCount())
+        error_item.setFlags(QtCore.Qt.ItemIsEnabled)
+        self.output_table.scrollToBottom()
 
     @QtCore.pyqtSlot(object)
-    def handle_message_received(self, message):        
+    def handle_message_received(self, message):
         if isinstance(message, dict):
-            message_type = message.get('type')
+            message_type = message.get('type', None)
+
+            # Handle message from Listener from wsjtx_listener.py
             if message_type == 'update_mode':
                 self.mode = message.get('mode')
             elif message_type == 'update_status':
@@ -840,14 +878,12 @@ class MainApp(QtWidgets.QMainWindow):
                     message.get('last_decode_packet_time'),
                     message.get('last_heartbeat_time')
                 )
-            else:
-                # print(f"Check Sound config\n\twanted_callsign_detected: {self.enable_sound_wanted_callsigns}\n\tdirected_to_my_call:{self.enable_sound_directed_my_callsign}\n\tmonitored_callsigns:{self.enable_sound_monitored_callsigns}")
-
+            elif message_type is not None:
                 formatted_message = message.get('formatted_message')
-                if formatted_message is not None:                    
-                    contains_my_call = message.get('contains_my_call')                        
-                    self.update_focus_frame(formatted_message, contains_my_call)                            
-                
+                if formatted_message is not None:
+                    contains_my_call = message.get('contains_my_call')
+                    self.update_focus_frame(formatted_message, contains_my_call)
+
                 play_sound = False
                 if not self.disable_alert_checkbox.isChecked():      
                     if message_type == 'wanted_callsign_detected' and self.enable_sound_wanted_callsigns:
@@ -859,7 +895,7 @@ class MainApp(QtWidgets.QMainWindow):
                     elif message_type == 'error_occurred':
                         play_sound = True
                     elif message_type == 'monitored_callsign_detected' and self.enable_sound_monitored_callsigns:
-                        current_time = datetime.datetime.now()
+                        current_time = datetime.now()
                         delay = 600                   
                         if (current_time - self.last_sound_played_time).total_seconds() > delay:                                                 
                             play_sound = True
@@ -867,14 +903,27 @@ class MainApp(QtWidgets.QMainWindow):
                 
                 if play_sound:
                     self.play_sound(message_type)
-    
-        else:
-            # Use this to handle window title update
-            if isinstance(message, str) and message.startswith("wsjtx_id:"):
+            
+            # Handle message from handle_packet from wait_and_pounce.py
+            elif 'decode_time_str' in message:
+                self.append_table_row(
+                    message.get('decode_time_str', ''),
+                    message.get('snr', 0),
+                    message.get('delta_time', 0.0),
+                    message.get('delta_freq', 0),
+                    message.get('formatted_msg', ''),
+                    message.get('entity', ''),
+                    message.get('msg_color_text', None)
+                )                
+
+        elif isinstance(message, str):
+            if message.startswith("wsjtx_id:"):
                 wsjtx_id = message.split("wsjtx_id:")[1].strip()
                 self.update_window_title(wsjtx_id)
-            else:
-                self.append_output_text(str(message) + "\n")
+            else:             
+                self.show_error_message(message)
+        else:
+            pass
 
     def update_window_title(self, wsjtx_id):
             new_title = f"{self.base_title} - Connected to {wsjtx_id}"
@@ -902,7 +951,17 @@ class MainApp(QtWidgets.QMainWindow):
                 item.setForeground(QtGui.QBrush(QtGui.QColor('black')))
             else:
                 item.setBackground(QtGui.QBrush())
-                item.setForeground(QtGui.QBrush())             
+                item.setForeground(QtGui.QBrush())   
+
+    def update_status_label_style(self, background_color, text_color):
+        style = f"""
+            background-color: {background_color};
+            color: {text_color};
+            border: 1px solid #bbbbbb;
+            border-radius: 5px;
+            padding: 5px;
+        """
+        self.status_label.setStyleSheet(style)                          
 
     def play_sound(self, sound_name):
         try:           
@@ -946,10 +1005,10 @@ class MainApp(QtWidgets.QMainWindow):
         if last_heartbeat_time is not None:
             self.last_heartbeat_time = last_heartbeat_time
 
-        now = datetime.datetime.now()
-        current_mode = ""
-        connection_lost = False
-        nothing_to_decode = False
+        now                 = datetime.now(timezone.utc)
+        current_mode        = ""
+        connection_lost     = False
+        nothing_to_decode   = False
 
         status_text_array = []
 
@@ -1007,16 +1066,16 @@ class MainApp(QtWidgets.QMainWindow):
         self.status_label.setText('<br>'.join(status_text_array))
 
         if connection_lost:
-            self.status_label.setStyleSheet("background-color: red; color: white;")
+            self.update_status_label_style("red", "white")
             if not self.connection_lost_shown:
                 self.connection_lost_shown = True
         elif nothing_to_decode: 
-            self.status_label.setStyleSheet("background-color: white; color: black;")
+            self.update_status_label_style("white", "black")
         else:
             self.connection_lost_shown = False
-            self.status_label.setStyleSheet("background-color: yellow; color: black;")              
+            self.update_status_label_style("yellow", "black")
 
-    def on_close(self, event):
+    def on_close(self, event):        
         self.save_window_position()
         if self._running:
             self.stop_monitoring()
@@ -1050,6 +1109,22 @@ class MainApp(QtWidgets.QMainWindow):
             if self._running:
                 self.stop_monitoring()
                 self.start_monitoring()
+
+    def save_table_column_position(self):
+        widths = []
+        for col in range(self.output_table.columnCount()):
+            width = self.output_table.columnWidth(col)
+            widths.append(width)
+        params = self.load_params()
+        params['column_widths'] = widths
+        self.save_params(params)
+
+    def load_column_widths(self):
+        params = self.load_params()
+        widths = params.get('column_widths', [])
+        for col, width in enumerate(widths):
+            if col < self.output_table.columnCount():
+                self.output_table.setColumnWidth(col, width)
 
     def quit_application(self):
         self.save_window_position()
@@ -1170,61 +1245,76 @@ class MainApp(QtWidgets.QMainWindow):
         pyperclip.copy(message)
         print(f"Copied to clipboard: {message}")
 
-    def append_output_text(self, text):
-        cursor = self.output_text.textCursor()
-        cursor.movePosition(QtGui.QTextCursor.End)
-
-        pattern = re.compile(r'\[(\/?[a-zA-Z_]+)\]')
-        lines = text.split('\n')
-
-        for index, line in enumerate(lines):
-            if index > 0:
-                cursor.insertBlock()
-
-            block_format = cursor.blockFormat()
-            block_format.setTopMargin(0)
-            block_format.setBottomMargin(0)
-            cursor.setBlockFormat(block_format)
-
-            pos = 0
-            current_format = QtGui.QTextCharFormat()
-
-            while True:
-                match = pattern.search(line, pos)
-                if not match:
-                    text_to_insert = line[pos:]
-                    cursor.insertText(text_to_insert, current_format)
-                    break
-                else:
-                    start, end = match.span()
-                    tag = match.group(1)
-                    cursor.insertText(line[pos:start], current_format)
-                    pos = end  
-
-                    if tag.startswith('/'):
-                        current_format = QtGui.QTextCharFormat()
-                    else:
-                        format = self.text_formats.get(tag)
-                        if format:
-                            current_format = format
-                            current_format.setProperty(QtGui.QTextFormat.FullWidthSelection, True)
-                        else:                    
-                            pass
-
-        cursor.movePosition(QtGui.QTextCursor.End)
-        self.output_text.setTextCursor(cursor)
-        self.output_text.ensureCursorVisible()
+    def append_table_row(self, date_str, snr, delta_time, delta_freq, formatted_msg, entity, msg_color_text=None):
         self.clear_button.setEnabled(True)
+        row_position = self.output_table.rowCount()
+        self.output_table.insertRow(row_position)
+        
+        item_date = QTableWidgetItem(date_str)
+        self.output_table.setItem(row_position, 0, item_date)
+            
+        item_snr = QTableWidgetItem(f"{snr:+3d} dB")
+        item_snr.setTextAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        item_snr.setFont(small_font)
+        self.output_table.setItem(row_position, 1, item_snr)
+        
+        item_dt = QTableWidgetItem(f"{delta_time:+5.1f}s")
+        item_dt.setTextAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        item_dt.setFont(small_font)
+        self.output_table.setItem(row_position, 2, item_dt)
+        
+        item_freq = QTableWidgetItem(f"{delta_freq:+6d}Hz")
+        item_freq.setTextAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        item_freq.setFont(small_font)
+        self.output_table.setItem(row_position, 3, item_freq)
+        
+        item_msg = QTableWidgetItem(formatted_msg.strip())
+        self.output_table.setItem(row_position, 4, item_msg)
+        
+        item_country = QTableWidgetItem(entity)
+        self.output_table.setItem(row_position, 5, item_country)
+        
+        if msg_color_text:
+            self.apply_row_format(row_position, msg_color_text)
+        
+        self.output_table.scrollToBottom()
+        
+    def apply_row_format(self, row, msg_color_text):
+        if msg_color_text == 'bright_for_my_call':
+            bg_color = QtGui.QColor(BG_COLOR_FOCUS_MY_CALL)
+            fg_color = QtGui.QColor(FG_COLOR_FOCUS_MY_CALL)
+        elif msg_color_text == 'black_on_yellow':
+            bg_color = QtGui.QColor(BG_COLOR_BLACK_ON_YELLOW)
+            fg_color = QtGui.QColor(FG_COLOR_BLACK_ON_YELLOW)
+        elif msg_color_text == 'black_on_purple':
+            bg_color = QtGui.QColor(BG_COLOR_BLACK_ON_PURPLE)
+            fg_color = QtGui.QColor(FG_COLOR_BLACK_ON_PURPLE)
+        elif msg_color_text == 'white_on_blue':
+            bg_color = QtGui.QColor(BG_COLOR_WHITE_ON_BLUE)
+            fg_color = QtGui.QColor(FG_COLOR_WHITE_ON_BLUE)
+        else:
+            bg_color = None
+            fg_color = None
 
-    def clear_output_text(self):
-        self.output_text.clear()
+        if bg_color and fg_color:
+            for col in range(self.output_table.columnCount()):
+                item = self.output_table.item(row, col)
+                if item:
+                    item.setBackground(bg_color)
+                    item.setForeground(fg_color)
+
+    def clear_output_table(self):
+        self.output_table.setRowCount(0)
         self.clear_button.setEnabled(False)
+        self.focus_frame.hide()
 
     def save_window_position(self):
+        self.save_table_column_position()
+
         position = self.geometry()
         position_data = {
             'x': position.x(),
-            'y': position.y(),
+            'y': position.y(), 
             'width': position.width(),
             'height': position.height()
         }
@@ -1244,7 +1334,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.setGeometry(100, 100, 900, 700) 
 
     def update_mode_timer(self):
-        current_time = datetime.datetime.now()
+        current_time = datetime.now(timezone.utc)
         utc_time = current_time.strftime("%H:%M:%S")
 
         if self.mode == "FT4":
@@ -1323,7 +1413,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.save_params(params)
 
         self.status_label.setText(WAITING_DATA_PACKETS_LABEL)    
-        self.status_label.setStyleSheet("background-color: yellow; color: black;")
+        self.update_status_label_style("yellow", "black")
 
         # Create a QThread and a Worker object
         self.thread = QThread()
@@ -1393,19 +1483,19 @@ class MainApp(QtWidgets.QMainWindow):
 
             self.callsign_notice.show()
 
-            self.status_label.setStyleSheet("background-color: #D3D3D3;")
+            self.update_status_label_style("grey", "black")
             
             self.update_current_callsign_highlight()
             self.enable_inputs()
             self.reset_window_title()
 
     def log_exception_to_file(self, filename, message):
-        timestamp = datetime.datetime.now().strftime("%y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%y%m%d_%H%M%S")
         with open(filename, "a") as log_file:
             log_file.write(f"{timestamp} {message}\n")
 
 def check_expiration():
-    current_date = datetime.datetime.now()
+    current_date = datetime.now()
     if current_date > EXPIRATION_DATE:      
         expiration_date_str = EXPIRATION_DATE.strftime('%B %d, %Y')
 
