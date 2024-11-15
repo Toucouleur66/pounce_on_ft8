@@ -217,25 +217,26 @@ class CallsignLookup:
                 lookup_result = None
 
             else:
-                for prefix in sorted(self.prefixes.keys(), key=lambda x: -len(x)):
+                sorted_prefixes = sorted(self.prefixes.keys(), key=lambda x: -len(x))
+                for prefix in sorted_prefixes:
                     if callsign.startswith(prefix):
                         prefix_info = self.prefixes[prefix]
                         if self._is_valid_for_date(prefix_info, date):
                             lookup_result = prefix_info
                             break
 
-            if lookup_result is None:
-                print(f"No information found for {callsign}.")
-
             self.cache[callsign] = lookup_result
             if len(self.cache) > self.cache_size:
                 self.cache.popitem(last=False)
 
+            if lookup_result is None:
+                print(f"No information found for {callsign}.")
+
             return lookup_result
-        
+
         except Exception as e:
-                print(f"Fail to extract '{callsign}': {e}")
-                return None
+            print(f"Fail to extract '{callsign}': {e}")
+            return None
 
     def _is_valid_for_date(self, info, date):
         start = info.get('start')

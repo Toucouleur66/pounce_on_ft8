@@ -106,13 +106,9 @@ class MyListener(Listener):
                 callsign                = parsed_data['callsign']
                 
                 if callsign is None:
-                    entity = "Where ?"
-                else:
-                    callsign_info = lookup.lookup_callsign(callsign)
-                    if callsign_info:
-                        entity = callsign_info["entity"].title()
-                    else:
-                        entity = ""
+                    callsign_info = None
+                else:                    
+                    callsign_info = lookup.lookup_callsign(callsign)                    
             
                 if directed == self.my_call and self.my_call is not None:
                     msg_color_text      = "bright_for_my_call"
@@ -133,8 +129,6 @@ class MyListener(Listener):
                     f"{delta_time:+5.1f}s "
                     f"{delta_frequencies:+6d}Hz ~ "
                     f"{formatted_msg}"
-                    "\t\t"
-                    f"{entity}"
                 )
 
                 if self.enable_show_all_decoded or msg_color_text:
@@ -142,11 +136,11 @@ class MyListener(Listener):
                         self.message_callback({                        
                         'decode_time_str'   : decode_time_str,
                         'callsign'          : callsign,
+                        'callsign_info'     : callsign_info,                        
                         'snr'               : snr,
                         'delta_time'        : delta_time,
                         'delta_freq'        : delta_frequencies,
                         'formatted_msg'     : formatted_msg.strip(),
-                        'entity'            : entity,
                         'msg_color_text'    : msg_color_text,
                         'display_message'   : display_message
                     })

@@ -177,7 +177,8 @@ class ActivityBar(QtWidgets.QWidget):
         super(ActivityBar, self).__init__(parent)
         self.max_value = max_value
         self.current_value = 0
-        self.displayed_value = 0  
+        self.render_value = 0  
+        self.is_overflow = False  # Indicateur pour valeur dépassant le maximum
         self.setMinimumSize(50, 200)
         self.animation = QtCore.QPropertyAnimation(self, b"displayedValue")
         self.animation.setDuration(1_000)
@@ -185,45 +186,48 @@ class ActivityBar(QtWidgets.QWidget):
 
     @QtCore.pyqtProperty(float)
     def displayedValue(self):
-        return self.displayed_value
+        return self.render_value
 
     @displayedValue.setter
     def displayedValue(self, value):
-        self.displayed_value = value
+        self.render_value = value
         self.update()
 
     def setValue(self, value):
-        self.current_value = min(value, self.max_value)
+        self.is_overflow = value > self.max_value 
         self.animation.stop()
-        self.animation.setStartValue(self.displayed_value)
-        self.animation.setEndValue(self.current_value)
-        self.animation.start()
+        self.animation.setStartValue(self.render_value)
+        self.animation.setEndValue(min(value, self.max_value))
+        self.animation.start()    
 
     def paintEvent(self, event):
         painter = QtGui.QPainter(self)
         rect = self.rect()
 
-        painter.fillRect(rect, QtGui.QColor("white"))
-        painter.setPen(QtGui.QPen(QtGui.QColor("#AAAAAA"), 2))
+        painter.fillRect(rect, self.palette().color(QtGui.QPalette.Base))
+
+        painter.setPen(QtGui.QPen(self.palette().color(QtGui.QPalette.AlternateBase), 2))
         painter.drawRect(rect.adjusted(0, 0, 0, 0))
 
-        content_rect = rect.adjusted(1, 2, -1, 0) 
-        fill_height = content_rect.height() * (self.displayed_value / self.max_value)
+        content_rect = rect.adjusted(1, 2, -1, 0)
+        fill_height = content_rect.height() * (self.render_value / self.max_value)
         y = content_rect.bottom() - fill_height
         filled_rect = QtCore.QRectF(content_rect.left(), y, content_rect.width(), fill_height)
 
-        # Création d'un dégradé vertical
         gradient = QtGui.QLinearGradient(content_rect.topLeft(), content_rect.bottomLeft())
-        gradient.setColorAt(0, QtGui.QColor("#FDCABB"))  
+        gradient.setColorAt(0, QtGui.QColor("#EC9A22"))  
         gradient.setColorAt(1, QtGui.QColor("#03FE00"))  
 
-        # Remplissage de la barre avec le dégradé
         painter.setBrush(gradient)
         painter.setPen(QtCore.Qt.NoPen)
         painter.drawRect(filled_rect)
 
-        painter.setPen(QtGui.QPen(QtCore.Qt.black))
-        painter.drawText(rect, QtCore.Qt.AlignCenter, str(int(self.displayed_value)))
+        painter.setPen(QtGui.QPen(self.palette().color(QtGui.QPalette.WindowText)))
+        if self.is_overflow:
+            text = f"{int(self.max_value)}+"
+        else:
+            text = str(int(self.render_value))
+        painter.drawText(rect, QtCore.Qt.AlignCenter, text)
 
 class TrayIcon:
     def __init__(self):
@@ -265,6 +269,10 @@ class TrayIcon:
         if self.icon:
             self.icon.stop()
 
+class SpacingDelegate(QtWidgets.QStyledItemDelegate):
+    def paint(self, painter, option, index):
+        option.rect.adjust(5, 0, -5, 0)  
+        super().paint(painter, option, index)
 
 class ToolTip(QtWidgets.QWidget):
     def __init__(self, widget, text=''):
@@ -309,8 +317,9 @@ class SettingsDialog(QtWidgets.QDialog):
         jtdx_notice_label = QtWidgets.QLabel(jtdx_notice_text)
         jtdx_notice_label.setWordWrap(True)
         jtdx_notice_label.setFont(small_font)
-        jtdx_notice_label.setStyleSheet("background-color: #f6f6f5; padding: 5px; font-size: 12px;")
         jtdx_notice_label.setTextFormat(QtCore.Qt.RichText)
+        jtdx_notice_label.setStyleSheet("background-color: #9dfffe; color: #555bc2; padding: 5px; font-size: 12px;")
+        jtdx_notice_label.setAutoFillBackground(True)
 
         primary_group = QtWidgets.QGroupBox("Primary UDP Server")
         primary_layout = QtWidgets.QGridLayout()
@@ -370,7 +379,7 @@ class SettingsDialog(QtWidgets.QDialog):
         )
     
         sound_notice_label = QtWidgets.QLabel(sound_notice_text)
-        sound_notice_label.setStyleSheet("background-color: #f6f6f5; padding: 5px; font-size: 12px;")
+        sound_notice_label.setStyleSheet("background-color: #9dfffe; color: #555bc2; padding: 5px; font-size: 12px;")
         sound_notice_label.setWordWrap(True)
         sound_notice_label.setFont(small_font)
 
@@ -615,8 +624,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.setGeometry(100, 100, 900, 700)
         self.base_title = GUI_LABEL_VERSION
         self.setWindowTitle(self.base_title)
+
         if platform.system() == 'Windows':
-            if getattr(sys, 'frozen', False):  # Indique que l'application est "frozen" avec PyInstaller
+            if getattr(sys, 'frozen', False): 
                 icon_path = os.path.join(sys._MEIPASS, "pounce.ico")
             else:
                 icon_path = "pounce.ico"
@@ -634,6 +644,10 @@ class MainApp(QtWidgets.QMainWindow):
         self.activity_timer = QtCore.QTimer()
         self.activity_timer.timeout.connect(self.update_activity_bar)
         self.activity_timer.start(1_000)
+
+        self.theme_timer = QtCore.QTimer(self)
+        self.theme_timer.timeout.connect(self.check_theme_change)
+        self.theme_timer.start(1_000) 
 
         self.network_check_status_interval = 5_000
         self.network_check_status = QtCore.QTimer()
@@ -777,14 +791,15 @@ class MainApp(QtWidgets.QMainWindow):
         self.status_label.setFont(custom_font_mono)
         self.status_label.setStyleSheet("background-color: #D3D3D3; border: 1px solid #bbbbbb; border-radius: 10px; padding: 10px;")
 
-        # Log and clear button
         self.output_table = QTableWidget(self)
-        self.output_table.setColumnCount(6)
-        header_labels = ['Time', 'Report', 'DT', 'Freq', 'Message', 'Country']
+        self.output_table.setColumnCount(8)
+        header_labels = ['Time', 'Report', 'DT', 'Freq', 'Message', 'Country', 'CQ', 'Continent']
         for i, label in enumerate(header_labels):
             header_item = QTableWidgetItem(label)
             if label in ['Report', 'DT', 'Freq']:
                 header_item.setTextAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+            elif label in ['CQ', 'Continent']:
+                header_item.setTextAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)                
             else:
                 header_item.setTextAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
             self.output_table.setHorizontalHeaderItem(i, header_item)
@@ -792,22 +807,37 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_table.setFont(custom_font)
         self.output_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.output_table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
-        self.output_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Interactive)
-        self.output_table.horizontalHeader().setStretchLastSection(True)
+        self.output_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Interactive)        
         self.output_table.verticalHeader().setVisible(False)
         self.output_table.verticalHeader().setDefaultSectionSize(24)
         self.output_table.setAlternatingRowColors(True)
-        self.output_table.setStyleSheet("""
-        QTableWidget {
-            background-color: white;
-            alternate-background-color: #f4f5f5;
-        }
-        """)
         self.output_table.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        self.output_table.setColumnWidth(4, 200)
-        self.output_table.setColumnWidth(5, 100)
 
-        self.load_column_widths()
+        self.output_table.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.Fixed)
+        self.output_table.horizontalHeader().setSectionResizeMode(1, QtWidgets.QHeaderView.Fixed)
+        self.output_table.horizontalHeader().setSectionResizeMode(2, QtWidgets.QHeaderView.Fixed)
+        self.output_table.horizontalHeader().setSectionResizeMode(3, QtWidgets.QHeaderView.Fixed)
+        self.output_table.horizontalHeader().setSectionResizeMode(4, QtWidgets.QHeaderView.Stretch)
+        self.output_table.horizontalHeader().setSectionResizeMode(5, QtWidgets.QHeaderView.Fixed)
+        self.output_table.horizontalHeader().setSectionResizeMode(6, QtWidgets.QHeaderView.Fixed)
+        self.output_table.horizontalHeader().setSectionResizeMode(7, QtWidgets.QHeaderView.Fixed)
+        self.output_table.horizontalHeader().setStretchLastSection(False)
+        self.output_table.setColumnWidth(0, 160)
+        self.output_table.setColumnWidth(1, 60)
+        self.output_table.setColumnWidth(2, 60)
+        self.output_table.setColumnWidth(3, 80)
+        self.output_table.setColumnWidth(5, 200)
+        self.output_table.setColumnWidth(6, 50)
+        self.output_table.setColumnWidth(7, 70)
+
+        spacing_delegate = SpacingDelegate(self.output_table)
+        self.output_table.setItemDelegateForColumn(4, spacing_delegate)
+        self.output_table.setItemDelegateForColumn(5, spacing_delegate)
+        self.output_table.setItemDelegateForColumn(6, spacing_delegate)
+        self.output_table.setItemDelegateForColumn(7, spacing_delegate)
+
+        self.dark_mode = self.is_dark_apperance()
+        self.apply_palette(self.dark_mode)
 
         self.clear_button = QtWidgets.QPushButton("Clear Log")
         self.clear_button.setEnabled(False)
@@ -927,6 +957,7 @@ class MainApp(QtWidgets.QMainWindow):
         error_item.setForeground(QtGui.QBrush(QtGui.QColor('white')))
         error_item.setBackground(QtGui.QBrush(QtGui.QColor('red')))
         error_item.setTextAlignment(QtCore.Qt.AlignCenter)
+        error_item.setFont(custom_font_mono)
 
         self.output_table.setItem(row_position, 0, error_item)
         self.output_table.setSpan(row_position, 0, 1, self.output_table.columnCount())
@@ -975,13 +1006,28 @@ class MainApp(QtWidgets.QMainWindow):
             
             # Handle message from handle_packet from wait_and_pounce.py
             elif 'decode_time_str' in message:
+                callsign_info = message.get('callsign_info', None)
+                
+                entity    = ""
+                cq_zone   = ""
+                continent = ""
+
+                if callsign_info:
+                    entity    = callsign_info["entity"].title()
+                    cq_zone   = callsign_info["cqz"]
+                    continent = callsign_info["cont"]
+                elif callsign_info is None:
+                    entity    = "Where?"
+
                 self.append_table_row(
                     message.get('decode_time_str', ''),
                     message.get('snr', 0),
                     message.get('delta_time', 0.0),
                     message.get('delta_freq', 0),
                     message.get('formatted_msg', ''),
-                    message.get('entity', ''),
+                    entity,
+                    cq_zone,
+                    continent,
                     message.get('msg_color_text', None)
                 )
 
@@ -1193,22 +1239,6 @@ class MainApp(QtWidgets.QMainWindow):
                 self.stop_monitoring()
                 self.start_monitoring()
 
-    def save_table_column_position(self):
-        widths = []
-        for col in range(self.output_table.columnCount()):
-            width = self.output_table.columnWidth(col)
-            widths.append(width)
-        params = self.load_params()
-        params['column_widths'] = widths
-        self.save_params(params)
-
-    def load_column_widths(self):
-        params = self.load_params()
-        widths = params.get('column_widths', [])
-        for col, width in enumerate(widths):
-            if col < self.output_table.columnCount():
-                self.output_table.setColumnWidth(col, width)
-
     def quit_application(self):
         self.save_window_position()
         QtWidgets.QApplication.quit()
@@ -1218,6 +1248,88 @@ class MainApp(QtWidgets.QMainWindow):
 
         QtCore.QProcess.startDetached(sys.executable, sys.argv)
         QtWidgets.QApplication.quit()
+
+    def is_dark_apperance(self):
+        try:
+            if sys.platform == 'darwin':
+                from Foundation import NSUserDefaults
+                defaults = NSUserDefaults.standardUserDefaults()
+                osx_appearance = defaults.stringForKey_("AppleInterfaceStyle")
+                return osx_appearance == 'Dark'
+            elif sys.platform == 'win32':
+                import winreg
+                registry = winreg.ConnectRegistry(None, winreg.HKEY_CURRENT_USER)
+                key = winreg.OpenKey(registry, r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize")
+                value, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
+                return value == 0
+        except Exception as e:
+            print(f"Can't know if we are either using Dark or Light mode: {e}")
+            return False
+        
+    def check_theme_change(self):
+        current_dark_mode = self.is_dark_apperance()
+        if current_dark_mode != self.dark_mode:
+            self.dark_mode = current_dark_mode
+            self.apply_palette(self.dark_mode)
+        
+    def apply_palette(self, dark_mode):
+        self.dark_mode = dark_mode
+        
+        if dark_mode:
+            qt_bg_color = QtGui.QColor("#181818")
+            qt_fg_color = QtGui.QColor("#ECECEC")
+
+            palette = QtGui.QPalette()
+            palette.setColor(QtGui.QPalette.Window, QtGui.QColor('#3C3C3C'))
+            palette.setColor(QtGui.QPalette.WindowText, qt_fg_color)
+            palette.setColor(QtGui.QPalette.Base, QtGui.QColor('#353535'))
+            palette.setColor(QtGui.QPalette.AlternateBase, QtGui.QColor('#454545'))
+            palette.setColor(QtGui.QPalette.ToolTipBase, qt_fg_color)
+            palette.setColor(QtGui.QPalette.ToolTipText, qt_fg_color)
+            palette.setColor(QtGui.QPalette.Text, qt_fg_color)
+            palette.setColor(QtGui.QPalette.Button, QtGui.QColor('#4A4A4A'))
+            palette.setColor(QtGui.QPalette.ButtonText, qt_fg_color)
+            palette.setColor(QtGui.QPalette.BrightText, QtCore.Qt.red)
+            palette.setColor(QtGui.QPalette.Link, QtGui.QColor('#2A82DA'))
+            palette.setColor(QtGui.QPalette.Highlight, QtGui.QColor('#2A82DA'))
+            palette.setColor(QtGui.QPalette.HighlightedText, qt_bg_color)
+            palette.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Text, QtGui.QColor('#6C6C6C'))
+        else:
+
+            qt_bg_color = QtGui.QColor("#ECECEC")
+            qt_fg_color = QtGui.QColor("#000000")
+        
+            palette = QtGui.QPalette()
+            palette.setColor(QtGui.QPalette.Window, qt_bg_color)
+            palette.setColor(QtGui.QPalette.WindowText, qt_fg_color)
+            palette.setColor(QtGui.QPalette.Base, QtGui.QColor('white'))
+            palette.setColor(QtGui.QPalette.AlternateBase, QtGui.QColor('#B6B6B6'))
+            palette.setColor(QtGui.QPalette.ToolTipBase, qt_bg_color)
+            palette.setColor(QtGui.QPalette.ToolTipText, qt_bg_color)
+            palette.setColor(QtGui.QPalette.Text, QtCore.Qt.black)
+            palette.setColor(QtGui.QPalette.Button, QtGui.QColor('#E0E0E0'))
+            palette.setColor(QtGui.QPalette.ButtonText, QtCore.Qt.black)
+            palette.setColor(QtGui.QPalette.BrightText, QtCore.Qt.red)
+            palette.setColor(QtGui.QPalette.Link, QtGui.QColor('#2A82DA'))
+            palette.setColor(QtGui.QPalette.Highlight, QtGui.QColor('#2A82DA'))
+            palette.setColor(QtGui.QPalette.HighlightedText, qt_fg_color)
+            palette.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Text, QtGui.QColor('#7F7F7F'))
+        
+        self.setPalette(palette)
+        table_palette = self.output_table.palette()
+        
+        if dark_mode:
+            table_palette.setColor(QtGui.QPalette.Base, QtGui.QColor('#353535'))
+            table_palette.setColor(QtGui.QPalette.AlternateBase, QtGui.QColor('#454545'))
+            table_palette.setColor(QtGui.QPalette.Text, QtGui.QColor('white'))
+        else:
+            table_palette.setColor(QtGui.QPalette.Base, QtGui.QColor('white'))
+            table_palette.setColor(QtGui.QPalette.AlternateBase, QtGui.QColor('#f4f5f5'))
+            table_palette.setColor(QtGui.QPalette.Text, QtGui.QColor('black'))
+        
+        self.output_table.setPalette(table_palette)
+                
+        # self.update_stylesheet(dark_mode)
 
     def check_fields(self):
         if self.wanted_callsigns_var.text():
@@ -1328,7 +1440,18 @@ class MainApp(QtWidgets.QMainWindow):
         pyperclip.copy(message)
         print(f"Copied to clipboard: {message}")
 
-    def append_table_row(self, date_str, snr, delta_time, delta_freq, formatted_msg, entity, msg_color_text=None):
+    def append_table_row(
+            self,
+            date_str,
+            snr,
+            delta_time,
+            delta_freq,
+            formatted_msg,
+            entity,
+            cq_zone,
+            continent,
+            msg_color_text=None
+        ):
         self.clear_button.setEnabled(True)
         row_position = self.output_table.rowCount()
         self.output_table.insertRow(row_position)
@@ -1352,10 +1475,19 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_table.setItem(row_position, 3, item_freq)
         
         item_msg = QTableWidgetItem(formatted_msg.strip())
+        item_msg.setFont(custom_font_mono)
         self.output_table.setItem(row_position, 4, item_msg)
         
         item_country = QTableWidgetItem(entity)
         self.output_table.setItem(row_position, 5, item_country)
+
+        item_cq_zone = QTableWidgetItem(f"{cq_zone}")
+        item_cq_zone.setTextAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+        self.output_table.setItem(row_position, 6, item_cq_zone)
+
+        item_continent = QTableWidgetItem(continent)
+        item_continent.setTextAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+        self.output_table.setItem(row_position, 7, item_continent)        
         
         if msg_color_text:
             self.apply_row_format(row_position, msg_color_text)
@@ -1392,8 +1524,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.focus_frame.hide()
 
     def save_window_position(self):
-        self.save_table_column_position()
-
         position = self.geometry()
         position_data = {
             'x': position.x(),
