@@ -53,7 +53,6 @@ class Listener:
       
         self.my_call                    = None
         self.my_grid                    = None
-        self.band                       = None
         self.dx_call                    = None
 
         self.decode_packet_count        = 0
@@ -72,6 +71,7 @@ class Listener:
         self.rst_sent                   = None
         self.last_mode                  = None
         self.mode                       = None
+        self.last_frequency             = None
         self.frequency                  = None
         self.suggested_frequency        = None
         self.rx_df                      = None
@@ -194,7 +194,6 @@ class Listener:
             self.tx_df      = self.the_packet.tx_df       
             self.rx_df      = self.the_packet.rx_df  
             self.mode       = self.the_packet.mode            
-            self.band       = str(self.the_packet.dial_frequency / 1_000) + 'Khz'
             self.frequency  = self.the_packet.dial_frequency            
 
             error_found     = False
@@ -207,6 +206,16 @@ class Listener:
                         'type': 'update_mode',
                         'mode': self.mode
                     })
+
+            # Updating frequency
+            if self.last_frequency != self.frequency:
+                self.last_frequency = self.frequency
+                if self.message_callback:
+                    self.message_callback({
+                        'type'      : 'update_frequency',
+                        'frequency' : self.frequency,
+                        'band'      : self.get_amateur_band(self.frequency)
+                    })                    
             
             if self.targeted_call is not None:
                 if self.enable_gap_finder:

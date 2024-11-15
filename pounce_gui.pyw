@@ -271,7 +271,7 @@ class TrayIcon:
 
 class SpacingDelegate(QtWidgets.QStyledItemDelegate):
     def paint(self, painter, option, index):
-        option.rect.adjust(5, 0, -5, 0)  
+        option.rect.adjust(5, 0, 0, 0)  
         super().paint(painter, option, index)
 
 class ToolTip(QtWidgets.QWidget):
@@ -634,7 +634,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.setWindowIcon(QtGui.QIcon(icon_path))    
 
         self.stop_event = threading.Event()
-        self.error_occurred.connect(self.show_error_message)
+        self.error_occurred.connect(self.add_notice_to_table)
         self.message_received.connect(self.handle_message_received)
         
         self._running = False
@@ -658,6 +658,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.last_heartbeat_time                = None
         self.last_sound_played_time             = datetime.min
         self.mode                               = None
+        self.last_frequency                     = None
+        self.frequency                          = None
 
         self.wanted_callsign_detected_sound     = QSound(f"{CURRENT_DIR}/sounds/495650__matrixxx__supershort-ping-or-short-notification.wav")
         self.directed_to_my_call_sound          = QSound(f"{CURRENT_DIR}/sounds/716445__scottyd0es__tone12_error.wav")
@@ -695,29 +697,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.special_mode_var.addButton(radio_superfox)
 
         radio_normal.setChecked(True)
-            
-        self.text_formats = {
-            'black_on_purple'   : QtGui.QTextCharFormat(),
-            'black_on_white'    : QtGui.QTextCharFormat(),
-            'black_on_yellow'   : QtGui.QTextCharFormat(),
-            'white_on_blue'     : QtGui.QTextCharFormat(),
-            'bright_for_my_call': QtGui.QTextCharFormat()      
-        }
-
-        self.text_formats['black_on_purple'].setForeground(QtGui.QBrush(QtGui.QColor(FG_COLOR_BLACK_ON_PURPLE)))
-        self.text_formats['black_on_purple'].setBackground(QtGui.QBrush(QtGui.QColor(BG_COLOR_BLACK_ON_PURPLE)))
-
-        self.text_formats['black_on_white'].setForeground(QtGui.QBrush(QtGui.QColor(FG_COLOR_BLACK_ON_WHITE)))
-        self.text_formats['black_on_white'].setBackground(QtGui.QBrush(QtGui.QColor(BG_COLOR_BLACK_ON_WHITE)))
-
-        self.text_formats['black_on_yellow'].setForeground(QtGui.QBrush(QtGui.QColor(FG_COLOR_BLACK_ON_YELLOW)))
-        self.text_formats['black_on_yellow'].setBackground(QtGui.QBrush(QtGui.QColor(BG_COLOR_BLACK_ON_YELLOW)))
-
-        self.text_formats['white_on_blue'].setForeground(QtGui.QBrush(QtGui.QColor(FG_COLOR_WHITE_ON_BLUE)))
-        self.text_formats['white_on_blue'].setBackground(QtGui.QBrush(QtGui.QColor(BG_COLOR_WHITE_ON_BLUE)))
-
-        self.text_formats['bright_for_my_call'].setForeground(QtGui.QBrush(QtGui.QColor(FG_COLOR_FOCUS_MY_CALL)))
-        self.text_formats['bright_for_my_call'].setBackground(QtGui.QBrush(QtGui.QColor(BG_COLOR_FOCUS_MY_CALL)))
 
         params = self.load_params()
 
@@ -830,12 +809,12 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_table.setColumnWidth(6, 50)
         self.output_table.setColumnWidth(7, 70)
 
+        """
         spacing_delegate = SpacingDelegate(self.output_table)
         self.output_table.setItemDelegateForColumn(4, spacing_delegate)
         self.output_table.setItemDelegateForColumn(5, spacing_delegate)
-        self.output_table.setItemDelegateForColumn(6, spacing_delegate)
-        self.output_table.setItemDelegateForColumn(7, spacing_delegate)
-
+        """
+        
         self.dark_mode = self.is_dark_apperance()
         self.apply_palette(self.dark_mode)
 
@@ -949,13 +928,13 @@ class MainApp(QtWidgets.QMainWindow):
         self.closeEvent = self.on_close
 
     @QtCore.pyqtSlot(str)
-    def show_error_message(self, message):
+    def add_notice_to_table(self, message, fg_color='white', bg_color='red'):
         row_position = self.output_table.rowCount()
         self.output_table.insertRow(row_position)
 
         error_item = QTableWidgetItem(message)
-        error_item.setForeground(QtGui.QBrush(QtGui.QColor('white')))
-        error_item.setBackground(QtGui.QBrush(QtGui.QColor('red')))
+        error_item.setForeground(QtGui.QBrush(QtGui.QColor(fg_color)))
+        error_item.setBackground(QtGui.QBrush(QtGui.QColor(bg_color)))
         error_item.setTextAlignment(QtCore.Qt.AlignCenter)
         error_item.setFont(custom_font_mono)
 
@@ -972,6 +951,12 @@ class MainApp(QtWidgets.QMainWindow):
             # Handle message from Listener from wsjtx_listener.py
             if message_type == 'update_mode':
                 self.mode = message.get('mode')
+            elif message_type == 'update_frequency':
+                self.frequency = message.get('frequency')
+                if self.frequency != self.last_frequency:
+                    self.last_frequency = self.frequency
+                    frequency = str(message.get('frequency') / 1_000) + 'Khz'
+                    self.add_notice_to_table(f"Freq: {frequency} ({message.get('band')})")             
             elif message_type == 'update_status':
                 self.check_connection_status(
                     message.get('decode_packet_count', 0),
@@ -1019,7 +1004,7 @@ class MainApp(QtWidgets.QMainWindow):
                 elif callsign_info is None:
                     entity    = "Where?"
 
-                self.append_table_row(
+                self.add_row_to_table(
                     message.get('decode_time_str', ''),
                     message.get('snr', 0),
                     message.get('delta_time', 0.0),
@@ -1038,7 +1023,7 @@ class MainApp(QtWidgets.QMainWindow):
                 wsjtx_id = message.split("wsjtx_id:")[1].strip()
                 self.update_window_title(wsjtx_id)
             else:             
-                self.show_error_message(message)
+                self.add_notice_to_table(message)
         else:
             pass
 
@@ -1291,7 +1276,7 @@ class MainApp(QtWidgets.QMainWindow):
             palette.setColor(QtGui.QPalette.ButtonText, qt_fg_color)
             palette.setColor(QtGui.QPalette.BrightText, QtCore.Qt.red)
             palette.setColor(QtGui.QPalette.Link, QtGui.QColor('#2A82DA'))
-            palette.setColor(QtGui.QPalette.Highlight, QtGui.QColor('#2A82DA'))
+            palette.setColor(QtGui.QPalette.Highlight, qt_fg_color)
             palette.setColor(QtGui.QPalette.HighlightedText, qt_bg_color)
             palette.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Text, QtGui.QColor('#6C6C6C'))
         else:
@@ -1311,7 +1296,7 @@ class MainApp(QtWidgets.QMainWindow):
             palette.setColor(QtGui.QPalette.ButtonText, QtCore.Qt.black)
             palette.setColor(QtGui.QPalette.BrightText, QtCore.Qt.red)
             palette.setColor(QtGui.QPalette.Link, QtGui.QColor('#2A82DA'))
-            palette.setColor(QtGui.QPalette.Highlight, QtGui.QColor('#2A82DA'))
+            palette.setColor(QtGui.QPalette.Highlight, qt_bg_color)
             palette.setColor(QtGui.QPalette.HighlightedText, qt_fg_color)
             palette.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Text, QtGui.QColor('#7F7F7F'))
         
@@ -1440,7 +1425,7 @@ class MainApp(QtWidgets.QMainWindow):
         pyperclip.copy(message)
         print(f"Copied to clipboard: {message}")
 
-    def append_table_row(
+    def add_row_to_table(
             self,
             date_str,
             snr,
@@ -1474,7 +1459,7 @@ class MainApp(QtWidgets.QMainWindow):
         item_freq.setFont(small_font)
         self.output_table.setItem(row_position, 3, item_freq)
         
-        item_msg = QTableWidgetItem(formatted_msg.strip())
+        item_msg = QTableWidgetItem(f" {formatted_msg.strip()}")
         item_msg.setFont(custom_font_mono)
         self.output_table.setItem(row_position, 4, item_msg)
         
@@ -1654,7 +1639,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         # Connect worker's signals to the GUI slots
         # self.worker.finished.connect(self.stop_monitoring)
-        self.worker.error.connect(self.show_error_message)
+        self.worker.error.connect(self.add_notice_to_table)
         self.worker.message.connect(self.handle_message_received)
 
         self.thread.start()    
@@ -1692,7 +1677,7 @@ class MainApp(QtWidgets.QMainWindow):
 
             self.callsign_notice.show()
 
-            self.update_status_label_style("grey", "black")
+            self.update_status_label_style("grey", "white")
             
             self.update_current_callsign_highlight()
             self.enable_inputs()
