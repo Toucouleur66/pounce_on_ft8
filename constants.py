@@ -57,6 +57,8 @@ FREQ_MINIMUM_FOX_HOUND          = 1050
 
 DEFAULT_UDP_PORT                = 2237
 
+ACTIVITY_BAR_MAX_VALUE          = 50
+
 CURRENT_DIR                     = os.path.dirname(os.path.realpath(__file__))
 CTY_XML                         = 'cty.xml'
 

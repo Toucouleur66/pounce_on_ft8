@@ -2,7 +2,7 @@
 
 from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem
-from PyQt5.QtCore import QObject, pyqtSignal, QThread
+from PyQt5.QtCore import QObject, pyqtSignal, QThread, QEasingCurve
 from PyQt5.QtMultimedia import QSound
 
 import platform
@@ -17,10 +17,10 @@ import pyperclip
 import wait_and_pounce
 import logging
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from PIL import Image, ImageDraw
-from callsign_lookup import CallsignLookup
-from utils import get_local_ip_address, get_log_filename, force_uppercase
+from collections import deque
+from utils import get_local_ip_address, get_log_filename, get_mode_interval, force_uppercase
 from logger import get_logger, add_file_handler, remove_file_handler
 from gui_handler import GUIHandler
 
@@ -73,7 +73,8 @@ from constants import (
     DEFAULT_POUNCE_LOG,
     DEFAULT_LOG_PACKET_DATA,
     DEFAULT_SHOW_ALL_DECODED,
-    DEFAULT_DELAY_BETWEEN_SOUND
+    DEFAULT_DELAY_BETWEEN_SOUND,
+    ACTIVITY_BAR_MAX_VALUE
     )
 
 if platform.system() == 'Windows':
@@ -171,6 +172,58 @@ class Worker(QObject):
         finally:
             self.finished.emit()
 
+class ActivityBar(QtWidgets.QWidget):
+    def __init__(self, parent=None, max_value=ACTIVITY_BAR_MAX_VALUE):
+        super(ActivityBar, self).__init__(parent)
+        self.max_value = max_value
+        self.current_value = 0
+        self.displayed_value = 0  
+        self.setMinimumSize(50, 200)
+        self.animation = QtCore.QPropertyAnimation(self, b"displayedValue")
+        self.animation.setDuration(1_000)
+        self.animation.setEasingCurve(QEasingCurve.OutQuad)  
+
+    @QtCore.pyqtProperty(float)
+    def displayedValue(self):
+        return self.displayed_value
+
+    @displayedValue.setter
+    def displayedValue(self, value):
+        self.displayed_value = value
+        self.update()
+
+    def setValue(self, value):
+        self.current_value = min(value, self.max_value)
+        self.animation.stop()
+        self.animation.setStartValue(self.displayed_value)
+        self.animation.setEndValue(self.current_value)
+        self.animation.start()
+
+    def paintEvent(self, event):
+        painter = QtGui.QPainter(self)
+        rect = self.rect()
+
+        painter.fillRect(rect, QtGui.QColor("white"))
+        painter.setPen(QtGui.QPen(QtGui.QColor("#AAAAAA"), 2))
+        painter.drawRect(rect.adjusted(0, 0, 0, 0))
+
+        content_rect = rect.adjusted(1, 2, -1, 0) 
+        fill_height = content_rect.height() * (self.displayed_value / self.max_value)
+        y = content_rect.bottom() - fill_height
+        filled_rect = QtCore.QRectF(content_rect.left(), y, content_rect.width(), fill_height)
+
+        # Création d'un dégradé vertical
+        gradient = QtGui.QLinearGradient(content_rect.topLeft(), content_rect.bottomLeft())
+        gradient.setColorAt(0, QtGui.QColor("#FDCABB"))  
+        gradient.setColorAt(1, QtGui.QColor("#03FE00"))  
+
+        # Remplissage de la barre avec le dégradé
+        painter.setBrush(gradient)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.drawRect(filled_rect)
+
+        painter.setPen(QtGui.QPen(QtCore.Qt.black))
+        painter.drawText(rect, QtCore.Qt.AlignCenter, str(int(self.displayed_value)))
 
 class TrayIcon:
     def __init__(self):
@@ -576,6 +629,12 @@ class MainApp(QtWidgets.QMainWindow):
         
         self._running = False
 
+        self.message_times = deque()
+
+        self.activity_timer = QtCore.QTimer()
+        self.activity_timer.timeout.connect(self.update_activity_bar)
+        self.activity_timer.start(1_000)
+
         self.network_check_status_interval = 5_000
         self.network_check_status = QtCore.QTimer()
         self.network_check_status.timeout.connect(self.check_connection_status)
@@ -595,8 +654,12 @@ class MainApp(QtWidgets.QMainWindow):
         # Main layout
         central_widget = QtWidgets.QWidget()
         self.setCentralWidget(central_widget)
+
+        outer_layout = QtWidgets.QHBoxLayout()
+        central_widget.setLayout(outer_layout)
+
         main_layout = QtWidgets.QGridLayout()
-        central_widget.setLayout(main_layout)
+        outer_layout.addLayout(main_layout)
 
         # Variables
         self.wanted_callsigns_var = QtWidgets.QLineEdit()
@@ -824,6 +887,11 @@ class MainApp(QtWidgets.QMainWindow):
 
         main_layout.addLayout(bottom_layout, 9, 0, 1, 4)
 
+        self.activity_bar = ActivityBar(max_value=ACTIVITY_BAR_MAX_VALUE)
+        self.activity_bar.setFixedWidth(30)
+
+        outer_layout.addWidget(self.activity_bar)
+
         # Initialize the stdout redirection
         self.enable_pounce_log = params.get('enable_pounce_log', True)
         
@@ -845,6 +913,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.check_fields()
         self.load_window_position()
+        self.init_activity_bar()
 
         # Close event to save position
         self.closeEvent = self.on_close
@@ -914,7 +983,9 @@ class MainApp(QtWidgets.QMainWindow):
                     message.get('formatted_msg', ''),
                     message.get('entity', ''),
                     message.get('msg_color_text', None)
-                )                
+                )
+
+                self.message_times.append(datetime.now())                
 
         elif isinstance(message, str):
             if message.startswith("wsjtx_id:"):
@@ -943,6 +1014,18 @@ class MainApp(QtWidgets.QMainWindow):
                     self.stop_monitoring()
                     self.start_monitoring()
 
+    def init_activity_bar(self):
+        self.activity_bar.setValue(ACTIVITY_BAR_MAX_VALUE)
+
+    def update_activity_bar(self):
+        cutoff_time = datetime.now() - timedelta(seconds=get_mode_interval(self.mode))
+        while self.message_times and self.message_times[0] < cutoff_time:
+            self.message_times.popleft()
+
+        message_count = len(self.message_times)
+
+        self.activity_bar.setValue(message_count)                                     
+
     def update_current_callsign_highlight(self):
         for index in range(self.listbox.count()):
             item = self.listbox.item(index)
@@ -961,7 +1044,19 @@ class MainApp(QtWidgets.QMainWindow):
             border-radius: 5px;
             padding: 5px;
         """
-        self.status_label.setStyleSheet(style)                          
+        self.status_label.setStyleSheet(style)            
+
+    def update_focus_frame(self, formatted_message, contains_my_call):
+        self.focus_value_label.setText(formatted_message)
+        if contains_my_call:
+            bg_color_hex = BG_COLOR_FOCUS_MY_CALL
+            fg_color_hex = FG_COLOR_FOCUS_MY_CALL
+        else:
+            bg_color_hex = BG_COLOR_REGULAR_FOCUS
+            fg_color_hex = FG_COLOR_REGULAR_FOCUS
+            
+        self.focus_value_label.setStyleSheet(f"background-color: {bg_color_hex}; color: {fg_color_hex}; padding: 10px;")
+        self.focus_frame.show()             
 
     def play_sound(self, sound_name):
         try:           
@@ -979,18 +1074,6 @@ class MainApp(QtWidgets.QMainWindow):
                 print(f"Unknown sound: {sound_name}")            
         except Exception as e:
             print(f"Failed to play alert sound: {e}")            
-
-    def update_focus_frame(self, formatted_message, contains_my_call):
-        self.focus_value_label.setText(formatted_message)
-        if contains_my_call:
-            bg_color_hex = BG_COLOR_FOCUS_MY_CALL
-            fg_color_hex = FG_COLOR_FOCUS_MY_CALL
-        else:
-            bg_color_hex = BG_COLOR_REGULAR_FOCUS
-            fg_color_hex = FG_COLOR_REGULAR_FOCUS
-            
-        self.focus_value_label.setStyleSheet(f"background-color: {bg_color_hex}; color: {fg_color_hex}; padding: 10px;")
-        self.focus_frame.show()
 
     def check_connection_status(
         self,
@@ -1142,12 +1225,6 @@ class MainApp(QtWidgets.QMainWindow):
         else:
             self.run_button.setEnabled(False)
 
-    def update_alert_label_style(self):
-        if self.disable_alert_checkbox.isChecked():
-            self.disable_alert_checkbox.setStyleSheet("background-color: #ff8888;")
-        else:
-            self.disable_alert_checkbox.setStyleSheet("")
-
     def disable_inputs(self):
         self.inputs_enabled = False
         self.monitored_callsigns_var.setEnabled(False)
@@ -1196,6 +1273,12 @@ class MainApp(QtWidgets.QMainWindow):
 
     def update_wanted_callsigns_history_counter(self):
         self.wanted_callsigns_label.setText(WANTED_CALLSIGNS_HISTORY_LABEL % len(self.wanted_callsigns_history))
+
+    def update_alert_label_style(self):
+        if self.disable_alert_checkbox.isChecked():
+            self.disable_alert_checkbox.setStyleSheet("background-color: #ff8888;")
+        else:
+            self.disable_alert_checkbox.setStyleSheet("")
 
     def on_listbox_select(self):
         if not self.inputs_enabled:
@@ -1337,12 +1420,7 @@ class MainApp(QtWidgets.QMainWindow):
         current_time = datetime.now(timezone.utc)
         utc_time = current_time.strftime("%H:%M:%S")
 
-        if self.mode == "FT4":
-            interval = 7.5
-        else:
-            interval = 15
-
-        if (current_time.second // interval) % 2 == 0:
+        if (current_time.second // get_mode_interval(self.mode)) % 2 == 0:
             background_color = EVEN_COLOR
         else:
             background_color = ODD_COLOR
@@ -1455,6 +1533,7 @@ class MainApp(QtWidgets.QMainWindow):
         global tray_icon
 
         self.network_check_status.stop()
+        self.activity_bar.setValue(0) 
         
         self.timer.stop()
         self.timer_value_label.setText(DEFAULT_MODE_TIMER_VALUE)

@@ -88,6 +88,12 @@ def parse_wsjtx_message(
         'monitored' : monitored
     }
 
+def get_mode_interval(mode):
+    if mode == "FT4":
+        return 7.5
+    else:
+        return 15
+    
 def force_uppercase(widget):
     try:
         if isinstance(widget, QTextEdit):

@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from collections import deque
 
 from logger import get_logger
-from utils import get_local_ip_address, parse_wsjtx_message
+from utils import get_local_ip_address, get_mode_interval, parse_wsjtx_message
 
 log     = get_logger(__name__)
 
@@ -216,7 +216,7 @@ class Listener:
                         self.get_frequency_suggestion(self.targeted_call_period)
                     ))
 
-                status_had_time_to_update = (datetime.now() - self.reply_to_packet_time).total_seconds() > 30
+                status_had_time_to_update = (datetime.now(timezone.utc) - self.reply_to_packet_time).total_seconds() > 30
 
                 if (
                     status_had_time_to_update and
@@ -319,14 +319,8 @@ class Listener:
         if not self.the_packet or not self.the_packet.time:
             log.error("Packet time is not available.")
             return None
-        
-        if self.mode == 'FT4':
-            duration = 7.5
-        else:
-            # FT8
-            duration = 15
 
-        return int(self.the_packet.time.timestamp() // duration)
+        return int(self.the_packet.time.timestamp() // get_mode_interval(self.mode))
 
     def odd_or_even_period(self):
         period_index = self.get_period_index()

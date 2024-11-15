@@ -141,6 +141,7 @@ class MyListener(Listener):
                     if self.message_callback:
                         self.message_callback({                        
                         'decode_time_str'   : decode_time_str,
+                        'callsign'          : callsign,
                         'snr'               : snr,
                         'delta_time'        : delta_time,
                         'delta_freq'        : delta_frequencies,
