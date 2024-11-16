@@ -94,14 +94,42 @@ def get_mode_interval(mode):
     else:
         return 15
     
+def get_amateur_band(frequency):
+    bands = {
+        '160m'  : (1_800_000, 2_000_000),
+        '80m'   : (3_500_000, 4_000_000),
+        '60m'   : (5_351_500, 5_366_500),  
+        '40m'   : (7_000_000, 7_300_000),
+        '30m'   : (10_100_000, 10_150_000),
+        '20m'   : (14_000_000, 14_350_000),
+        '17m'   : (18_068_000, 18_168_000),
+        '15m'   : (21_000_000, 21_450_000),
+        '12m'   : (24_890_000, 24_990_000),
+        '10m'   : (28_000_000, 29_700_000),
+        '6m'    : (50_000_000, 54_000_000),
+        '2m'    : (144_000_000, 148_000_000),
+        '70cm'  : (430_000_000, 440_000_000)
+    }
+    
+    for band, (lower_bound, upper_bound) in bands.items():
+        if lower_bound <= frequency <= upper_bound:
+            return band
+    
+    return "Invalid"    
+    
+import re
+from PyQt5.QtWidgets import QTextEdit, QLineEdit
+
 def force_uppercase(widget):
     try:
+        allowed_pattern = re.compile(r'[A-Z0-9,/*]+')
+
         if isinstance(widget, QTextEdit):
             cursor = widget.textCursor()
             current_pos = cursor.position()
             
             current_text = widget.toPlainText()
-            uppercase_text = current_text.upper()
+            uppercase_text = ''.join([char for char in current_text.upper() if allowed_pattern.fullmatch(char)])
             if current_text != uppercase_text:
                 widget.blockSignals(True)
                 widget.setPlainText(uppercase_text)
@@ -112,12 +140,42 @@ def force_uppercase(widget):
                 widget.setTextCursor(cursor)
         elif isinstance(widget, QLineEdit):
             current_text = widget.text()
-            uppercase_text = current_text.upper()
+            uppercase_text = ''.join([char for char in current_text.upper() if allowed_pattern.fullmatch(char)])
             if current_text != uppercase_text:
                 widget.blockSignals(True)
                 widget.setText(uppercase_text)
                 widget.blockSignals(False)
-                                
+                
                 widget.setCursorPosition(len(uppercase_text))
+    except Exception as e:        
+        pass
+
+def force_numbers_and_commas(widget):
+    try:
+        if isinstance(widget, QTextEdit):
+            cursor = widget.textCursor()
+            current_pos = cursor.position()
+            
+            # Obtenir le texte courant et filtrer pour n'autoriser que des chiffres et des virgules
+            current_text = widget.toPlainText()
+            filtered_text = ''.join(char for char in current_text if char.isdigit() or char == ',')
+            if current_text != filtered_text:
+                widget.blockSignals(True)
+                widget.setPlainText(filtered_text)
+                widget.blockSignals(False)
+                
+                cursor = widget.textCursor()
+                cursor.setPosition(current_pos)
+                widget.setTextCursor(cursor)
+        
+        elif isinstance(widget, QLineEdit):
+            current_text = widget.text()
+            filtered_text = ''.join(char for char in current_text if char.isdigit() or char == ',')
+            if current_text != filtered_text:
+                widget.blockSignals(True)
+                widget.setText(filtered_text)
+                widget.blockSignals(False)
+                
+                widget.setCursorPosition(len(filtered_text))
     except Exception as e:        
         pass

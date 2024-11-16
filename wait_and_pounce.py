@@ -37,8 +37,8 @@ class MyListener(Listener):
             enable_debug_output,
             enable_pounce_log,
             enable_log_packet_data, 
-            enable_show_all_decoded,
             monitored_callsigns,
+            monitored_cq_zones,
             excluded_callsigns,
             wanted_callsigns,
             special_mode,
@@ -56,8 +56,8 @@ class MyListener(Listener):
             enable_debug_output,
             enable_pounce_log,
             enable_log_packet_data, 
-            enable_show_all_decoded,
             monitored_callsigns,
+            monitored_cq_zones,
             excluded_callsigns,
             wanted_callsigns,
             special_mode,
@@ -109,13 +109,13 @@ class MyListener(Listener):
                     callsign_info = None
                 else:                    
                     callsign_info = lookup.lookup_callsign(callsign)                    
-            
+    
                 if directed == self.my_call and self.my_call is not None:
                     msg_color_text      = "bright_for_my_call"
                 elif wanted is True:
                     msg_color_text      = "black_on_yellow"
                 elif monitored is True:
-                    msg_color_text      = "black_on_purple"                    
+                    msg_color_text      = "black_on_purple"                                       
                 elif directed in self.wanted_callsigns:  
                     msg_color_text      = "white_on_blue"
                 else:
@@ -131,20 +131,19 @@ class MyListener(Listener):
                     f"{formatted_msg}"
                 )
 
-                if self.enable_show_all_decoded or msg_color_text:
-                    if self.message_callback:
-                        self.message_callback({                        
-                        'decode_time_str'   : decode_time_str,
-                        'callsign'          : callsign,
-                        'callsign_info'     : callsign_info,                        
-                        'snr'               : snr,
-                        'delta_time'        : delta_time,
-                        'delta_freq'        : delta_frequencies,
-                        'formatted_msg'     : formatted_msg.strip(),
-                        'msg_color_text'    : msg_color_text,
-                        'display_message'   : display_message
-                    })
-                        
+                if self.message_callback:
+                    self.message_callback({                        
+                    'decode_time_str'   : decode_time_str,
+                    'callsign'          : callsign,
+                    'callsign_info'     : callsign_info,                        
+                    'snr'               : snr,
+                    'delta_time'        : delta_time,
+                    'delta_freq'        : delta_frequencies,
+                    'formatted_msg'     : formatted_msg.strip(),
+                    'row_color'         : msg_color_text,
+                    'display_message'   : display_message
+                })
+                    
         except Exception as e:
             log.error(f"Error handling packet: {e}", exc_info=True)
             if self.message_callback:
@@ -152,6 +151,7 @@ class MyListener(Listener):
 
 def main(
         monitored_callsigns,
+        monitored_cq_zones,
         excluded_callsigns,
         wanted_callsigns,
         special_mode,
@@ -167,7 +167,6 @@ def main(
         enable_debug_output,
         enable_pounce_log,
         enable_log_packet_data,
-        enable_show_all_decoded,
         message_callback = None
     ):
 
@@ -178,7 +177,10 @@ def main(
         excluded_callsigns = [callsign.strip() for callsign in excluded_callsigns.split(',')]        
 
     if isinstance(monitored_callsigns, str):
-        monitored_callsigns = [callsign.strip() for callsign in monitored_callsigns.split(',')]                
+        monitored_callsigns = [callsign.strip() for callsign in monitored_callsigns.split(',')]         
+
+    if isinstance(monitored_cq_zones, str):
+        monitored_cq_zones = [int(cq_zone.strip()) for cq_zone in monitored_cq_zones.split(',')]           
 
     listener = MyListener(
         primary_udp_server_address      = primary_udp_server_address,
@@ -192,8 +194,8 @@ def main(
         enable_debug_output             = enable_debug_output,
         enable_pounce_log               = enable_pounce_log,
         enable_log_packet_data          = enable_log_packet_data,
-        enable_show_all_decoded         = enable_show_all_decoded,
         monitored_callsigns             = monitored_callsigns,
+        monitored_cq_zones              = monitored_cq_zones,
         excluded_callsigns              = excluded_callsigns,
         wanted_callsigns                = wanted_callsigns,
         special_mode                    = special_mode,

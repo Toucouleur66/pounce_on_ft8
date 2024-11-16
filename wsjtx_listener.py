@@ -7,15 +7,13 @@ import traceback
 import socket
 import re
 import bisect
-import traceback
-import random
 
 from wsjtx_packet_sender import WSJTXPacketSender
 from datetime import datetime, timezone
 from collections import deque
 
 from logger import get_logger
-from utils import get_local_ip_address, get_mode_interval, parse_wsjtx_message
+from utils import get_local_ip_address, get_mode_interval, get_amateur_band, parse_wsjtx_message
 
 log     = get_logger(__name__)
 
@@ -43,8 +41,8 @@ class Listener:
             enable_debug_output,
             enable_pounce_log,        
             enable_log_packet_data, 
-            enable_show_all_decoded,
             monitored_callsigns,
+            monitored_cq_zones,
             excluded_callsigns,
             wanted_callsigns,
             special_mode,
@@ -91,11 +89,11 @@ class Listener:
         self.enable_debug_output            = enable_debug_output
         self.enable_pounce_log              = enable_pounce_log 
         self.enable_log_packet_data         = enable_log_packet_data
-        self.enable_show_all_decoded        = enable_show_all_decoded
 
         self.wanted_callsigns               = set(wanted_callsigns)
         self.excluded_callsigns             = set(excluded_callsigns)
         self.monitored_callsigns            = set(monitored_callsigns)
+        self.monitored_cq_zones             = set(monitored_cq_zones)
         self.special_mode                   = special_mode
         self.message_callback               = message_callback
 
@@ -213,8 +211,7 @@ class Listener:
                 if self.message_callback:
                     self.message_callback({
                         'type'      : 'update_frequency',
-                        'frequency' : self.frequency,
-                        'band'      : self.get_amateur_band(self.frequency)
+                        'frequency' : self.frequency
                     })                    
             
             if self.targeted_call is not None:
@@ -578,7 +575,7 @@ class Listener:
         rst_rcvd        = self.get_clean_rst(self.rst_rcvd_from_being_called)
         freq_rx         = f"{round((self.frequency + self.rx_df) / 1_000_000, 6):.6f}"
         freq            = f"{round((self.frequency + self.tx_df) / 1_000_000, 6):.6f}"
-        band            = self.get_amateur_band(self.frequency)
+        band            = get_amateur_band(self.frequency)
         my_call         = self.my_call
         qso_time_on     = self.qso_time_on.strftime('%H%M%S')
         qso_time_off    = self.qso_time_off.strftime('%H%M%S')
@@ -652,27 +649,4 @@ class Listener:
         
         pattern = r'^R?([+-]?)(\d+)$'
         cleaned_rst = re.sub(pattern, repl, rst)
-        return cleaned_rst
-
-    def get_amateur_band(self, frequency):
-        bands = {
-            '160m'  : (1_800_000, 2_000_000),
-            '80m'   : (3_500_000, 4_000_000),
-            '60m'   : (5_351_500, 5_366_500),  
-            '40m'   : (7_000_000, 7_300_000),
-            '30m'   : (10_100_000, 10_150_000),
-            '20m'   : (14_000_000, 14_350_000),
-            '17m'   : (18_068_000, 18_168_000),
-            '15m'   : (21_000_000, 21_450_000),
-            '12m'   : (24_890_000, 24_990_000),
-            '10m'   : (28_000_000, 29_700_000),
-            '6m'    : (50_000_000, 54_000_000),
-            '2m'    : (144_000_000, 148_000_000),
-            '70cm'  : (430_000_000, 440_000_000)
-        }
-        
-        for band, (lower_bound, upper_bound) in bands.items():
-            if lower_bound <= frequency <= upper_bound:
-                return band
-        
-        return "Invalid"
+        return cleaned_rst    

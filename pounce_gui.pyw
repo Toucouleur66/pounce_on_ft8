@@ -7,11 +7,11 @@ from PyQt5.QtMultimedia import QSound
 
 import platform
 import sys
+import traceback
 import pickle
 import os
 import queue
 import threading
-import re
 import time
 import pyperclip
 import wait_and_pounce
@@ -20,7 +20,7 @@ import logging
 from datetime import datetime, timezone, timedelta
 from PIL import Image, ImageDraw
 from collections import deque
-from utils import get_local_ip_address, get_log_filename, get_mode_interval, force_uppercase
+from utils import get_local_ip_address, get_log_filename, get_mode_interval, get_amateur_band, force_uppercase, force_numbers_and_commas
 from logger import get_logger, add_file_handler, remove_file_handler
 from gui_handler import GUIHandler
 
@@ -108,6 +108,7 @@ class Worker(QObject):
     def __init__(
             self,
             monitored_callsigns,
+            monitored_cq_zones,
             excluded_callsigns,
             wanted_callsigns,
             mode,
@@ -122,11 +123,11 @@ class Worker(QObject):
             enable_watchdog_bypass,
             enable_debug_output,
             enable_pounce_log,
-            enable_log_packet_data,
-            enable_show_all_decoded                        
+            enable_log_packet_data                      
         ):
         super(Worker, self).__init__()
         self.monitored_callsigns            = monitored_callsigns
+        self.monitored_cq_zones             = monitored_cq_zones
         self.excluded_callsigns             = excluded_callsigns
         self.wanted_callsigns               = wanted_callsigns
         self.mode                           = mode
@@ -142,12 +143,12 @@ class Worker(QObject):
         self.enable_debug_output            = enable_debug_output
         self.enable_pounce_log              = enable_pounce_log   
         self.enable_log_packet_data         = enable_log_packet_data
-        self.enable_show_all_decoded        = enable_show_all_decoded     
 
     def run(self):
         try:
             wait_and_pounce.main(
                 self.monitored_callsigns,
+                self.monitored_cq_zones,
                 self.excluded_callsigns,
                 self.wanted_callsigns,
                 self.mode,
@@ -162,12 +163,11 @@ class Worker(QObject):
                 enable_watchdog_bypass          = self.enable_watchdog_bypass,
                 enable_debug_output             = self.enable_debug_output,
                 enable_pounce_log               = self.enable_pounce_log,    
-                enable_log_packet_data          = self.enable_log_packet_data,
-                enable_show_all_decoded         = self.enable_show_all_decoded,            
+                enable_log_packet_data          = self.enable_log_packet_data,         
                 message_callback                = self.message.emit
             )
         except Exception as e:
-            error_message = f"Erreur lors de l'exécution du script : {e}"
+            error_message = f"{e}\n{traceback.format_exc()}"
             self.error.emit(error_message)
         finally:
             self.finished.emit()
@@ -634,7 +634,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.setWindowIcon(QtGui.QIcon(icon_path))    
 
         self.stop_event = threading.Event()
-        self.error_occurred.connect(self.add_notice_to_table)
+        self.error_occurred.connect(self.add_message_to_table)
         self.message_received.connect(self.handle_message_received)
         
         self._running = False
@@ -658,8 +658,10 @@ class MainApp(QtWidgets.QMainWindow):
         self.last_heartbeat_time                = None
         self.last_sound_played_time             = datetime.min
         self.mode                               = None
+        self.band                               = None
         self.last_frequency                     = None
         self.frequency                          = None
+        self.enable_show_all_decoded            = None
 
         self.wanted_callsign_detected_sound     = QSound(f"{CURRENT_DIR}/sounds/495650__matrixxx__supershort-ping-or-short-notification.wav")
         self.directed_to_my_call_sound          = QSound(f"{CURRENT_DIR}/sounds/716445__scottyd0es__tone12_error.wav")
@@ -682,6 +684,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.wanted_callsigns_var.setFont(custom_font)
         self.monitored_callsigns_var = QtWidgets.QLineEdit()
         self.monitored_callsigns_var.setFont(custom_font)
+        self.monitored_cq_zones_var = QtWidgets.QLineEdit()
+        self.monitored_cq_zones_var.setFont(custom_font)        
         self.excluded_callsigns_var = QtWidgets.QLineEdit()
         self.excluded_callsigns_var.setFont(custom_font)
 
@@ -702,9 +706,10 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.wanted_callsigns_history = self.load_wanted_callsigns()
 
-        self.monitored_callsigns_var.setText(params.get("monitored_callsigns", ""))
-        self.excluded_callsigns_var.setText(params.get("excluded_callsigns", ""))
         self.wanted_callsigns_var.setText(params.get("wanted_callsigns", ""))
+        self.monitored_callsigns_var.setText(params.get("monitored_callsigns", ""))
+        self.monitored_cq_zones_var.setText(params.get("monitored_cq_zones", ""))
+        self.excluded_callsigns_var.setText(params.get("excluded_callsigns", ""))
 
         special_mode = params.get("special_mode", "Normal")
         if special_mode == "Normal":
@@ -720,6 +725,9 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.monitored_callsigns_var.textChanged.connect(lambda: force_uppercase(self.monitored_callsigns_var))
         self.monitored_callsigns_var.textChanged.connect(self.check_fields)
+
+        self.monitored_cq_zones_var.textChanged.connect(lambda: force_numbers_and_commas(self.monitored_cq_zones_var))
+        self.monitored_cq_zones_var.textChanged.connect(self.check_fields)
 
         self.excluded_callsigns_var.textChanged.connect(lambda: force_uppercase(self.excluded_callsigns_var))
         self.excluded_callsigns_var.textChanged.connect(self.check_fields)
@@ -770,12 +778,12 @@ class MainApp(QtWidgets.QMainWindow):
         self.status_label.setFont(custom_font_mono)
         self.status_label.setStyleSheet("background-color: #D3D3D3; border: 1px solid #bbbbbb; border-radius: 10px; padding: 10px;")
 
+        header_labels = ['Time', 'Band', 'Report', 'DT', 'Freq', 'Message', 'Country', 'CQ', 'Continent']
         self.output_table = QTableWidget(self)
-        self.output_table.setColumnCount(8)
-        header_labels = ['Time', 'Report', 'DT', 'Freq', 'Message', 'Country', 'CQ', 'Continent']
+        self.output_table.setColumnCount(len(header_labels))
         for i, label in enumerate(header_labels):
             header_item = QTableWidgetItem(label)
-            if label in ['Report', 'DT', 'Freq']:
+            if label in ['Band', 'Report', 'DT', 'Freq']:
                 header_item.setTextAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
             elif label in ['CQ', 'Continent']:
                 header_item.setTextAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)                
@@ -796,18 +804,21 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_table.horizontalHeader().setSectionResizeMode(1, QtWidgets.QHeaderView.Fixed)
         self.output_table.horizontalHeader().setSectionResizeMode(2, QtWidgets.QHeaderView.Fixed)
         self.output_table.horizontalHeader().setSectionResizeMode(3, QtWidgets.QHeaderView.Fixed)
-        self.output_table.horizontalHeader().setSectionResizeMode(4, QtWidgets.QHeaderView.Stretch)
+        self.output_table.horizontalHeader().setSectionResizeMode(4, QtWidgets.QHeaderView.Fixed)
         self.output_table.horizontalHeader().setSectionResizeMode(5, QtWidgets.QHeaderView.Fixed)
-        self.output_table.horizontalHeader().setSectionResizeMode(6, QtWidgets.QHeaderView.Fixed)
+        self.output_table.horizontalHeader().setSectionResizeMode(6, QtWidgets.QHeaderView.Stretch)
         self.output_table.horizontalHeader().setSectionResizeMode(7, QtWidgets.QHeaderView.Fixed)
+        self.output_table.horizontalHeader().setSectionResizeMode(8, QtWidgets.QHeaderView.Fixed)
         self.output_table.horizontalHeader().setStretchLastSection(False)
         self.output_table.setColumnWidth(0, 160)
-        self.output_table.setColumnWidth(1, 60)
+        self.output_table.setColumnWidth(1, 45)
         self.output_table.setColumnWidth(2, 60)
-        self.output_table.setColumnWidth(3, 80)
-        self.output_table.setColumnWidth(5, 200)
-        self.output_table.setColumnWidth(6, 50)
-        self.output_table.setColumnWidth(7, 70)
+        self.output_table.setColumnWidth(3, 60)
+        self.output_table.setColumnWidth(4, 80)
+        self.output_table.setColumnWidth(5, 400)
+        #self.output_table.setColumnWidth(6, 200)
+        self.output_table.setColumnWidth(7, 50)
+        self.output_table.setColumnWidth(8, 70)
 
         """
         spacing_delegate = SpacingDelegate(self.output_table)
@@ -818,7 +829,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.dark_mode = self.is_dark_apperance()
         self.apply_palette(self.dark_mode)
 
-        self.clear_button = QtWidgets.QPushButton("Clear Log")
+        self.clear_button = QtWidgets.QPushButton("Clear History")
         self.clear_button.setEnabled(False)
         self.clear_button.clicked.connect(self.clear_output_table)
 
@@ -852,23 +863,26 @@ class MainApp(QtWidgets.QMainWindow):
     
         main_layout.addWidget(self.callsign_notice, 1, 1)
 
-        self.wanted_label = QtWidgets.QLabel("Wanted Callsign(s):")
-        self.monitored_label = QtWidgets.QLabel("Monitored Callsign(s):")
-        self.excluded_label = QtWidgets.QLabel("Excluded Callsign(s):")
+        self.wanted_callsigns_label = QtWidgets.QLabel("Wanted Callsign(s):")
+        self.monitored_callsigns_label = QtWidgets.QLabel("Monitored Callsign(s):")
+        self.monitored_cq_zones_label = QtWidgets.QLabel("Monitored CQ Zone(s):")
+        self.excluded_callsigns_label = QtWidgets.QLabel("Excluded Callsign(s):")
 
-        main_layout.addWidget(self.wanted_label, 2, 0)
+        main_layout.addWidget(self.wanted_callsigns_label, 2, 0)
         main_layout.addWidget(self.wanted_callsigns_var, 2, 1)
-        main_layout.addWidget(self.monitored_label, 3, 0)
+        main_layout.addWidget(self.monitored_callsigns_label, 3, 0)
         main_layout.addWidget(self.monitored_callsigns_var, 3, 1)
-        main_layout.addWidget(self.excluded_label, 4, 0)
-        main_layout.addWidget(self.excluded_callsigns_var, 4, 1)
+        main_layout.addWidget(self.monitored_cq_zones_label, 4, 0)
+        main_layout.addWidget(self.monitored_cq_zones_var, 4, 1)
+        main_layout.addWidget(self.excluded_callsigns_label, 5, 0)
+        main_layout.addWidget(self.excluded_callsigns_var, 5, 1)
 
         # Mode section
         mode_layout = QtWidgets.QHBoxLayout()
         mode_layout.addWidget(radio_normal)
         mode_layout.addWidget(radio_foxhound)
         mode_layout.addWidget(radio_superfox)
-        main_layout.addLayout(mode_layout, 5, 1)
+        main_layout.addLayout(mode_layout, 6, 1)
 
         # Timer label and log analysis
         main_layout.addWidget(self.timer_value_label, 0, 3)
@@ -928,7 +942,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.closeEvent = self.on_close
 
     @QtCore.pyqtSlot(str)
-    def add_notice_to_table(self, message, fg_color='white', bg_color='red'):
+    def add_message_to_table(self, message, fg_color='white', bg_color='red'):
+        self.clear_button.setEnabled(True)
+
         row_position = self.output_table.rowCount()
         self.output_table.insertRow(row_position)
 
@@ -955,8 +971,9 @@ class MainApp(QtWidgets.QMainWindow):
                 self.frequency = message.get('frequency')
                 if self.frequency != self.last_frequency:
                     self.last_frequency = self.frequency
+                    self.band = get_amateur_band(self.frequency)
                     frequency = str(message.get('frequency') / 1_000) + 'Khz'
-                    self.add_notice_to_table(f"Freq: {frequency} ({message.get('band')})")             
+                    self.add_message_to_table(f"Freq: {frequency} ({self.band})")             
             elif message_type == 'update_status':
                 self.check_connection_status(
                     message.get('decode_packet_count', 0),
@@ -979,7 +996,9 @@ class MainApp(QtWidgets.QMainWindow):
                         play_sound = True
                     elif message_type == 'error_occurred':
                         play_sound = True
-                    elif message_type == 'monitored_callsign_detected' and self.enable_sound_monitored_callsigns:
+                    elif (
+                        message_type == 'monitored_callsign_detected' 
+                    ) and self.enable_sound_monitored_callsigns:
                         current_time = datetime.now()
                         delay = 600                   
                         if (current_time - self.last_sound_played_time).total_seconds() > delay:                                                 
@@ -991,11 +1010,14 @@ class MainApp(QtWidgets.QMainWindow):
             
             # Handle message from handle_packet from wait_and_pounce.py
             elif 'decode_time_str' in message:
+                self.message_times.append(datetime.now())    
+
                 callsign_info = message.get('callsign_info', None)
                 
                 entity    = ""
                 cq_zone   = ""
                 continent = ""
+                row_color = message.get('row_color', None)
 
                 if callsign_info:
                     entity    = callsign_info["entity"].title()
@@ -1003,27 +1025,27 @@ class MainApp(QtWidgets.QMainWindow):
                     continent = callsign_info["cont"]
                 elif callsign_info is None:
                     entity    = "Where?"
-
-                self.add_row_to_table(
-                    message.get('decode_time_str', ''),
-                    message.get('snr', 0),
-                    message.get('delta_time', 0.0),
-                    message.get('delta_freq', 0),
-                    message.get('formatted_msg', ''),
-                    entity,
-                    cq_zone,
-                    continent,
-                    message.get('msg_color_text', None)
-                )
-
-                self.message_times.append(datetime.now())                
+                 
+                if self.enable_show_all_decoded or row_color:
+                    self.add_row_to_table(
+                        message.get('decode_time_str', ''),
+                        self.band,
+                        message.get('snr', 0),
+                        message.get('delta_time', 0.0),
+                        message.get('delta_freq', 0),
+                        message.get('formatted_msg', ''),
+                        entity,
+                        cq_zone,
+                        continent,
+                        row_color
+                    )            
 
         elif isinstance(message, str):
             if message.startswith("wsjtx_id:"):
                 wsjtx_id = message.split("wsjtx_id:")[1].strip()
                 self.update_window_title(wsjtx_id)
             else:             
-                self.add_notice_to_table(message)
+                self.add_message_to_table(message)
         else:
             pass
 
@@ -1325,12 +1347,14 @@ class MainApp(QtWidgets.QMainWindow):
     def disable_inputs(self):
         self.inputs_enabled = False
         self.monitored_callsigns_var.setEnabled(False)
+        self.monitored_cq_zones_var.setEnabled(False)
         self.excluded_callsigns_var.setEnabled(False)
         self.wanted_callsigns_var.setEnabled(False)
 
     def enable_inputs(self):
         self.inputs_enabled = True
         self.monitored_callsigns_var.setEnabled(True)
+        self.monitored_cq_zones_var.setEnabled(True)
         self.excluded_callsigns_var.setEnabled(True)
         self.wanted_callsigns_var.setEnabled(True)
 
@@ -1428,6 +1452,7 @@ class MainApp(QtWidgets.QMainWindow):
     def add_row_to_table(
             self,
             date_str,
+            band,
             snr,
             delta_time,
             delta_freq,
@@ -1435,7 +1460,7 @@ class MainApp(QtWidgets.QMainWindow):
             entity,
             cq_zone,
             continent,
-            msg_color_text=None
+            row_color=None
         ):
         self.clear_button.setEnabled(True)
         row_position = self.output_table.rowCount()
@@ -1443,53 +1468,58 @@ class MainApp(QtWidgets.QMainWindow):
         
         item_date = QTableWidgetItem(date_str)
         self.output_table.setItem(row_position, 0, item_date)
+
+        item_band = QTableWidgetItem(band)
+        item_band.setTextAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        item_band.setFont(small_font)
+        self.output_table.setItem(row_position, 1, item_band)
             
         item_snr = QTableWidgetItem(f"{snr:+3d} dB")
         item_snr.setTextAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
         item_snr.setFont(small_font)
-        self.output_table.setItem(row_position, 1, item_snr)
+        self.output_table.setItem(row_position, 2, item_snr)
         
         item_dt = QTableWidgetItem(f"{delta_time:+5.1f}s")
         item_dt.setTextAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
         item_dt.setFont(small_font)
-        self.output_table.setItem(row_position, 2, item_dt)
+        self.output_table.setItem(row_position, 3, item_dt)
         
         item_freq = QTableWidgetItem(f"{delta_freq:+6d}Hz")
         item_freq.setTextAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
         item_freq.setFont(small_font)
-        self.output_table.setItem(row_position, 3, item_freq)
+        self.output_table.setItem(row_position, 4, item_freq)
         
         item_msg = QTableWidgetItem(f" {formatted_msg.strip()}")
-        item_msg.setFont(custom_font_mono)
-        self.output_table.setItem(row_position, 4, item_msg)
+        # item_msg.setFont(custom_font_mono)
+        self.output_table.setItem(row_position, 5, item_msg)
         
         item_country = QTableWidgetItem(entity)
-        self.output_table.setItem(row_position, 5, item_country)
+        self.output_table.setItem(row_position, 6, item_country)
 
         item_cq_zone = QTableWidgetItem(f"{cq_zone}")
         item_cq_zone.setTextAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
-        self.output_table.setItem(row_position, 6, item_cq_zone)
+        self.output_table.setItem(row_position, 7, item_cq_zone)
 
         item_continent = QTableWidgetItem(continent)
         item_continent.setTextAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
-        self.output_table.setItem(row_position, 7, item_continent)        
+        self.output_table.setItem(row_position, 8, item_continent)        
         
-        if msg_color_text:
-            self.apply_row_format(row_position, msg_color_text)
+        if row_color:
+            self.apply_row_format(row_position, row_color)
         
         self.output_table.scrollToBottom()
         
-    def apply_row_format(self, row, msg_color_text):
-        if msg_color_text == 'bright_for_my_call':
+    def apply_row_format(self, row, row_color):
+        if row_color == 'bright_for_my_call':
             bg_color = QtGui.QColor(BG_COLOR_FOCUS_MY_CALL)
             fg_color = QtGui.QColor(FG_COLOR_FOCUS_MY_CALL)
-        elif msg_color_text == 'black_on_yellow':
+        elif row_color == 'black_on_yellow':
             bg_color = QtGui.QColor(BG_COLOR_BLACK_ON_YELLOW)
             fg_color = QtGui.QColor(FG_COLOR_BLACK_ON_YELLOW)
-        elif msg_color_text == 'black_on_purple':
+        elif row_color == 'black_on_purple':
             bg_color = QtGui.QColor(BG_COLOR_BLACK_ON_PURPLE)
             fg_color = QtGui.QColor(FG_COLOR_BLACK_ON_PURPLE)
-        elif msg_color_text == 'white_on_blue':
+        elif row_color == 'white_on_blue':
             bg_color = QtGui.QColor(BG_COLOR_WHITE_ON_BLUE)
             fg_color = QtGui.QColor(FG_COLOR_WHITE_ON_BLUE)
         else:
@@ -1565,8 +1595,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.callsign_notice.hide()
 
         # For decorative purpose only and to match with color being used on output_text 
-        self.wanted_label.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_YELLOW}; color: {FG_COLOR_BLACK_ON_YELLOW};")
-        self.monitored_label.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_PURPLE}; color: {FG_COLOR_BLACK_ON_PURPLE};")
+        self.wanted_callsigns_label.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_YELLOW}; color: {FG_COLOR_BLACK_ON_YELLOW};")
+        self.monitored_callsigns_label.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_PURPLE}; color: {FG_COLOR_BLACK_ON_PURPLE};")
+        self.monitored_cq_zones_label.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_PURPLE}; color: {FG_COLOR_BLACK_ON_PURPLE};")
 
         if platform.system() == 'Windows':
             tray_icon = TrayIcon()
@@ -1574,6 +1605,7 @@ class MainApp(QtWidgets.QMainWindow):
             tray_icon_thread.start()
 
         monitored_callsigns                 = self.monitored_callsigns_var.text()
+        monitored_cq_zones                  = self.monitored_cq_zones_var.text()
         excluded_callsigns                  = self.excluded_callsigns_var.text()
         wanted_callsigns                    = self.wanted_callsigns_var.text()
         special_mode                        = self.special_mode_var.checkedButton().text()
@@ -1592,13 +1624,15 @@ class MainApp(QtWidgets.QMainWindow):
         enable_debug_output                 = params.get('enable_debug_output', DEFAULT_DEBUG_OUTPUT)
         enable_pounce_log                   = params.get('enable_pounce_log', DEFAULT_POUNCE_LOG)
         enable_log_packet_data              = params.get('enable_log_packet_data', DEFAULT_LOG_PACKET_DATA)
-        enable_show_all_decoded             = params.get('enable_show_all_decoded', DEFAULT_SHOW_ALL_DECODED)
+        
+        self.enable_show_all_decoded        = params.get('enable_show_all_decoded', DEFAULT_SHOW_ALL_DECODED)
 
         self.update_wanted_callsigns_history(wanted_callsigns)
         self.update_current_callsign_highlight()
 
         params.update({
             "monitored_callsigns"           : monitored_callsigns,
+            "monitored_cq_zones"            : monitored_cq_zones,
             "excluded_callsigns"            : excluded_callsigns,
             "wanted_callsigns"              : wanted_callsigns,
             "special_mode"                  : special_mode
@@ -1612,6 +1646,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.thread = QThread()
         self.worker = Worker(
             monitored_callsigns,
+            monitored_cq_zones,
             excluded_callsigns,
             wanted_callsigns,
             special_mode,
@@ -1626,8 +1661,7 @@ class MainApp(QtWidgets.QMainWindow):
             enable_watchdog_bypass,
             enable_debug_output,
             enable_pounce_log,
-            enable_log_packet_data,
-            enable_show_all_decoded            
+            enable_log_packet_data          
         )
         self.worker.moveToThread(self.thread)
 
@@ -1639,7 +1673,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         # Connect worker's signals to the GUI slots
         # self.worker.finished.connect(self.stop_monitoring)
-        self.worker.error.connect(self.add_notice_to_table)
+        self.worker.error.connect(self.add_message_to_table)
         self.worker.message.connect(self.handle_message_received)
 
         self.thread.start()    
@@ -1672,8 +1706,8 @@ class MainApp(QtWidgets.QMainWindow):
             self.run_button.setText(WAIT_RUN_BUTTON_LABEL)
             self.run_button.setStyleSheet("")
 
-            self.wanted_label.setStyleSheet("")
-            self.monitored_label.setStyleSheet("")
+            self.wanted_callsigns_label.setStyleSheet("")
+            self.monitored_callsigns_label.setStyleSheet("")
 
             self.callsign_notice.show()
 
