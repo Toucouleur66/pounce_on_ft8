@@ -391,7 +391,8 @@ class Listener:
             delta_t         = self.the_packet.delta_t
             delta_f         = self.the_packet.delta_f     
 
-            time_str = decode_time.strftime('%H%M%S')
+            time_str        = decode_time.strftime('%H%M%S')
+            time_now        = datetime.now(timezone.utc).replace(tzinfo=None)
 
             formatted_message = f"{time_str} {snr:+d} {delta_t:+.1f} {delta_f} ~ {message}"
 
@@ -415,7 +416,7 @@ class Listener:
             if (
                 self.qso_time_on is not None                              and
                 self.targeted_call is not None                            and
-                (datetime.now(timezone.utc) - self.qso_time_on).total_seconds() > 120 and
+                (time_now - self.qso_time_on).total_seconds() > 120 and
                 callsign != self.targeted_call                            and            
                 wanted is True
             ):

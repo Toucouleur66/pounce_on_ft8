@@ -429,7 +429,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_log_packet_data = QtWidgets.QCheckBox("Save all received Packet Data to log")
         self.enable_log_packet_data.setChecked(DEFAULT_LOG_PACKET_DATA)
         
-        self.enable_show_all_decoded = QtWidgets.QCheckBox("Show all decoded messages, not only Wanted Callsigns")
+        self.enable_show_all_decoded = QtWidgets.QCheckBox("Show all decoded messages (not only Wanted or Monitored)")
         self.enable_show_all_decoded.setChecked(DEFAULT_SHOW_ALL_DECODED)
     
         log_settings_layout.addWidget(self.enable_pounce_log, 0, 0, 1, 2)
