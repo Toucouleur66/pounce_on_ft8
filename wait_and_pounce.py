@@ -180,8 +180,10 @@ def main(
         monitored_callsigns = [callsign.strip() for callsign in monitored_callsigns.split(',')]         
 
     if isinstance(monitored_cq_zones, str):
-        monitored_cq_zones = [int(cq_zone.strip()) for cq_zone in monitored_cq_zones.split(',')]           
-
+        monitored_cq_zones = [
+            int(cq_zone.strip()) for cq_zone in monitored_cq_zones.split(',') if cq_zone.strip()
+        ]
+        
     listener = MyListener(
         primary_udp_server_address      = primary_udp_server_address,
         primary_udp_server_port         = primary_udp_server_port,
