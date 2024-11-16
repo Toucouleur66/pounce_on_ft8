@@ -53,19 +53,27 @@ def parse_wsjtx_message(
     wanted    = False
     monitored = False
 
-    match = re.match(r"^CQ\s+(?:(\w{2,3})\s+)?([A-Z0-9/]+)(?:\s+([A-Z]{2}\d{2}))?", message)
-    if match:
-        cqing    = True
-        directed = match.group(1)
-        callsign = match.group(2)
-        grid     = match.group(3)
 
-    else:
-        match = re.match(r"^([A-Z0-9/]+)\s+([A-Z0-9/]+)\s+([A-Z0-9+-]+)", message)
+    match = re.match(r"^<\.\.\.>\s+([A-Z0-9/]+)\s+(\w{2,3}|RR73|\d{2}[A-Z]{2})?", message)
+    if match:
+        callsign = match.group(1)
+        msg = match.group(2)
+    else:      
+        match = re.match(r"^CQ\s+(?:(\w{2,3})\s+)?([A-Z0-9/]+)(?:\s+([A-Z]{2}\d{2}))?", message)
         if match:
+            # Handle CQ messages      
+            cqing    = True
             directed = match.group(1)
             callsign = match.group(2)
-            msg      = match.group(3)
+            grid     = match.group(3)
+
+        else:
+            # Handle directed calls and standard messages
+            match = re.match(r"^([A-Z0-9/]+)\s+([A-Z0-9/]+)\s+([A-Z0-9+-]+)", message)
+            if match:
+                directed = match.group(1)
+                callsign = match.group(2)
+                msg      = match.group(3)
 
     if callsign:
         def matches_any(patterns, callsign):

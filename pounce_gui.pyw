@@ -872,17 +872,22 @@ class MainApp(QtWidgets.QMainWindow):
         main_layout.addWidget(self.wanted_callsigns_var, 2, 1)
         main_layout.addWidget(self.monitored_callsigns_label, 3, 0)
         main_layout.addWidget(self.monitored_callsigns_var, 3, 1)
+        """
         main_layout.addWidget(self.monitored_cq_zones_label, 4, 0)
         main_layout.addWidget(self.monitored_cq_zones_var, 4, 1)
         main_layout.addWidget(self.excluded_callsigns_label, 5, 0)
         main_layout.addWidget(self.excluded_callsigns_var, 5, 1)
+        """
+        main_layout.addWidget(self.excluded_callsigns_label, 4, 0)
+        main_layout.addWidget(self.excluded_callsigns_var, 4, 1)
+
 
         # Mode section
         mode_layout = QtWidgets.QHBoxLayout()
         mode_layout.addWidget(radio_normal)
         mode_layout.addWidget(radio_foxhound)
         mode_layout.addWidget(radio_superfox)
-        main_layout.addLayout(mode_layout, 6, 1)
+        main_layout.addLayout(mode_layout, 5, 1)
 
         # Timer label and log analysis
         main_layout.addWidget(self.timer_value_label, 0, 3)
