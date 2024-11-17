@@ -1,8 +1,8 @@
 # pounce_gui.pyw
 
 from PyQt5 import QtWidgets, QtCore, QtGui
-from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem
-from PyQt5.QtCore import QObject, pyqtSignal, QThread, QEasingCurve
+from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QGraphicsOpacityEffect
+from PyQt5.QtCore import QObject, pyqtSignal, QThread, QEasingCurve, QPropertyAnimation
 from PyQt5.QtMultimedia import QSound
 
 import platform
@@ -49,10 +49,11 @@ from constants import (
     WANTED_CALLSIGNS_HISTORY_SIZE,
     # Labels
     GUI_LABEL_VERSION,
-    MONITORING_RUN_BUTTON_LABEL,
-    DECODING_RUN_BUTTON_LABEL,
-    WAIT_RUN_BUTTON_LABEL,
-    NOTHING_YET,
+    STATUS_BUTTON_LABEL_MONITORING,
+    STATUS_BUTTON_LABEL_DECODING,
+    STATUS_BUTTON_LABEL_START,
+    STATUS_BUTTON_LABEL_TRX,
+    STATUS_BUTTON_LABEL_NOTHING_YET,
     WAITING_DATA_PACKETS_LABEL,
     WANTED_CALLSIGNS_HISTORY_LABEL,
     CALLSIGN_NOTICE_LABEL,
@@ -268,11 +269,6 @@ class TrayIcon:
         self._running = False
         if self.icon:
             self.icon.stop()
-
-class SpacingDelegate(QtWidgets.QStyledItemDelegate):
-    def paint(self, painter, option, index):
-        option.rect.adjust(5, 0, 0, 0)  
-        super().paint(painter, option, index)
 
 class ToolTip(QtWidgets.QWidget):
     def __init__(self, widget, text=''):
@@ -658,6 +654,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.last_heartbeat_time                = None
         self.last_sound_played_time             = datetime.min
         self.mode                               = None
+        self.transmitting                       = False
         self.band                               = None
         self.last_frequency                     = None
         self.frequency                          = None
@@ -774,7 +771,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.timer_value_label.setStyleSheet("background-color: #9dfffe; color: #555bc2; padding: 10px;")
 
         # Log analysis label and value
-        self.status_label = QtWidgets.QLabel(NOTHING_YET)
+        self.status_label = QtWidgets.QLabel(STATUS_BUTTON_LABEL_NOTHING_YET)
         self.status_label.setFont(custom_font_mono)
         self.status_label.setStyleSheet("background-color: #D3D3D3; border: 1px solid #bbbbbb; border-radius: 10px; padding: 10px;")
 
@@ -805,7 +802,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_table.horizontalHeader().setSectionResizeMode(2, QtWidgets.QHeaderView.Fixed)
         self.output_table.horizontalHeader().setSectionResizeMode(3, QtWidgets.QHeaderView.Fixed)
         self.output_table.horizontalHeader().setSectionResizeMode(4, QtWidgets.QHeaderView.Fixed)
-        self.output_table.horizontalHeader().setSectionResizeMode(5, QtWidgets.QHeaderView.Fixed)
+        self.output_table.horizontalHeader().setSectionResizeMode(5, QtWidgets.QHeaderView.Stretch)
         self.output_table.horizontalHeader().setSectionResizeMode(6, QtWidgets.QHeaderView.Stretch)
         self.output_table.horizontalHeader().setSectionResizeMode(7, QtWidgets.QHeaderView.Fixed)
         self.output_table.horizontalHeader().setSectionResizeMode(8, QtWidgets.QHeaderView.Fixed)
@@ -816,15 +813,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_table.setColumnWidth(3, 60)
         self.output_table.setColumnWidth(4, 80)
         self.output_table.setColumnWidth(5, 400)
-        #self.output_table.setColumnWidth(6, 200)
         self.output_table.setColumnWidth(7, 50)
         self.output_table.setColumnWidth(8, 70)
-
-        """
-        spacing_delegate = SpacingDelegate(self.output_table)
-        self.output_table.setItemDelegateForColumn(4, spacing_delegate)
-        self.output_table.setItemDelegateForColumn(5, spacing_delegate)
-        """
         
         self.dark_mode = self.is_dark_apperance()
         self.apply_palette(self.dark_mode)
@@ -850,8 +840,8 @@ class MainApp(QtWidgets.QMainWindow):
             self.restart_button.clicked.connect(self.restart_application)
 
         # Timer and start/stop buttons
-        self.run_button = QtWidgets.QPushButton(WAIT_RUN_BUTTON_LABEL)
-        self.run_button.clicked.connect(self.start_monitoring)
+        self.status_button = QtWidgets.QPushButton(STATUS_BUTTON_LABEL_START)
+        self.status_button.clicked.connect(self.start_monitoring)
         self.stop_button = QtWidgets.QPushButton("Stop all")
         self.stop_button.clicked.connect(self.stop_monitoring)
 
@@ -881,7 +871,6 @@ class MainApp(QtWidgets.QMainWindow):
         main_layout.addWidget(self.excluded_callsigns_label, 4, 0)
         main_layout.addWidget(self.excluded_callsigns_var, 4, 1)
 
-
         # Mode section
         mode_layout = QtWidgets.QHBoxLayout()
         mode_layout.addWidget(radio_normal)
@@ -894,7 +883,7 @@ class MainApp(QtWidgets.QMainWindow):
         main_layout.addWidget(QtWidgets.QLabel("Status:"), 7, 0)
         main_layout.addWidget(self.status_label, 7, 1)
 
-        main_layout.addWidget(self.run_button, 7, 2)
+        main_layout.addWidget(self.status_button, 7, 2)
         main_layout.addWidget(self.stop_button, 7, 3)
 
         main_layout.addWidget(self.output_table, 8, 0, 1, 4)
@@ -971,7 +960,7 @@ class MainApp(QtWidgets.QMainWindow):
 
             # Handle message from Listener from wsjtx_listener.py
             if message_type == 'update_mode':
-                self.mode = message.get('mode')
+                self.mode = message.get('mode')            
             elif message_type == 'update_frequency':
                 self.frequency = message.get('frequency')
                 if self.frequency != self.last_frequency:
@@ -983,13 +972,14 @@ class MainApp(QtWidgets.QMainWindow):
                 self.check_connection_status(
                     message.get('decode_packet_count', 0),
                     message.get('last_decode_packet_time'),
-                    message.get('last_heartbeat_time')
+                    message.get('last_heartbeat_time'),
+                    message.get('transmitting')
                 )
             elif message_type is not None:
                 formatted_message = message.get('formatted_message')
                 if formatted_message is not None:
                     contains_my_call = message.get('contains_my_call')
-                    self.update_focus_frame(formatted_message, contains_my_call)
+                    self.set_value_to_focus(formatted_message, contains_my_call)
 
                 play_sound = False
                 if not self.disable_alert_checkbox.isChecked():      
@@ -1076,13 +1066,34 @@ class MainApp(QtWidgets.QMainWindow):
         self.activity_bar.setValue(ACTIVITY_BAR_MAX_VALUE)
 
     def update_activity_bar(self):
-        cutoff_time = datetime.now() - timedelta(seconds=get_mode_interval(self.mode))
+        time_delta_in_seconds = get_mode_interval(self.mode)
+        # We need to double time_delta_to_be_used the time transmitting == 1 
+        # otherwise we are loosing accuracy of activity bar
+        if self.transmitting:
+            time_delta_in_seconds*= 2
+
+        cutoff_time = datetime.now() - timedelta(seconds=time_delta_in_seconds)
         while self.message_times and self.message_times[0] < cutoff_time:
             self.message_times.popleft()
 
         message_count = len(self.message_times)
 
         self.activity_bar.setValue(message_count)                                     
+
+    def start_blinking_status_button(self):
+        if self.is_status_button_label_blinking is False:
+            self.blink_timer.start(500)
+            self.status_button.setStyleSheet("background-color: red; color: #ffffff")  
+            self.is_status_button_label_blinking = True
+
+    def stop_blinking_status_button(self):    
+        self.is_status_button_label_blinking = False
+        self.blink_timer.stop()
+        self.status_button.setVisible(True)
+
+    def toggle_label_visibility(self):
+        self.is_status_button_label_visible = not self.is_status_button_label_visible
+        self.status_button.setVisible(self.is_status_button_label_visible)    
 
     def update_current_callsign_highlight(self):
         for index in range(self.listbox.count()):
@@ -1104,7 +1115,7 @@ class MainApp(QtWidgets.QMainWindow):
         """
         self.status_label.setStyleSheet(style)            
 
-    def update_focus_frame(self, formatted_message, contains_my_call):
+    def set_value_to_focus(self, formatted_message, contains_my_call):
         self.focus_value_label.setText(formatted_message)
         if contains_my_call:
             bg_color_hex = BG_COLOR_FOCUS_MY_CALL
@@ -1114,7 +1125,7 @@ class MainApp(QtWidgets.QMainWindow):
             fg_color_hex = FG_COLOR_REGULAR_FOCUS
             
         self.focus_value_label.setStyleSheet(f"background-color: {bg_color_hex}; color: {fg_color_hex}; padding: 10px;")
-        self.focus_frame.show()             
+        self.focus_frame.show()                
 
     def play_sound(self, sound_name):
         try:           
@@ -1135,9 +1146,10 @@ class MainApp(QtWidgets.QMainWindow):
 
     def check_connection_status(
         self,
-        decode_packet_count=None,
-        last_decode_packet_time=None,
-        last_heartbeat_time=None
+        decode_packet_count     = None,
+        last_decode_packet_time = None,
+        last_heartbeat_time     = None,
+        transmitting            = None
     ):
         if decode_packet_count is not None:
             self.decode_packet_count = decode_packet_count
@@ -1145,42 +1157,45 @@ class MainApp(QtWidgets.QMainWindow):
             self.last_decode_packet_time = last_decode_packet_time
         if last_heartbeat_time is not None:
             self.last_heartbeat_time = last_heartbeat_time
+        if transmitting is not None:
+            self.transmitting = transmitting
 
         now                 = datetime.now(timezone.utc)
         current_mode        = ""
         connection_lost     = False
         nothing_to_decode   = False
 
-        status_text_array = []
+        status_text_array   = []
+        default_style       = "background-color: red; color: #ffffff"
 
         if self.mode is not None:
             current_mode = f"({self.mode})"
 
         status_text_array.append(f"DecodePacket #{self.decode_packet_count}")
 
-        HEARTBEAT_TIMEOUT_THRESHOLD = 30  # secondes
+        HEARTBEAT_TIMEOUT_THRESHOLD     = 30  # secondes
         DECODE_PACKET_TIMEOUT_THRESHOLD = 60  # secondes
 
         if self.last_decode_packet_time:
-            style_run_button = "background-color: red; color: #ffffff"
+            style_status_button = "background-color: red; color: #ffffff"
             time_since_last_decode = (now - self.last_decode_packet_time).total_seconds()
             network_check_status_interval = 5_000
 
             if time_since_last_decode > DECODE_PACKET_TIMEOUT_THRESHOLD:
                 status_text_array.append(f"No DecodePacket for more than {DECODE_PACKET_TIMEOUT_THRESHOLD} seconds.")
                 nothing_to_decode = True                
-            else:                
+            else:      
                 if time_since_last_decode < 3:
-                    self.run_button.setText(DECODING_RUN_BUTTON_LABEL)
                     network_check_status_interval = 100
+                    self.status_button.setText(STATUS_BUTTON_LABEL_DECODING)
                     time_since_last_decode_text = f"{time_since_last_decode:.1f}s"
-                    style_run_button = "background-color: green; color: #ffffff"                    
+                    style_status_button = "background-color: green; color: #ffffff"                    
                 else:
                     if time_since_last_decode < 15:
                         network_check_status_interval = 1_000
-                    self.run_button.setText(MONITORING_RUN_BUTTON_LABEL)
-                    time_since_last_decode_text = f"{int(time_since_last_decode)}s"
-                    
+                    self.status_button.setText(STATUS_BUTTON_LABEL_MONITORING)
+                    time_since_last_decode_text = f"{int(time_since_last_decode)}s"                  
+
                 status_text_array.append(f"Last DecodePacket {current_mode}: {time_since_last_decode_text} ago")    
 
             # Update new interval if necessary
@@ -1188,10 +1203,17 @@ class MainApp(QtWidgets.QMainWindow):
                 self.network_check_status_interval = network_check_status_interval
                 self.network_check_status.setInterval(self.network_check_status_interval)  
 
-                self.run_button.setStyleSheet(style_run_button)                                   
+                self.status_button.setStyleSheet(style_status_button)                                   
         else:
             status_text_array.append("No DecodePacket received yet.")
 
+        if self.transmitting:
+            self.start_blinking_status_button()
+            network_check_status_interval = 100
+            self.status_button.setText(STATUS_BUTTON_LABEL_TRX)
+        else:
+            self.stop_blinking_status_button()
+        
         if self.last_heartbeat_time:
             time_since_last_heartbeat = (now - self.last_heartbeat_time).total_seconds()
             if time_since_last_heartbeat > HEARTBEAT_TIMEOUT_THRESHOLD:
@@ -1345,9 +1367,9 @@ class MainApp(QtWidgets.QMainWindow):
 
     def check_fields(self):
         if self.wanted_callsigns_var.text():
-            self.run_button.setEnabled(True)
+            self.status_button.setEnabled(True)
         else:
-            self.run_button.setEnabled(False)
+            self.status_button.setEnabled(False)
 
     def disable_inputs(self):
         self.inputs_enabled = False
@@ -1591,9 +1613,16 @@ class MainApp(QtWidgets.QMainWindow):
         self.timer.start(200)
 
         # self.output_text.clear()
-        self.run_button.setEnabled(False)
-        self.run_button.setText(MONITORING_RUN_BUTTON_LABEL)
-        self.run_button.setStyleSheet("background-color: red; color: #ffffff")
+        self.status_button.setEnabled(False)
+        self.status_button.setText(STATUS_BUTTON_LABEL_MONITORING)
+        self.status_button.setStyleSheet("background-color: red; color: #ffffff")
+
+        self.blink_timer = QtCore.QTimer()
+        self.blink_timer.timeout.connect(self.toggle_label_visibility)
+
+        self.is_status_button_label_visible = True
+        self.is_status_button_label_blinking = False
+
         self.disable_inputs()
         self.stop_event.clear()
         self.focus_frame.hide()
@@ -1707,9 +1736,9 @@ class MainApp(QtWidgets.QMainWindow):
             self.worker = None
             self._running = False
 
-            self.run_button.setEnabled(True)
-            self.run_button.setText(WAIT_RUN_BUTTON_LABEL)
-            self.run_button.setStyleSheet("")
+            self.status_button.setEnabled(True)
+            self.status_button.setText(STATUS_BUTTON_LABEL_START)
+            self.status_button.setStyleSheet("")
 
             self.wanted_callsigns_label.setStyleSheet("")
             self.monitored_callsigns_label.setStyleSheet("")

@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 from utils import get_app_data_dir
 
-version_number                  = "2.0.6"
+version_number                  = "2.0.7"
 EXPIRATION_DATE                 = datetime(2024, 11, 30)
 
 EVEN                            = "EVEN"
@@ -37,10 +37,13 @@ WANTED_CALLSIGNS_FILE           = os.path.join(get_app_data_dir(), "wanted_calls
 WANTED_CALLSIGNS_HISTORY_SIZE   = 50
 
 GUI_LABEL_VERSION               = f"Wait and Pounce v{version_number} by F5UKW"
-MONITORING_RUN_BUTTON_LABEL     = "Monitoring..."
-DECODING_RUN_BUTTON_LABEL       = "Decoding..."
-WAIT_RUN_BUTTON_LABEL           = "Start Monitoring"
-NOTHING_YET                     = "Nothing yet"
+
+STATUS_BUTTON_LABEL_MONITORING  = "Monitoring..."
+STATUS_BUTTON_LABEL_DECODING    = "Decoding..."
+STATUS_BUTTON_LABEL_TRX         = "Transmitting..."
+STATUS_BUTTON_LABEL_START       = "Start Monitoring"
+STATUS_BUTTON_LABEL_NOTHING_YET = "Nothing yet"
+
 WAITING_DATA_PACKETS_LABEL      = "Waiting for UDP Packets"
 WANTED_CALLSIGNS_HISTORY_LABEL  = "Wanted Callsigns History (%d):"
 CALLSIGN_NOTICE_LABEL           = "Comma separated list of callsigns - Wildcard allowed (*)"

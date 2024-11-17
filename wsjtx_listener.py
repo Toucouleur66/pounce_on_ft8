@@ -67,8 +67,9 @@ class Listener:
         self.qso_time_off               = None
         self.rst_rcvd                   = None
         self.rst_sent                   = None
-        self.last_mode                  = None
         self.mode                       = None
+        self.last_mode                  = None
+        self.transmitting               = None        
         self.last_frequency             = None
         self.frequency                  = None
         self.suggested_frequency        = None
@@ -186,16 +187,17 @@ class Listener:
         if self.enable_log_packet_data:
             log.debug('WSJT-X {}'.format(self.the_packet))
         try:
-            self.my_call    = self.the_packet.de_call
-            self.my_grid    = self.the_packet.de_grid
-            self.dx_call    = self.the_packet.dx_call
-            self.tx_df      = self.the_packet.tx_df       
-            self.rx_df      = self.the_packet.rx_df  
-            self.mode       = self.the_packet.mode            
-            self.frequency  = self.the_packet.dial_frequency            
+            self.my_call        = self.the_packet.de_call
+            self.my_grid        = self.the_packet.de_grid
+            self.dx_call        = self.the_packet.dx_call
+            self.tx_df          = self.the_packet.tx_df       
+            self.rx_df          = self.the_packet.rx_df  
+            self.mode           = self.the_packet.mode            
+            self.frequency      = self.the_packet.dial_frequency         
+            self.transmitting   = int(self.the_packet.transmitting)  
 
             error_found     = False
-
+            
             # Updating mode
             if self.last_mode != self.mode:
                 self.last_mode = self.mode
@@ -263,6 +265,7 @@ class Listener:
             self.send_status_update()
         elif isinstance(self.the_packet, pywsjtx.StatusPacket):
             self.update_status()
+            self.send_status_update()
         elif isinstance(self.the_packet, pywsjtx.QSOLoggedPacket):
             log.error('QSOLoggedPacket should not be handle due to JTDX restrictions')   
         elif isinstance(self.the_packet, pywsjtx.DecodePacket):
@@ -282,10 +285,11 @@ class Listener:
     def send_status_update(self):
         if self.message_callback:
             self.message_callback({
-                'type': 'update_status',
-                'decode_packet_count': self.decode_packet_count,
-                'last_decode_packet_time': self.last_decode_packet_time,
-                'last_heartbeat_time': self.last_heartbeat_time
+                'type'                      : 'update_status',
+                'decode_packet_count'       : self.decode_packet_count,
+                'last_decode_packet_time'   : self.last_decode_packet_time,
+                'last_heartbeat_time'       : self.last_heartbeat_time,
+                'transmitting'              : self.transmitting
             })
 
     def reset_ongoing_contact(self):
