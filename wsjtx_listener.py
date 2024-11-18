@@ -183,7 +183,7 @@ class Listener:
         reply_beat_packet = pywsjtx.HeartBeatPacket.Builder(self.the_packet.wsjtx_id,max_schema)
         self.s.send_packet(self.addr_port, reply_beat_packet)
 
-    def update_status(self):
+    def handle_listerner_update(self):
         if self.enable_log_packet_data:
             log.debug('WSJT-X {}'.format(self.the_packet))
         try:
@@ -264,7 +264,7 @@ class Listener:
             self.heartbeat()
             self.send_status_update()
         elif isinstance(self.the_packet, pywsjtx.StatusPacket):
-            self.update_status()
+            self.handle_listerner_update()
             self.send_status_update()
         elif isinstance(self.the_packet, pywsjtx.QSOLoggedPacket):
             log.error('QSOLoggedPacket should not be handle due to JTDX restrictions')   
@@ -427,7 +427,7 @@ class Listener:
             # if msg is not None and "73" in msg:
             #    log.warning("targeted_call:{}\tdirected:{}\tcallsign:{}\trst_rcvd_from_being_called:{}".format(self.targeted_call, directed, callsign, self.rst_rcvd_from_being_called))
 
-            if directed == self.my_call and msg in {"RR73", "73"}:
+            if directed == self.my_call and msg in {"RR73", "73", "RRR"}:
                 if self.targeted_call == callsign:
                     log.warning("Found message to log [ {} ]".format(self.targeted_call))
                     self.qso_time_off = decode_time

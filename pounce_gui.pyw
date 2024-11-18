@@ -1083,7 +1083,6 @@ class MainApp(QtWidgets.QMainWindow):
     def start_blinking_status_button(self):
         if self.is_status_button_label_blinking is False:
             self.blink_timer.start(500)
-            self.status_button.setStyleSheet("background-color: red; color: #ffffff")  
             self.is_status_button_label_blinking = True
 
     def stop_blinking_status_button(self):    
@@ -1177,7 +1176,6 @@ class MainApp(QtWidgets.QMainWindow):
         DECODE_PACKET_TIMEOUT_THRESHOLD = 60  # secondes
 
         if self.last_decode_packet_time:
-            style_status_button = "background-color: red; color: #ffffff"
             time_since_last_decode = (now - self.last_decode_packet_time).total_seconds()
             network_check_status_interval = 5_000
 
@@ -1187,30 +1185,27 @@ class MainApp(QtWidgets.QMainWindow):
             else:      
                 if time_since_last_decode < 3:
                     network_check_status_interval = 100
-                    self.status_button.setText(STATUS_BUTTON_LABEL_DECODING)
-                    time_since_last_decode_text = f"{time_since_last_decode:.1f}s"
-                    style_status_button = "background-color: green; color: #ffffff"                    
+                    time_since_last_decode_text = f"{time_since_last_decode:.1f}s" 
+                    self.update_status_button(STATUS_BUTTON_LABEL_DECODING, "#2bbe7e")                                  
                 else:
                     if time_since_last_decode < 15:
                         network_check_status_interval = 1_000
-                    self.status_button.setText(STATUS_BUTTON_LABEL_MONITORING)
                     time_since_last_decode_text = f"{int(time_since_last_decode)}s"                  
+                    self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, "#0d81ff") 
 
                 status_text_array.append(f"Last DecodePacket {current_mode}: {time_since_last_decode_text} ago")    
 
             # Update new interval if necessary
             if network_check_status_interval != self.network_check_status_interval:
                 self.network_check_status_interval = network_check_status_interval
-                self.network_check_status.setInterval(self.network_check_status_interval)  
-
-                self.status_button.setStyleSheet(style_status_button)                                   
+                self.network_check_status.setInterval(self.network_check_status_interval)                               
         else:
             status_text_array.append("No DecodePacket received yet.")
 
         if self.transmitting:
             self.start_blinking_status_button()
             network_check_status_interval = 100
-            self.status_button.setText(STATUS_BUTTON_LABEL_TRX)
+            self.update_status_button(STATUS_BUTTON_LABEL_TRX, "red")
         else:
             self.stop_blinking_status_button()
         
@@ -1600,6 +1595,11 @@ class MainApp(QtWidgets.QMainWindow):
         self.timer_value_label.setText(utc_time)
         self.timer_value_label.setStyleSheet(f"background-color: {background_color}; color: #3d25fb; padding: 10px;")
 
+    def update_status_button(self, text, bg_color, fg_color="#ffffff"):
+        self.status_button.setEnabled(False)
+        self.status_button.setText(text)
+        self.status_button.setStyleSheet(f"background-color: {bg_color}; color: {fg_color}; padding: 5px; border-radius: 5px; border: none;")
+
     def start_monitoring(self):
         global tray_icon
 
@@ -1613,9 +1613,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.timer.start(200)
 
         # self.output_text.clear()
-        self.status_button.setEnabled(False)
-        self.status_button.setText(STATUS_BUTTON_LABEL_MONITORING)
-        self.status_button.setStyleSheet("background-color: red; color: #ffffff")
+        self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, "#0d81ff")
 
         self.blink_timer = QtCore.QTimer()
         self.blink_timer.timeout.connect(self.toggle_label_visibility)
