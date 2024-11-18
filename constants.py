@@ -31,6 +31,10 @@ FG_COLOR_BLACK_ON_PURPLE        = "#000000"
 BG_COLOR_BLACK_ON_WHITE         = "#000000"
 FG_COLOR_BLACK_ON_WHITE         = "white"
 
+STATUS_MONITORING_COLOR         = "#0D81FF"
+STATUS_DECODING_COLOR           = "#2BBE7E"
+STATUS_TRX_COLOR                = "#FF5600"
+
 PARAMS_FILE                     = os.path.join(get_app_data_dir(), "params.pkl")
 POSITION_FILE                   = os.path.join(get_app_data_dir(), "window_position.pkl")
 WANTED_CALLSIGNS_FILE           = os.path.join(get_app_data_dir(), "wanted_callsigns.pkl")
