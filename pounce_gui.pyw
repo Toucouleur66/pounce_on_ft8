@@ -1738,6 +1738,8 @@ class MainApp(QtWidgets.QMainWindow):
             self.status_button.setText(STATUS_BUTTON_LABEL_START)
             self.status_button.setStyleSheet("")
 
+            self.stop_blinking_status_button()
+
             self.wanted_callsigns_label.setStyleSheet("")
             self.monitored_callsigns_label.setStyleSheet("")
 
