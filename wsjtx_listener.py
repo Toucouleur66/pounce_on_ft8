@@ -14,14 +14,17 @@ from collections import deque
 
 from logger import get_logger
 from utils import get_local_ip_address, get_mode_interval, get_amateur_band, parse_wsjtx_message
+from callsign_lookup import CallsignLookup
 
 log     = get_logger(__name__)
+lookup  = CallsignLookup()
 
 from constants import (
     EVEN,
     ODD,
     MODE_FOX_HOUND,
     MODE_NORMAL,
+    MODE_SUPER_FOX,
     FREQ_MINIMUM,
     FREQ_MAXIMUM,
     FREQ_MINIMUM_FOX_HOUND
@@ -147,7 +150,7 @@ class Listener:
                     message += f"\nPacket data: {self.pkt.hex()}"
                     log.info(message)
                 self.the_packet = pywsjtx.WSJTXPacketClassFactory.from_udp_packet(self.addr_port, self.pkt)
-                self.handle_packet()
+                self.assign_packet()
             except socket.timeout:
                 continue
             except OSError as e:
@@ -178,12 +181,12 @@ class Listener:
             self.message_callback(display_message)
         self.t.start()
 
-    def heartbeat(self):
+    def send_heartbeat(self):
         max_schema = max(self.the_packet.max_schema, 3)
         reply_beat_packet = pywsjtx.HeartBeatPacket.Builder(self.the_packet.wsjtx_id,max_schema)
         self.s.send_packet(self.addr_port, reply_beat_packet)
 
-    def handle_listerner_update(self):
+    def handle_status_packet(self):
         if self.enable_log_packet_data:
             log.debug('WSJT-X {}'.format(self.the_packet))
         try:
@@ -258,14 +261,14 @@ class Listener:
         except Exception as e:
             log.error("Caught an error on status handler: error {}\n{}".format(e, traceback.format_exc()))   
 
-    def handle_packet(self):
+    def assign_packet(self):
+        status_update = True
+
         if isinstance(self.the_packet, pywsjtx.HeartBeatPacket):
             self.last_heartbeat_time = datetime.now(timezone.utc)
-            self.heartbeat()
-            self.send_status_update()
+            self.send_heartbeat()
         elif isinstance(self.the_packet, pywsjtx.StatusPacket):
-            self.handle_listerner_update()
-            self.send_status_update()
+            self.handle_status_packet()
         elif isinstance(self.the_packet, pywsjtx.QSOLoggedPacket):
             log.error('QSOLoggedPacket should not be handle due to JTDX restrictions')   
         elif isinstance(self.the_packet, pywsjtx.DecodePacket):
@@ -278,9 +281,12 @@ class Listener:
                 self.decode_parse_packet()
             else:
                 log.error('No StatusPacket received yet, can\'t handle DecodePacket for now.')    
-            self.send_status_update()
         else:
+            status_update = False
             log.debug('unknown packet type {}; {}'.format(type(self.the_packet),self.the_packet))
+
+        if status_update:
+            self.send_status_update()            
 
     def send_status_update(self):
         if self.message_callback:
@@ -387,10 +393,12 @@ class Listener:
 
         try:
             message         = self.the_packet.message
-            decode_time     = self.the_packet.time
             snr             = self.the_packet.snr
             delta_t         = self.the_packet.delta_t
             delta_f         = self.the_packet.delta_f     
+
+            decode_time     = self.the_packet.time
+            decode_time_str = decode_time.strftime('%Y-%m-%d %H:%M:%S')            
 
             time_str        = decode_time.strftime('%H%M%S')
             time_now        = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -413,7 +421,52 @@ class Listener:
             cqing       = parsed_data['cqing']
             wanted      = parsed_data['wanted']
             monitored   = parsed_data['monitored']
-            
+
+            """
+                How to handle message for GUI
+            """
+            if callsign is None:
+                callsign_info = None
+            else:                    
+                callsign_info = lookup.lookup_callsign(callsign)          
+
+            if directed == self.my_call and self.my_call is not None:
+                msg_color_text      = "bright_for_my_call"
+            elif wanted is True:
+                msg_color_text      = "black_on_yellow"
+            elif monitored is True:
+                msg_color_text      = "black_on_purple"                                       
+            elif directed in self.wanted_callsigns:  
+                msg_color_text      = "white_on_blue"
+            else:
+                msg_color_text      = None
+
+            formatted_msg = f"{message:<21.21}".strip()      
+
+            display_message = (
+                f"{decode_time_str} "
+                f"{snr:+3d} dB "
+                f"{delta_t:+5.1f}s "
+                f"{delta_f:+6d}Hz ~ "
+                f"{formatted_msg}"
+            )
+
+            if self.message_callback:
+                self.message_callback({                        
+                'decode_time_str'   : decode_time_str,
+                'callsign'          : callsign,
+                'callsign_info'     : callsign_info,                        
+                'snr'               : snr,
+                'delta_time'        : delta_t,
+                'delta_freq'        : delta_f,
+                'formatted_msg'     : formatted_msg,
+                'row_color'         : msg_color_text,
+                'display_message'   : display_message
+            })
+                
+            """
+                Reset values to focus on another wanted callsign
+            """
             if (
                 self.qso_time_on is not None                              and
                 self.targeted_call is not None                            and
@@ -424,10 +477,12 @@ class Listener:
                 log.warning("Waiting [ {} ] but we are about to switch on [ {} ]".format(self.targeted_call, callsign))
                 self.reset_ongoing_contact()
 
-            # if msg is not None and "73" in msg:
-            #    log.warning("targeted_call:{}\tdirected:{}\tcallsign:{}\trst_rcvd_from_being_called:{}".format(self.targeted_call, directed, callsign, self.rst_rcvd_from_being_called))
-
+            """
+                How to handle the logic for the message 
+            """
             if directed == self.my_call and msg in {"RR73", "73", "RRR"}:
+                log.warning("Found message [ {} ] we should log a QSO for [ {} ]".format(msg, self.targeted_call))
+                
                 if self.targeted_call == callsign:
                     log.warning("Found message to log [ {} ]".format(self.targeted_call))
                     self.qso_time_off = decode_time

@@ -14,15 +14,19 @@ import queue
 import threading
 import time
 import pyperclip
-import wait_and_pounce
 import logging
 
 from datetime import datetime, timezone, timedelta
 from PIL import Image, ImageDraw
 from collections import deque
-from utils import get_local_ip_address, get_log_filename, get_mode_interval, get_amateur_band, force_uppercase, force_numbers_and_commas
+
+from utils import get_local_ip_address, get_log_filename
+from utils import get_mode_interval, get_amateur_band
+from utils import force_uppercase, force_numbers_and_commas
+
 from logger import get_logger, add_file_handler, remove_file_handler
 from gui_handler import GUIHandler
+from wsjtx_listener import Listener
 
 from constants import (
     EXPIRATION_DATE,
@@ -129,6 +133,21 @@ class Worker(QObject):
             enable_log_packet_data                      
         ):
         super(Worker, self).__init__()
+
+        if isinstance(wanted_callsigns, str):
+            wanted_callsigns = [callsign.strip() for callsign in wanted_callsigns.split(',')]
+
+        if isinstance(excluded_callsigns, str):
+            excluded_callsigns = [callsign.strip() for callsign in excluded_callsigns.split(',')]        
+
+        if isinstance(monitored_callsigns, str):
+            monitored_callsigns = [callsign.strip() for callsign in monitored_callsigns.split(',')]         
+
+        if isinstance(monitored_cq_zones, str):
+            monitored_cq_zones = [
+                int(cq_zone.strip()) for cq_zone in monitored_cq_zones.split(',') if cq_zone.strip()
+            ]
+
         self.monitored_callsigns            = monitored_callsigns
         self.monitored_cq_zones             = monitored_cq_zones
         self.excluded_callsigns             = excluded_callsigns
@@ -146,16 +165,10 @@ class Worker(QObject):
         self.enable_debug_output            = enable_debug_output
         self.enable_pounce_log              = enable_pounce_log   
         self.enable_log_packet_data         = enable_log_packet_data
-
+        
     def run(self):
         try:
-            wait_and_pounce.main(
-                self.monitored_callsigns,
-                self.monitored_cq_zones,
-                self.excluded_callsigns,
-                self.wanted_callsigns,
-                self.mode,
-                self.stop_event,
+            listener = Listener(
                 primary_udp_server_address      = self.primary_udp_server_address,
                 primary_udp_server_port         = self.primary_udp_server_port,
                 secondary_udp_server_address    = self.secondary_udp_server_address,
@@ -165,10 +178,21 @@ class Worker(QObject):
                 enable_gap_finder                = self.enable_gap_finder,
                 enable_watchdog_bypass          = self.enable_watchdog_bypass,
                 enable_debug_output             = self.enable_debug_output,
-                enable_pounce_log               = self.enable_pounce_log,    
-                enable_log_packet_data          = self.enable_log_packet_data,         
+                enable_pounce_log               = self.enable_pounce_log,
+                enable_log_packet_data          = self.enable_log_packet_data,
+                monitored_callsigns             = self.monitored_callsigns,
+                monitored_cq_zones              = self.monitored_cq_zones,
+                excluded_callsigns              = self.excluded_callsigns,
+                wanted_callsigns                = self.wanted_callsigns,
+                special_mode                    = self.mode,
                 message_callback                = self.message.emit
             )
+            listener.listen()
+
+            while not self.stop_event.is_set():
+                time.sleep(0.1)
+            listener.stop()
+            listener.t.join()
         except Exception as e:
             error_message = f"{e}\n{traceback.format_exc()}"
             self.error.emit(error_message)
@@ -641,7 +665,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.activity_timer = QtCore.QTimer()
         self.activity_timer.timeout.connect(self.update_activity_bar)
-        self.activity_timer.start(1_000)
+        self.activity_timer.start(100)
 
         self.theme_timer = QtCore.QTimer(self)
         self.theme_timer.timeout.connect(self.check_theme_change)
