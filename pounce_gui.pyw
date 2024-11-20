@@ -1077,80 +1077,94 @@ class MainApp(QtWidgets.QMainWindow):
         index = self.output_table.indexAt(position)
         if not index.isValid():
             return
-    
-        row  = index.row()
+
+        row = index.row()
         item = self.output_table.item(row, 0)
         data = item.data(QtCore.Qt.UserRole)
 
         if not data:
             return
 
-        formatted_message = data.get('formatted_message')
-        callsign          = data.get('callsign')
-        cq_zone           = data.get('cq_zone')
+        formatted_message   = data.get('formatted_message')
+        callsign            = data.get('callsign')
+        cq_zone             = data.get('cq_zone')
 
         if not callsign:
             return
 
         menu = QtWidgets.QMenu()
 
-        wanted_callsigns = self.wanted_callsigns_var.text().split(",")
-        wanted_callsigns = [c.strip() for c in wanted_callsigns if c.strip()]  
-        if callsign not in wanted_callsigns:
-            add_to_wanted_action  = menu.addAction(f"Add {callsign} to Wanted Callsigns")
+        wanted_callsigns    = [c.strip().upper() for c in self.wanted_callsigns_var.text().split(",") if c.strip()]
+        monitored_callsigns = [c.strip().upper() for c in self.monitored_callsigns_var.text().split(",") if c.strip()]
+        monitored_cq_zones  = [int(num) for num in re.findall(r'\d+', self.monitored_cq_zones_var.text())]
+
+        actions = {}
+
+        if callsign.upper() not in wanted_callsigns:
+            actions['add_to_wanted'] = menu.addAction(f"Add {callsign} to Wanted Callsigns")
         else:
-            remove_from_wanted_action  = menu.addAction(f"Remove {callsign} from Wanted Callsigns")
+            actions['remove_from_wanted'] = menu.addAction(f"Remove {callsign} from Wanted Callsigns")
+
+        if [callsign.upper()] != wanted_callsigns:
+            actions['replace_wanted'] = menu.addAction(f"Set {callsign} as unique Wanted Callsign")
+
         menu.addSeparator()
 
-        if [callsign] != wanted_callsigns:
-            replace_wanted_action = menu.addAction(f"Set {callsign} as unique Wanted Callsign")                         
-            menu.addSeparator()
-
-        monitored_callsigns = self.monitored_callsigns_var.text().split(",")
-        monitored_callsigns = [c.strip() for c in monitored_callsigns if c.strip()]
-        if callsign not in monitored_callsigns:
-            add_to_monitored_action = menu.addAction(f"Add {callsign} to Monitored Callsigns")
+        if callsign.upper() not in monitored_callsigns:
+            actions['add_to_monitored'] = menu.addAction(f"Add {callsign} to Monitored Callsigns")
         else:
-            remove_from_monitored_action = menu.addAction(f"Remove {callsign} from Monitored Callsigns")
-        menu.addSeparator()   
+            actions['remove_from_monitored'] = menu.addAction(f"Remove {callsign} from Monitored Callsigns")
 
-        monitored_cq_zones =  [int(num) for num in re.findall(r'\d+', self.monitored_cq_zones_var.text())]
-        if cq_zone and cq_zone not in monitored_cq_zones:
-            add_to_monitored_cq_zone_action = menu.addAction(f"Add Zone {cq_zone} to Monitored CQ Zone")
-        if cq_zone and cq_zone in monitored_cq_zones:
-            remove_from_monitored_cq_zone_action = menu.addAction(f"Remove Zone {cq_zone} from Monitored CQ Zone")
-        menu.addSeparator()        
+        menu.addSeparator()
 
-        copy_formatted_message_action = menu.addAction("Copy message to Clipboard")
+        if cq_zone:
+            try:
+                cq_zone_int = int(cq_zone)
+                if cq_zone_int not in monitored_cq_zones:
+                    actions['add_to_cq_zone'] = menu.addAction(f"Add Zone {cq_zone} to Monitored CQ Zones")
+                else:
+                    actions['remove_from_cq_zone'] = menu.addAction(f"Remove Zone {cq_zone} from Monitored CQ Zones")
+            except ValueError:
+                pass 
+
+        menu.addSeparator()
+
+        actions['copy_message'] = menu.addAction("Copy message to Clipboard")
 
         action = menu.exec_(self.output_table.viewport().mapToGlobal(position))
-        
-        if action == copy_formatted_message_action:
+
+        if action is None:
+            return
+
+        if action == actions.get('copy_message'):
             if formatted_message:
                 pyperclip.copy(formatted_message)
                 print(f"Copied to clipboard: {formatted_message}")
             else:
                 print("No formatted message to copy")
-        elif action is not None:
-            if action == locals().get("add_to_wanted_action"):
-                self.update_var(self.wanted_callsigns_var, callsign)
-            if action == locals().get("remove_from_wanted_action"):
-                self.update_var(self.wanted_callsigns_var, callsign, "remove")                
-            elif action == locals().get("replace_wanted_action"):
-                self.wanted_callsigns_var.setText(callsign)
-                self.update_var(self.wanted_callsigns_var, callsign, "replace")
-            elif action == locals().get("add_to_monitored_action"):
-                self.update_var(self.monitored_callsigns_var, callsign)
-            elif action == locals().get("remove_from_monitored_cq_zone_action"):
-                self.update_var(self.monitored_callsigns_var, callsign, "remove")                
-            elif action == locals().get("add_to_monitored_cq_zone_action"):
-                self.update_var(self.monitored_cq_zones_var, cq_zone)
-            elif action == locals().get("remove_from_monitored_cq_zone_action"):
-                self.update_var(self.monitored_cq_zones_var, cq_zone, "remove")                
+        else:
+            # Dictionnaire pour mapper les actions aux fonctions de mise à jour
+            update_actions = {
+                'add_to_wanted'         : lambda: self.update_var(self.wanted_callsigns_var, callsign),
+                'remove_from_wanted'    : lambda: self.update_var(self.wanted_callsigns_var, callsign, "remove"),
+                'replace_wanted'        : lambda: self.update_var(self.wanted_callsigns_var, callsign, "replace"),
+                'add_to_monitored'      : lambda: self.update_var(self.monitored_callsigns_var, callsign),
+                'remove_from_monitored' : lambda: self.update_var(self.monitored_callsigns_var, callsign, "remove"),
+                'add_to_cq_zone'        : lambda: self.update_var(self.monitored_cq_zones_var, cq_zone),
+                'remove_from_cq_zone'   : lambda: self.update_var(self.monitored_cq_zones_var, cq_zone, "remove"),
+            }
+
+            for key, act in actions.items():
+                if action == act:
+                    update_func = update_actions.get(key)
+                    if update_func:
+                        update_func()
+                        break
 
             if self._running:
                 self.stop_monitoring()
-                self.start_monitoring()      
+                self.start_monitoring()
+ 
 
     def update_var(self, var, value, action="add"):
         current_text = var.text()
