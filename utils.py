@@ -41,18 +41,21 @@ def get_log_filename():
 
 def parse_wsjtx_message(
         message,
+        lookup,
         wanted_callsigns,
         excluded_callsigns = set(),
-        monitored_callsigns = set()
+        monitored_callsigns = set(),
+        monitored_cq_zones = set()
     ):
-    directed  = None
-    callsign  = None
-    grid      = None
-    msg       = None
-    cqing     = False
-    wanted    = False
-    monitored = False
-
+    directed        = None
+    callsign        = None
+    callsign_info   = None
+    grid            = None
+    cq_zone         = None
+    msg             = None
+    cqing           = False
+    wanted          = False
+    monitored       = False
 
     match = re.match(r"^<\.\.\.>\s+([A-Z0-9/]+)\s+(\w{2,3}|RR73|\d{2}[A-Z]{2})?", message)
     if match:
@@ -75,25 +78,39 @@ def parse_wsjtx_message(
                 callsign = match.group(2)
                 msg      = match.group(3)
 
-    if callsign:
+    if callsign:         
+        callsign_info = lookup.lookup_callsign(callsign)    
+
+        if callsign_info:            
+            cq_zone = callsign_info["cqz"]
+
         def matches_any(patterns, callsign):
             return any(fnmatch.fnmatch(callsign, pattern) for pattern in patterns)
 
+        """
+            Check if the callsign matches
+        """
         is_wanted    = matches_any(wanted_callsigns, callsign)
         is_excluded  = matches_any(excluded_callsigns, callsign)
         is_monitored = matches_any(monitored_callsigns, callsign)
+        """
+            Check if CQ Zone matches
+        """
+        if cq_zone and cq_zone in monitored_cq_zones:
+            is_monitored = True
 
         wanted    = is_wanted and not is_excluded
         monitored = is_monitored and not is_excluded
 
     return {
-        'directed'  : directed,
-        'callsign'  : callsign,
-        'grid'      : grid,
-        'msg'       : msg,
-        'cqing'     : cqing,
-        'wanted'    : wanted,
-        'monitored' : monitored
+        'directed'      : directed,
+        'callsign'      : callsign,
+        'callsign_info' : callsign_info,
+        'grid'          : grid,
+        'msg'           : msg,
+        'cqing'         : cqing,
+        'wanted'        : wanted,
+        'monitored'     : monitored
     }
 
 def get_mode_interval(mode):

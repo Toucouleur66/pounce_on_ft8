@@ -6,6 +6,7 @@ from PyQt5.QtCore import QObject, pyqtSignal, QThread, QEasingCurve, QPropertyAn
 from PyQt5.QtMultimedia import QSound
 
 import platform
+import re
 import sys
 import traceback
 import pickle
@@ -756,7 +757,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.excluded_callsigns_var.textChanged.connect(self.check_fields)
 
         # Wanted callsigns label
-        self.wanted_callsigns_label = QtWidgets.QLabel(WANTED_CALLSIGNS_HISTORY_LABEL % len(self.wanted_callsigns_history))
+        self.wanted_callsigns_history_label = QtWidgets.QLabel(WANTED_CALLSIGNS_HISTORY_LABEL % len(self.wanted_callsigns_history))
 
         # Listbox (wanted callsigns)
         self.listbox = QtWidgets.QListWidget()
@@ -770,7 +771,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.listbox.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.listbox.customContextMenuRequested.connect(self.on_right_click)
 
-        main_layout.addWidget(self.wanted_callsigns_label, 1, 2, 1, 2)
+        main_layout.addWidget(self.wanted_callsigns_history_label, 1, 2, 1, 2)
         main_layout.addWidget(self.listbox, 2, 2, 5, 2)
 
         self.update_listbox()
@@ -841,7 +842,10 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_table.setColumnWidth(5, 400)
         self.output_table.setColumnWidth(7, 50)
         self.output_table.setColumnWidth(8, 70)
-        
+
+        self.output_table.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.output_table.customContextMenuRequested.connect(self.on_table_right_click)
+
         self.dark_mode = self.is_dark_apperance()
         self.apply_palette(self.dark_mode)
 
@@ -888,31 +892,28 @@ class MainApp(QtWidgets.QMainWindow):
         main_layout.addWidget(self.wanted_callsigns_var, 2, 1)
         main_layout.addWidget(self.monitored_callsigns_label, 3, 0)
         main_layout.addWidget(self.monitored_callsigns_var, 3, 1)
-        """
+    
         main_layout.addWidget(self.monitored_cq_zones_label, 4, 0)
         main_layout.addWidget(self.monitored_cq_zones_var, 4, 1)
         main_layout.addWidget(self.excluded_callsigns_label, 5, 0)
         main_layout.addWidget(self.excluded_callsigns_var, 5, 1)
-        """
-        main_layout.addWidget(self.excluded_callsigns_label, 4, 0)
-        main_layout.addWidget(self.excluded_callsigns_var, 4, 1)
 
         # Mode section
         mode_layout = QtWidgets.QHBoxLayout()
         mode_layout.addWidget(radio_normal)
         mode_layout.addWidget(radio_foxhound)
         mode_layout.addWidget(radio_superfox)
-        main_layout.addLayout(mode_layout, 5, 1)
+        main_layout.addLayout(mode_layout, 6, 1)
 
         # Timer label and log analysis
         main_layout.addWidget(self.timer_value_label, 0, 3)
-        main_layout.addWidget(QtWidgets.QLabel("Status:"), 7, 0)
-        main_layout.addWidget(self.status_label, 7, 1)
+        main_layout.addWidget(QtWidgets.QLabel("Status:"), 8, 0)
+        main_layout.addWidget(self.status_label, 8, 1)
 
-        main_layout.addWidget(self.status_button, 7, 2)
-        main_layout.addWidget(self.stop_button, 7, 3)
+        main_layout.addWidget(self.status_button, 8, 2)
+        main_layout.addWidget(self.stop_button, 8, 3)
 
-        main_layout.addWidget(self.output_table, 8, 0, 1, 4)
+        main_layout.addWidget(self.output_table, 9, 0, 1, 4)
 
         button_layout = QtWidgets.QHBoxLayout()
         button_layout.addWidget(self.settings)
@@ -928,7 +929,7 @@ class MainApp(QtWidgets.QMainWindow):
         bottom_layout.addStretch()  
         bottom_layout.addLayout(button_layout)
 
-        main_layout.addLayout(bottom_layout, 9, 0, 1, 4)
+        main_layout.addLayout(bottom_layout, 10, 0, 1, 4)
 
         self.activity_bar = ActivityBar(max_value=ACTIVITY_BAR_MAX_VALUE)
         self.activity_bar.setFixedWidth(30)
@@ -1041,7 +1042,7 @@ class MainApp(QtWidgets.QMainWindow):
                 row_color = message.get('row_color', None)
 
                 if callsign_info:
-                    entity    = callsign_info["entity"].title()
+                    entity    = (callsign_info.get("entity") or callsign_info.get("name", "Unknown")).title()
                     cq_zone   = callsign_info["cqz"]
                     continent = callsign_info["cont"]
                 elif callsign_info is None:
@@ -1049,12 +1050,14 @@ class MainApp(QtWidgets.QMainWindow):
                  
                 if self.enable_show_all_decoded or row_color:
                     self.add_row_to_table(
+                        message.get('callsign'),
                         message.get('decode_time_str', ''),
                         self.band,
                         message.get('snr', 0),
                         message.get('delta_time', 0.0),
                         message.get('delta_freq', 0),
-                        message.get('formatted_msg', ''),
+                        message.get('message', ''),
+                        message.get('formatted_message'),
                         entity,
                         cq_zone,
                         continent,
@@ -1069,6 +1072,105 @@ class MainApp(QtWidgets.QMainWindow):
                 self.add_message_to_table(message)
         else:
             pass
+
+    def on_table_right_click(self, position):
+        index = self.output_table.indexAt(position)
+        if not index.isValid():
+            return
+    
+        row  = index.row()
+        item = self.output_table.item(row, 0)
+        data = item.data(QtCore.Qt.UserRole)
+
+        if not data:
+            return
+
+        formatted_message = data.get('formatted_message')
+        callsign          = data.get('callsign')
+        cq_zone           = data.get('cq_zone')
+
+        if not callsign:
+            return
+
+        menu = QtWidgets.QMenu()
+
+        wanted_callsigns = self.wanted_callsigns_var.text().split(",")
+        wanted_callsigns = [c.strip() for c in wanted_callsigns if c.strip()]  
+        if callsign not in wanted_callsigns:
+            add_to_wanted_action  = menu.addAction(f"Add {callsign} to Wanted Callsigns")
+        else:
+            remove_from_wanted_action  = menu.addAction(f"Remove {callsign} from Wanted Callsigns")
+        menu.addSeparator()
+
+        if [callsign] != wanted_callsigns:
+            replace_wanted_action = menu.addAction(f"Set {callsign} as unique Wanted Callsign")                         
+            menu.addSeparator()
+
+        monitored_callsigns = self.monitored_callsigns_var.text().split(",")
+        monitored_callsigns = [c.strip() for c in monitored_callsigns if c.strip()]
+        if callsign not in monitored_callsigns:
+            add_to_monitored_action = menu.addAction(f"Add {callsign} to Monitored Callsigns")
+        else:
+            remove_from_monitored_action = menu.addAction(f"Remove {callsign} from Monitored Callsigns")
+        menu.addSeparator()   
+
+        monitored_cq_zones =  [int(num) for num in re.findall(r'\d+', self.monitored_cq_zones_var.text())]
+        if cq_zone and cq_zone not in monitored_cq_zones:
+            add_to_monitored_cq_zone_action = menu.addAction(f"Add Zone {cq_zone} to Monitored CQ Zone")
+        if cq_zone and cq_zone in monitored_cq_zones:
+            remove_from_monitored_cq_zone_action = menu.addAction(f"Remove Zone {cq_zone} from Monitored CQ Zone")
+        menu.addSeparator()        
+
+        copy_formatted_message_action = menu.addAction("Copy message to Clipboard")
+
+        action = menu.exec_(self.output_table.viewport().mapToGlobal(position))
+        
+        if action == copy_formatted_message_action:
+            if formatted_message:
+                pyperclip.copy(formatted_message)
+                print(f"Copied to clipboard: {formatted_message}")
+            else:
+                print("No formatted message to copy")
+        elif action is not None:
+            if action == locals().get("add_to_wanted_action"):
+                self.update_var(self.wanted_callsigns_var, callsign)
+            if action == locals().get("remove_from_wanted_action"):
+                self.update_var(self.wanted_callsigns_var, callsign, "remove")                
+            elif action == locals().get("replace_wanted_action"):
+                self.wanted_callsigns_var.setText(callsign)
+                self.update_var(self.wanted_callsigns_var, callsign, "replace")
+            elif action == locals().get("add_to_monitored_action"):
+                self.update_var(self.monitored_callsigns_var, callsign)
+            elif action == locals().get("remove_from_monitored_cq_zone_action"):
+                self.update_var(self.monitored_callsigns_var, callsign, "remove")                
+            elif action == locals().get("add_to_monitored_cq_zone_action"):
+                self.update_var(self.monitored_cq_zones_var, cq_zone)
+            elif action == locals().get("remove_from_monitored_cq_zone_action"):
+                self.update_var(self.monitored_cq_zones_var, cq_zone, "remove")                
+
+            if self._running:
+                self.stop_monitoring()
+                self.start_monitoring()      
+
+    def update_var(self, var, value, action="add"):
+        current_text = var.text()
+
+        if re.fullmatch(r'[0-9,\s]*', current_text):
+            items = [int(num) for num in re.findall(r'\d+', current_text)]
+            value = int(value)
+        else:
+            items = [c.strip().upper() for c in current_text.split(',') if c.strip()]
+            value = value.strip().upper()
+
+        if action == "replace":
+            items = [value]
+        elif action == "add" and value not in items:
+            items.append(value)
+        elif action == "remove" and value in items:
+            items.remove(value)
+
+        items.sort()
+        var.setText(','.join(map(str, items)))
 
     def update_window_title(self, wsjtx_id):
             new_title = f"{self.base_title} - Connected to {wsjtx_id}"
@@ -1443,7 +1545,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.update_wanted_callsigns_history_counter()
 
     def update_wanted_callsigns_history_counter(self):
-        self.wanted_callsigns_label.setText(WANTED_CALLSIGNS_HISTORY_LABEL % len(self.wanted_callsigns_history))
+        self.wanted_callsigns_history_label.setText(WANTED_CALLSIGNS_HISTORY_LABEL % len(self.wanted_callsigns_history))
 
     def update_alert_label_style(self):
         if self.disable_alert_checkbox.isChecked():
@@ -1501,22 +1603,29 @@ class MainApp(QtWidgets.QMainWindow):
 
     def add_row_to_table(
             self,
+            callsign,
             date_str,
             band,
             snr,
             delta_time,
             delta_freq,
-            formatted_msg,
+            message,
+            formatted_message,
             entity,
             cq_zone,
             continent,
-            row_color=None
+            row_color         = None
         ):
         self.clear_button.setEnabled(True)
         row_position = self.output_table.rowCount()
         self.output_table.insertRow(row_position)
         
         item_date = QTableWidgetItem(date_str)
+        item_date.setData(QtCore.Qt.UserRole, {
+            'callsign'          : callsign, 
+            'formatted_message' : formatted_message.strip(),
+            'cq_zone'           : cq_zone
+        })
         self.output_table.setItem(row_position, 0, item_date)
 
         item_band = QTableWidgetItem(band)
@@ -1539,7 +1648,8 @@ class MainApp(QtWidgets.QMainWindow):
         item_freq.setFont(small_font)
         self.output_table.setItem(row_position, 4, item_freq)
         
-        item_msg = QTableWidgetItem(f" {formatted_msg.strip()}")
+        # Make sure to let an extra space to "message" to add left padding
+        item_msg = QTableWidgetItem(f" {message}")
         # item_msg.setFont(custom_font_mono)
         self.output_table.setItem(row_position, 5, item_msg)
         
@@ -1772,6 +1882,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.monitored_callsigns_label.setStyleSheet("")
 
             self.callsign_notice.show()
+            self.transmitting = False
 
             self.update_status_label_style("grey", "white")
             

@@ -51,7 +51,7 @@ class Listener:
             special_mode,
             message_callback=None
         ):
-      
+
         self.my_call                    = None
         self.my_grid                    = None
         self.dx_call                    = None
@@ -59,6 +59,9 @@ class Listener:
         self.decode_packet_count        = 0
         self.last_decode_packet_time    = None
         self.last_heartbeat_time        = None
+              
+        self.packet_store               = {}
+        self.packet_counter             = 0
 
         self.targeted_call              = None
         self.targeted_call_frequencies  = set()
@@ -392,6 +395,15 @@ class Listener:
             log.debug('{}'.format(self.the_packet))
 
         try:
+            self.packet_counter         += 1
+            packet_id                    = self.packet_counter
+            self.packet_store[packet_id] = self.the_packet
+
+            max_packets = 1_000
+            if len(self.packet_store) > max_packets:
+                oldest_packet_id = min(self.packet_store.keys())
+                del self.packet_store[oldest_packet_id]
+
             message         = self.the_packet.message
             snr             = self.the_packet.snr
             delta_t         = self.the_packet.delta_t
@@ -410,58 +422,48 @@ class Listener:
             # Pase message
             parsed_data = parse_wsjtx_message(
                 message,
+                lookup,
                 self.wanted_callsigns,
                 self.excluded_callsigns,
-                self.monitored_callsigns
+                self.monitored_callsigns,
+                self.monitored_cq_zones
             )
-            directed    = parsed_data['directed']
-            callsign    = parsed_data['callsign']
-            grid        = parsed_data['grid']
-            msg         = parsed_data['msg']
-            cqing       = parsed_data['cqing']
-            wanted      = parsed_data['wanted']
-            monitored   = parsed_data['monitored']
+            directed        = parsed_data['directed']
+            callsign        = parsed_data['callsign']
+            callsign_info   = parsed_data['callsign_info']
+            grid            = parsed_data['grid']
+            msg             = parsed_data['msg']
+            cqing           = parsed_data['cqing']
+            wanted          = parsed_data['wanted']
+            monitored       = parsed_data['monitored']
 
             """
                 How to handle message for GUI
-            """
-            if callsign is None:
-                callsign_info = None
-            else:                    
-                callsign_info = lookup.lookup_callsign(callsign)          
+            """             
 
             if directed == self.my_call and self.my_call is not None:
-                msg_color_text      = "bright_for_my_call"
+                message_color      = "bright_for_my_call"
             elif wanted is True:
-                msg_color_text      = "black_on_yellow"
+                message_color      = "black_on_yellow"
             elif monitored is True:
-                msg_color_text      = "black_on_purple"                                       
+                message_color      = "black_on_purple"                                       
             elif directed in self.wanted_callsigns:  
-                msg_color_text      = "white_on_blue"
+                message_color      = "white_on_blue"
             else:
-                msg_color_text      = None
-
-            formatted_msg = f"{message:<21.21}".strip()      
-
-            display_message = (
-                f"{decode_time_str} "
-                f"{snr:+3d} dB "
-                f"{delta_t:+5.1f}s "
-                f"{delta_f:+6d}Hz ~ "
-                f"{formatted_msg}"
-            )
+                message_color      = None
 
             if self.message_callback:
-                self.message_callback({                        
+                self.message_callback({                
+                'packet_id'         : packet_id,        
                 'decode_time_str'   : decode_time_str,
                 'callsign'          : callsign,
                 'callsign_info'     : callsign_info,                        
-                'snr'               : snr,
                 'delta_time'        : delta_t,
                 'delta_freq'        : delta_f,
-                'formatted_msg'     : formatted_msg,
-                'row_color'         : msg_color_text,
-                'display_message'   : display_message
+                'snr'               : snr,                
+                'message'           : f"{message:<21.21}".strip(),
+                'formatted_message' : formatted_message,                
+                'row_color'         : message_color
             })
                 
             """
@@ -482,7 +484,7 @@ class Listener:
             """
             if directed == self.my_call and msg in {"RR73", "73", "RRR"}:
                 log.warning("Found message [ {} ] we should log a QSO for [ {} ]".format(msg, self.targeted_call))
-                
+
                 if self.targeted_call == callsign:
                     log.warning("Found message to log [ {} ]".format(self.targeted_call))
                     self.qso_time_off = decode_time
