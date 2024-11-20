@@ -428,42 +428,36 @@ class Listener:
                 self.monitored_callsigns,
                 self.monitored_cq_zones
             )
-            directed        = parsed_data['directed']
-            callsign        = parsed_data['callsign']
-            callsign_info   = parsed_data['callsign_info']
-            grid            = parsed_data['grid']
-            msg             = parsed_data['msg']
-            cqing           = parsed_data['cqing']
-            wanted          = parsed_data['wanted']
-            monitored       = parsed_data['monitored']
+            directed          = parsed_data['directed']
+            callsign          = parsed_data['callsign']
+            callsign_info     = parsed_data['callsign_info']
+            grid              = parsed_data['grid']
+            msg               = parsed_data['msg']
+            cqing             = parsed_data['cqing']
+            wanted            = parsed_data['wanted']
+            monitored         = parsed_data['monitored']
+            monitored_cq_zone = parsed_data['monitored_cq_zone']
 
             """
                 How to handle message for GUI
-            """             
-
-            if directed == self.my_call and self.my_call is not None:
-                message_color      = "bright_for_my_call"
-            elif wanted is True:
-                message_color      = "black_on_yellow"
-            elif monitored is True:
-                message_color      = "black_on_purple"                                       
-            elif directed in self.wanted_callsigns:  
-                message_color      = "white_on_blue"
-            else:
-                message_color      = None
+            """                         
 
             if self.message_callback:
                 self.message_callback({                
-                'packet_id'         : packet_id,        
+                'packet_id'         : packet_id,   
+                'my_call'           : self.my_call,     
                 'decode_time_str'   : decode_time_str,
                 'callsign'          : callsign,
-                'callsign_info'     : callsign_info,                        
+                'callsign_info'     : callsign_info,
+                'directed'          : directed,
+                'wanted'            : wanted,
+                'monitored'         : monitored,
+                'monitored_cq_zone' : monitored_cq_zone,
                 'delta_time'        : delta_t,
                 'delta_freq'        : delta_f,
                 'snr'               : snr,                
                 'message'           : f"{message:<21.21}".strip(),
-                'formatted_message' : formatted_message,                
-                'row_color'         : message_color
+                'formatted_message' : formatted_message
             })
                 
             """
@@ -560,7 +554,7 @@ class Listener:
                 if self.message_callback and self.enable_debug_output:
                     self.message_callback(debug_message)
 
-            elif monitored is True:
+            elif monitored or monitored_cq_zone:
                 if self.message_callback:
                     self.message_callback({
                         'type': 'monitored_callsign_detected',

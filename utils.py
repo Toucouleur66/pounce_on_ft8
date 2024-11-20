@@ -7,8 +7,8 @@ import os
 import sys
 import fnmatch
 
-from PyQt5.QtWidgets import QTextEdit, QLineEdit
-from PyQt5.QtCore import QCoreApplication, QStandardPaths
+from PyQt6.QtWidgets import QTextEdit, QLineEdit
+from PyQt6.QtCore import QCoreApplication, QStandardPaths
 
 QCoreApplication.setApplicationName("Wait and Pounce")
 
@@ -25,7 +25,7 @@ def get_local_ip_address():
 
 def get_app_data_dir():
     if getattr(sys, 'frozen', False):
-        app_data_dir = QStandardPaths.writableLocation(QStandardPaths.AppDataLocation)
+        app_data_dir = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation)
     else:
         app_data_dir = os.path.abspath(".")
 
@@ -96,21 +96,24 @@ def parse_wsjtx_message(
         """
             Check if CQ Zone matches
         """
+        is_monitored_cq_zone = False
         if cq_zone and cq_zone in monitored_cq_zones:
-            is_monitored = True
+            is_monitored_cq_zone = True
 
-        wanted    = is_wanted and not is_excluded
-        monitored = is_monitored and not is_excluded
+        wanted            = is_wanted and not is_excluded
+        monitored         = is_monitored and not is_excluded
+        monitored_cq_zone = is_monitored_cq_zone and not is_excluded
 
     return {
-        'directed'      : directed,
-        'callsign'      : callsign,
-        'callsign_info' : callsign_info,
-        'grid'          : grid,
-        'msg'           : msg,
-        'cqing'         : cqing,
-        'wanted'        : wanted,
-        'monitored'     : monitored
+        'directed'           : directed,
+        'callsign'           : callsign,
+        'callsign_info'      : callsign_info,
+        'grid'               : grid,
+        'msg'                : msg,
+        'cqing'              : cqing,
+        'wanted'             : wanted,
+        'monitored'          : monitored,
+        'monitored_cq_zone'  : monitored_cq_zone
     }
 
 def get_mode_interval(mode):
@@ -142,8 +145,9 @@ def get_amateur_band(frequency):
     
     return "Invalid"    
     
+from PyQt6.QtWidgets import QTextEdit, QLineEdit
+from PyQt6.QtGui import QTextCursor
 import re
-from PyQt5.QtWidgets import QTextEdit, QLineEdit
 
 def force_uppercase(widget):
     try:
@@ -152,16 +156,16 @@ def force_uppercase(widget):
         if isinstance(widget, QTextEdit):
             cursor = widget.textCursor()
             current_pos = cursor.position()
-            
+
             current_text = widget.toPlainText()
             uppercase_text = ''.join([char for char in current_text.upper() if allowed_pattern.fullmatch(char)])
             if current_text != uppercase_text:
                 widget.blockSignals(True)
                 widget.setPlainText(uppercase_text)
                 widget.blockSignals(False)
-                
+
                 cursor = widget.textCursor()
-                cursor.setPosition(current_pos)
+                cursor.setPosition(current_pos, QTextCursor.MoveMode.MoveAnchor)
                 widget.setTextCursor(cursor)
         elif isinstance(widget, QLineEdit):
             current_text = widget.text()
@@ -170,9 +174,9 @@ def force_uppercase(widget):
                 widget.blockSignals(True)
                 widget.setText(uppercase_text)
                 widget.blockSignals(False)
-                
+
                 widget.setCursorPosition(len(uppercase_text))
-    except Exception as e:        
+    except Exception as e:
         pass
 
 def force_numbers_and_commas(widget):
@@ -180,7 +184,7 @@ def force_numbers_and_commas(widget):
         if isinstance(widget, QTextEdit):
             cursor = widget.textCursor()
             current_pos = cursor.position()
-            
+
             # Obtenir le texte courant et filtrer pour n'autoriser que des chiffres et des virgules
             current_text = widget.toPlainText()
             filtered_text = ''.join(char for char in current_text if char.isdigit() or char == ',')
@@ -188,11 +192,11 @@ def force_numbers_and_commas(widget):
                 widget.blockSignals(True)
                 widget.setPlainText(filtered_text)
                 widget.blockSignals(False)
-                
+
                 cursor = widget.textCursor()
-                cursor.setPosition(current_pos)
+                cursor.setPosition(current_pos, QTextCursor.MoveMode.MoveAnchor)
                 widget.setTextCursor(cursor)
-        
+
         elif isinstance(widget, QLineEdit):
             current_text = widget.text()
             filtered_text = ''.join(char for char in current_text if char.isdigit() or char == ',')
@@ -200,7 +204,7 @@ def force_numbers_and_commas(widget):
                 widget.blockSignals(True)
                 widget.setText(filtered_text)
                 widget.blockSignals(False)
-                
+
                 widget.setCursorPosition(len(filtered_text))
-    except Exception as e:        
+    except Exception as e:
         pass

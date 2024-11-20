@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 from utils import get_app_data_dir
 
-version_number                  = "2.0.7.1"
+version_number                  = "2.0.8"
 EXPIRATION_DATE                 = datetime(2024, 11, 30)
 
 EVEN                            = "EVEN"
@@ -30,6 +30,9 @@ FG_COLOR_BLACK_ON_PURPLE        = "#000000"
 
 BG_COLOR_BLACK_ON_WHITE         = "#000000"
 FG_COLOR_BLACK_ON_WHITE         = "white"
+
+BG_COLOR_BLACK_ON_CYAN          = "#C8F0C9"
+FG_COLOR_BLACK_ON_CYAN          = "#000000"
 
 STATUS_MONITORING_COLOR         = "#0D81FF"
 STATUS_DECODING_COLOR           = "#2BBE7E"
@@ -78,3 +81,26 @@ DEFAULT_POUNCE_LOG              = True
 DEFAULT_LOG_PACKET_DATA         = False
 DEFAULT_SHOW_ALL_DECODED        = True
 DEFAULT_DELAY_BETWEEN_SOUND     = 120
+
+CONTEXT_MENU_DARWIN_STYLE       = """
+            QMenu {
+                background-color: rgba(255, 255, 255, 0.95);                
+                border-radius: 6px;
+                padding: 6px;
+            }
+            QMenu::item {
+                padding: 4px 12px;
+                font-size: 12px;
+                color: black;
+            }
+            QMenu::item:selected {
+                background-color: #499eff;
+                border-radius: 4px;
+                color: white;
+            }
+            QMenu::separator {
+                height: 1px;
+                background: #CCCCCC;
+                margin: 4px 0;
+            }
+        """

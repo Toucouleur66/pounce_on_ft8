@@ -1,9 +1,9 @@
 # pounce_gui.pyw
 
-from PyQt5 import QtWidgets, QtCore, QtGui
-from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QGraphicsOpacityEffect
-from PyQt5.QtCore import QObject, pyqtSignal, QThread, QEasingCurve, QPropertyAnimation
-from PyQt5.QtMultimedia import QSound
+from PyQt6 import QtWidgets, QtCore, QtGui
+from PyQt6.QtWidgets import QTableWidget, QTableWidgetItem, QApplication, QStyleFactory
+from PyQt6.QtCore import QObject, pyqtSignal, QThread, QEasingCurve, QPointF
+from PyQt6.QtMultimedia import QSoundEffect
 
 import platform
 import re
@@ -45,6 +45,8 @@ from constants import (
     FG_COLOR_WHITE_ON_BLUE,
     BG_COLOR_BLACK_ON_PURPLE,
     FG_COLOR_BLACK_ON_PURPLE,
+    BG_COLOR_BLACK_ON_CYAN,
+    FG_COLOR_BLACK_ON_CYAN,
     # Status button
     STATUS_MONITORING_COLOR,
     STATUS_DECODING_COLOR,
@@ -82,7 +84,9 @@ from constants import (
     DEFAULT_LOG_PACKET_DATA,
     DEFAULT_SHOW_ALL_DECODED,
     DEFAULT_DELAY_BETWEEN_SOUND,
-    ACTIVITY_BAR_MAX_VALUE
+    ACTIVITY_BAR_MAX_VALUE,
+    # Style
+    CONTEXT_MENU_DARWIN_STYLE
     )
 
 if platform.system() == 'Windows':
@@ -98,12 +102,12 @@ if platform.system() == 'Windows':
     custom_font             = QtGui.QFont("Segoe UI", 12)
     custom_font_mono        = QtGui.QFont("Consolas", 12)
     custom_font_mono_lg     = QtGui.QFont("Consolas", 18)
-    custom_font_bold        = QtGui.QFont("Consolas", 12, QtGui.QFont.Bold)
+    custom_font_bold        = QtGui.QFont("Consolas", 12, QtGui.QFont.Weight.Bold)
 elif platform.system() == 'Darwin':
     custom_font             = QtGui.QFont("Lucida Grande", 13)
     custom_font_mono        = QtGui.QFont("Monaco", 13)
     custom_font_mono_lg     = QtGui.QFont("Monaco", 18)
-    custom_font_bold        = QtGui.QFont("Monaco", 12, QtGui.QFont.Bold)
+    custom_font_bold        = QtGui.QFont("Monaco", 12, QtGui.QFont.Weight.Bold)
 
 small_font                  = QtGui.QFont()
 small_font.setPointSize(11)      
@@ -210,7 +214,7 @@ class ActivityBar(QtWidgets.QWidget):
         self.setMinimumSize(50, 200)
         self.animation = QtCore.QPropertyAnimation(self, b"displayedValue")
         self.animation.setDuration(1_000)
-        self.animation.setEasingCurve(QEasingCurve.OutQuad)  
+        self.animation.setEasingCurve(QEasingCurve.Type.OutQuad)  
 
     @QtCore.pyqtProperty(float)
     def displayedValue(self):
@@ -232,9 +236,9 @@ class ActivityBar(QtWidgets.QWidget):
         painter = QtGui.QPainter(self)
         rect = self.rect()
 
-        painter.fillRect(rect, self.palette().color(QtGui.QPalette.Base))
+        painter.fillRect(rect, self.palette().color(QtGui.QPalette.ColorRole.Base))
 
-        painter.setPen(QtGui.QPen(self.palette().color(QtGui.QPalette.AlternateBase), 2))
+        painter.setPen(QtGui.QPen(self.palette().color(QtGui.QPalette.ColorRole.AlternateBase), 2))
         painter.drawRect(rect.adjusted(0, 0, 0, 0))
 
         content_rect = rect.adjusted(1, 2, -1, 0)
@@ -242,20 +246,23 @@ class ActivityBar(QtWidgets.QWidget):
         y = content_rect.bottom() - fill_height
         filled_rect = QtCore.QRectF(content_rect.left(), y, content_rect.width(), fill_height)
 
-        gradient = QtGui.QLinearGradient(content_rect.topLeft(), content_rect.bottomLeft())
+        gradient = QtGui.QLinearGradient(
+            QtCore.QPointF(content_rect.topLeft()),
+            QtCore.QPointF(content_rect.bottomLeft())
+        )
         gradient.setColorAt(0, QtGui.QColor("#EC9A22"))  
         gradient.setColorAt(1, QtGui.QColor("#03FE00"))  
 
         painter.setBrush(gradient)
-        painter.setPen(QtCore.Qt.NoPen)
+        painter.setPen(QtCore.Qt.PenStyle.NoPen)
         painter.drawRect(filled_rect)
 
-        painter.setPen(QtGui.QPen(self.palette().color(QtGui.QPalette.WindowText)))
+        painter.setPen(QtGui.QPen(self.palette().color(QtGui.QPalette.ColorRole.WindowText)))
         if self.is_overflow:
             text = f"{int(self.max_value)}+"
         else:
             text = str(int(self.render_value))
-        painter.drawText(rect, QtCore.Qt.AlignCenter, text)
+        painter.drawText(rect, QtCore.Qt.AlignmentFlag.AlignCenter, text)
 
 class TrayIcon:
     def __init__(self):
@@ -309,9 +316,9 @@ class ToolTip(QtWidgets.QWidget):
 
     def eventFilter(self, obj, event):
         if obj == self.widget:
-            if event.type() == QtCore.QEvent.Enter:
+            if event.type() == QtCore.QEvent.Type.Enter:
                 self.show_tooltip()
-            elif event.type() == QtCore.QEvent.Leave:
+            elif event.type() == QtCore.QEvent.Type.Leave:
                 self.hide_tooltip()
         return super().eventFilter(obj, event)
 
@@ -340,7 +347,7 @@ class SettingsDialog(QtWidgets.QDialog):
         jtdx_notice_label = QtWidgets.QLabel(jtdx_notice_text)
         jtdx_notice_label.setWordWrap(True)
         jtdx_notice_label.setFont(small_font)
-        jtdx_notice_label.setTextFormat(QtCore.Qt.RichText)
+        jtdx_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
         jtdx_notice_label.setStyleSheet("background-color: #9dfffe; color: #555bc2; padding: 5px; font-size: 12px;")
         jtdx_notice_label.setAutoFillBackground(True)
 
@@ -350,9 +357,9 @@ class SettingsDialog(QtWidgets.QDialog):
         self.primary_udp_server_address = QtWidgets.QLineEdit()
         self.primary_udp_server_port = QtWidgets.QLineEdit()
 
-        primary_layout.addWidget(QtWidgets.QLabel("UDP Server:"), 0, 0, QtCore.Qt.AlignLeft)
+        primary_layout.addWidget(QtWidgets.QLabel("UDP Server:"), 0, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
         primary_layout.addWidget(self.primary_udp_server_address, 0, 1)
-        primary_layout.addWidget(QtWidgets.QLabel("UDP Server port number:"), 1, 0, QtCore.Qt.AlignLeft)
+        primary_layout.addWidget(QtWidgets.QLabel("UDP Server port number:"), 1, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
         primary_layout.addWidget(self.primary_udp_server_port, 1, 1)
 
         primary_group.setLayout(primary_layout)
@@ -366,9 +373,9 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_secondary_udp_server = QtWidgets.QCheckBox("Enable sending to secondary UDP server")
         self.enable_secondary_udp_server.setChecked(DEFAULT_SECONDARY_UDP_SERVER)
 
-        secondary_layout.addWidget(QtWidgets.QLabel("UDP Server:"), 0, 0, QtCore.Qt.AlignLeft)
+        secondary_layout.addWidget(QtWidgets.QLabel("UDP Server:"), 0, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
         secondary_layout.addWidget(self.secondary_udp_server_address, 0, 1)
-        secondary_layout.addWidget(QtWidgets.QLabel("UDP Server port number:"), 1, 0, QtCore.Qt.AlignLeft)
+        secondary_layout.addWidget(QtWidgets.QLabel("UDP Server port number:"), 1, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
         secondary_layout.addWidget(self.secondary_udp_server_port, 1, 1)
         secondary_layout.addWidget(self.enable_secondary_udp_server, 2, 0, 1, 2)
 
@@ -435,7 +442,7 @@ class SettingsDialog(QtWidgets.QDialog):
         sound_settings_layout.addWidget(self.enable_sound_directed_my_callsign, 2, 0, 1, 2)
         sound_settings_layout.addWidget(self.enable_sound_monitored_callsigns, 3, 0, 1, 2)
 
-        sound_settings_layout.addWidget(QtWidgets.QLabel("Delay between each monitored callsigns detected:"), 4, 0, QtCore.Qt.AlignLeft)
+        sound_settings_layout.addWidget(QtWidgets.QLabel("Delay between each monitored callsigns detected:"), 4, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
         sound_settings_layout.addLayout(delay_layout, 4, 1, 1, 2)  
 
         sound_settings_group.setLayout(sound_settings_layout)
@@ -465,7 +472,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.load_params()
 
         button_box = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+            QtWidgets.QDialogButtonBox.StandardButton.Ok | QtWidgets.QDialogButtonBox.StandardButton.Cancel
         )
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
@@ -566,7 +573,7 @@ class UpdateWantedDialog(QtWidgets.QDialog):
         
         self.entry = QtWidgets.QWidget()
         self.entry = QtWidgets.QLabel(self.selected_callsign)
-        self.entry.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
+        self.entry.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignTop)
         self.entry.setWordWrap(True)
         self.entry.setFont(custom_font_mono)
         self.entry.setStyleSheet("background-color: white;")
@@ -574,7 +581,7 @@ class UpdateWantedDialog(QtWidgets.QDialog):
         layout.addWidget(self.entry)
         
         button_box = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.Yes | QtWidgets.QDialogButtonBox.No
+            QtWidgets.QDialogButtonBox.StandardButton.Yes | QtWidgets.QDialogButtonBox.StandardButton.No
         )
         layout.addWidget(button_box)
 
@@ -613,7 +620,7 @@ class EditWantedDialog(QtWidgets.QDialog):
         layout.addWidget(self.entry)
 
         button_box = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+            QtWidgets.QDialogButtonBox.StandardButton.Ok | QtWidgets.QDialogButtonBox.StandardButton.Cancel
         )
         layout.addWidget(button_box)
 
@@ -687,11 +694,17 @@ class MainApp(QtWidgets.QMainWindow):
         self.frequency                          = None
         self.enable_show_all_decoded            = None
 
-        self.wanted_callsign_detected_sound     = QSound(f"{CURRENT_DIR}/sounds/495650__matrixxx__supershort-ping-or-short-notification.wav")
-        self.directed_to_my_call_sound          = QSound(f"{CURRENT_DIR}/sounds/716445__scottyd0es__tone12_error.wav")
-        self.ready_to_log_sound                 = QSound(f"{CURRENT_DIR}/sounds/709072__scottyd0es__aeroce-dualtone-5.wav")
-        self.error_occurred_sound               = QSound(f"{CURRENT_DIR}/sounds/142608__autistic-lucario__error.wav")
-        self.monitored_callsign_detected_sound  = QSound(f"{CURRENT_DIR}/sounds/716442__scottyd0es__tone12_alert_3.wav")
+        self.wanted_callsign_detected_sound     = QSoundEffect()
+        self.directed_to_my_call_sound          = QSoundEffect()
+        self.ready_to_log_sound                 = QSoundEffect()
+        self.error_occurred_sound               = QSoundEffect()
+        self.monitored_callsign_detected_sound  = QSoundEffect()
+
+        self.wanted_callsign_detected_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/495650__matrixxx__supershort-ping-or-short-notification.wav"))
+        self.directed_to_my_call_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/716445__scottyd0es__tone12_error.wav"))
+        self.ready_to_log_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/709072__scottyd0es__aeroce-dualtone-5.wav"))
+        self.error_occurred_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/142608__autistic-lucario__error.wav"))
+        self.monitored_callsign_detected_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/716442__scottyd0es__tone12_alert_3.wav"))
         
         # Main layout
         central_widget = QtWidgets.QWidget()
@@ -761,14 +774,14 @@ class MainApp(QtWidgets.QMainWindow):
 
         # Listbox (wanted callsigns)
         self.listbox = QtWidgets.QListWidget()
-        self.listbox.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self.listbox.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
         self.listbox.setFont(custom_font)
-        self.listbox.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.listbox.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.listbox.itemClicked.connect(self.on_listbox_select)
         self.listbox.itemDoubleClicked.connect(self.on_listbox_double_click)
 
         # Context menu for listbox
-        self.listbox.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.listbox.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
         self.listbox.customContextMenuRequested.connect(self.on_right_click)
 
         main_layout.addWidget(self.wanted_callsigns_history_label, 1, 2, 1, 2)
@@ -808,31 +821,37 @@ class MainApp(QtWidgets.QMainWindow):
         for i, label in enumerate(header_labels):
             header_item = QTableWidgetItem(label)
             if label in ['Band', 'Report', 'DT', 'Freq']:
-                header_item.setTextAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+                header_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
             elif label in ['CQ', 'Continent']:
-                header_item.setTextAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)                
+                header_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)                
             else:
-                header_item.setTextAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
+                header_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
             self.output_table.setHorizontalHeaderItem(i, header_item)
-
+        
+        self.output_table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.NoSelection)
         self.output_table.setFont(custom_font)
-        self.output_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
-        self.output_table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
-        self.output_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Interactive)        
+        self.output_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
+        self.output_table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.output_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.Interactive)        
+        self.output_table.horizontalHeader().setStyleSheet("""
+            QHeaderView::section {
+                font-weight: normal;
+            }
+        """)
         self.output_table.verticalHeader().setVisible(False)
         self.output_table.verticalHeader().setDefaultSectionSize(24)
         self.output_table.setAlternatingRowColors(True)
-        self.output_table.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.output_table.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
-        self.output_table.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.Fixed)
-        self.output_table.horizontalHeader().setSectionResizeMode(1, QtWidgets.QHeaderView.Fixed)
-        self.output_table.horizontalHeader().setSectionResizeMode(2, QtWidgets.QHeaderView.Fixed)
-        self.output_table.horizontalHeader().setSectionResizeMode(3, QtWidgets.QHeaderView.Fixed)
-        self.output_table.horizontalHeader().setSectionResizeMode(4, QtWidgets.QHeaderView.Fixed)
-        self.output_table.horizontalHeader().setSectionResizeMode(5, QtWidgets.QHeaderView.Stretch)
-        self.output_table.horizontalHeader().setSectionResizeMode(6, QtWidgets.QHeaderView.Stretch)
-        self.output_table.horizontalHeader().setSectionResizeMode(7, QtWidgets.QHeaderView.Fixed)
-        self.output_table.horizontalHeader().setSectionResizeMode(8, QtWidgets.QHeaderView.Fixed)
+        self.output_table.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.Fixed)
+        self.output_table.horizontalHeader().setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeMode.Fixed)
+        self.output_table.horizontalHeader().setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeMode.Fixed)
+        self.output_table.horizontalHeader().setSectionResizeMode(3, QtWidgets.QHeaderView.ResizeMode.Fixed)
+        self.output_table.horizontalHeader().setSectionResizeMode(4, QtWidgets.QHeaderView.ResizeMode.Fixed)
+        self.output_table.horizontalHeader().setSectionResizeMode(5, QtWidgets.QHeaderView.ResizeMode.Stretch)
+        self.output_table.horizontalHeader().setSectionResizeMode(6, QtWidgets.QHeaderView.ResizeMode.Stretch)
+        self.output_table.horizontalHeader().setSectionResizeMode(7, QtWidgets.QHeaderView.ResizeMode.Fixed)
+        self.output_table.horizontalHeader().setSectionResizeMode(8, QtWidgets.QHeaderView.ResizeMode.Fixed)
         self.output_table.horizontalHeader().setStretchLastSection(False)
         self.output_table.setColumnWidth(0, 160)
         self.output_table.setColumnWidth(1, 45)
@@ -843,8 +862,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_table.setColumnWidth(7, 50)
         self.output_table.setColumnWidth(8, 70)
 
-        self.output_table.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        self.output_table.customContextMenuRequested.connect(self.on_table_right_click)
+        self.output_table.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
+        self.output_table.customContextMenuRequested.connect(self.on_table_context_menu)
+        self.output_table.cellClicked.connect(self.on_table_row_clicked)
 
         self.dark_mode = self.is_dark_apperance()
         self.apply_palette(self.dark_mode)
@@ -972,12 +992,12 @@ class MainApp(QtWidgets.QMainWindow):
         error_item = QTableWidgetItem(message)
         error_item.setForeground(QtGui.QBrush(QtGui.QColor(fg_color)))
         error_item.setBackground(QtGui.QBrush(QtGui.QColor(bg_color)))
-        error_item.setTextAlignment(QtCore.Qt.AlignCenter)
+        error_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         error_item.setFont(custom_font_mono)
 
         self.output_table.setItem(row_position, 0, error_item)
         self.output_table.setSpan(row_position, 0, 1, self.output_table.columnCount())
-        error_item.setFlags(QtCore.Qt.ItemIsEnabled)
+        error_item.setFlags(QtCore.Qt.ItemFlag.ItemIsEnabled)
         self.output_table.scrollToBottom()
 
     @QtCore.pyqtSlot(object)
@@ -985,7 +1005,6 @@ class MainApp(QtWidgets.QMainWindow):
         if isinstance(message, dict):
             message_type = message.get('type', None)
 
-            # Handle message from Listener from wsjtx_listener.py
             if message_type == 'update_mode':
                 self.mode = message.get('mode')            
             elif message_type == 'update_frequency':
@@ -1029,18 +1048,35 @@ class MainApp(QtWidgets.QMainWindow):
                 
                 if play_sound:
                     self.play_sound(message_type)
-            
-            # Handle message from handle_packet from wait_and_pounce.py
+
             elif 'decode_time_str' in message:
                 self.message_times.append(datetime.now())    
 
-                callsign_info = message.get('callsign_info', None)
-                
-                entity    = ""
-                cq_zone   = ""
-                continent = ""
-                row_color = message.get('row_color', None)
+                directed            = message.get('directed')
+                my_call             = message.get('my_call')
+                wanted              = message.get('wanted')
+                monitored           = message.get('monitored')
+                monitored_cq_zone   = message.get('monitored_cq_zone')
+                callsign_info       = message.get('callsign_info', None)
 
+                empty_str           = ''
+                entity              = empty_str
+                cq_zone             = empty_str
+                continent           = empty_str
+                
+                if directed == my_call:
+                    message_color      = "bright_for_my_call"
+                elif wanted is True:
+                    message_color      = "black_on_yellow"
+                elif monitored is True:
+                    message_color      = "black_on_purple" 
+                elif monitored_cq_zone is True:
+                    message_color      = "black_on_cyan"
+                elif directed is not None and directed in self.wanted_callsigns_var.text():  
+                    message_color      = "white_on_blue"
+                else:
+                    message_color      = None
+                
                 if callsign_info:
                     entity    = (callsign_info.get("entity") or callsign_info.get("name", "Unknown")).title()
                     cq_zone   = callsign_info["cqz"]
@@ -1048,10 +1084,10 @@ class MainApp(QtWidgets.QMainWindow):
                 elif callsign_info is None:
                     entity    = "Where?"
                  
-                if self.enable_show_all_decoded or row_color:
+                if self.enable_show_all_decoded or message_color:
                     self.add_row_to_table(
                         message.get('callsign'),
-                        message.get('decode_time_str', ''),
+                        message.get('decode_time_str'),
                         self.band,
                         message.get('snr', 0),
                         message.get('delta_time', 0.0),
@@ -1061,7 +1097,7 @@ class MainApp(QtWidgets.QMainWindow):
                         entity,
                         cq_zone,
                         continent,
-                        row_color
+                        message_color
                     )            
 
         elif isinstance(message, str):
@@ -1073,14 +1109,19 @@ class MainApp(QtWidgets.QMainWindow):
         else:
             pass
 
-    def on_table_right_click(self, position):
+    def on_table_row_clicked(self, row, column):
+        position = self.output_table.visualRect(self.output_table.model().index(row, column)).center()
+        self.on_table_context_menu(position)        
+
+    def on_table_context_menu(self, position):
         index = self.output_table.indexAt(position)
         if not index.isValid():
             return
 
         row = index.row()
+
         item = self.output_table.item(row, 0)
-        data = item.data(QtCore.Qt.UserRole)
+        data = item.data(QtCore.Qt.ItemDataRole.UserRole)
 
         if not data:
             return
@@ -1093,45 +1134,39 @@ class MainApp(QtWidgets.QMainWindow):
             return
 
         menu = QtWidgets.QMenu()
-
-        wanted_callsigns    = [c.strip().upper() for c in self.wanted_callsigns_var.text().split(",") if c.strip()]
-        monitored_callsigns = [c.strip().upper() for c in self.monitored_callsigns_var.text().split(",") if c.strip()]
-        monitored_cq_zones  = [int(num) for num in re.findall(r'\d+', self.monitored_cq_zones_var.text())]
+        if sys.platform == 'darwin':
+            menu.setStyleSheet(CONTEXT_MENU_DARWIN_STYLE)
 
         actions = {}
 
-        if callsign.upper() not in wanted_callsigns:
+        if callsign not in self.wanted_callsigns_var.text():
             actions['add_to_wanted'] = menu.addAction(f"Add {callsign} to Wanted Callsigns")
         else:
             actions['remove_from_wanted'] = menu.addAction(f"Remove {callsign} from Wanted Callsigns")
 
-        if [callsign.upper()] != wanted_callsigns:
-            actions['replace_wanted'] = menu.addAction(f"Set {callsign} as unique Wanted Callsign")
-
+        if callsign != self.wanted_callsigns_var.text():
+            actions['replace_wanted'] = menu.addAction(f"Set {callsign} as your unique Wanted Callsign")
         menu.addSeparator()
 
-        if callsign.upper() not in monitored_callsigns:
+        if callsign not in self.monitored_callsigns_var.text():
             actions['add_to_monitored'] = menu.addAction(f"Add {callsign} to Monitored Callsigns")
         else:
             actions['remove_from_monitored'] = menu.addAction(f"Remove {callsign} from Monitored Callsigns")
-
         menu.addSeparator()
 
         if cq_zone:
             try:
-                cq_zone_int = int(cq_zone)
-                if cq_zone_int not in monitored_cq_zones:
+                if str(cq_zone) not in self.monitored_cq_zones_var.text():
                     actions['add_to_cq_zone'] = menu.addAction(f"Add Zone {cq_zone} to Monitored CQ Zones")
                 else:
                     actions['remove_from_cq_zone'] = menu.addAction(f"Remove Zone {cq_zone} from Monitored CQ Zones")
             except ValueError:
                 pass 
-
         menu.addSeparator()
 
         actions['copy_message'] = menu.addAction("Copy message to Clipboard")
 
-        action = menu.exec_(self.output_table.viewport().mapToGlobal(position))
+        action = menu.exec(self.output_table.viewport().mapToGlobal(position))
 
         if action is None:
             return
@@ -1143,7 +1178,6 @@ class MainApp(QtWidgets.QMainWindow):
             else:
                 print("No formatted message to copy")
         else:
-            # Dictionnaire pour mapper les actions aux fonctions de mise à jour
             update_actions = {
                 'add_to_wanted'         : lambda: self.update_var(self.wanted_callsigns_var, callsign),
                 'remove_from_wanted'    : lambda: self.update_var(self.wanted_callsigns_var, callsign, "remove"),
@@ -1164,7 +1198,6 @@ class MainApp(QtWidgets.QMainWindow):
             if self._running:
                 self.stop_monitoring()
                 self.start_monitoring()
- 
 
     def update_var(self, var, value, action="add"):
         current_text = var.text()
@@ -1197,8 +1230,8 @@ class MainApp(QtWidgets.QMainWindow):
         if self._running:
             selected_callsign = item.text()
             dialog = UpdateWantedDialog(self, selected_callsign=selected_callsign)
-            result = dialog.exec_()
-            if result == QtWidgets.QDialog.Accepted:
+            result = dialog.exec()
+            if result == QtWidgets.QDialog.DialogCode.Accepted:
                 self.wanted_callsigns_var.setText(selected_callsign)
                 if self._running:
                     self.stop_monitoring()
@@ -1364,7 +1397,7 @@ class MainApp(QtWidgets.QMainWindow):
         else:
             status_text_array.append("No HeartBeat received yet.")
 
-        self.status_label.setTextFormat(QtCore.Qt.RichText)
+        self.status_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
         self.status_label.setText('<br>'.join(status_text_array))
 
         if connection_lost:
@@ -1387,7 +1420,7 @@ class MainApp(QtWidgets.QMainWindow):
         params = self.load_params()
 
         dialog = SettingsDialog(self, params)
-        if dialog.exec_() == QtWidgets.QDialog.Accepted:
+        if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
             new_params = dialog.get_result()
         
             previous_enable_pounce_log = self.enable_pounce_log
@@ -1453,52 +1486,53 @@ class MainApp(QtWidgets.QMainWindow):
             qt_fg_color = QtGui.QColor("#ECECEC")
 
             palette = QtGui.QPalette()
-            palette.setColor(QtGui.QPalette.Window, QtGui.QColor('#3C3C3C'))
-            palette.setColor(QtGui.QPalette.WindowText, qt_fg_color)
-            palette.setColor(QtGui.QPalette.Base, QtGui.QColor('#353535'))
-            palette.setColor(QtGui.QPalette.AlternateBase, QtGui.QColor('#454545'))
-            palette.setColor(QtGui.QPalette.ToolTipBase, qt_fg_color)
-            palette.setColor(QtGui.QPalette.ToolTipText, qt_fg_color)
-            palette.setColor(QtGui.QPalette.Text, qt_fg_color)
-            palette.setColor(QtGui.QPalette.Button, QtGui.QColor('#4A4A4A'))
-            palette.setColor(QtGui.QPalette.ButtonText, qt_fg_color)
-            palette.setColor(QtGui.QPalette.BrightText, QtCore.Qt.red)
-            palette.setColor(QtGui.QPalette.Link, QtGui.QColor('#2A82DA'))
-            palette.setColor(QtGui.QPalette.Highlight, qt_fg_color)
-            palette.setColor(QtGui.QPalette.HighlightedText, qt_bg_color)
-            palette.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Text, QtGui.QColor('#6C6C6C'))
+            palette.setColor(QtGui.QPalette.ColorRole.Window, QtGui.QColor('#3C3C3C'))
+            palette.setColor(QtGui.QPalette.ColorRole.WindowText, qt_fg_color)
+            palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor('#353535'))
+            palette.setColor(QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor('#454545'))
+            palette.setColor(QtGui.QPalette.ColorRole.ToolTipBase, qt_fg_color)
+            palette.setColor(QtGui.QPalette.ColorRole.ToolTipText, qt_fg_color)
+            palette.setColor(QtGui.QPalette.ColorRole.Text, qt_fg_color)
+            palette.setColor(QtGui.QPalette.ColorRole.Button, QtGui.QColor('#4A4A4A'))
+            palette.setColor(QtGui.QPalette.ColorRole.ButtonText, qt_fg_color)
+            palette.setColor(QtGui.QPalette.ColorRole.BrightText, QtCore.Qt.GlobalColor.red)
+            palette.setColor(QtGui.QPalette.ColorRole.Link, QtGui.QColor('#2A82DA'))
+            palette.setColor(QtGui.QPalette.ColorRole.Highlight, qt_fg_color)
+            palette.setColor(QtGui.QPalette.ColorRole.HighlightedText, qt_bg_color)
+            palette.setColor(QtGui.QPalette.ColorGroup.Disabled, QtGui.QPalette.ColorRole.Text, QtGui.QColor('#6C6C6C'))
         else:
 
             qt_bg_color = QtGui.QColor("#ECECEC")
             qt_fg_color = QtGui.QColor("#000000")
         
             palette = QtGui.QPalette()
-            palette.setColor(QtGui.QPalette.Window, qt_bg_color)
-            palette.setColor(QtGui.QPalette.WindowText, qt_fg_color)
-            palette.setColor(QtGui.QPalette.Base, QtGui.QColor('white'))
-            palette.setColor(QtGui.QPalette.AlternateBase, QtGui.QColor('#B6B6B6'))
-            palette.setColor(QtGui.QPalette.ToolTipBase, qt_bg_color)
-            palette.setColor(QtGui.QPalette.ToolTipText, qt_bg_color)
-            palette.setColor(QtGui.QPalette.Text, QtCore.Qt.black)
-            palette.setColor(QtGui.QPalette.Button, QtGui.QColor('#E0E0E0'))
-            palette.setColor(QtGui.QPalette.ButtonText, QtCore.Qt.black)
-            palette.setColor(QtGui.QPalette.BrightText, QtCore.Qt.red)
-            palette.setColor(QtGui.QPalette.Link, QtGui.QColor('#2A82DA'))
-            palette.setColor(QtGui.QPalette.Highlight, qt_bg_color)
-            palette.setColor(QtGui.QPalette.HighlightedText, qt_fg_color)
-            palette.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Text, QtGui.QColor('#7F7F7F'))
+            palette.setColor(QtGui.QPalette.ColorRole.Window, qt_bg_color)
+            palette.setColor(QtGui.QPalette.ColorRole.WindowText, qt_fg_color)
+            palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor('white'))
+            palette.setColor(QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor('#B6B6B6'))
+            palette.setColor(QtGui.QPalette.ColorRole.ToolTipBase, qt_bg_color)
+            palette.setColor(QtGui.QPalette.ColorRole.ToolTipText, qt_bg_color)
+            palette.setColor(QtGui.QPalette.ColorRole.Text, QtCore.Qt.GlobalColor.black)
+            palette.setColor(QtGui.QPalette.ColorRole.Button, QtGui.QColor('#E0E0E0'))
+            palette.setColor(QtGui.QPalette.ColorRole.ButtonText, QtCore.Qt.GlobalColor.black)
+            palette.setColor(QtGui.QPalette.ColorRole.BrightText, QtCore.Qt.GlobalColor.red)
+            palette.setColor(QtGui.QPalette.ColorRole.Link, QtGui.QColor('#2A82DA'))
+            palette.setColor(QtGui.QPalette.ColorRole.Highlight, qt_bg_color)
+            palette.setColor(QtGui.QPalette.ColorRole.HighlightedText, qt_fg_color)
+            palette.setColor(QtGui.QPalette.ColorGroup.Disabled, QtGui.QPalette.ColorRole.Text, QtGui.QColor('#7F7F7F'))
+
         
         self.setPalette(palette)
         table_palette = self.output_table.palette()
         
         if dark_mode:
-            table_palette.setColor(QtGui.QPalette.Base, QtGui.QColor('#353535'))
-            table_palette.setColor(QtGui.QPalette.AlternateBase, QtGui.QColor('#454545'))
-            table_palette.setColor(QtGui.QPalette.Text, QtGui.QColor('white'))
+            table_palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor('#353535'))
+            table_palette.setColor(QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor('#454545'))
+            table_palette.setColor(QtGui.QPalette.ColorRole.Text, QtGui.QColor('white'))
         else:
-            table_palette.setColor(QtGui.QPalette.Base, QtGui.QColor('white'))
-            table_palette.setColor(QtGui.QPalette.AlternateBase, QtGui.QColor('#f4f5f5'))
-            table_palette.setColor(QtGui.QPalette.Text, QtGui.QColor('black'))
+            table_palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor('white'))
+            table_palette.setColor(QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor('#f4f5f5'))
+            table_palette.setColor(QtGui.QPalette.ColorRole.Text, QtGui.QColor('black'))
         
         self.output_table.setPalette(table_palette)
                 
@@ -1563,7 +1597,7 @@ class MainApp(QtWidgets.QMainWindow):
 
     def update_alert_label_style(self):
         if self.disable_alert_checkbox.isChecked():
-            self.disable_alert_checkbox.setStyleSheet("background-color: #ff8888;")
+            self.disable_alert_checkbox.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_CYAN};")
         else:
             self.disable_alert_checkbox.setStyleSheet("")
 
@@ -1577,10 +1611,15 @@ class MainApp(QtWidgets.QMainWindow):
 
     def on_right_click(self, position):
         menu = QtWidgets.QMenu()
-        remove_action = menu.addAction("Remove")
-        edit_action = menu.addAction("Edit")
+        if sys.platform == 'darwin':
+            menu.setStyleSheet(CONTEXT_MENU_DARWIN_STYLE)
+        
+        remove_action = menu.addAction("Remove entry")
 
-        action = menu.exec_(self.listbox.mapToGlobal(position))
+        menu.addSeparator()
+        edit_action = menu.addAction("Edit entry")
+
+        action = menu.exec(self.listbox.mapToGlobal(position))
         if action == remove_action:
             self.remove_callsign_from_history()
         elif action == edit_action:
@@ -1602,7 +1641,7 @@ class MainApp(QtWidgets.QMainWindow):
             return
         current_entry = selected_items[0].text()
         dialog = EditWantedDialog(self, initial_value=current_entry)
-        if dialog.exec_() == QtWidgets.QDialog.Accepted:
+        if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
             new_callsigns = dialog.get_result()
             index = self.listbox.row(selected_items[0])
             self.wanted_callsigns_history[index] = new_callsigns
@@ -1635,30 +1674,30 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_table.insertRow(row_position)
         
         item_date = QTableWidgetItem(date_str)
-        item_date.setData(QtCore.Qt.UserRole, {
+        item_date.setData(QtCore.Qt.ItemDataRole.UserRole, {
             'callsign'          : callsign, 
-            'formatted_message' : formatted_message.strip(),
-            'cq_zone'           : cq_zone
+            'cq_zone'           : cq_zone,
+            'formatted_message' : formatted_message.strip()
         })
         self.output_table.setItem(row_position, 0, item_date)
 
         item_band = QTableWidgetItem(band)
-        item_band.setTextAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        item_band.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
         item_band.setFont(small_font)
         self.output_table.setItem(row_position, 1, item_band)
             
         item_snr = QTableWidgetItem(f"{snr:+3d} dB")
-        item_snr.setTextAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        item_snr.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
         item_snr.setFont(small_font)
         self.output_table.setItem(row_position, 2, item_snr)
         
         item_dt = QTableWidgetItem(f"{delta_time:+5.1f}s")
-        item_dt.setTextAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        item_dt.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
         item_dt.setFont(small_font)
         self.output_table.setItem(row_position, 3, item_dt)
         
         item_freq = QTableWidgetItem(f"{delta_freq:+6d}Hz")
-        item_freq.setTextAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        item_freq.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
         item_freq.setFont(small_font)
         self.output_table.setItem(row_position, 4, item_freq)
         
@@ -1671,11 +1710,11 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_table.setItem(row_position, 6, item_country)
 
         item_cq_zone = QTableWidgetItem(f"{cq_zone}")
-        item_cq_zone.setTextAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+        item_cq_zone.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.output_table.setItem(row_position, 7, item_cq_zone)
 
         item_continent = QTableWidgetItem(continent)
-        item_continent.setTextAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+        item_continent.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.output_table.setItem(row_position, 8, item_continent)        
         
         if row_color:
@@ -1696,6 +1735,9 @@ class MainApp(QtWidgets.QMainWindow):
         elif row_color == 'white_on_blue':
             bg_color = QtGui.QColor(BG_COLOR_WHITE_ON_BLUE)
             fg_color = QtGui.QColor(FG_COLOR_WHITE_ON_BLUE)
+        elif row_color == 'black_on_cyan':
+            bg_color = QtGui.QColor(BG_COLOR_BLACK_ON_CYAN)
+            fg_color = QtGui.QColor(FG_COLOR_BLACK_ON_CYAN)
         else:
             bg_color = None
             fg_color = None
@@ -1781,7 +1823,7 @@ class MainApp(QtWidgets.QMainWindow):
         # For decorative purpose only and to match with color being used on output_text 
         self.wanted_callsigns_label.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_YELLOW}; color: {FG_COLOR_BLACK_ON_YELLOW};")
         self.monitored_callsigns_label.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_PURPLE}; color: {FG_COLOR_BLACK_ON_PURPLE};")
-        self.monitored_cq_zones_label.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_PURPLE}; color: {FG_COLOR_BLACK_ON_PURPLE};")
+        self.monitored_cq_zones_label.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_CYAN}; color: {FG_COLOR_BLACK_ON_CYAN};")
 
         if platform.system() == 'Windows':
             tray_icon = TrayIcon()
@@ -1878,10 +1920,16 @@ class MainApp(QtWidgets.QMainWindow):
         if self._running:
             self.stop_event.set()
 
-            if hasattr(self, 'thread') and self.thread.isRunning():
-                self.thread.quit()
-                self.thread.wait()
-                self.thread = None
+            if hasattr(self, 'thread') and self.thread is not None:
+                try:
+                    if self.thread.isRunning():
+                        self.thread.quit()
+                        self.thread.wait()
+                        self.thread = None
+                except RuntimeError as e:
+                    print(f"RuntimeError when stopping thread: {e}")                        
+                finally:
+                    self.thread = None                        
 
             self.worker = None
             self._running = False
@@ -1894,6 +1942,7 @@ class MainApp(QtWidgets.QMainWindow):
 
             self.wanted_callsigns_label.setStyleSheet("")
             self.monitored_callsigns_label.setStyleSheet("")
+            self.monitored_cq_zones_label.setStyleSheet("")
 
             self.callsign_notice.show()
             self.transmitting = False
@@ -1919,14 +1968,14 @@ def check_expiration():
 
         label = QtWidgets.QLabel(f"{GUI_LABEL_VERSION} expired on <u>{expiration_date_str}</u>. Please contact author.")
         label.setFont(small_font)
-        label.setTextFormat(QtCore.Qt.RichText)
+        label.setTextFormat(QtCore.Qt.TextFormat.RichText)
         
         msg_box.setText("")
         msg_box.layout().addWidget(label, 0, 1)
         
-        msg_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+        msg_box.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok)
         msg_box.resize(450, 650)
-        msg_box.exec_()
+        msg_box.exec()
         sys.exit()
 
 def main():
@@ -1935,7 +1984,7 @@ def main():
     app = QtWidgets.QApplication(sys.argv)
     window = MainApp()
     window.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
 
 if __name__ == '__main__':
