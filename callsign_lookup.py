@@ -22,7 +22,7 @@ class CallsignLookup:
 
         self.load_clublog_xml()
 
-    def load_clublog_xml(self, xml_file_path="cty.xml"):
+    def load_clublog_xml(self, xml_file_path=f"{CURRENT_DIR}/cty.xml"):
         try:
             tree = ET.parse(xml_file_path)
             root = tree.getroot()
