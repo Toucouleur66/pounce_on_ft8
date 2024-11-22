@@ -25,6 +25,10 @@ qt_plugins_path = os.path.join(
     'multimedia'
 )
 
+qt_bin_path = os.path.join(
+    PyQt6.QtCore.QLibraryInfo.path(PyQt6.QtCore.QLibraryInfo.LibraryPath.BinariesPath)
+)
+
 if platform.system() == 'Windows':
     pyinstaller_cmd = common_options + [
         "--onefile",
@@ -33,9 +37,14 @@ if platform.system() == 'Windows':
         "--add-data=pounce.ico;.",
         "--add-data=sounds;sounds",
         "--add-data=cty.xml;.",
-        f'--add-binary={qt_plugins_path};PyQt6/Qt6/plugins/multimedia',
-        '--hidden-import=Foundation',
-        '--hidden-import=objc',
+        f"--add-binary={qt_plugins_path};PyQt6/Qt6/plugins/multimedia",
+        f"--add-binary={qt_bin_path}/swscale-8.dll;.",
+        f"--add-binary={qt_bin_path}/avformat-61.dll;.",
+        f"--add-binary={qt_bin_path}/avcodec-61.dll;.",
+        f"--add-binary={qt_bin_path}/avutil-59.dll;.",
+        f"--add-binary={qt_bin_path}/swresample-5.dll;.",
+        "--hidden-import=Foundation",
+        "--hidden-import=objc",
     ]
 elif platform.system() == 'Darwin':
     pyinstaller_cmd = common_options + [
