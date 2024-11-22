@@ -26,6 +26,7 @@ class SimpleServer(object):
 
         the_address = ipaddress.ip_address(ip_address)
         if not the_address.is_multicast:
+            print(f"Starting with non-multicast: {ip_address}")
             self.sock = socket.socket(socket.AF_INET,  # Internet
                                  socket.SOCK_DGRAM)  # UDP
 
@@ -39,6 +40,7 @@ class SimpleServer(object):
             self.sock.settimeout(self.timeout)
 
     def multicast_setup(self, group, port=''):
+        print(f"Starting with multicast setup")
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind(('', port))

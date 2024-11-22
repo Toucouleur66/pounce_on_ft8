@@ -760,16 +760,9 @@ class MainApp(QtWidgets.QMainWindow):
 
         # Signals
         self.wanted_callsigns_var.textChanged.connect(lambda: force_uppercase(self.wanted_callsigns_var))
-        self.wanted_callsigns_var.textChanged.connect(self.check_fields)
-
         self.monitored_callsigns_var.textChanged.connect(lambda: force_uppercase(self.monitored_callsigns_var))
-        self.monitored_callsigns_var.textChanged.connect(self.check_fields)
-
         self.monitored_cq_zones_var.textChanged.connect(lambda: force_numbers_and_commas(self.monitored_cq_zones_var))
-        self.monitored_cq_zones_var.textChanged.connect(self.check_fields)
-
         self.excluded_callsigns_var.textChanged.connect(lambda: force_uppercase(self.excluded_callsigns_var))
-        self.excluded_callsigns_var.textChanged.connect(self.check_fields)
 
         # Wanted callsigns label
         self.wanted_callsigns_history_label = QtWidgets.QLabel(WANTED_CALLSIGNS_HISTORY_LABEL % len(self.wanted_callsigns_history))
@@ -982,7 +975,6 @@ class MainApp(QtWidgets.QMainWindow):
         gui_logger.addHandler(self.gui_handler)
         gui_logger.setLevel(logging.DEBUG)
 
-        self.check_fields()
         self.load_window_position()
         self.init_activity_bar()
 
@@ -1586,12 +1578,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_table.setPalette(table_palette)
                 
         # self.update_stylesheet(dark_mode)
-
-    def check_fields(self):
-        if self.wanted_callsigns_var.text():
-            self.status_button.setEnabled(True)
-        else:
-            self.status_button.setEnabled(False)
 
     def disable_inputs(self):
         self.inputs_enabled = False

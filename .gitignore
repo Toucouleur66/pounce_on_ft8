@@ -1,9 +1,10 @@
 __pycache__/
 /dist/
-/build/
+/build*
 
 *.log
-
+*.cer*
+*.csr
 *.pkl
 
 *.spec

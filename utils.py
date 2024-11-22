@@ -43,19 +43,20 @@ def parse_wsjtx_message(
         message,
         lookup,
         wanted_callsigns,
-        excluded_callsigns = set(),
+        excluded_callsigns  = set(),
         monitored_callsigns = set(),
-        monitored_cq_zones = set()
+        monitored_cq_zones  = set()
     ):
-    directed        = None
-    callsign        = None
-    callsign_info   = None
-    grid            = None
-    cq_zone         = None
-    msg             = None
-    cqing           = False
-    wanted          = False
-    monitored       = False
+    directed          = None
+    callsign          = None
+    callsign_info     = None
+    grid              = None
+    cq_zone           = None
+    msg               = None
+    cqing             = False
+    wanted            = False
+    monitored         = False
+    monitored_cq_zone = False
 
     match = re.match(r"^<\.\.\.>\s+([A-Z0-9/]+)\s+(\w{2,3}|RR73|\d{2}[A-Z]{2})?", message)
     if match:
