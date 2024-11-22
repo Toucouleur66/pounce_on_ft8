@@ -84,9 +84,6 @@ def parse_wsjtx_message(
         if callsign_info:            
             cq_zone = callsign_info["cqz"]
 
-        def matches_any(patterns, callsign):
-            return any(fnmatch.fnmatch(callsign, pattern) for pattern in patterns)
-
         """
             Check if the callsign matches
         """
@@ -115,6 +112,9 @@ def parse_wsjtx_message(
         'monitored'          : monitored,
         'monitored_cq_zone'  : monitored_cq_zone
     }
+
+def matches_any(patterns, callsign):
+    return any(fnmatch.fnmatch(callsign, pattern) for pattern in patterns)
 
 def get_mode_interval(mode):
     if mode == "FT4":

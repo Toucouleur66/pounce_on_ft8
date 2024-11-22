@@ -21,7 +21,7 @@ from datetime import datetime, timezone, timedelta
 from PIL import Image, ImageDraw
 from collections import deque
 
-from utils import get_local_ip_address, get_log_filename
+from utils import get_local_ip_address, get_log_filename, matches_any
 from utils import get_mode_interval, get_amateur_band
 from utils import force_uppercase, force_numbers_and_commas
 
@@ -104,10 +104,12 @@ if platform.system() == 'Windows':
     custom_font_mono_lg     = QtGui.QFont("Consolas", 18)
     custom_font_bold        = QtGui.QFont("Consolas", 12, QtGui.QFont.Weight.Bold)
 elif platform.system() == 'Darwin':
-    custom_font             = QtGui.QFont("Lucida Grande", 13)
+    custom_font             = QtGui.QFont(".AppleSystemUIFont", 13)
     custom_font_mono        = QtGui.QFont("Monaco", 13)
     custom_font_mono_lg     = QtGui.QFont("Monaco", 18)
     custom_font_bold        = QtGui.QFont("Monaco", 12, QtGui.QFont.Weight.Bold)
+
+    menu_font               = QtGui.QFont(".AppleSystemUIFont")
 
 small_font                  = QtGui.QFont()
 small_font.setPointSize(11)      
@@ -490,16 +492,16 @@ class SettingsDialog(QtWidgets.QDialog):
         local_ip_address = get_local_ip_address()
 
         self.primary_udp_server_address.setText(
-            self.params.get('primary_udp_server_address', local_ip_address)
+            self.params.get('primary_udp_server_address') or local_ip_address
         )
         self.primary_udp_server_port.setText(
-            str(self.params.get('primary_udp_server_port', DEFAULT_UDP_PORT))
+            str(self.params.get('primary_udp_server_port') or DEFAULT_UDP_PORT)
         )
         self.secondary_udp_server_address.setText(
-            self.params.get('secondary_udp_server_address', local_ip_address)
+            self.params.get('secondary_udp_server_address') or local_ip_address
         )
         self.secondary_udp_server_port.setText(
-            str(self.params.get('secondary_udp_server_port', DEFAULT_UDP_PORT))
+            str(self.params.get('secondary_udp_server_port') or DEFAULT_UDP_PORT)
         )
         self.enable_secondary_udp_server.setChecked(
             self.params.get('enable_secondary_udp_server', DEFAULT_SECONDARY_UDP_SERVER)
@@ -908,6 +910,11 @@ class MainApp(QtWidgets.QMainWindow):
         self.monitored_cq_zones_label = QtWidgets.QLabel("Monitored CQ Zone(s):")
         self.excluded_callsigns_label = QtWidgets.QLabel("Excluded Callsign(s):")
 
+        self.wanted_callsigns_label.setStyleSheet("border-radius: 6px; padding: 3px;")
+        self.monitored_callsigns_label.setStyleSheet("border-radius: 6px; padding: 3px;")
+        self.monitored_cq_zones_label.setStyleSheet("border-radius: 6px; padding: 3px;")
+        self.excluded_callsigns_label.setStyleSheet("border-radius: 6px; padding: 3px;")
+
         main_layout.addWidget(self.wanted_callsigns_label, 2, 0)
         main_layout.addWidget(self.wanted_callsigns_var, 2, 1)
         main_layout.addWidget(self.monitored_callsigns_label, 3, 0)
@@ -1052,12 +1059,13 @@ class MainApp(QtWidgets.QMainWindow):
             elif 'decode_time_str' in message:
                 self.message_times.append(datetime.now())    
 
+                callsign            = message.get('callsign')
+                callsign_info       = message.get('callsign_info', None)
                 directed            = message.get('directed')
                 my_call             = message.get('my_call')
                 wanted              = message.get('wanted')
                 monitored           = message.get('monitored')
                 monitored_cq_zone   = message.get('monitored_cq_zone')
-                callsign_info       = message.get('callsign_info', None)
 
                 empty_str           = ''
                 entity              = empty_str
@@ -1072,7 +1080,10 @@ class MainApp(QtWidgets.QMainWindow):
                     message_color      = "black_on_purple" 
                 elif monitored_cq_zone is True:
                     message_color      = "black_on_cyan"
-                elif directed is not None and directed in self.wanted_callsigns_var.text():  
+                elif (
+                    directed is not None and 
+                    matches_any([callsign.strip() for callsign in self.wanted_callsigns_var.text().split(',')], directed)
+                ):                    
                     message_color      = "white_on_blue"
                 else:
                     message_color      = None
@@ -1086,7 +1097,8 @@ class MainApp(QtWidgets.QMainWindow):
                  
                 if self.enable_show_all_decoded or message_color:
                     self.add_row_to_table(
-                        message.get('callsign'),
+                        callsign,
+                        directed,
                         message.get('decode_time_str'),
                         self.band,
                         message.get('snr', 0),
@@ -1128,6 +1140,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         formatted_message   = data.get('formatted_message')
         callsign            = data.get('callsign')
+        directed            = data.get('directed')
         cq_zone             = data.get('cq_zone')
 
         if not callsign:
@@ -1136,24 +1149,52 @@ class MainApp(QtWidgets.QMainWindow):
         menu = QtWidgets.QMenu()
         if sys.platform == 'darwin':
             menu.setStyleSheet(CONTEXT_MENU_DARWIN_STYLE)
+            menu.setFont(menu_font)
 
         actions = {}
 
+        """
+            Wanted Callsigns
+        """
         if callsign not in self.wanted_callsigns_var.text():
-            actions['add_to_wanted'] = menu.addAction(f"Add {callsign} to Wanted Callsigns")
+            actions['add_callsign_to_wanted'] = menu.addAction(f"Add {callsign} to Wanted Callsigns")
         else:
-            actions['remove_from_wanted'] = menu.addAction(f"Remove {callsign} from Wanted Callsigns")
+            actions['remove_callsign_from_wanted'] = menu.addAction(f"Remove {callsign} from Wanted Callsigns")
 
         if callsign != self.wanted_callsigns_var.text():
-            actions['replace_wanted'] = menu.addAction(f"Set {callsign} as your unique Wanted Callsign")
+            actions['replace_wanted_with_callsign'] = menu.addAction(f"Make {callsign} your only Wanted Callsign")
         menu.addSeparator()
 
+        """
+            Monitored Callsigns
+        """
         if callsign not in self.monitored_callsigns_var.text():
-            actions['add_to_monitored'] = menu.addAction(f"Add {callsign} to Monitored Callsigns")
+            actions['add_callsign_to_monitored'] = menu.addAction(f"Add {callsign} to Monitored Callsigns")
         else:
-            actions['remove_from_monitored'] = menu.addAction(f"Remove {callsign} from Monitored Callsigns")
+            actions['remove_callsign_from_monitored'] = menu.addAction(f"Remove {callsign} from Monitored Callsigns")
         menu.addSeparator()
 
+        """
+            Directed Callsigns
+        """
+        if directed:
+            if directed not in self.wanted_callsigns_var.text():
+                actions['add_directed_to_wanted'] = menu.addAction(f"Add {directed} to Wanted Callsigns")
+            else:
+                actions['remove_directed_from_wanted'] = menu.addAction(f"Remove {directed} from Wanted Callsigns")
+
+            if directed != self.wanted_callsigns_var.text():
+                actions['replace_wanted_with_directed'] = menu.addAction(f"Make {directed} your only Monitored Callsign")                
+
+            if directed not in self.monitored_callsigns_var.text():
+                actions['add_directed_to_monitored'] = menu.addAction(f"Add {directed} to Monitored Callsigns")
+            else:
+                actions['remove_directed_from_monitored'] = menu.addAction(f"Remove {directed} from Monitored Callsigns")
+            menu.addSeparator()
+
+        """
+            Monitored CQ Zones
+        """
         if cq_zone:
             try:
                 if str(cq_zone) not in self.monitored_cq_zones_var.text():
@@ -1164,6 +1205,9 @@ class MainApp(QtWidgets.QMainWindow):
                 pass 
         menu.addSeparator()
 
+        """
+            Copy message
+        """
         actions['copy_message'] = menu.addAction("Copy message to Clipboard")
 
         action = menu.exec(self.output_table.viewport().mapToGlobal(position))
@@ -1179,13 +1223,18 @@ class MainApp(QtWidgets.QMainWindow):
                 print("No formatted message to copy")
         else:
             update_actions = {
-                'add_to_wanted'         : lambda: self.update_var(self.wanted_callsigns_var, callsign),
-                'remove_from_wanted'    : lambda: self.update_var(self.wanted_callsigns_var, callsign, "remove"),
-                'replace_wanted'        : lambda: self.update_var(self.wanted_callsigns_var, callsign, "replace"),
-                'add_to_monitored'      : lambda: self.update_var(self.monitored_callsigns_var, callsign),
-                'remove_from_monitored' : lambda: self.update_var(self.monitored_callsigns_var, callsign, "remove"),
-                'add_to_cq_zone'        : lambda: self.update_var(self.monitored_cq_zones_var, cq_zone),
-                'remove_from_cq_zone'   : lambda: self.update_var(self.monitored_cq_zones_var, cq_zone, "remove"),
+                'add_callsign_to_wanted'         : lambda: self.update_var(self.wanted_callsigns_var, callsign),
+                'remove_callsign_from_wanted'    : lambda: self.update_var(self.wanted_callsigns_var, callsign, "remove"),
+                'replace_wanted_with_callsign'   : lambda: self.update_var(self.wanted_callsigns_var, callsign, "replace"),
+                'add_callsign_to_monitored'      : lambda: self.update_var(self.monitored_callsigns_var, callsign),
+                'remove_callsign_from_monitored' : lambda: self.update_var(self.monitored_callsigns_var, callsign, "remove"),
+                'add_directed_to_wanted'         : lambda: self.update_var(self.wanted_callsigns_var, directed),
+                'remove_directed_from_wanted'    : lambda: self.update_var(self.wanted_callsigns_var, directed, "remove"),
+                'replace_wanted_with_directed'   : lambda: self.update_var(self.wanted_callsigns_var, directed, "replace"),
+                'add_directed_to_monitored'      : lambda: self.update_var(self.monitored_callsigns_var, directed),
+                'remove_directed_from_monitored' : lambda: self.update_var(self.monitored_callsigns_var, directed, "remove"),
+                'add_to_cq_zone'                 : lambda: self.update_var(self.monitored_cq_zones_var, cq_zone),
+                'remove_from_cq_zone'            : lambda: self.update_var(self.monitored_cq_zones_var, cq_zone, "remove"),
             }
 
             for key, act in actions.items():
@@ -1613,6 +1662,7 @@ class MainApp(QtWidgets.QMainWindow):
         menu = QtWidgets.QMenu()
         if sys.platform == 'darwin':
             menu.setStyleSheet(CONTEXT_MENU_DARWIN_STYLE)
+            menu.setFont(menu_font)
         
         remove_action = menu.addAction("Remove entry")
 
@@ -1657,6 +1707,7 @@ class MainApp(QtWidgets.QMainWindow):
     def add_row_to_table(
             self,
             callsign,
+            directed,
             date_str,
             band,
             snr,
@@ -1676,6 +1727,7 @@ class MainApp(QtWidgets.QMainWindow):
         item_date = QTableWidgetItem(date_str)
         item_date.setData(QtCore.Qt.ItemDataRole.UserRole, {
             'callsign'          : callsign, 
+            'directed'          : directed,
             'cq_zone'           : cq_zone,
             'formatted_message' : formatted_message.strip()
         })
@@ -1821,9 +1873,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.callsign_notice.hide()
 
         # For decorative purpose only and to match with color being used on output_text 
-        self.wanted_callsigns_label.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_YELLOW}; color: {FG_COLOR_BLACK_ON_YELLOW};")
-        self.monitored_callsigns_label.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_PURPLE}; color: {FG_COLOR_BLACK_ON_PURPLE};")
-        self.monitored_cq_zones_label.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_CYAN}; color: {FG_COLOR_BLACK_ON_CYAN};")
+        self.wanted_callsigns_label.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_YELLOW}; color: {FG_COLOR_BLACK_ON_YELLOW}; border-radius: 6px; padding: 3px;")
+        self.monitored_callsigns_label.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_PURPLE}; color: {FG_COLOR_BLACK_ON_PURPLE}; border-radius: 6px; padding: 3px;")
+        self.monitored_cq_zones_label.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_CYAN}; color: {FG_COLOR_BLACK_ON_CYAN}; border-radius: 6px; padding: 3px;")
 
         if platform.system() == 'Windows':
             tray_icon = TrayIcon()
