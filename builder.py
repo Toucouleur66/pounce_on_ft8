@@ -8,7 +8,8 @@ import PyQt6.QtCore
 
 from constants import version_number
 
-app_name = f"Wait & Pounce v{version_number}"
+# app_name = f"Wait & Pounce v{version_number}"
+app_name = f"WaitAndPounce"
 
 # Common options for PyInstaller
 common_options = [
@@ -36,6 +37,7 @@ if platform.system() == 'Windows':
         f'--add-binary={qt_plugins_path};PyQt6/Qt6/plugins/multimedia',
         '--hidden-import=Foundation',
         '--hidden-import=objc',
+        '--noconfirm',
     ]
 elif platform.system() == 'Darwin':
     pyinstaller_cmd = common_options + [
@@ -46,6 +48,7 @@ elif platform.system() == 'Darwin':
         f'--add-binary={qt_plugins_path}:PyQt6/Qt6/plugins/multimedia',
         '--hidden-import=Foundation',
         '--hidden-import=objc',
+        '--noconfirm',
     ]
 
 # Run the PyInstaller command

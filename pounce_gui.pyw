@@ -18,8 +18,11 @@ import pyperclip
 import logging
 
 from datetime import datetime, timezone, timedelta
-from PIL import Image, ImageDraw
 from collections import deque
+from monitoring_setting import MonitoringSettings
+from tray_icon import TrayIcon
+from activity_bar import ActivityBar
+from tooltip import ToolTip
 
 from utils import get_local_ip_address, get_log_filename, matches_any
 from utils import get_mode_interval, get_amateur_band
@@ -88,9 +91,6 @@ from constants import (
     # Style
     CONTEXT_MENU_DARWIN_STYLE
     )
-
-if platform.system() == 'Windows':
-    from pystray import Icon, MenuItem
 
 stop_event = threading.Event()
 
@@ -205,133 +205,6 @@ class Worker(QObject):
             self.error.emit(error_message)
         finally:
             self.finished.emit()
-
-class ActivityBar(QtWidgets.QWidget):
-    def __init__(self, parent=None, max_value=ACTIVITY_BAR_MAX_VALUE):
-        super(ActivityBar, self).__init__(parent)
-        self.max_value = max_value
-        self.current_value = 0
-        self.render_value = 0  
-        self.is_overflow = False  # Indicateur pour valeur dépassant le maximum
-        self.setMinimumSize(50, 200)
-        self.animation = QtCore.QPropertyAnimation(self, b"displayedValue")
-        self.animation.setDuration(1_000)
-        self.animation.setEasingCurve(QEasingCurve.Type.OutQuad)  
-
-    @QtCore.pyqtProperty(float)
-    def displayedValue(self):
-        return self.render_value
-
-    @displayedValue.setter
-    def displayedValue(self, value):
-        self.render_value = value
-        self.update()
-
-    def setValue(self, value):
-        self.is_overflow = value > self.max_value 
-        self.animation.stop()
-        self.animation.setStartValue(self.render_value)
-        self.animation.setEndValue(min(value, self.max_value))
-        self.animation.start()    
-
-    def paintEvent(self, event):
-        painter = QtGui.QPainter(self)
-        rect = self.rect()
-
-        painter.fillRect(rect, self.palette().color(QtGui.QPalette.ColorRole.Base))
-
-        painter.setPen(QtGui.QPen(self.palette().color(QtGui.QPalette.ColorRole.AlternateBase), 2))
-        painter.drawRect(rect.adjusted(0, 0, 0, 0))
-
-        content_rect = rect.adjusted(1, 2, -1, 0)
-        fill_height = content_rect.height() * (self.render_value / self.max_value)
-        y = content_rect.bottom() - fill_height
-        filled_rect = QtCore.QRectF(content_rect.left(), y, content_rect.width(), fill_height)
-
-        gradient = QtGui.QLinearGradient(
-            QtCore.QPointF(content_rect.topLeft()),
-            QtCore.QPointF(content_rect.bottomLeft())
-        )
-        gradient.setColorAt(0, QtGui.QColor("#EC9A22"))  
-        gradient.setColorAt(1, QtGui.QColor("#03FE00"))  
-
-        painter.setBrush(gradient)
-        painter.setPen(QtCore.Qt.PenStyle.NoPen)
-        painter.drawRect(filled_rect)
-
-        painter.setPen(QtGui.QPen(self.palette().color(QtGui.QPalette.ColorRole.WindowText)))
-        if self.is_overflow:
-            text = f"{int(self.max_value)}+"
-        else:
-            text = str(int(self.render_value))
-        painter.drawText(rect, QtCore.Qt.AlignmentFlag.AlignCenter, text)
-
-class TrayIcon:
-    def __init__(self):
-        self.color1 = FG_COLOR_REGULAR_FOCUS
-        self.color2 = BG_COLOR_REGULAR_FOCUS
-        self.current_color = self.color1
-        self.icon = None
-        self.blink_thread = None
-        self._running = False
-
-    def create_icon(self, color, size=(64, 64)):
-        img = Image.new('RGB', size, color)
-        draw = ImageDraw.Draw(img)
-        draw.rectangle([0, 0, size[0], size[1]], fill=color)
-        return img
-
-    def blink_icon(self):
-        while self._running:
-            self.icon.icon = self.create_icon(self.current_color)
-            self.icon.update_menu()
-            self.current_color = self.color2 if self.current_color == self.color1 else self.color1
-            time.sleep(1)
-
-    def quit_action(self, icon):
-        self._running = False
-        icon.stop()
-
-    def start(self):
-        self._running = True
-        self.icon = Icon('Pounce Icon', self.create_icon(self.color1))
-
-        self.blink_thread = threading.Thread(target=self.blink_icon, daemon=True)
-        self.blink_thread.start()
-
-        self.icon.run()
-
-    def stop(self):
-        self._running = False
-        if self.icon:
-            self.icon.stop()
-
-class ToolTip(QtWidgets.QWidget):
-    def __init__(self, widget, text=''):
-        super().__init__()
-        self.widget = widget
-        self.text = text
-        self.tooltip_window = None
-        self.widget.installEventFilter(self)
-
-        QtWidgets.QToolTip.setFont(custom_font_mono)
-
-    def eventFilter(self, obj, event):
-        if obj == self.widget:
-            if event.type() == QtCore.QEvent.Type.Enter:
-                self.show_tooltip()
-            elif event.type() == QtCore.QEvent.Type.Leave:
-                self.hide_tooltip()
-        return super().eventFilter(obj, event)
-
-    def show_tooltip(self):
-        self.text = self.widget.text().replace(",", "<br/>")
-        if not self.text:
-            return
-        QtWidgets.QToolTip.showText(QtGui.QCursor.pos(), self.text, self.widget)
-
-    def hide_tooltip(self):
-        QtWidgets.QToolTip.hideText()
 
 class SettingsDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, params=None):
@@ -652,6 +525,8 @@ class MainApp(QtWidgets.QMainWindow):
     def __init__(self):
         super(MainApp, self).__init__()
 
+        # self.monitoring_settings = MonitoringSettings()        
+
         # Window size, title and icon
         self.setGeometry(100, 100, 900, 700)
         self.base_title = GUI_LABEL_VERSION
@@ -823,9 +698,9 @@ class MainApp(QtWidgets.QMainWindow):
                 header_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
             self.output_table.setHorizontalHeaderItem(i, header_item)
         
-        self.output_table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.NoSelection)
         self.output_table.setFont(custom_font)
-        self.output_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
+        self.output_table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.NoSelection)
+        # self.output_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
         self.output_table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
         self.output_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.Interactive)        
         self.output_table.horizontalHeader().setStyleSheet("""
