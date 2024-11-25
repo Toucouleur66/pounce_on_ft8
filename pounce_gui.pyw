@@ -570,7 +570,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.listbox.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
         self.listbox.setFont(custom_font)
         self.listbox.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.listbox.itemClicked.connect(self.on_listbox_select)
+        self.listbox.itemClicked.connect(self.on_listbox_double_click)
         self.listbox.itemDoubleClicked.connect(self.on_listbox_double_click)
 
         # Context menu for listbox
@@ -1037,8 +1037,10 @@ class MainApp(QtWidgets.QMainWindow):
 
     def update_var(self, var, value, action="add"):
         current_text = var.text()
-
-        if re.fullmatch(r'[0-9,\s]*', current_text):
+        
+        if current_text.strip() == "":
+            items = []
+        elif re.fullmatch(r'[0-9,\s]*', current_text):
             items = [int(num) for num in re.findall(r'\d+', current_text)]
             value = int(value)
         else:
@@ -1454,14 +1456,6 @@ class MainApp(QtWidgets.QMainWindow):
             self.disable_alert_checkbox.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_CYAN};")
         else:
             self.disable_alert_checkbox.setStyleSheet("")
-
-    def on_listbox_select(self):
-        if not self.inputs_enabled:
-            return
-        selected_item = self.listbox.currentItem()
-        if selected_item:
-            selected_callsign = selected_item.text()
-            self.wanted_callsigns_var.setText(selected_callsign)
 
     def on_right_click(self, position):
         menu = QtWidgets.QMenu()
