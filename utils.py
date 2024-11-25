@@ -117,6 +117,14 @@ def parse_wsjtx_message(
 def matches_any(patterns, callsign):
     return any(fnmatch.fnmatch(callsign, pattern) for pattern in patterns)
 
+def text_to_array(pattern):
+    if re.fullmatch(r'[0-9,\s]*', pattern):
+        array = [int(number) for number in re.findall(r'\d+', pattern)]
+    else:
+        array = [text.strip().upper() for text in pattern.split(',') if text.strip()]
+        
+    return sorted(array)
+
 def get_mode_interval(mode):
     if mode == "FT4":
         return 7.5

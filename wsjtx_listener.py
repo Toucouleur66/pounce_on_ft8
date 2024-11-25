@@ -44,6 +44,7 @@ class Listener:
             enable_debug_output,
             enable_pounce_log,        
             enable_log_packet_data, 
+            monitoring_settings,
             monitored_callsigns,
             monitored_cq_zones,
             excluded_callsigns,
@@ -97,12 +98,16 @@ class Listener:
         self.enable_pounce_log              = enable_pounce_log 
         self.enable_log_packet_data         = enable_log_packet_data
 
+        self.monitoring_settings            = monitoring_settings
+
         self.wanted_callsigns               = set(wanted_callsigns)
         self.excluded_callsigns             = set(excluded_callsigns)
         self.monitored_callsigns            = set(monitored_callsigns)
         self.monitored_cq_zones             = set(monitored_cq_zones)
         self.special_mode                   = special_mode
         self.message_callback               = message_callback
+
+        self.update_settings()
 
         self._running                       = True
 
@@ -140,6 +145,14 @@ class Listener:
             self.secondary_udp_server_port
         )        
 
+    def update_settings(self):
+        self.wanted_callsigns       = self.monitoring_settings.get_wanted_callsigns()
+        self.excluded_callsigns     = self.monitoring_settings.get_excluded_callsigns()
+        self.monitored_callsigns    = self.monitoring_settings.get_monitored_callsigns()
+        self.monitored_cq_zones     = self.monitoring_settings.get_monitored_cq_zones()
+
+        log.warning(f"Updated settings:\n\tWanted={self.wanted_callsigns}\n\tExcluded={self.excluded_callsigns}\n\tMonitored={self.monitored_callsigns}\n\tZones={self.monitored_cq_zones}")
+        
     def stop(self):
         self._running = False
         self.s.sock.close() 

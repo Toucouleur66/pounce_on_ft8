@@ -13,24 +13,26 @@ import pickle
 import os
 import queue
 import threading
-import time
 import pyperclip
 import logging
 
 from datetime import datetime, timezone, timedelta
 from collections import deque
-from monitoring_setting import MonitoringSettings
+from functools import partial
+
+# Custom classes 
 from tray_icon import TrayIcon
 from activity_bar import ActivityBar
 from tooltip import ToolTip
+from worker import Worker
+from monitoring_setting import MonitoringSettings
 
 from utils import get_local_ip_address, get_log_filename, matches_any
 from utils import get_mode_interval, get_amateur_band
-from utils import force_uppercase, force_numbers_and_commas
+from utils import force_uppercase, force_numbers_and_commas, text_to_array
 
 from logger import get_logger, add_file_handler, remove_file_handler
 from gui_handler import GUIHandler
-from wsjtx_listener import Listener
 
 from constants import (
     EXPIRATION_DATE,
@@ -113,98 +115,6 @@ elif platform.system() == 'Darwin':
 
 small_font                  = QtGui.QFont()
 small_font.setPointSize(11)      
-
-class Worker(QObject):
-    finished = pyqtSignal()
-    error = pyqtSignal(str)
-    message = pyqtSignal(object)
-
-    def __init__(
-            self,
-            monitored_callsigns,
-            monitored_cq_zones,
-            excluded_callsigns,
-            wanted_callsigns,
-            mode,
-            stop_event,
-            primary_udp_server_address,
-            primary_udp_server_port,
-            secondary_udp_server_address,
-            secondary_udp_server_port,
-            enable_secondary_udp_server,
-            enable_sending_reply,
-            enable_gap_finder,
-            enable_watchdog_bypass,
-            enable_debug_output,
-            enable_pounce_log,
-            enable_log_packet_data                      
-        ):
-        super(Worker, self).__init__()
-
-        if isinstance(wanted_callsigns, str):
-            wanted_callsigns = [callsign.strip() for callsign in wanted_callsigns.split(',')]
-
-        if isinstance(excluded_callsigns, str):
-            excluded_callsigns = [callsign.strip() for callsign in excluded_callsigns.split(',')]        
-
-        if isinstance(monitored_callsigns, str):
-            monitored_callsigns = [callsign.strip() for callsign in monitored_callsigns.split(',')]         
-
-        if isinstance(monitored_cq_zones, str):
-            monitored_cq_zones = [
-                int(cq_zone.strip()) for cq_zone in monitored_cq_zones.split(',') if cq_zone.strip()
-            ]
-
-        self.monitored_callsigns            = monitored_callsigns
-        self.monitored_cq_zones             = monitored_cq_zones
-        self.excluded_callsigns             = excluded_callsigns
-        self.wanted_callsigns               = wanted_callsigns
-        self.mode                           = mode
-        self.stop_event                     = stop_event
-        self.primary_udp_server_address     = primary_udp_server_address
-        self.primary_udp_server_port        = primary_udp_server_port
-        self.secondary_udp_server_address   = secondary_udp_server_address
-        self.secondary_udp_server_port      = secondary_udp_server_port
-        self.enable_secondary_udp_server    = enable_secondary_udp_server
-        self.enable_sending_reply           = enable_sending_reply
-        self.enable_gap_finder               = enable_gap_finder
-        self.enable_watchdog_bypass         = enable_watchdog_bypass
-        self.enable_debug_output            = enable_debug_output
-        self.enable_pounce_log              = enable_pounce_log   
-        self.enable_log_packet_data         = enable_log_packet_data
-        
-    def run(self):
-        try:
-            listener = Listener(
-                primary_udp_server_address      = self.primary_udp_server_address,
-                primary_udp_server_port         = self.primary_udp_server_port,
-                secondary_udp_server_address    = self.secondary_udp_server_address,
-                secondary_udp_server_port       = self.secondary_udp_server_port,
-                enable_secondary_udp_server     = self.enable_secondary_udp_server,
-                enable_sending_reply            = self.enable_sending_reply,
-                enable_gap_finder                = self.enable_gap_finder,
-                enable_watchdog_bypass          = self.enable_watchdog_bypass,
-                enable_debug_output             = self.enable_debug_output,
-                enable_pounce_log               = self.enable_pounce_log,
-                enable_log_packet_data          = self.enable_log_packet_data,
-                monitored_callsigns             = self.monitored_callsigns,
-                monitored_cq_zones              = self.monitored_cq_zones,
-                excluded_callsigns              = self.excluded_callsigns,
-                wanted_callsigns                = self.wanted_callsigns,
-                special_mode                    = self.mode,
-                message_callback                = self.message.emit
-            )
-            listener.listen()
-
-            while not self.stop_event.is_set():
-                time.sleep(0.1)
-            listener.stop()
-            listener.t.join()
-        except Exception as e:
-            error_message = f"{e}\n{traceback.format_exc()}"
-            self.error.emit(error_message)
-        finally:
-            self.finished.emit()
 
 class SettingsDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, params=None):
@@ -503,10 +413,7 @@ class EditWantedDialog(QtWidgets.QDialog):
         button_box.rejected.connect(self.reject)
 
     def get_result(self):
-        text = self.entry.toPlainText().strip()
-        callsigns = [call.strip() for call in text.split(",") if call.strip()]
-        sorted_callsigns = sorted(callsigns)
-        return ",".join(sorted_callsigns)
+        return ",".join(text_to_array(self.entry.toPlainText().strip()))
 
 class GuiHandler(logging.Handler, QObject):
     log_signal = pyqtSignal(str)
@@ -525,7 +432,8 @@ class MainApp(QtWidgets.QMainWindow):
     def __init__(self):
         super(MainApp, self).__init__()
 
-        # self.monitoring_settings = MonitoringSettings()        
+        self.worker = None
+        self.monitoring_settings = MonitoringSettings()        
 
         # Window size, title and icon
         self.setGeometry(100, 100, 900, 700)
@@ -618,13 +526,6 @@ class MainApp(QtWidgets.QMainWindow):
 
         params = self.load_params()
 
-        self.wanted_callsigns_history = self.load_wanted_callsigns()
-
-        self.wanted_callsigns_var.setText(params.get("wanted_callsigns", ""))
-        self.monitored_callsigns_var.setText(params.get("monitored_callsigns", ""))
-        self.monitored_cq_zones_var.setText(params.get("monitored_cq_zones", ""))
-        self.excluded_callsigns_var.setText(params.get("excluded_callsigns", ""))
-
         special_mode = params.get("special_mode", "Normal")
         if special_mode == "Normal":
             radio_normal.setChecked(True)
@@ -633,11 +534,33 @@ class MainApp(QtWidgets.QMainWindow):
         elif special_mode == "SuperFox":
             radio_superfox.setChecked(True)
 
+        self.wanted_callsigns_history = self.load_wanted_callsigns()
+
+        self.wanted_callsigns_var.setText(params.get("wanted_callsigns", ""))
+        self.monitored_callsigns_var.setText(params.get("monitored_callsigns", ""))
+        self.monitored_cq_zones_var.setText(params.get("monitored_cq_zones", ""))
+        self.excluded_callsigns_var.setText(params.get("excluded_callsigns", ""))
+
+        """
+            2.0.9: New behavior with Monitoring
+        """
+        self.monitoring_settings.set_wanted_callsigns(self.wanted_callsigns_var.text())
+        self.monitoring_settings.set_monitored_callsigns(self.monitored_callsigns_var.text())
+        self.monitoring_settings.set_excluded_callsigns(self.excluded_callsigns_var.text())
+        self.monitoring_settings.set_monitored_cq_zones(self.monitored_cq_zones_var.text())
+
         # Signals
         self.wanted_callsigns_var.textChanged.connect(lambda: force_uppercase(self.wanted_callsigns_var))
+        self.wanted_callsigns_var.textChanged.connect(self.on_wanted_callsigns_changed)
+
         self.monitored_callsigns_var.textChanged.connect(lambda: force_uppercase(self.monitored_callsigns_var))
-        self.monitored_cq_zones_var.textChanged.connect(lambda: force_numbers_and_commas(self.monitored_cq_zones_var))
+        self.monitored_callsigns_var.textChanged.connect(self.on_monitored_callsigns_changed)
+
         self.excluded_callsigns_var.textChanged.connect(lambda: force_uppercase(self.excluded_callsigns_var))
+        self.excluded_callsigns_var.textChanged.connect(self.on_excluded_callsigns_changed)
+
+        self.monitored_cq_zones_var.textChanged.connect(lambda: force_numbers_and_commas(self.monitored_cq_zones_var))
+        self.monitored_cq_zones_var.textChanged.connect(self.on_monitored_cq_zones_changed)
 
         # Wanted callsigns label
         self.wanted_callsigns_history_label = QtWidgets.QLabel(WANTED_CALLSIGNS_HISTORY_LABEL % len(self.wanted_callsigns_history))
@@ -700,7 +623,8 @@ class MainApp(QtWidgets.QMainWindow):
         
         self.output_table.setFont(custom_font)
         self.output_table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.NoSelection)
-        # self.output_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
+        self.output_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
+
         self.output_table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
         self.output_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.Interactive)        
         self.output_table.horizontalHeader().setStyleSheet("""
@@ -949,7 +873,7 @@ class MainApp(QtWidgets.QMainWindow):
                     message_color      = "black_on_cyan"
                 elif (
                     directed is not None and 
-                    matches_any([callsign.strip() for callsign in self.wanted_callsigns_var.text().split(',')], directed)
+                    matches_any(text_to_array(self.wanted_callsigns_var.text()), directed)
                 ):                    
                     message_color      = "white_on_blue"
                 else:
@@ -1110,10 +1034,6 @@ class MainApp(QtWidgets.QMainWindow):
                     if update_func:
                         update_func()
                         break
-
-            if self._running:
-                self.stop_monitoring()
-                self.start_monitoring()
 
     def update_var(self, var, value, action="add"):
         current_text = var.text()
@@ -1488,6 +1408,30 @@ class MainApp(QtWidgets.QMainWindow):
                 return pickle.load(f)
         return []
 
+    """
+        Used for MonitoringSetting
+    """
+
+    def on_wanted_callsigns_changed(self):
+        self.monitoring_settings.set_wanted_callsigns(self.wanted_callsigns_var.text())
+        if self.worker is not None:
+            self.worker.update_settings_signal.emit()
+
+    def on_monitored_callsigns_changed(self):
+        self.monitoring_settings.set_monitored_callsigns(self.monitored_callsigns_var.text())
+        if self.worker is not None:
+            self.worker.update_settings_signal.emit()
+
+    def on_excluded_callsigns_changed(self):
+        self.monitoring_settings.set_excluded_callsigns(self.excluded_callsigns_var.text())
+        if self.worker is not None:
+            self.worker.update_settings_signal.emit()
+
+    def on_monitored_cq_zones_changed(self):
+        self.monitoring_settings.set_monitored_cq_zones(self.monitored_cq_zones_var.text())
+        if self.worker is not None:
+            self.worker.update_settings_signal.emit()
+
     def update_wanted_callsigns_history(self, new_callsign):
         if new_callsign:
             if new_callsign not in self.wanted_callsigns_history:
@@ -1728,7 +1672,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.is_status_button_label_visible = True
         self.is_status_button_label_blinking = False
 
-        self.disable_inputs()
+        # self.disable_inputs()
         self.stop_event.clear()
         self.focus_frame.hide()
         self.callsign_notice.hide()
@@ -1784,6 +1728,7 @@ class MainApp(QtWidgets.QMainWindow):
         # Create a QThread and a Worker object
         self.thread = QThread()
         self.worker = Worker(
+            self.monitoring_settings,
             monitored_callsigns,
             monitored_cq_zones,
             excluded_callsigns,
@@ -1863,7 +1808,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.update_status_label_style("grey", "white")
             
             self.update_current_callsign_highlight()
-            self.enable_inputs()
+            # self.enable_inputs()
             self.reset_window_title()
 
     def log_exception_to_file(self, filename, message):
