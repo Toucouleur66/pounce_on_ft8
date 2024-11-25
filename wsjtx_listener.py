@@ -45,10 +45,6 @@ class Listener:
             enable_pounce_log,        
             enable_log_packet_data, 
             monitoring_settings,
-            monitored_callsigns,
-            monitored_cq_zones,
-            excluded_callsigns,
-            wanted_callsigns,
             special_mode,
             message_callback=None
         ):
@@ -100,10 +96,10 @@ class Listener:
 
         self.monitoring_settings            = monitoring_settings
 
-        self.wanted_callsigns               = set(wanted_callsigns)
-        self.excluded_callsigns             = set(excluded_callsigns)
-        self.monitored_callsigns            = set(monitored_callsigns)
-        self.monitored_cq_zones             = set(monitored_cq_zones)
+        self.wanted_callsigns               = None
+        self.excluded_callsigns             = None
+        self.monitored_callsigns            = None
+        self.monitored_cq_zones             = None
         self.special_mode                   = special_mode
         self.message_callback               = message_callback
 

@@ -570,7 +570,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.listbox.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
         self.listbox.setFont(custom_font)
         self.listbox.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.listbox.itemClicked.connect(self.on_listbox_double_click)
         self.listbox.itemDoubleClicked.connect(self.on_listbox_double_click)
 
         # Context menu for listbox
@@ -1037,7 +1036,7 @@ class MainApp(QtWidgets.QMainWindow):
 
     def update_var(self, var, value, action="add"):
         current_text = var.text()
-        
+
         if current_text.strip() == "":
             items = []
         elif re.fullmatch(r'[0-9,\s]*', current_text):
@@ -1071,9 +1070,7 @@ class MainApp(QtWidgets.QMainWindow):
             result = dialog.exec()
             if result == QtWidgets.QDialog.DialogCode.Accepted:
                 self.wanted_callsigns_var.setText(selected_callsign)
-                if self._running:
-                    self.stop_monitoring()
-                    self.start_monitoring()
+                self.update_current_callsign_highlight()
 
     def init_activity_bar(self):
         self.activity_bar.setValue(ACTIVITY_BAR_MAX_VALUE)
@@ -1723,10 +1720,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.thread = QThread()
         self.worker = Worker(
             self.monitoring_settings,
-            monitored_callsigns,
-            monitored_cq_zones,
-            excluded_callsigns,
-            wanted_callsigns,
             special_mode,
             self.stop_event,
             primary_udp_server_address,
@@ -1801,7 +1794,6 @@ class MainApp(QtWidgets.QMainWindow):
 
             self.update_status_label_style("grey", "white")
             
-            self.update_current_callsign_highlight()
             # self.enable_inputs()
             self.reset_window_title()
 

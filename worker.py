@@ -16,10 +16,6 @@ class Worker(QObject):
     def __init__(
             self,
             monitoring_settings,
-            monitored_callsigns,
-            monitored_cq_zones,
-            excluded_callsigns,
-            wanted_callsigns,
             mode,
             stop_event,
             primary_udp_server_address,
@@ -35,21 +31,6 @@ class Worker(QObject):
             enable_log_packet_data                      
         ):
         super(Worker, self).__init__()
-        self.monitoring_settings = monitoring_settings
-
-        if isinstance(wanted_callsigns, str):
-            wanted_callsigns = [callsign.strip() for callsign in wanted_callsigns.split(',')]
-
-        if isinstance(excluded_callsigns, str):
-            excluded_callsigns = [callsign.strip() for callsign in excluded_callsigns.split(',')]        
-
-        if isinstance(monitored_callsigns, str):
-            monitored_callsigns = [callsign.strip() for callsign in monitored_callsigns.split(',')]         
-
-        if isinstance(monitored_cq_zones, str):
-            monitored_cq_zones = [
-                int(cq_zone.strip()) for cq_zone in monitored_cq_zones.split(',') if cq_zone.strip()
-            ]
 
         self.update_settings_signal.connect(self.update_settings)
 
@@ -57,12 +38,8 @@ class Worker(QObject):
 
         self.stop_event                     = stop_event
 
-        self.monitored_callsigns            = monitored_callsigns
-        self.monitored_cq_zones             = monitored_cq_zones
-        self.excluded_callsigns             = excluded_callsigns
-        self.wanted_callsigns               = wanted_callsigns
-        
         self.mode                           = mode
+        self.monitoring_settings            = monitoring_settings                
         
         self.primary_udp_server_address     = primary_udp_server_address
         self.primary_udp_server_port        = primary_udp_server_port
@@ -92,10 +69,6 @@ class Worker(QObject):
                 enable_pounce_log               = self.enable_pounce_log,
                 enable_log_packet_data          = self.enable_log_packet_data,
                 monitoring_settings             = self.monitoring_settings,
-                monitored_callsigns             = self.monitored_callsigns,
-                monitored_cq_zones              = self.monitored_cq_zones,
-                excluded_callsigns              = self.excluded_callsigns,
-                wanted_callsigns                = self.wanted_callsigns,
                 special_mode                    = self.mode,
                 message_callback                = self.message.emit
             )
