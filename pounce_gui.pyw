@@ -1,14 +1,13 @@
 # pounce_gui.pyw
 
 from PyQt6 import QtWidgets, QtCore, QtGui
-from PyQt6.QtWidgets import QTableWidget, QTableWidgetItem, QApplication, QStyleFactory
-from PyQt6.QtCore import QObject, pyqtSignal, QThread, QEasingCurve, QPointF
+from PyQt6.QtWidgets import QTableWidget, QTableWidgetItem
+from PyQt6.QtCore import QObject, pyqtSignal, QThread
 from PyQt6.QtMultimedia import QSoundEffect
 
 import platform
 import re
 import sys
-import traceback
 import pickle
 import os
 import queue
@@ -18,7 +17,7 @@ import logging
 
 from datetime import datetime, timezone, timedelta
 from collections import deque
-from functools import partial
+from packaging import version
 
 # Custom classes 
 from tray_icon import TrayIcon
@@ -26,6 +25,7 @@ from activity_bar import ActivityBar
 from tooltip import ToolTip
 from worker import Worker
 from monitoring_setting import MonitoringSettings
+from updater import Updater
 
 from utils import get_local_ip_address, get_log_filename, matches_any
 from utils import get_mode_interval, get_amateur_band
@@ -35,8 +35,7 @@ from logger import get_logger, add_file_handler, remove_file_handler
 from gui_handler import GUIHandler
 
 from constants import (
-    EXPIRATION_DATE,
-    DEFAULT_UDP_PORT,
+    CURRENT_VERSION_NUMBER,
     # Colors
     EVEN_COLOR,
     ODD_COLOR,
@@ -79,6 +78,7 @@ from constants import (
     # Working directory
     CURRENT_DIR,
     # UDP related
+    DEFAULT_UDP_PORT,
     DEFAULT_SECONDARY_UDP_SERVER,
     DEFAULT_SENDING_REPLY,
     # Default settings
@@ -658,6 +658,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_table.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
         self.output_table.customContextMenuRequested.connect(self.on_table_context_menu)
         self.output_table.cellClicked.connect(self.on_table_row_clicked)
+        self.output_table.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
 
         self.dark_mode = self.is_dark_apperance()
         self.apply_palette(self.dark_mode)
@@ -1450,7 +1451,7 @@ class MainApp(QtWidgets.QMainWindow):
 
     def update_alert_label_style(self):
         if self.disable_alert_checkbox.isChecked():
-            self.disable_alert_checkbox.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_CYAN};")
+            self.disable_alert_checkbox.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_YELLOW};")
         else:
             self.disable_alert_checkbox.setStyleSheet("")
 
@@ -1802,34 +1803,21 @@ class MainApp(QtWidgets.QMainWindow):
         with open(filename, "a") as log_file:
             log_file.write(f"{timestamp} {message}\n")
 
-def check_expiration():
-    current_date = datetime.now()
-    if current_date > EXPIRATION_DATE:      
-        expiration_date_str = EXPIRATION_DATE.strftime('%B %d, %Y')
-
-        msg_box = QtWidgets.QMessageBox()
-        msg_box.setWindowTitle("Program Expired")
-
-        label = QtWidgets.QLabel(f"{GUI_LABEL_VERSION} expired on <u>{expiration_date_str}</u>. Please contact author.")
-        label.setFont(small_font)
-        label.setTextFormat(QtCore.Qt.TextFormat.RichText)
-        
-        msg_box.setText("")
-        msg_box.layout().addWidget(label, 0, 1)
-        
-        msg_box.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok)
-        msg_box.resize(450, 650)
-        msg_box.exec()
-        sys.exit()
-
 def main():
-    check_expiration()
-
     app = QtWidgets.QApplication(sys.argv)
+    updater = Updater()
+    updater.check_expiration()
+
+    update_timer = QtCore.QTimer()
+    update_timer.timeout.connect(updater.check_for_updates)
+    # Check every 60 minutes
+    update_timer.setInterval(60 * 60 * 1_000)  
+    update_timer.start()
+    update_timer.timeout.emit()
+    
     window = MainApp()
     window.show()
     sys.exit(app.exec())
-
 
 if __name__ == '__main__':
     main()

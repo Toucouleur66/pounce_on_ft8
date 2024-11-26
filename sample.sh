@@ -1,1 +1,0 @@
-send_udp.py --ip "192.168.1.30" --udp_port=2239 --packet_type qso_logged --call "VO2AC" --grid "NO12" --frequency 7074000 --mode "FT8" --report_sent "-10" --report_recv "-05" --tx_power "50" --datetime_off "2024-10-29T05:00:15"

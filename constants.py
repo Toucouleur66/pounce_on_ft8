@@ -4,8 +4,9 @@ import os
 from datetime import datetime
 from utils import get_app_data_dir
 
-version_number                  = "2.0.9"
+CURRENT_VERSION_NUMBER          = "2.0.9"
 EXPIRATION_DATE                 = datetime(2024, 11, 30)
+UPDATE_JSON_INFO_URL            = "https://storage.de.cloud.ovh.net/v1/AUTH_31163bb499dc49eb819aacdfd32ae82c/wait.and.pounce/public/update_info.json"
 
 EVEN                            = "EVEN"
 ODD                             = "ODD"
@@ -43,7 +44,7 @@ POSITION_FILE                   = os.path.join(get_app_data_dir(), "window_posit
 WANTED_CALLSIGNS_FILE           = os.path.join(get_app_data_dir(), "wanted_callsigns.pkl")
 WANTED_CALLSIGNS_HISTORY_SIZE   = 50
 
-GUI_LABEL_VERSION               = f"Wait and Pounce v{version_number} by F5UKW"
+GUI_LABEL_VERSION               = f"Wait and Pounce v{CURRENT_VERSION_NUMBER} by F5UKW"
 
 STATUS_BUTTON_LABEL_MONITORING  = "Monitoring..."
 STATUS_BUTTON_LABEL_DECODING    = "Decoding..."

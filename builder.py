@@ -6,9 +6,9 @@ import sys
 import os
 import PyQt6.QtCore
 
-from constants import version_number
+from constants import CURRENT_VERSION_NUMBER
 
-# app_name = f"Wait & Pounce v{version_number}"
+# app_name = f"Wait & Pounce v{CURRENT_VERSION_NUMBER}"
 app_name = f"WaitAndPounce"
 
 # Common options for PyInstaller
