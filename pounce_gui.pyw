@@ -26,6 +26,7 @@ from tooltip import ToolTip
 from worker import Worker
 from monitoring_setting import MonitoringSettings
 from updater import Updater
+from theme_manager import ThemeManager
 
 from utils import get_local_ip_address, get_log_filename, matches_any
 from utils import get_mode_interval, get_amateur_band
@@ -347,21 +348,29 @@ class UpdateWantedDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, selected_callsign=""):
         super().__init__(parent)
 
+        self.theme_manager = ThemeManager()
+        self.selected_callsign = selected_callsign
+
+        if self.theme_manager:
+            self.theme_manager.theme_changed.connect(self.apply_theme)
+
+        self.init_ui()
+        self.apply_theme(self.theme_manager.dark_mode)
+
+    def init_ui(self):
         self.setWindowTitle("Update Wanted Callsigns")
         self.resize(450, 100)
-        self.selected_callsign = selected_callsign
 
         layout = QtWidgets.QVBoxLayout(self)
         
         message_label = QtWidgets.QLabel('Do you want to update Wanted Callsign(s) with:')
         layout.addWidget(message_label)
         
-        self.entry = QtWidgets.QWidget()
         self.entry = QtWidgets.QLabel(self.selected_callsign)
         self.entry.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignTop)
         self.entry.setWordWrap(True)
         self.entry.setFont(custom_font_mono)
-        self.entry.setStyleSheet("background-color: white;")
+
         self.entry.setContentsMargins(5, 5, 5, 5)
         layout.addWidget(self.entry)
         
@@ -374,6 +383,12 @@ class UpdateWantedDialog(QtWidgets.QDialog):
         button_box.rejected.connect(self.reject)
 
         self.adjust_dialog_size()
+
+    def apply_theme(self, dark_mode):        
+        if dark_mode:
+            self.entry.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_YELLOW}; color: {FG_COLOR_BLACK_ON_YELLOW};")
+        else:
+            self.entry.setStyleSheet(f"background-color: {FG_COLOR_REGULAR_FOCUS}; color: {BG_COLOR_REGULAR_FOCUS};")
 
     def adjust_dialog_size(self):
         self.entry.adjustSize()
@@ -460,8 +475,11 @@ class MainApp(QtWidgets.QMainWindow):
         self.activity_timer.timeout.connect(self.update_activity_bar)
         self.activity_timer.start(100)
 
+        self.theme_manager = ThemeManager()
+        self.theme_manager.theme_changed.connect(self.apply_theme_to_all)
+
         self.theme_timer = QtCore.QTimer(self)
-        self.theme_timer.timeout.connect(self.check_theme_change)
+        self.theme_timer.timeout.connect(self.theme_manager.check_theme_change)
         self.theme_timer.start(1_000) 
 
         self.network_check_status_interval = 5_000
@@ -660,9 +678,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_table.cellClicked.connect(self.on_table_row_clicked)
         self.output_table.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
 
-        self.dark_mode = self.is_dark_apperance()
-        self.apply_palette(self.dark_mode)
-
         self.clear_button = QtWidgets.QPushButton("Clear History")
         self.clear_button.setEnabled(False)
         self.clear_button.clicked.connect(self.clear_output_table)
@@ -770,6 +785,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.gui_handler = GUIHandler(self.message_received.emit)
         self.gui_handler.setFormatter(logging.Formatter("%(message)s"))
 
+        self.apply_theme_to_all(self.theme_manager.dark_mode)
+
         gui_logger = get_logger('gui')
         gui_logger.addHandler(self.gui_handler)
         gui_logger.setLevel(logging.DEBUG)
@@ -779,6 +796,9 @@ class MainApp(QtWidgets.QMainWindow):
 
         # Close event to save position
         self.closeEvent = self.on_close
+
+    def apply_theme_to_all(self, dark_mode):
+        self.apply_palette(dark_mode)
 
     @QtCore.pyqtSlot(str)
     def add_message_to_table(self, message, fg_color='white', bg_color=STATUS_TRX_COLOR):
@@ -1118,11 +1138,15 @@ class MainApp(QtWidgets.QMainWindow):
     def update_status_label_style(self, background_color, text_color):
         style = f"""
             background-color: {background_color};
-            color: {text_color};
-            border: 1px solid #bbbbbb;
+            color: {text_color};            
             border-radius: 5px;
             padding: 5px;
         """
+
+        #if self.dark_mode:
+            #style+= "border: 1px solid grey;"
+
+
         self.status_label.setStyleSheet(style)            
 
     def set_value_to_focus(self, formatted_message, contains_my_call):
@@ -1290,26 +1314,9 @@ class MainApp(QtWidgets.QMainWindow):
 
         QtCore.QProcess.startDetached(sys.executable, sys.argv)
         QtWidgets.QApplication.quit()
-
-    def is_dark_apperance(self):
-        try:
-            if sys.platform == 'darwin':
-                from Foundation import NSUserDefaults
-                defaults = NSUserDefaults.standardUserDefaults()
-                osx_appearance = defaults.stringForKey_("AppleInterfaceStyle")
-                return osx_appearance == 'Dark'
-            elif sys.platform == 'win32':
-                import winreg
-                registry = winreg.ConnectRegistry(None, winreg.HKEY_CURRENT_USER)
-                key = winreg.OpenKey(registry, r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize")
-                value, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
-                return value == 0
-        except Exception as e:
-            print(f"Can't know if we are either using Dark or Light mode: {e}")
-            return False
         
     def check_theme_change(self):
-        current_dark_mode = self.is_dark_apperance()
+        current_dark_mode = ThemeManager.is_dark_apperance()
         if current_dark_mode != self.dark_mode:
             self.dark_mode = current_dark_mode
             self.apply_palette(self.dark_mode)
@@ -1371,8 +1378,6 @@ class MainApp(QtWidgets.QMainWindow):
             table_palette.setColor(QtGui.QPalette.ColorRole.Text, QtGui.QColor('black'))
         
         self.output_table.setPalette(table_palette)
-                
-        # self.update_stylesheet(dark_mode)
 
     def disable_inputs(self):
         self.inputs_enabled = False
