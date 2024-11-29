@@ -4,8 +4,8 @@ import os
 from datetime import datetime
 from utils import get_app_data_dir
 
-CURRENT_VERSION_NUMBER          = "2.0.9"
-EXPIRATION_DATE                 = datetime(2024, 11, 30)
+CURRENT_VERSION_NUMBER          = "2.0.10"
+EXPIRATION_DATE                 = datetime(2024, 12, 15)
 UPDATE_JSON_INFO_URL            = "https://storage.de.cloud.ovh.net/v1/AUTH_31163bb499dc49eb819aacdfd32ae82c/wait.and.pounce/public/update_info.json"
 
 EVEN                            = "EVEN"
@@ -39,12 +39,14 @@ STATUS_MONITORING_COLOR         = "#0D81FF"
 STATUS_DECODING_COLOR           = "#2BBE7E"
 STATUS_TRX_COLOR                = "#FF5600"
 
+SAVED_VERSION_FILE              = os.path.join(get_app_data_dir(), "app_version.json")
 PARAMS_FILE                     = os.path.join(get_app_data_dir(), "params.pkl")
 POSITION_FILE                   = os.path.join(get_app_data_dir(), "window_position.pkl")
 WANTED_CALLSIGNS_FILE           = os.path.join(get_app_data_dir(), "wanted_callsigns.pkl")
 WANTED_CALLSIGNS_HISTORY_SIZE   = 50
 
-GUI_LABEL_VERSION               = f"Wait and Pounce v{CURRENT_VERSION_NUMBER} by F5UKW"
+GUI_LABEL_NAME                  = "Wait and Pounce"
+GUI_LABEL_VERSION               = f"{GUI_LABEL_NAME} v{CURRENT_VERSION_NUMBER}"
 
 STATUS_BUTTON_LABEL_MONITORING  = "Monitoring..."
 STATUS_BUTTON_LABEL_DECODING    = "Decoding..."
@@ -106,3 +108,6 @@ CONTEXT_MENU_DARWIN_STYLE       = """
                 margin: 4px 0;
             }
         """
+
+DISCORD_SECTION                 = '<a href="https://discord.gg/2MTkwmJX">Support available on Discord</a>'
+DONATION_SECTION                = '<a href="https://www.paypal.com/donate/?cmd=_s-xclick&hosted_button_id=R4HK9ZTUPYHSL&ssrt=1732865689562">Donations are welcome</a>'

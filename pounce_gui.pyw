@@ -33,10 +33,13 @@ from utils import get_local_ip_address, get_log_filename, matches_any
 from utils import get_mode_interval, get_amateur_band
 from utils import force_uppercase, force_numbers_and_commas, text_to_array
 
+from version import is_first_launch_or_new_version, save_current_version
+
 from logger import get_logger, add_file_handler, remove_file_handler
 from gui_handler import GUIHandler
 
 from constants import (
+    CURRENT_VERSION_NUMBER,
     # Colors
     EVEN_COLOR,
     ODD_COLOR,
@@ -62,6 +65,7 @@ from constants import (
     WANTED_CALLSIGNS_FILE,
     WANTED_CALLSIGNS_HISTORY_SIZE,
     # Labels
+    GUI_LABEL_NAME,
     GUI_LABEL_VERSION,
     STATUS_BUTTON_LABEL_MONITORING,
     STATUS_BUTTON_LABEL_DECODING,
@@ -93,6 +97,9 @@ from constants import (
     ACTIVITY_BAR_MAX_VALUE,
     # Style
     CONTEXT_MENU_DARWIN_STYLE,
+    # URL
+    DISCORD_SECTION,
+    DONATION_SECTION
     )
 
 stop_event = threading.Event()
@@ -511,13 +518,11 @@ class MainApp(QtWidgets.QMainWindow):
         self.monitored_callsign_detected_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/716442__scottyd0es__tone12_alert_3.wav"))
         
         self.menu_bar       = self.menuBar()    
-        #self.about_menu     = self.menu_bar.addMenu("About")
-        self.online_menu    = self.menu_bar.addMenu("Online")
+
         self.load_clublog_action = QtGui.QAction("Load Club Log DXCC Info", self)
         self.load_clublog_action.triggered.connect(self.clublog_manager.load_clublog_info)
 
-        self.online_menu = self.menuBar().addMenu("Online")
-        self.online_menu.addAction(self.load_clublog_action)
+        self.create_main_menu()
 
         # Main layout
         central_widget = QtWidgets.QWidget()
@@ -1658,6 +1663,108 @@ class MainApp(QtWidgets.QMainWindow):
         self.status_button.setText(text)
         self.status_button.setStyleSheet(f"background-color: {bg_color}; color: {fg_color}; padding: 5px; border-radius: 5px; border: none;")
 
+    def create_main_menu(self):
+        main_menu = self.menu_bar.addMenu(GUI_LABEL_NAME)
+
+        about_action = QtGui.QAction(f"About {GUI_LABEL_NAME}", self)
+        about_action.triggered.connect(self.show_about_dialog)
+        main_menu.addAction(about_action)
+
+        # Add separator
+        main_menu.addSeparator()
+
+        # "Settings..." action
+        settings_action = QtGui.QAction("Settings...", self)
+        settings_action.setShortcut("Ctrl+,")  # Default shortcut for macOS
+        settings_action.triggered.connect(self.open_settings)
+        main_menu.addAction(settings_action)
+
+        # Add "Online" menu
+        self.online_menu = self.menu_bar.addMenu("Online")
+        self.online_menu.addAction(self.load_clublog_action)
+
+    def show_about_dialog(self):
+        dialog = QtWidgets.QDialog(self)
+        dialog.setWindowTitle(f"About {GUI_LABEL_NAME}")
+        dialog.setFixedWidth(400)
+
+        layout = QtWidgets.QVBoxLayout(dialog)
+
+        icon_path = os.path.join(CURRENT_DIR, "pounce.png")
+        icon_label = QtWidgets.QLabel()
+        icon_pixmap = QtGui.QPixmap(icon_path)
+        if not icon_pixmap.isNull(): 
+            icon_pixmap = icon_pixmap.scaled(
+                300,  
+                icon_pixmap.height(),  
+                QtCore.Qt.AspectRatioMode.KeepAspectRatio,  
+                QtCore.Qt.TransformationMode.SmoothTransformation  
+            )
+
+        icon_label.setPixmap(icon_pixmap)
+        icon_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(icon_label)
+
+        program_name = QtWidgets.QLabel(f"<b>{GUI_LABEL_NAME}</b>")
+        program_name.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        program_name.setStyleSheet("font-size: 14px;")
+        layout.addWidget(program_name)
+
+        version_label = QtWidgets.QLabel(f"Version: {CURRENT_VERSION_NUMBER}")
+        version_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        version_label.setStyleSheet("font-size: 11px;")
+        layout.addWidget(version_label)
+
+        first_separator = QtWidgets.QFrame()
+        first_separator.setFrameShape(QtWidgets.QFrame.Shape.HLine)
+        first_separator.setFrameShadow(QtWidgets.QFrame.Shadow.Sunken)
+        layout.addWidget(first_separator)
+
+        discord_section = QtWidgets.QLabel(DISCORD_SECTION)
+        discord_section.setOpenExternalLinks(True)
+        discord_section.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(discord_section)
+
+        layout.addStretch()
+
+        thanks_label = QtWidgets.QLabel("With special thanks to:")
+        thanks_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(thanks_label)
+
+        thanks_names = QtWidgets.QLabel("Rick, DU6/PE1NSQ, Vincent F4BKV, Juan TG9AJR")
+        thanks_names.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(thanks_names)
+
+        current_year = datetime.now().year
+        copyright_label = QtWidgets.QLabel(f'Copyright {current_year} Cédric Morelle <a href="https://qrz.com/db/f5ukw">F5UKW</a>')
+        copyright_label.setOpenExternalLinks(True)
+        copyright_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(copyright_label)
+
+        layout.addStretch()
+
+        second_separator = QtWidgets.QFrame()
+        second_separator.setFrameShape(QtWidgets.QFrame.Shape.HLine)
+        second_separator.setFrameShadow(QtWidgets.QFrame.Shadow.Sunken)
+        layout.addWidget(second_separator)
+
+        donation_link = QtWidgets.QLabel(DONATION_SECTION)
+        donation_link.setOpenExternalLinks(True)
+        donation_link.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(donation_link)
+
+        button_layout = QtWidgets.QHBoxLayout()
+        button_layout.addStretch()
+
+        ok_button = QtWidgets.QPushButton("OK")
+        ok_button.clicked.connect(dialog.accept)
+        button_layout.addWidget(ok_button)
+
+        button_layout.addStretch()
+        layout.addLayout(button_layout)
+
+        dialog.exec()        
+
     def start_monitoring(self):
         global tray_icon
 
@@ -1832,6 +1939,11 @@ def main():
     
     window = MainApp()
     window.show()
+
+    if is_first_launch_or_new_version(CURRENT_VERSION_NUMBER):
+        window.show_about_dialog() 
+        save_current_version(CURRENT_VERSION_NUMBER)
+
     sys.exit(app.exec())
 
 if __name__ == '__main__':

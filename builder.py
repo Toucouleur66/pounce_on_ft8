@@ -32,6 +32,7 @@ if platform.system() == 'Windows':
         "--collect-submodules", "PIL",
         "--icon=pounce.ico",
         "--add-data=pounce.ico;.",
+        "--add-data=pounce.png:.",
         "--add-data=sounds;sounds",
         "--add-data=cty.xml;.",
         f'--add-binary={qt_plugins_path};PyQt6/Qt6/plugins/multimedia',
@@ -43,6 +44,7 @@ elif platform.system() == 'Darwin':
     pyinstaller_cmd = common_options + [
         "--windowed",
         "--icon=pounce.icns",
+        "--add-data=pounce.png:.",
         "--add-data=sounds:sounds",
         "--add-data=cty.xml:.",
         f'--add-binary={qt_plugins_path}:PyQt6/Qt6/plugins/multimedia',
