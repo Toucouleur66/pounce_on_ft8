@@ -67,6 +67,7 @@ DEFAULT_MODE_TIMER_VALUE        = "--:--:--"
 FREQ_MINIMUM                    = 200
 FREQ_MAXIMUM                    = 2900
 FREQ_MINIMUM_FOX_HOUND          = 1050
+FREQ_MAXIMUM_SUPER_FOX          = 3200
 
 DEFAULT_UDP_PORT                = 2237
 

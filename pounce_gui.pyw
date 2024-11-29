@@ -76,9 +76,14 @@ from constants import (
     WANTED_CALLSIGNS_HISTORY_LABEL,
     CALLSIGN_NOTICE_LABEL,
     # Modes
-    MODE_FOX_HOUND,
     MODE_NORMAL,
+    MODE_FOX_HOUND,
     MODE_SUPER_FOX,
+    FREQ_MINIMUM,
+    FREQ_MAXIMUM,
+    FREQ_MINIMUM_FOX_HOUND,
+    FREQ_MAXIMUM_SUPER_FOX,
+    # Timer
     DEFAULT_MODE_TIMER_VALUE,
     # Working directory
     CURRENT_DIR,
@@ -128,7 +133,7 @@ class SettingsDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, params=None):
         super().__init__(parent)
         self.setWindowTitle("Settings")
-        self.resize(750, 900)
+        self.resize(750, 1050)
 
         self.params = params or {}
 
@@ -144,11 +149,11 @@ class SettingsDialog(QtWidgets.QDialog):
         jtdx_notice_label.setStyleSheet("background-color: #9dfffe; color: #555bc2; padding: 5px; font-size: 12px;")
         jtdx_notice_label.setAutoFillBackground(True)
 
-        primary_group = QtWidgets.QGroupBox("Primary UDP Server")
+        primary_group  = QtWidgets.QGroupBox("Primary UDP Server")
         primary_layout = QtWidgets.QGridLayout()
 
         self.primary_udp_server_address = QtWidgets.QLineEdit()
-        self.primary_udp_server_port = QtWidgets.QLineEdit()
+        self.primary_udp_server_port    = QtWidgets.QLineEdit()
 
         primary_layout.addWidget(QtWidgets.QLabel("UDP Server:"), 0, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
         primary_layout.addWidget(self.primary_udp_server_address, 0, 1)
@@ -157,11 +162,11 @@ class SettingsDialog(QtWidgets.QDialog):
 
         primary_group.setLayout(primary_layout)
 
-        secondary_group = QtWidgets.QGroupBox("Second UDP Server (Send logged QSO ADIF data)")
+        secondary_group  = QtWidgets.QGroupBox("Second UDP Server (Send logged QSO ADIF data)")
         secondary_layout = QtWidgets.QGridLayout()
 
         self.secondary_udp_server_address = QtWidgets.QLineEdit()
-        self.secondary_udp_server_port = QtWidgets.QLineEdit()
+        self.secondary_udp_server_port    = QtWidgets.QLineEdit()
 
         self.enable_secondary_udp_server = QtWidgets.QCheckBox("Enable sending to secondary UDP server")
         self.enable_secondary_udp_server.setChecked(DEFAULT_SECONDARY_UDP_SERVER)
@@ -174,7 +179,7 @@ class SettingsDialog(QtWidgets.QDialog):
 
         secondary_group.setLayout(secondary_layout)
 
-        udp_settings_group = QtWidgets.QGroupBox("UDP Settings")
+        udp_settings_group = QtWidgets.QGroupBox(f"{GUI_LABEL_NAME} Main settings")
 
         udp_settings_widget = QtWidgets.QWidget()
         udp_settings_layout = QtWidgets.QGridLayout(udp_settings_widget)
@@ -191,6 +196,69 @@ class SettingsDialog(QtWidgets.QDialog):
         udp_settings_layout.addWidget(self.enable_sending_reply, 0, 0, 1, 2)       
         udp_settings_layout.addWidget(self.enable_gap_finder, 1, 0, 1, 2)       
         udp_settings_layout.addWidget(self.enable_watchdog_bypass, 2, 0, 1, 2)
+
+        mode_label = QtWidgets.QLabel("Select range for offset updater:")
+        udp_settings_layout.addWidget(mode_label, 3, 0, 1, 4)
+
+        self.radio_normal = QtWidgets.QRadioButton()
+        self.radio_foxhound = QtWidgets.QRadioButton()
+        self.radio_superfox = QtWidgets.QRadioButton()
+
+        self.special_mode_var = QtWidgets.QButtonGroup()
+        self.special_mode_var.addButton(self.radio_normal)
+        self.special_mode_var.addButton(self.radio_foxhound)
+        self.special_mode_var.addButton(self.radio_superfox)
+
+        modes = [
+            (self.radio_normal, MODE_NORMAL, FREQ_MINIMUM, FREQ_MAXIMUM),
+            (self.radio_foxhound, MODE_FOX_HOUND, FREQ_MINIMUM_FOX_HOUND, FREQ_MAXIMUM),
+            (self.radio_superfox, MODE_SUPER_FOX, FREQ_MINIMUM, FREQ_MAXIMUM_SUPER_FOX),
+        ]
+
+        mode_table_widget = QtWidgets.QTableWidget()
+        mode_table_widget.setRowCount(len(modes))
+        mode_table_widget.setColumnCount(4)  
+
+        mode_table_widget.setColumnWidth(0, 30)   
+        mode_table_widget.setColumnWidth(1, 200)  
+        mode_table_widget.setColumnWidth(2, 100)  
+        mode_table_widget.setColumnWidth(3, 100)  
+        mode_table_widget.setShowGrid(False)
+        mode_table_widget.horizontalHeader().setVisible(False)
+        mode_table_widget.verticalHeader().setVisible(False)
+        mode_table_widget.setAlternatingRowColors(True)
+
+        # Set size policy to prevent vertical expansion
+        mode_table_widget.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Fixed
+        )
+
+        row_height = 30  
+        for row, (button, label, freq_min, freq_max) in enumerate(modes):
+            mode_table_widget.setRowHeight(row, row_height)
+
+            mode_table_widget.setCellWidget(row, 0, button)
+            label_widget = QtWidgets.QLabel(label)
+            label_widget.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
+            mode_table_widget.setCellWidget(row, 1, label_widget)
+            freq_min_widget = QtWidgets.QLabel(f"{freq_min}Hz")
+            freq_min_widget.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
+            mode_table_widget.setCellWidget(row, 2, freq_min_widget)
+            freq_max_widget = QtWidgets.QLabel(f"{freq_max}Hz")
+            freq_max_widget.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
+            mode_table_widget.setCellWidget(row, 3, freq_max_widget)
+
+        total_height = row_height * len(modes) + 2  
+        mode_table_widget.setMaximumHeight(total_height)
+
+        mode_table_widget.setStyleSheet("""
+            QTableWidget {
+                border: none;
+            }
+        """)
+
+        udp_settings_layout.addWidget(mode_table_widget, 4, 0, 1, 4)
         
         udp_settings_widget.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_PURPLE}; color: {FG_COLOR_BLACK_ON_PURPLE};")
         udp_settings_group.setLayout(QtWidgets.QVBoxLayout())
@@ -206,7 +274,7 @@ class SettingsDialog(QtWidgets.QDialog):
         sound_notice_label.setWordWrap(True)
         sound_notice_label.setFont(small_font)
 
-        sound_settings_group = QtWidgets.QGroupBox("Sounds Settings")
+        sound_settings_group  = QtWidgets.QGroupBox("Sounds Settings")
         sound_settings_layout = QtWidgets.QGridLayout()
 
         play_sound_notice_label = QtWidgets.QLabel("Play Sounds when:")
@@ -282,6 +350,17 @@ class SettingsDialog(QtWidgets.QDialog):
     def load_params(self):
         local_ip_address = get_local_ip_address()
 
+        special_mode = self.params.get("selected_mode", MODE_NORMAL)
+
+        if special_mode == "Normal":
+            self.radio_normal.setChecked(True)
+        elif special_mode == "Fox/Hound":
+            self.radio_foxhound.setChecked(True)
+        elif special_mode == "SuperFox":
+            self.radio_superfox.setChecked(True)
+        else:
+            self.radio_normal.setChecked(True)
+
         self.primary_udp_server_address.setText(
             self.params.get('primary_udp_server_address') or local_ip_address
         )
@@ -332,6 +411,12 @@ class SettingsDialog(QtWidgets.QDialog):
         )
 
     def get_result(self):
+        selected_mode = MODE_NORMAL 
+        if self.radio_foxhound.isChecked():
+            selected_mode = MODE_FOX_HOUND
+        elif self.radio_superfox.isChecked():
+            selected_mode = MODE_SUPER_FOX
+
         return {
             'primary_udp_server_address'                 : self.primary_udp_server_address.text(),
             'primary_udp_server_port'                    : self.primary_udp_server_port.text(),
@@ -339,7 +424,7 @@ class SettingsDialog(QtWidgets.QDialog):
             'secondary_udp_server_port'                  : self.secondary_udp_server_port.text(),
             'enable_secondary_udp_server'                : self.enable_secondary_udp_server.isChecked(),
             'enable_sending_reply'                       : self.enable_sending_reply.isChecked(),
-            'enable_gap_finder'                           : self.enable_gap_finder.isChecked(),
+            'enable_gap_finder'                          : self.enable_gap_finder.isChecked(),
             'enable_watchdog_bypass'                     : self.enable_watchdog_bypass.isChecked(),
             'enable_debug_output'                        : self.enable_debug_output.isChecked(),
             'enable_pounce_log'                          : self.enable_pounce_log.isChecked(),
@@ -348,7 +433,8 @@ class SettingsDialog(QtWidgets.QDialog):
             'enable_sound_wanted_callsigns'              : self.enable_sound_wanted_callsigns.isChecked(),
             'enable_sound_directed_my_callsign'          : self.enable_sound_directed_my_callsign.isChecked(),
             'enable_sound_monitored_callsigns'           : self.enable_sound_monitored_callsigns.isChecked(),
-            'delay_between_sound_for_monitored_callsign' : self.delay_between_sound_for_monitored_callsign.text()   
+            'delay_between_sound_for_monitored_callsign' : self.delay_between_sound_for_monitored_callsign.text(),
+            'selected_mode'                              : selected_mode
         }
 
 class UpdateWantedDialog(QtWidgets.QDialog):
@@ -544,28 +630,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.excluded_callsigns_var = QtWidgets.QLineEdit()
         self.excluded_callsigns_var.setFont(custom_font)
 
-        # Mode buttons (radio buttons)
-        self.special_mode_var = QtWidgets.QButtonGroup()
-
-        radio_normal = QtWidgets.QRadioButton(MODE_NORMAL)
-        radio_foxhound = QtWidgets.QRadioButton(MODE_FOX_HOUND)
-        radio_superfox = QtWidgets.QRadioButton(MODE_SUPER_FOX)
-
-        self.special_mode_var.addButton(radio_normal)
-        self.special_mode_var.addButton(radio_foxhound)
-        self.special_mode_var.addButton(radio_superfox)
-
-        radio_normal.setChecked(True)
-
         params = self.load_params()
-
-        special_mode = params.get("special_mode", "Normal")
-        if special_mode == "Normal":
-            radio_normal.setChecked(True)
-        elif special_mode == "Fox/Hound":
-            radio_foxhound.setChecked(True)
-        elif special_mode == "SuperFox":
-            radio_superfox.setChecked(True)
 
         self.wanted_callsigns_history = self.load_wanted_callsigns()
 
@@ -574,9 +639,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.monitored_cq_zones_var.setText(params.get("monitored_cq_zones", ""))
         self.excluded_callsigns_var.setText(params.get("excluded_callsigns", ""))
 
-        """
-            2.0.9: New behavior with Monitoring
-        """
         self.monitoring_settings.set_wanted_callsigns(self.wanted_callsigns_var.text())
         self.monitoring_settings.set_monitored_callsigns(self.monitored_callsigns_var.text())
         self.monitoring_settings.set_excluded_callsigns(self.excluded_callsigns_var.text())
@@ -746,13 +808,6 @@ class MainApp(QtWidgets.QMainWindow):
         main_layout.addWidget(self.monitored_cq_zones_var, 4, 1)
         main_layout.addWidget(self.excluded_callsigns_label, 5, 0)
         main_layout.addWidget(self.excluded_callsigns_var, 5, 1)
-
-        # Mode section
-        mode_layout = QtWidgets.QHBoxLayout()
-        mode_layout.addWidget(radio_normal)
-        mode_layout.addWidget(radio_foxhound)
-        mode_layout.addWidget(radio_superfox)
-        main_layout.addLayout(mode_layout, 6, 1)
 
         # Timer label and log analysis
         main_layout.addWidget(self.timer_value_label, 0, 3)
@@ -1414,8 +1469,13 @@ class MainApp(QtWidgets.QMainWindow):
 
     def load_params(self):
         if os.path.exists(PARAMS_FILE):
-            with open(PARAMS_FILE, "rb") as f:
-                return pickle.load(f)
+            try:
+                with open(PARAMS_FILE, "rb") as f:
+                    return pickle.load(f)
+            except (EOFError, pickle.UnpicklingError):
+                print(f"Warning: {PARAMS_FILE} is empty or corrupted. Deleting it.")
+                os.remove(PARAMS_FILE) 
+                return {}
         return {}
 
     def save_wanted_callsigns(self, wanted_callsigns_history):
@@ -1805,11 +1865,11 @@ class MainApp(QtWidgets.QMainWindow):
         monitored_cq_zones                  = self.monitored_cq_zones_var.text()
         excluded_callsigns                  = self.excluded_callsigns_var.text()
         wanted_callsigns                    = self.wanted_callsigns_var.text()
-        special_mode                        = self.special_mode_var.checkedButton().text()
 
         params                              = self.load_params()
         local_ip_address                    = get_local_ip_address()
 
+        special_mode                        = params.get('special_mode')
         primary_udp_server_address          = params.get('primary_udp_server_address') or local_ip_address
         primary_udp_server_port             = int(params.get('primary_udp_server_port') or DEFAULT_UDP_PORT)
         secondary_udp_server_address        = params.get('secondary_udp_server_address') or local_ip_address
