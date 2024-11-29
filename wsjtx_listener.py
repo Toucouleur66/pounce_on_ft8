@@ -45,7 +45,7 @@ class Listener:
             enable_pounce_log,        
             enable_log_packet_data, 
             monitoring_settings,
-            special_mode,
+            freq_range_mode,
             message_callback=None
         ):
 
@@ -100,7 +100,7 @@ class Listener:
         self.excluded_callsigns             = None
         self.monitored_callsigns            = None
         self.monitored_cq_zones             = None
-        self.special_mode                   = special_mode
+        self.freq_range_mode                   = freq_range_mode
         self.message_callback               = message_callback
 
         self.update_settings()
@@ -187,7 +187,7 @@ class Listener:
 
     def listen(self):
         self.t = threading.Thread(target=self.doListen, daemon=True)
-        display_message = "Listener:{}:{} started (mode: {})".format(self.primary_udp_server_address, self.primary_udp_server_port, self.special_mode)
+        display_message = "Listener:{}:{} started (mode: {})".format(self.primary_udp_server_address, self.primary_udp_server_port, self.freq_range_mode)
         log.info(display_message)
         if self.enable_debug_output and self.message_callback:
             self.message_callback(display_message)
@@ -365,7 +365,7 @@ class Listener:
 
         used_frequencies = sorted(used_frequencies)
 
-        freq_min = FREQ_MINIMUM_FOX_HOUND if self.special_mode == MODE_FOX_HOUND else FREQ_MINIMUM
+        freq_min = FREQ_MINIMUM_FOX_HOUND if self.freq_range_mode == MODE_FOX_HOUND else FREQ_MINIMUM
         freq_max = FREQ_MAXIMUM
 
         frequency_range = [freq_min] + used_frequencies + [freq_max]
@@ -378,7 +378,7 @@ class Listener:
             if gap_size > 50:
                 gaps.append((gap_start, gap_end))
 
-        if self.special_mode == MODE_NORMAL and self.targeted_call_frequencies:
+        if self.freq_range_mode == MODE_NORMAL and self.targeted_call_frequencies:
             min_targeted = min(self.targeted_call_frequencies)
             max_targeted = max(self.targeted_call_frequencies)
             adjusted_gaps = []

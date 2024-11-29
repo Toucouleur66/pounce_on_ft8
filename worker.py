@@ -69,7 +69,7 @@ class Worker(QObject):
                 enable_pounce_log               = self.enable_pounce_log,
                 enable_log_packet_data          = self.enable_log_packet_data,
                 monitoring_settings             = self.monitoring_settings,
-                special_mode                    = self.mode,
+                freq_range_mode                    = self.mode,
                 message_callback                = self.message.emit
             )
             self.listener.listen()

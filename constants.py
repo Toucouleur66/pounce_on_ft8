@@ -59,7 +59,7 @@ WANTED_CALLSIGNS_HISTORY_LABEL  = "Wanted Callsigns History (%d):"
 CALLSIGN_NOTICE_LABEL           = "Comma separated list of callsigns - Wildcard allowed (*)"
 
 MODE_NORMAL                     = "Normal"
-MODE_FOX_HOUND                  = "Fox/Hound"
+MODE_FOX_HOUND                  = "Hound"
 MODE_SUPER_FOX                  = "SuperFox"
 
 DEFAULT_MODE_TIMER_VALUE        = "--:--:--"
