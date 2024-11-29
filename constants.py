@@ -72,6 +72,7 @@ ACTIVITY_BAR_MAX_VALUE          = 50
 
 CURRENT_DIR                     = os.path.dirname(os.path.realpath(__file__))
 CTY_XML                         = 'cty.xml'
+CTY_XML_URL                     = 'https://cdn.clublog.org/cty.php?api=efc2af7050308f03a22275cf51f3fd7749582d66'
 
 DEFAULT_SECONDARY_UDP_SERVER    = False
 DEFAULT_SENDING_REPLY           = True

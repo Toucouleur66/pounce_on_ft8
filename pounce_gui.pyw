@@ -27,6 +27,7 @@ from worker import Worker
 from monitoring_setting import MonitoringSettings
 from updater import Updater
 from theme_manager import ThemeManager
+from clublog import ClubLogManager
 
 from utils import get_local_ip_address, get_log_filename, matches_any
 from utils import get_mode_interval, get_amateur_band
@@ -36,7 +37,6 @@ from logger import get_logger, add_file_handler, remove_file_handler
 from gui_handler import GUIHandler
 
 from constants import (
-    CURRENT_VERSION_NUMBER,
     # Colors
     EVEN_COLOR,
     ODD_COLOR,
@@ -92,7 +92,7 @@ from constants import (
     DEFAULT_DELAY_BETWEEN_SOUND,
     ACTIVITY_BAR_MAX_VALUE,
     # Style
-    CONTEXT_MENU_DARWIN_STYLE
+    CONTEXT_MENU_DARWIN_STYLE,
     )
 
 stop_event = threading.Event()
@@ -448,7 +448,8 @@ class MainApp(QtWidgets.QMainWindow):
         super(MainApp, self).__init__()
 
         self.worker = None
-        self.monitoring_settings = MonitoringSettings()        
+        self.monitoring_settings = MonitoringSettings()       
+        self.clublog_manager = ClubLogManager(self) 
 
         # Window size, title and icon
         self.setGeometry(100, 100, 900, 700)
@@ -509,6 +510,15 @@ class MainApp(QtWidgets.QMainWindow):
         self.error_occurred_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/142608__autistic-lucario__error.wav"))
         self.monitored_callsign_detected_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/716442__scottyd0es__tone12_alert_3.wav"))
         
+        self.menu_bar       = self.menuBar()    
+        #self.about_menu     = self.menu_bar.addMenu("About")
+        self.online_menu    = self.menu_bar.addMenu("Online")
+        self.load_clublog_action = QtGui.QAction("Load Club Log DXCC Info", self)
+        self.load_clublog_action.triggered.connect(self.clublog_manager.load_clublog_info)
+
+        self.online_menu = self.menuBar().addMenu("Online")
+        self.online_menu.addAction(self.load_clublog_action)
+
         # Main layout
         central_widget = QtWidgets.QWidget()
         self.setCentralWidget(central_widget)
@@ -831,7 +841,7 @@ class MainApp(QtWidgets.QMainWindow):
                     self.last_frequency = self.frequency
                     self.band = get_amateur_band(self.frequency)
                     frequency = str(message.get('frequency') / 1_000) + 'Khz'
-                    self.add_message_to_table(f"Freq: {frequency} ({self.band})")             
+                    self.add_message_to_table(f"{frequency} ({self.band}) {self.mode}")             
             elif message_type == 'update_status':
                 self.check_connection_status(
                     message.get('decode_packet_count', 0),
@@ -931,7 +941,7 @@ class MainApp(QtWidgets.QMainWindow):
                 self.add_message_to_table(message)
         else:
             pass
-
+    
     def on_table_row_clicked(self, row, column):
         position = self.output_table.visualRect(self.output_table.model().index(row, column)).center()
         self.on_table_context_menu(position)        

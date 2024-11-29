@@ -144,7 +144,7 @@ class Updater:
             sys.exit()
 
 class DownloadDialog(QtWidgets.QDialog):
-    def __init__(self, url, save_path, parent=None):
+    def __init__(self, url, save_path, parent=None, title=None):
         super().__init__(parent)
         self.setWindowTitle("Downloading Update")
         self.setFixedSize(400, 80)
