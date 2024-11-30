@@ -28,6 +28,7 @@ from monitoring_setting import MonitoringSettings
 from updater import Updater
 from theme_manager import ThemeManager
 from clublog import ClubLogManager
+from setting_dialog import SettingsDialog
 
 from utils import get_local_ip_address, get_log_filename, matches_any
 from utils import get_mode_interval, get_amateur_band
@@ -75,14 +76,6 @@ from constants import (
     WAITING_DATA_PACKETS_LABEL,
     WANTED_CALLSIGNS_HISTORY_LABEL,
     CALLSIGN_NOTICE_LABEL,
-    # Modes
-    MODE_NORMAL,
-    MODE_FOX_HOUND,
-    MODE_SUPER_FOX,
-    FREQ_MINIMUM,
-    FREQ_MAXIMUM,
-    FREQ_MINIMUM_FOX_HOUND,
-    FREQ_MAXIMUM_SUPER_FOX,
     # Timer
     DEFAULT_MODE_TIMER_VALUE,
     # Working directory
@@ -98,7 +91,6 @@ from constants import (
     DEFAULT_POUNCE_LOG,
     DEFAULT_LOG_PACKET_DATA,
     DEFAULT_SHOW_ALL_DECODED,
-    DEFAULT_DELAY_BETWEEN_SOUND,
     ACTIVITY_BAR_MAX_VALUE,
     # Style
     CONTEXT_MENU_DARWIN_STYLE,
@@ -127,323 +119,7 @@ elif platform.system() == 'Darwin':
     menu_font               = QtGui.QFont(".AppleSystemUIFont")
 
 small_font                  = QtGui.QFont()
-small_font.setPointSize(11)      
-
-class SettingsDialog(QtWidgets.QDialog):
-    def __init__(self, parent=None, params=None):
-        super().__init__(parent)
-        self.setWindowTitle("Settings")
-        self.resize(750, 1050)
-
-        self.params = params or {}
-
-        layout = QtWidgets.QVBoxLayout(self)
-
-        jtdx_notice_text = (
-            "For JTDX users, you have to disable automatic logging of QSO (Make sure <u>Settings > Reporting > Logging > Enable automatic logging of QSO</u> is unchecked)<br /><br />You might also need to accept UDP Reply messages from any messages (<u>Misc Menu > Accept UDP Reply Messages > any messages</u>)."
-        )
-        jtdx_notice_label = QtWidgets.QLabel(jtdx_notice_text)
-        jtdx_notice_label.setWordWrap(True)
-        jtdx_notice_label.setFont(small_font)
-        jtdx_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
-        jtdx_notice_label.setStyleSheet("background-color: #9dfffe; color: #555bc2; padding: 5px; font-size: 12px;")
-        jtdx_notice_label.setAutoFillBackground(True)
-
-        primary_group  = QtWidgets.QGroupBox("Primary UDP Server")
-        primary_layout = QtWidgets.QGridLayout()
-
-        self.primary_udp_server_address = QtWidgets.QLineEdit()
-        self.primary_udp_server_port    = QtWidgets.QLineEdit()
-
-        primary_layout.addWidget(QtWidgets.QLabel("UDP Server:"), 0, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
-        primary_layout.addWidget(self.primary_udp_server_address, 0, 1)
-        primary_layout.addWidget(QtWidgets.QLabel("UDP Server port number:"), 1, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
-        primary_layout.addWidget(self.primary_udp_server_port, 1, 1)
-
-        primary_group.setLayout(primary_layout)
-
-        secondary_group  = QtWidgets.QGroupBox("Second UDP Server (Send logged QSO ADIF data)")
-        secondary_layout = QtWidgets.QGridLayout()
-
-        self.secondary_udp_server_address = QtWidgets.QLineEdit()
-        self.secondary_udp_server_port    = QtWidgets.QLineEdit()
-
-        self.enable_secondary_udp_server = QtWidgets.QCheckBox("Enable sending to secondary UDP server")
-        self.enable_secondary_udp_server.setChecked(DEFAULT_SECONDARY_UDP_SERVER)
-
-        secondary_layout.addWidget(QtWidgets.QLabel("UDP Server:"), 0, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
-        secondary_layout.addWidget(self.secondary_udp_server_address, 0, 1)
-        secondary_layout.addWidget(QtWidgets.QLabel("UDP Server port number:"), 1, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
-        secondary_layout.addWidget(self.secondary_udp_server_port, 1, 1)
-        secondary_layout.addWidget(self.enable_secondary_udp_server, 2, 0, 1, 2)
-
-        secondary_group.setLayout(secondary_layout)
-
-        udp_settings_group = QtWidgets.QGroupBox(f"{GUI_LABEL_NAME} Main settings")
-
-        udp_settings_widget = QtWidgets.QWidget()
-        udp_settings_layout = QtWidgets.QGridLayout(udp_settings_widget)
-
-        self.enable_sending_reply = QtWidgets.QCheckBox("Enable reply")
-        self.enable_sending_reply.setChecked(DEFAULT_SENDING_REPLY)
-
-        self.enable_gap_finder = QtWidgets.QCheckBox("Enable frequencies offset updater")
-        self.enable_gap_finder.setChecked(DEFAULT_GAP_FINDER)
-
-        self.enable_watchdog_bypass = QtWidgets.QCheckBox("Enable watchdog bypass")
-        self.enable_watchdog_bypass.setChecked(DEFAULT_WATCHDOG_BYPASS)
-
-        udp_settings_layout.addWidget(self.enable_sending_reply, 0, 0, 1, 2)
-        udp_settings_layout.addWidget(self.enable_gap_finder, 1, 0, 1, 2)
-        udp_settings_layout.addWidget(self.enable_watchdog_bypass, 2, 0, 1, 2)
-
-        udp_settings_widget.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_PURPLE}; color: {FG_COLOR_BLACK_ON_PURPLE};")
-        udp_settings_group.setLayout(QtWidgets.QVBoxLayout())
-        udp_settings_group.layout().setContentsMargins(0, 0, 0, 0)
-        udp_settings_group.layout().addWidget(udp_settings_widget)
-
-        udp_freq_range_type_group = QtWidgets.QGroupBox("Select range of frequency being used if offset updater enabled")
-
-        udp_freq_range_type_widget = QtWidgets.QWidget()
-        udp_freq_range_type_layout = QtWidgets.QVBoxLayout(udp_freq_range_type_widget)
-
-        self.radio_normal = QtWidgets.QRadioButton()
-        self.radio_foxhound = QtWidgets.QRadioButton()
-        self.radio_superfox = QtWidgets.QRadioButton()
-
-        self.freq_range_mode_var = QtWidgets.QButtonGroup()
-        self.freq_range_mode_var.addButton(self.radio_normal)
-        self.freq_range_mode_var.addButton(self.radio_foxhound)
-        self.freq_range_mode_var.addButton(self.radio_superfox)
-
-        modes = [
-            (self.radio_normal, MODE_NORMAL, FREQ_MINIMUM, FREQ_MAXIMUM),
-            (self.radio_foxhound, MODE_FOX_HOUND, FREQ_MINIMUM_FOX_HOUND, FREQ_MAXIMUM),
-            (self.radio_superfox, MODE_SUPER_FOX, FREQ_MINIMUM, FREQ_MAXIMUM_SUPER_FOX),
-        ]
-
-        mode_table_widget = QtWidgets.QTableWidget()
-        mode_table_widget.setRowCount(len(modes))
-        mode_table_widget.setColumnCount(4)
-
-        mode_table_widget.setColumnWidth(0, 40)
-        mode_table_widget.setColumnWidth(1, 90)
-        mode_table_widget.setColumnWidth(2, 90)
-        mode_table_widget.setColumnWidth(3, 100)
-        mode_table_widget.setShowGrid(False)
-        mode_table_widget.horizontalHeader().setVisible(False)
-        mode_table_widget.verticalHeader().setVisible(False)
-        mode_table_widget.setAlternatingRowColors(True)
-
-        mode_table_widget.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.Expanding,
-            QtWidgets.QSizePolicy.Policy.Fixed
-        )
-
-        row_height = 22
-        for row, (button, label, freq_min, freq_max) in enumerate(modes):
-            mode_table_widget.setRowHeight(row, row_height)
-            mode_table_widget.setCellWidget(row, 0, button)
-            freq_min_widget = QtWidgets.QLabel(f"{freq_min}Hz")
-            freq_min_widget.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
-            mode_table_widget.setCellWidget(row, 1, freq_min_widget)
-            freq_max_widget = QtWidgets.QLabel(f"{freq_max}Hz")
-            freq_max_widget.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
-            mode_table_widget.setCellWidget(row, 2, freq_max_widget)
-            label_widget = QtWidgets.QLabel(f"{label}")
-            label_widget.setFont(small_font)
-            label_widget.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
-            mode_table_widget.setCellWidget(row, 3, label_widget)
-
-        total_height = row_height * len(modes) + 2
-        mode_table_widget.setMaximumHeight(total_height)
-
-        mode_table_widget.setStyleSheet("""
-            QTableWidget {
-                border: none;
-            }
-        """)
-        mode_table_widget.verticalHeader().setVisible(False)
-
-        udp_freq_range_type_layout.addWidget(mode_table_widget)
-
-        udp_freq_range_type_widget.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_PURPLE}; color: {FG_COLOR_BLACK_ON_PURPLE};")
-        udp_freq_range_type_group.setLayout(QtWidgets.QVBoxLayout())
-        udp_freq_range_type_group.layout().setContentsMargins(0, 0, 0, 0)
-        udp_freq_range_type_group.layout().addWidget(udp_freq_range_type_widget)
-
-        sound_notice_text = (
-            "You can enable or disable the sounds as per your requirement. You can even set a delay between each sound triggered by a message where a monitored callsign has been found. This mainly helps you to be notified when the band opens or when you have a callsign on the air that you want to monitor.<br /><br />Monitored callsigns will never get reply from this program. Only <u>Wanted callsigns will get a reply</u>."
-        )
-    
-        sound_notice_label = QtWidgets.QLabel(sound_notice_text)
-        sound_notice_label.setStyleSheet("background-color: #9dfffe; color: #555bc2; padding: 5px; font-size: 12px;")
-        sound_notice_label.setWordWrap(True)
-        sound_notice_label.setFont(small_font)
-
-        sound_settings_group  = QtWidgets.QGroupBox("Sounds Settings")
-        sound_settings_layout = QtWidgets.QGridLayout()
-
-        play_sound_notice_label = QtWidgets.QLabel("Play Sounds when:")
-        play_sound_notice_label.setFont(small_font)
-
-        self.enable_sound_wanted_callsigns = QtWidgets.QCheckBox("Message from any Wanted Callsign")                
-        self.enable_sound_wanted_callsigns.setChecked(True)
-
-        self.enable_sound_directed_my_callsign = QtWidgets.QCheckBox("Message directed to my Callsign")                
-        self.enable_sound_directed_my_callsign.setChecked(True)
-
-        self.enable_sound_monitored_callsigns = QtWidgets.QCheckBox("Message from any Monitored Callsign")                
-        self.enable_sound_monitored_callsigns.setChecked(True)
-
-        self.delay_between_sound_for_monitored_callsign = QtWidgets.QLineEdit()
-        self.delay_between_sound_for_monitored_callsign.setFixedWidth(50)
-
-        delay_layout = QtWidgets.QHBoxLayout()
-        delay_layout.addWidget(self.delay_between_sound_for_monitored_callsign)
-        delay_layout.addWidget(QtWidgets.QLabel("seconds"))
-
-        delay_layout.addStretch() 
-
-        sound_settings_layout.addWidget(play_sound_notice_label, 0, 0, 1, 2)
-        sound_settings_layout.addWidget(self.enable_sound_wanted_callsigns, 1, 0, 1, 2)
-        sound_settings_layout.addWidget(self.enable_sound_directed_my_callsign, 2, 0, 1, 2)
-        sound_settings_layout.addWidget(self.enable_sound_monitored_callsigns, 3, 0, 1, 2)
-
-        sound_settings_layout.addWidget(QtWidgets.QLabel("Delay between each monitored callsigns detected:"), 4, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
-        sound_settings_layout.addLayout(delay_layout, 4, 1, 1, 2)  
-
-        sound_settings_group.setLayout(sound_settings_layout)
-
-        log_settings_group = QtWidgets.QGroupBox("Log Settings")
-        log_settings_layout = QtWidgets.QGridLayout()
-
-        self.enable_debug_output = QtWidgets.QCheckBox("Show debug output")                
-        self.enable_debug_output.setChecked(DEFAULT_DEBUG_OUTPUT)
-        
-        self.enable_pounce_log = QtWidgets.QCheckBox(f"Save log to {get_log_filename()}")
-        self.enable_pounce_log.setChecked(DEFAULT_POUNCE_LOG)
-
-        self.enable_log_packet_data = QtWidgets.QCheckBox("Save all received Packet Data to log")
-        self.enable_log_packet_data.setChecked(DEFAULT_LOG_PACKET_DATA)
-        
-        self.enable_show_all_decoded = QtWidgets.QCheckBox("Show all decoded messages (not only Wanted or Monitored)")
-        self.enable_show_all_decoded.setChecked(DEFAULT_SHOW_ALL_DECODED)
-    
-        log_settings_layout.addWidget(self.enable_pounce_log, 0, 0, 1, 2)
-        log_settings_layout.addWidget(self.enable_log_packet_data, 1, 0, 1, 2)        
-        log_settings_layout.addWidget(self.enable_debug_output, 2, 0, 1, 2)        
-        log_settings_layout.addWidget(self.enable_show_all_decoded, 3, 0, 1, 2)
-
-        log_settings_group.setLayout(log_settings_layout)
-
-        self.load_params()
-
-        button_box = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.StandardButton.Ok | QtWidgets.QDialogButtonBox.StandardButton.Cancel
-        )
-        button_box.accepted.connect(self.accept)
-        button_box.rejected.connect(self.reject)
-
-        layout.addWidget(jtdx_notice_label)
-        layout.addWidget(primary_group)
-        layout.addWidget(secondary_group)
-        layout.addWidget(udp_settings_group)
-        layout.addWidget(udp_freq_range_type_group)
-        layout.addWidget(sound_notice_label)
-        layout.addWidget(sound_settings_group)
-        layout.addWidget(log_settings_group)
-        layout.addWidget(button_box)
-
-    def load_params(self):
-        local_ip_address = get_local_ip_address()
-
-        freq_range_mode = self.params.get("selected_mode", MODE_NORMAL)
-
-        if freq_range_mode == "Normal":
-            self.radio_normal.setChecked(True)
-        elif freq_range_mode == "Fox/Hound":
-            self.radio_foxhound.setChecked(True)
-        elif freq_range_mode == "SuperFox":
-            self.radio_superfox.setChecked(True)
-        else:
-            self.radio_normal.setChecked(True)
-
-        self.primary_udp_server_address.setText(
-            self.params.get('primary_udp_server_address') or local_ip_address
-        )
-        self.primary_udp_server_port.setText(
-            str(self.params.get('primary_udp_server_port') or DEFAULT_UDP_PORT)
-        )
-        self.secondary_udp_server_address.setText(
-            self.params.get('secondary_udp_server_address') or local_ip_address
-        )
-        self.secondary_udp_server_port.setText(
-            str(self.params.get('secondary_udp_server_port') or DEFAULT_UDP_PORT)
-        )
-        self.enable_secondary_udp_server.setChecked(
-            self.params.get('enable_secondary_udp_server', DEFAULT_SECONDARY_UDP_SERVER)
-        )
-        self.enable_sending_reply.setChecked(
-            self.params.get('enable_sending_reply', DEFAULT_SENDING_REPLY)
-        )
-        self.enable_gap_finder.setChecked(
-            self.params.get('enable_gap_finder', DEFAULT_GAP_FINDER)
-        )
-        self.enable_watchdog_bypass.setChecked(
-            self.params.get('enable_watchdog_bypass', DEFAULT_WATCHDOG_BYPASS)
-        )
-        self.enable_debug_output.setChecked(
-            self.params.get('enable_debug_output', DEFAULT_DEBUG_OUTPUT)
-        )
-        self.enable_pounce_log.setChecked(
-            self.params.get('enable_pounce_log', DEFAULT_POUNCE_LOG)
-        )
-        self.enable_log_packet_data.setChecked(
-            self.params.get('enable_log_packet_data', DEFAULT_LOG_PACKET_DATA)
-        )
-        self.enable_show_all_decoded.setChecked(
-            self.params.get('enable_show_all_decoded', DEFAULT_SHOW_ALL_DECODED)
-        )
-        self.delay_between_sound_for_monitored_callsign.setText(
-            str(self.params.get('delay_between_sound_for_monitored_callsign', DEFAULT_DELAY_BETWEEN_SOUND))
-        )
-        self.enable_sound_wanted_callsigns.setChecked(
-            self.params.get('enable_sound_wanted_callsigns', True)
-        )
-        self.enable_sound_directed_my_callsign.setChecked(
-            self.params.get('enable_sound_directed_my_callsign', True)
-        )
-        self.enable_sound_monitored_callsigns.setChecked(
-            self.params.get('enable_sound_monitored_callsigns', True)
-        )
-
-    def get_result(self):
-        selected_mode = MODE_NORMAL 
-        if self.radio_foxhound.isChecked():
-            selected_mode = MODE_FOX_HOUND
-        elif self.radio_superfox.isChecked():
-            selected_mode = MODE_SUPER_FOX
-
-        return {
-            'primary_udp_server_address'                 : self.primary_udp_server_address.text(),
-            'primary_udp_server_port'                    : self.primary_udp_server_port.text(),
-            'secondary_udp_server_address'               : self.secondary_udp_server_address.text(),
-            'secondary_udp_server_port'                  : self.secondary_udp_server_port.text(),
-            'enable_secondary_udp_server'                : self.enable_secondary_udp_server.isChecked(),
-            'enable_sending_reply'                       : self.enable_sending_reply.isChecked(),
-            'enable_gap_finder'                          : self.enable_gap_finder.isChecked(),
-            'enable_watchdog_bypass'                     : self.enable_watchdog_bypass.isChecked(),
-            'enable_debug_output'                        : self.enable_debug_output.isChecked(),
-            'enable_pounce_log'                          : self.enable_pounce_log.isChecked(),
-            'enable_log_packet_data'                     : self.enable_log_packet_data.isChecked(),
-            'enable_show_all_decoded'                    : self.enable_show_all_decoded.isChecked(),
-            'enable_sound_wanted_callsigns'              : self.enable_sound_wanted_callsigns.isChecked(),
-            'enable_sound_directed_my_callsign'          : self.enable_sound_directed_my_callsign.isChecked(),
-            'enable_sound_monitored_callsigns'           : self.enable_sound_monitored_callsigns.isChecked(),
-            'delay_between_sound_for_monitored_callsign' : self.delay_between_sound_for_monitored_callsign.text(),
-            'selected_mode'                              : selected_mode
-        }
+small_font.setPointSize(11)    
 
 class UpdateWantedDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, selected_callsign=""):
@@ -1369,9 +1045,9 @@ class MainApp(QtWidgets.QMainWindow):
 
             log_filename = get_log_filename()
 
-            self.enable_sound_wanted_callsigns = params.get('enable_sound_wanted_callsigns', True)
-            self.enable_sound_directed_my_callsign = params.get('enable_sound_directed_my_callsign', True)
-            self.enable_sound_monitored_callsigns = params.get('enable_sound_monitored_callsigns', True)
+            self.enable_sound_wanted_callsigns      = params.get('enable_sound_wanted_callsigns', True)
+            self.enable_sound_directed_my_callsign  = params.get('enable_sound_directed_my_callsign', True)
+            self.enable_sound_monitored_callsigns   = params.get('enable_sound_monitored_callsigns', True)
 
             if self.enable_pounce_log and not previous_enable_pounce_log:
                 self.file_handler = add_file_handler(log_filename)
@@ -1638,7 +1314,6 @@ class MainApp(QtWidgets.QMainWindow):
         item_freq.setFont(small_font)
         self.output_table.setItem(row_position, 4, item_freq)
         
-        # Make sure to let an extra space to "message" to add left padding
         item_msg = QTableWidgetItem(f" {message}")
         # item_msg.setFont(custom_font_mono)
         self.output_table.setItem(row_position, 5, item_msg)
@@ -1877,7 +1552,7 @@ class MainApp(QtWidgets.QMainWindow):
         params                              = self.load_params()
         local_ip_address                    = get_local_ip_address()
 
-        freq_range_mode                        = params.get('freq_range_mode')
+        freq_range_mode                     = params.get('freq_range_mode')
         primary_udp_server_address          = params.get('primary_udp_server_address') or local_ip_address
         primary_udp_server_port             = int(params.get('primary_udp_server_port') or DEFAULT_UDP_PORT)
         secondary_udp_server_address        = params.get('secondary_udp_server_address') or local_ip_address
