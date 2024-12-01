@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 from utils import get_app_data_dir
 
-CURRENT_VERSION_NUMBER          = "2.0.10"
+CURRENT_VERSION_NUMBER          = "2.1.0"
 EXPIRATION_DATE                 = datetime(2024, 12, 15)
 UPDATE_JSON_INFO_URL            = "https://storage.de.cloud.ovh.net/v1/AUTH_31163bb499dc49eb819aacdfd32ae82c/wait.and.pounce/public/update_info.json"
 
@@ -58,7 +58,7 @@ WAITING_DATA_PACKETS_LABEL      = "Waiting for UDP Packets"
 WANTED_CALLSIGNS_HISTORY_LABEL  = "Wanted Callsigns History (%d):"
 CALLSIGN_NOTICE_LABEL           = "Comma separated list of callsigns - Wildcard allowed (*)"
 
-MODE_NORMAL                     = "Normal"
+MODE_NORMAL                     = "Regular"
 MODE_FOX_HOUND                  = "Hound"
 MODE_SUPER_FOX                  = "SuperFox"
 

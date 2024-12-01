@@ -12,6 +12,22 @@ from PyQt6.QtCore import QCoreApplication, QStandardPaths
 
 QCoreApplication.setApplicationName("Wait and Pounce")
 
+AMATEUR_BANDS = {
+        '160m'  : (1_800_000, 2_000_000),
+        '80m'   : (3_500_000, 4_000_000),
+        '60m'   : (5_351_500, 5_366_500),  
+        '40m'   : (7_000_000, 7_300_000),
+        '30m'   : (10_100_000, 10_150_000),
+        '20m'   : (14_000_000, 14_350_000),
+        '17m'   : (18_068_000, 18_168_000),
+        '15m'   : (21_000_000, 21_450_000),
+        '12m'   : (24_890_000, 24_990_000),
+        '10m'   : (28_000_000, 29_700_000),
+        '6m'    : (50_000_000, 54_000_000),
+        '2m'    : (144_000_000, 148_000_000),
+        '70cm'  : (430_000_000, 440_000_000)
+}
+
 def get_local_ip_address():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
@@ -131,24 +147,8 @@ def get_mode_interval(mode):
     else:
         return 15
     
-def get_amateur_band(frequency):
-    bands = {
-        '160m'  : (1_800_000, 2_000_000),
-        '80m'   : (3_500_000, 4_000_000),
-        '60m'   : (5_351_500, 5_366_500),  
-        '40m'   : (7_000_000, 7_300_000),
-        '30m'   : (10_100_000, 10_150_000),
-        '20m'   : (14_000_000, 14_350_000),
-        '17m'   : (18_068_000, 18_168_000),
-        '15m'   : (21_000_000, 21_450_000),
-        '12m'   : (24_890_000, 24_990_000),
-        '10m'   : (28_000_000, 29_700_000),
-        '6m'    : (50_000_000, 54_000_000),
-        '2m'    : (144_000_000, 148_000_000),
-        '70cm'  : (430_000_000, 440_000_000)
-    }
-    
-    for band, (lower_bound, upper_bound) in bands.items():
+def get_amateur_band(frequency):   
+    for band, (lower_bound, upper_bound) in AMATEUR_BANDS.items():
         if lower_bound <= frequency <= upper_bound:
             return band
     
