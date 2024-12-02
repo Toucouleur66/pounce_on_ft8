@@ -8,9 +8,10 @@ from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
 from wsjtx_listener import Listener
 
 class Worker(QObject):
-    finished = pyqtSignal()
-    error = pyqtSignal(str)
-    message = pyqtSignal(object)
+    finished                = pyqtSignal()
+    error                  = pyqtSignal(str)
+    listener_started       = pyqtSignal()
+    message                = pyqtSignal(object)
     update_settings_signal = pyqtSignal()
 
     def __init__(
@@ -69,10 +70,11 @@ class Worker(QObject):
                 enable_pounce_log               = self.enable_pounce_log,
                 enable_log_packet_data          = self.enable_log_packet_data,
                 monitoring_settings             = self.monitoring_settings,
-                freq_range_mode                    = self.mode,
+                freq_range_mode                 = self.mode,
                 message_callback                = self.message.emit
             )
             self.listener.listen()
+            self.listener_started.emit()
 
             while not self.stop_event.is_set():
                 time.sleep(0.1)
@@ -85,7 +87,7 @@ class Worker(QObject):
             self.finished.emit()
 
     def update_settings(self):
-        print(f"update_settings called")
+        # print(f"update_settings called")
         if self.listener is not None:
-            print(f"Listener settings updated in thread")
+            # print(f"Listener settings updated in thread")
             self.listener.update_settings()

@@ -100,7 +100,7 @@ class Listener:
         self.excluded_callsigns             = None
         self.monitored_callsigns            = None
         self.monitored_cq_zones             = None
-        self.freq_range_mode                   = freq_range_mode
+        self.freq_range_mode                = freq_range_mode
         self.message_callback               = message_callback
 
         self.update_settings()

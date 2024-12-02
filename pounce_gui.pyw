@@ -343,7 +343,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.focus_value_label.setFont(custom_font_mono_lg)
         self.focus_value_label.setStyleSheet("padding: 10px;")
         self.focus_frame_layout.addWidget(self.focus_value_label)
-        #self.focus_frame.hide()
+        self.focus_frame.hide()
         self.focus_value_label.mousePressEvent = self.copy_to_clipboard
 
         # Timer value
@@ -352,9 +352,22 @@ class MainApp(QtWidgets.QMainWindow):
         self.timer_value_label.setStyleSheet("background-color: #9dfffe; color: #555bc2; padding: 10px;")
 
         # Log analysis label and value
+        status_layout = QtWidgets.QGridLayout()
+
+        status_static_label = QtWidgets.QLabel("Status:")
+        status_static_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        status_static_label.setStyleSheet("padding-right: 30px;")
+
         self.status_label = QtWidgets.QLabel(STATUS_BUTTON_LABEL_NOTHING_YET)
         self.status_label.setFont(custom_font_mono)
         self.status_label.setStyleSheet("background-color: #D3D3D3; border: 1px solid #bbbbbb; border-radius: 10px; padding: 10px;")
+        self.status_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Preferred)
+        self.status_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        status_layout.addWidget(status_static_label, 0, 0) 
+        status_layout.addWidget(self.status_label, 0, 1, 1, 3) 
+
+        status_layout.setColumnStretch(0, 0) 
+        status_layout.setColumnStretch(1, 1) 
 
 
         self.callsign_notice = QtWidgets.QLabel(CALLSIGN_NOTICE_LABEL)
@@ -406,16 +419,17 @@ class MainApp(QtWidgets.QMainWindow):
             self.monitored_callsigns_vars[band].setText(band_params.get("monitored_callsigns", ""))
             self.excluded_callsigns_vars[band].setText(band_params.get("excluded_callsigns", ""))
             self.monitored_cq_zones_vars[band].setText(band_params.get("monitored_cq_zones", ""))
-
             
-            #self.monitored_callsigns_vars[band].textChanged.connect(lambda: force_uppercase(self.monitored_callsigns_vars[band]))
-            #self.excluded_callsigns_vars[band].textChanged.connect(lambda: force_uppercase(self.excluded_callsigns_vars[band]))
-            #self.monitored_cq_zones_vars[band].textChanged.connect(lambda: force_numbers_and_commas(self.monitored_cq_zones_vars[band]))          
+            self.wanted_callsigns_vars[band].textChanged.connect(lambda: force_uppercase(self.wanted_callsigns_vars[band]))
+            self.monitored_callsigns_vars[band].textChanged.connect(lambda: force_uppercase(self.monitored_callsigns_vars[band]))
+            self.excluded_callsigns_vars[band].textChanged.connect(lambda: force_uppercase(self.excluded_callsigns_vars[band]))
+            self.monitored_cq_zones_vars[band].textChanged.connect(lambda: force_numbers_and_commas(self.monitored_cq_zones_vars[band]))     
 
-        self.wanted_callsigns_vars['160m'].textChanged.connect(self.on_wanted_callsigns_changed)
-        self.wanted_callsigns_vars['160m'].textChanged.connect(lambda: force_uppercase(self.wanted_callsigns_vars['160m']))
-
-
+            self.wanted_callsigns_vars[band].textChanged.connect(self.on_wanted_callsigns_changed)     
+            self.monitored_callsigns_vars[band].textChanged.connect(self.on_monitored_callsigns_changed)     
+            self.excluded_callsigns_vars[band].textChanged.connect(self.on_excluded_callsigns_changed)     
+            self.monitored_cq_zones_vars[band].textChanged.connect(self.on_monitored_cq_zones_changed)     
+        
         self.current_band = list(AMATEUR_BANDS.keys())[0]
         self.tab_widget.currentChanged.connect(self.on_tab_changed)
 
@@ -543,13 +557,12 @@ class MainApp(QtWidgets.QMainWindow):
         main_layout.addWidget(self.wanted_callsigns_history_label, 1, 3, 1, 2)
         main_layout.addWidget(self.tab_widget, 2, 0, 4, 3)                
         main_layout.addWidget(self.listbox, 2, 3, 5, 2)
-        main_layout.addWidget(QtWidgets.QLabel("Status:"), 8, 0)
-        main_layout.addWidget(self.status_label, 8, 1, 1, 2)
+        main_layout.addLayout(status_layout, 8, 1, 1, 1)
         main_layout.addWidget(self.status_button, 8, 3)
         main_layout.addWidget(self.stop_button, 8, 4)
         main_layout.addWidget(self.output_table, 9, 0, 1, 5)
         main_layout.addLayout(bottom_layout, 10, 0, 1, 5)
-
+        
         self.file_handler = None
         if self.enable_pounce_log:
             self.file_handler = add_file_handler(get_log_filename())
@@ -568,6 +581,19 @@ class MainApp(QtWidgets.QMainWindow):
 
         # Close event to save position
         self.closeEvent = self.on_close
+
+    def add_frame_to_layout(self, layout):
+        for row in range(layout.rowCount()):
+            for col in range(layout.columnCount()):
+                widget = layout.itemAtPosition(row, col)
+                if widget is not None:
+                    frame = QtWidgets.QFrame()
+                    frame.setStyleSheet("border: 1px solid red;")
+                    frame_layout = QtWidgets.QVBoxLayout()
+                    frame_layout.setContentsMargins(0, 0, 0, 0)
+                    frame.setLayout(frame_layout)
+                    frame_layout.addWidget(widget.widget())
+                    layout.addWidget(frame, row, col)
 
     def apply_theme_to_all(self, dark_mode):
         self.apply_palette(dark_mode)
@@ -729,7 +755,7 @@ class MainApp(QtWidgets.QMainWindow):
                     message_color      = "black_on_cyan"
                 elif (
                     directed is not None and 
-                    matches_any(text_to_array(self.wanted_callsigns_var.text()), directed)
+                    matches_any(text_to_array(self.wanted_callsigns_vars[self.current_band].text()), directed)
                 ):                    
                     message_color      = "white_on_blue"
                 else:
@@ -1441,6 +1467,30 @@ class MainApp(QtWidgets.QMainWindow):
         self.status_button.setText(text)
         self.status_button.setStyleSheet(f"background-color: {bg_color}; color: {fg_color}; padding: 5px; border-radius: 5px; border: none;")
 
+    def update_label_style(self, colorized = False):
+        layout = self.tab_widget.widget(self.tab_widget.currentIndex()).layout()
+
+        if colorized:
+            layout.itemAtPosition(1, 0).widget().setStyleSheet(
+                f"background-color: {BG_COLOR_BLACK_ON_YELLOW}; color: {FG_COLOR_BLACK_ON_YELLOW}; border-radius: 6px; padding: 3px;"
+            )
+            layout.itemAtPosition(2, 0).widget().setStyleSheet(
+                f"background-color: {BG_COLOR_BLACK_ON_PURPLE}; color: {FG_COLOR_BLACK_ON_PURPLE}; border-radius: 6px; padding: 3px;"
+            )
+            layout.itemAtPosition(3, 0).widget().setStyleSheet(
+                f"background-color: {BG_COLOR_BLACK_ON_CYAN}; color: {FG_COLOR_BLACK_ON_CYAN}; border-radius: 6px; padding: 3px;"
+            )
+        else:
+            layout.itemAtPosition(1, 0).widget().setStyleSheet(
+                ""
+            )
+            layout.itemAtPosition(2, 0).widget().setStyleSheet(
+                ""
+            )
+            layout.itemAtPosition(3, 0).widget().setStyleSheet(
+                ""
+            )
+
     def create_main_menu(self):
         main_menu = self.menu_bar.addMenu(GUI_LABEL_NAME)
 
@@ -1568,25 +1618,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.focus_frame.hide()
         self.callsign_notice.hide()
 
-        current_tab = self.tab_widget.widget(self.tab_widget.currentIndex())
-        layout = current_tab.layout()
-
-        layout.itemAtPosition(1, 0).widget().setStyleSheet(
-            f"background-color: {BG_COLOR_BLACK_ON_YELLOW}; color: {FG_COLOR_BLACK_ON_YELLOW}; border-radius: 6px; padding: 3px;"
-        )
-        layout.itemAtPosition(2, 0).widget().setStyleSheet(
-            f"background-color: {BG_COLOR_BLACK_ON_PURPLE}; color: {FG_COLOR_BLACK_ON_PURPLE}; border-radius: 6px; padding: 3px;"
-        )
-        layout.itemAtPosition(3, 0).widget().setStyleSheet(
-            f"background-color: {BG_COLOR_BLACK_ON_CYAN}; color: {FG_COLOR_BLACK_ON_CYAN}; border-radius: 6px; padding: 3px;"
-        )
-
-        if platform.system() == 'Windows':
-            tray_icon = TrayIcon()
-            tray_icon_thread = threading.Thread(target=tray_icon.start, daemon=True)
-            tray_icon_thread.start()
-
-
         wanted_callsigns                    = self.wanted_callsigns_vars[self.current_band].text()
         monitored_callsigns                 = self.monitored_callsigns_vars[self.current_band].text()
         monitored_cq_zones                  = self.monitored_cq_zones_vars[self.current_band].text()
@@ -1620,10 +1651,7 @@ class MainApp(QtWidgets.QMainWindow):
             "wanted_callsigns"              : wanted_callsigns,
             "freq_range_mode"               : freq_range_mode
         })
-        self.save_params(params)
-
-        self.status_label.setText(WAITING_DATA_PACKETS_LABEL)    
-        self.update_status_label_style("yellow", "black")
+        self.save_params(params)        
 
         # Create a QThread and a Worker object
         self.thread = QThread()
@@ -1645,18 +1673,43 @@ class MainApp(QtWidgets.QMainWindow):
         )
         self.worker.moveToThread(self.thread)
 
+        if self.worker:
+            self.worker.listener_started.connect(self.on_listener_started)
+
         # Connect signals and slots
         self.thread.started.connect(self.worker.run)
         self.worker.finished.connect(self.thread.quit)
         self.thread.finished.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
 
-        # Connect worker's signals to the GUI slots
-        # self.worker.finished.connect(self.stop_monitoring)
         self.worker.error.connect(self.add_message_to_table)
+        self.worker.error.connect(self.handle_worker_error)
+
         self.worker.message.connect(self.handle_message_received)
 
         self.thread.start()    
+
+    def handle_worker_error(self, error_message):
+        self.stop_worker() 
+        self.stop_monitoring()
+
+    def on_listener_started(self):
+        if platform.system() == 'Windows':
+            tray_icon = TrayIcon()
+            tray_icon_thread = threading.Thread(target=tray_icon.start, daemon=True)
+            tray_icon_thread.start()
+
+        self.update_label_style(True)
+        self.status_label.setText(WAITING_DATA_PACKETS_LABEL)    
+        self.update_status_label_style("yellow", "black")
+
+    def stop_worker(self):
+        if self.worker:
+            self.worker.blockSignals(True)
+            self.worker = None
+        if self.thread.isRunning():
+            self.thread.quit()
+            self.thread.wait()
 
     def stop_monitoring(self):
         global tray_icon
@@ -1692,13 +1745,15 @@ class MainApp(QtWidgets.QMainWindow):
             self.status_button.setText(STATUS_BUTTON_LABEL_START)
             self.status_button.setStyleSheet("")
 
+            self.update_label_style()
+
             self.stop_blinking_status_button()
 
             self.wanted_callsigns_label.setStyleSheet("")
             self.monitored_callsigns_label.setStyleSheet("")
             self.monitored_cq_zones_label.setStyleSheet("")
 
-            self.callsign_notice.show()
+            # self.callsign_notice.show()
             self.transmitting = False
 
             self.update_status_label_style("grey", "white")
