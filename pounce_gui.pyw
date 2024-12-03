@@ -83,6 +83,8 @@ from constants import (
     CALLSIGN_NOTICE_LABEL,
     # Timer
     DEFAULT_MODE_TIMER_VALUE,
+    # Band,
+    DEFAULT_SELECTED_BAND,
     # Working directory
     CURRENT_DIR,
     # UDP related
@@ -277,6 +279,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.band                               = None
         self.last_frequency                     = None
         self.frequency                          = None
+        self.current_band                       = None
         self.enable_show_all_decoded            = None
 
         self.wanted_callsign_detected_sound     = QSoundEffect()
@@ -370,7 +373,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.tab_widget = QtWidgets.QTabWidget()
 
         self.tab_widget.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
-        self.tab_widget.addTab(QtWidgets.QWidget(), "")
         
         self.wanted_callsigns_vars              = {}
         self.monitored_callsigns_vars           = {}
@@ -456,14 +458,16 @@ class MainApp(QtWidgets.QMainWindow):
                 line_edit.textChanged.connect(on_changed_method)
 
             tab.setLayout(layout)
-
-        self.tab_widget.addTab(QtWidgets.QWidget(), "")    
-        self.tab_widget.setTabEnabled(0, False)  
-        self.tab_widget.setTabEnabled(self.tab_widget.count() - 1, False)        
-
-        self.current_band = list(AMATEUR_BANDS.keys())[0]
-        self.tab_widget.currentChanged.connect(self.on_tab_changed)
-
+  
+        self.tab_widget.tabBarClicked.connect(self.on_tab_clicked)    
+        
+        """
+        self.current_index = 0
+        self.funny_timer = QtCore.QTimer()
+        self.funny_timer.timeout.connect(self.smart_tab_change)
+        self.funny_timer.start(500)
+        """
+        
         """
             Main output table
         """
@@ -597,6 +601,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.gui_handler = GUIHandler(self.message_received.emit)
         self.gui_handler.setFormatter(logging.Formatter("%(message)s"))
 
+        QtCore.QTimer.singleShot(1, lambda: self.apply_band_change(params.get('last_band_used', DEFAULT_SELECTED_BAND)))
+        # Need to use QTimer to make sure we got focus on tab
+        # self.apply_band_change(params.get('last_band_used', DEFAULT_SELECTED_BAND))
         self.apply_theme_to_all(self.theme_manager.dark_mode)
 
         gui_logger = get_logger('gui')
@@ -612,17 +619,32 @@ class MainApp(QtWidgets.QMainWindow):
     def apply_theme_to_all(self, dark_mode):
         self.apply_palette(dark_mode)
 
+    def smart_tab_change(self):
+        print('go changed')
+        self.tab_widget.setCurrentIndex(self.current_index)
+        current_widget = self.tab_widget.currentWidget()
+        self.current_index = (self.current_index + 1) % len(AMATEUR_BANDS)
 
-    def on_tab_changed(self, index):
-            self.current_band = self.tab_widget.tabText(index)
+    def on_tab_clicked(self, index):
+        self.apply_band_change(list(AMATEUR_BANDS.keys())[index])
 
-            self.monitoring_settings.set_wanted_callsigns(self.wanted_callsigns_vars[self.current_band].text())
-            self.monitoring_settings.set_monitored_callsigns(self.monitored_callsigns_vars[self.current_band].text())
-            self.monitoring_settings.set_excluded_callsigns(self.excluded_callsigns_vars[self.current_band].text())
-            self.monitoring_settings.set_monitored_cq_zones(self.monitored_cq_zones_vars[self.current_band].text())
+    def apply_band_change(self, band):
+            self.tab_widget.setCurrentIndex(list(AMATEUR_BANDS.keys()).index(band))
 
-            if self.worker is not None:
-                self.worker.update_settings_signal.emit()
+            if band != self.current_band:                
+                print(f"Updated Settings for {band}")            
+                self.current_band = band
+                self.monitoring_settings.set_wanted_callsigns(self.wanted_callsigns_vars[self.current_band].text())
+                self.monitoring_settings.set_monitored_callsigns(self.monitored_callsigns_vars[self.current_band].text())
+                self.monitoring_settings.set_excluded_callsigns(self.excluded_callsigns_vars[self.current_band].text())
+                self.monitoring_settings.set_monitored_cq_zones(self.monitored_cq_zones_vars[self.current_band].text())
+
+                if self.worker is not None:
+                    self.worker.update_settings_signal.emit()
+
+                params = self.load_params()
+                params['last_band_used'] = band
+                self.save_params(params)           
 
     """
         Used for MonitoringSetting
@@ -650,6 +672,7 @@ class MainApp(QtWidgets.QMainWindow):
 
     def update_wanted_callsigns_history(self, new_callsigns):
         if new_callsigns:
+            new_callsigns = ",".join(sorted([callsign.strip() for callsign in new_callsigns.split(",")]))
             if new_callsigns not in self.wanted_callsigns_history:
                 self.wanted_callsigns_history.append(new_callsigns)
                 if len(self.wanted_callsigns_history) > WANTED_CALLSIGNS_HISTORY_SIZE:
@@ -689,6 +712,8 @@ class MainApp(QtWidgets.QMainWindow):
                     self.band = get_amateur_band(self.frequency)
                     frequency = str(message.get('frequency') / 1_000) + 'Khz'
                     self.add_message_to_table(f"{frequency} ({self.band}) {self.mode}")             
+                    # Make sure to apply new band
+                    self.apply_band_change(self.band)
             elif message_type == 'update_status':
                 self.check_connection_status(
                     message.get('decode_packet_count', 0),
@@ -942,12 +967,13 @@ class MainApp(QtWidgets.QMainWindow):
         self.setWindowTitle(self.base_title)  
 
     def on_listbox_double_click(self, item):
-        selected_callsign = item.text()
-        dialog = UpdateWantedDialog(self, selected_callsign=selected_callsign)
-        result = dialog.exec()
-        if result == QtWidgets.QDialog.DialogCode.Accepted:
-            self.wanted_callsigns_vars[self.current_band].setText(selected_callsign)
-            self.update_current_callsign_highlight()
+        if self.current_band:
+            selected_callsign = item.text()
+            dialog = UpdateWantedDialog(self, selected_callsign=selected_callsign)
+            result = dialog.exec()
+            if result == QtWidgets.QDialog.DialogCode.Accepted:            
+                self.wanted_callsigns_vars[self.current_band].setText(selected_callsign)
+                self.update_current_callsign_highlight()
 
     def init_activity_bar(self):
         self.activity_bar.setValue(ACTIVITY_BAR_MAX_VALUE)
@@ -1611,6 +1637,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.focus_frame.hide()
         self.callsign_notice.hide()        
 
+        self.update_wanted_callsigns_history(self.wanted_callsigns_vars[self.current_band].text())
+        self.update_current_callsign_highlight()
+
         params                              = self.load_params()
         local_ip_address                    = get_local_ip_address()
 
@@ -1628,9 +1657,6 @@ class MainApp(QtWidgets.QMainWindow):
         enable_log_packet_data              = params.get('enable_log_packet_data', DEFAULT_LOG_PACKET_DATA)
         
         self.enable_show_all_decoded        = params.get('enable_show_all_decoded', DEFAULT_SHOW_ALL_DECODED)
-
-        self.update_wanted_callsigns_history(self.wanted_callsigns_vars[self.current_band].text())
-        self.update_current_callsign_highlight()
 
         for band in AMATEUR_BANDS.keys():
             wanted_callsigns                    = self.wanted_callsigns_vars[band].text()

@@ -86,6 +86,7 @@ DEFAULT_POUNCE_LOG              = True
 DEFAULT_LOG_PACKET_DATA         = False
 DEFAULT_SHOW_ALL_DECODED        = True
 DEFAULT_DELAY_BETWEEN_SOUND     = 120
+DEFAULT_SELECTED_BAND           = "6m"
 
 CONTEXT_MENU_DARWIN_STYLE       = """
             QMenu {
