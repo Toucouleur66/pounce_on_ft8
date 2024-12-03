@@ -18,6 +18,7 @@ import logging
 from datetime import datetime, timezone, timedelta
 from collections import deque
 from packaging import version
+from functools import partial
 
 # Custom classes 
 from tray_icon import TrayIcon
@@ -306,15 +307,6 @@ class MainApp(QtWidgets.QMainWindow):
         main_layout = QtWidgets.QGridLayout()
         outer_layout.addLayout(main_layout)
 
-        self.wanted_callsigns_vars      = {}
-        self.monitored_callsigns_vars   = {}
-        self.monitored_cq_zones_vars    = {}
-        self.excluded_callsigns_vars    = {}
-
-        self.tooltip_wanted_vars        = {}
-        self.tooltip_monitored_vars     = {}
-        self.tooltip_excluded_vars      = {}
-
         params = self.load_params()
 
         self.wanted_callsigns_history = self.load_wanted_callsigns()
@@ -369,80 +361,112 @@ class MainApp(QtWidgets.QMainWindow):
         status_layout.setColumnStretch(0, 0) 
         status_layout.setColumnStretch(1, 1) 
 
-
         self.callsign_notice = QtWidgets.QLabel(CALLSIGN_NOTICE_LABEL)
         self.callsign_notice.setStyleSheet("background-color: #9dfffe; color: #555bc2;")
     
+        """
+            Widget Tab
+        """
         self.tab_widget = QtWidgets.QTabWidget()
+
         self.tab_widget.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
+        self.tab_widget.addTab(QtWidgets.QWidget(), "")
+        
+        self.wanted_callsigns_vars              = {}
+        self.monitored_callsigns_vars           = {}
+        self.excluded_callsigns_vars            = {}
+        self.monitored_cq_zones_vars            = {}
+
+        self.tooltip_wanted_vars                = {}
+        self.tooltip_monitored_vars             = {}
+        self.tooltip_excluded_vars              = {}
+        self.tooltip_monitored_cq_zones_vars    = {}
+
+        vars_dict = {
+            'wanted_callsigns'      : self.wanted_callsigns_vars,
+            'monitored_callsigns'   : self.monitored_callsigns_vars,
+            'excluded_callsigns'    : self.excluded_callsigns_vars,
+            'monitored_cq_zones'    : self.monitored_cq_zones_vars,
+        }
+
+        tooltip_vars_dict = {
+            'wanted_callsigns'      : self.tooltip_wanted_vars,
+            'monitored_callsigns'   : self.tooltip_monitored_vars,
+            'excluded_callsigns'    : self.tooltip_excluded_vars,
+            'monitored_cq_zones'    : self.tooltip_monitored_cq_zones_vars,
+        }
+
+        sought_variables = [
+            {
+                'name'             : 'wanted_callsigns',
+                'label'            : 'Wanted Callsigns(s):',
+                'function'         : force_uppercase,
+                'on_changed_method': self.on_wanted_callsigns_changed,
+            },
+            {
+                'name'             : 'monitored_callsigns',
+                'label'            : 'Monitored Callsign(s):',
+                'function'         : force_uppercase,
+                'on_changed_method': self.on_monitored_callsigns_changed,
+            },
+            {
+                'name'             : 'excluded_callsigns',
+                'label'            : 'Excluded Callsign(s):',
+                'function'         : force_uppercase,
+                'on_changed_method': self.on_excluded_callsigns_changed,
+            },
+            {
+                'name'             : 'monitored_cq_zones',
+                'label'            : 'Monitored CQ Zone(s):',
+                'function'         : force_numbers_and_commas,
+                'on_changed_method': self.on_monitored_cq_zones_changed,
+            },
+        ]
 
         for band in AMATEUR_BANDS.keys():
             tab = QtWidgets.QWidget()
             self.tab_widget.addTab(tab, band)
+            layout = QtWidgets.QGridLayout(tab)
 
-            wanted_callsigns_var    = QtWidgets.QLineEdit()
-            wanted_callsigns_var.setFont(custom_font)
-            monitored_callsigns_var = QtWidgets.QLineEdit()
-            monitored_callsigns_var.setFont(custom_font)
-            monitored_cq_zones_var  = QtWidgets.QLineEdit()
-            monitored_cq_zones_var.setFont(custom_font)
-            excluded_callsigns_var  = QtWidgets.QLineEdit()
-            excluded_callsigns_var.setFont(custom_font)
+            band_params = params.get(band, {})
 
-            self.wanted_callsigns_vars[band]    = wanted_callsigns_var
-            self.monitored_callsigns_vars[band] = monitored_callsigns_var
-            self.monitored_cq_zones_vars[band]  = monitored_cq_zones_var
-            self.excluded_callsigns_vars[band]  = excluded_callsigns_var
+            for idx, var_info in enumerate(sought_variables):
+                var_name          = var_info['name']
+                label_text        = var_info['label']
+                function          = var_info['function']
+                on_changed_method = var_info['on_changed_method']
 
-            self.tooltip_wanted_vars[band]      = ToolTip(wanted_callsigns_var)
-            self.tooltip_monitored_vars[band]   = ToolTip(monitored_callsigns_var)
-            self.tooltip_excluded_vars[band]    = ToolTip(excluded_callsigns_var)
+                line_edit = QtWidgets.QLineEdit()
+                line_edit.setFont(custom_font)
 
-            layout = QtWidgets.QGridLayout(tab)  
-            
-            layout.addWidget(QtWidgets.QLabel("Wanted Callsigns(s):"), 1, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
-            layout.addWidget(wanted_callsigns_var, 1, 1)
-            layout.addWidget(QtWidgets.QLabel("Monitored Callsign(s):"), 2, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
-            layout.addWidget(monitored_callsigns_var, 2, 1)
-            layout.addWidget(QtWidgets.QLabel("Monitored CQ Zone(s):"), 3, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
-            layout.addWidget(monitored_cq_zones_var, 3, 1)
-            layout.addWidget(QtWidgets.QLabel("Excluded Callsign(s):"), 4, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
-            layout.addWidget(excluded_callsigns_var, 4, 1)
+                vars_dict[var_name][band] = line_edit
+
+                tooltip_vars_dict[var_name][band] = ToolTip(line_edit)
+
+                line_edit.setText(band_params.get(var_name, ""))
+
+                line_label = QtWidgets.QLabel(label_text)
+                line_label.setStyleSheet("border-radius: 6px; padding: 3px;")
+
+                layout.addWidget(line_label, idx+1, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
+                layout.addWidget(line_edit, idx+1, 1)
+
+                line_edit.textChanged.connect(partial(function, line_edit))
+
+                line_edit.textChanged.connect(on_changed_method)
 
             tab.setLayout(layout)
 
-            # layout.addWidget(self.callsign_notice, 0, 0)
+        self.tab_widget.addTab(QtWidgets.QWidget(), "")    
+        self.tab_widget.setTabEnabled(0, False)  
+        self.tab_widget.setTabEnabled(self.tab_widget.count() - 1, False)        
 
-        for band in AMATEUR_BANDS.keys():
-            band_params = params.get(band, {})
-            self.wanted_callsigns_vars[band].setText(band_params.get("wanted_callsigns", ""))
-            self.monitored_callsigns_vars[band].setText(band_params.get("monitored_callsigns", ""))
-            self.excluded_callsigns_vars[band].setText(band_params.get("excluded_callsigns", ""))
-            self.monitored_cq_zones_vars[band].setText(band_params.get("monitored_cq_zones", ""))
-            
-            self.wanted_callsigns_vars[band].textChanged.connect(lambda: force_uppercase(self.wanted_callsigns_vars[band]))
-            self.monitored_callsigns_vars[band].textChanged.connect(lambda: force_uppercase(self.monitored_callsigns_vars[band]))
-            self.excluded_callsigns_vars[band].textChanged.connect(lambda: force_uppercase(self.excluded_callsigns_vars[band]))
-            self.monitored_cq_zones_vars[band].textChanged.connect(lambda: force_numbers_and_commas(self.monitored_cq_zones_vars[band]))     
-
-            self.wanted_callsigns_vars[band].textChanged.connect(self.on_wanted_callsigns_changed)     
-            self.monitored_callsigns_vars[band].textChanged.connect(self.on_monitored_callsigns_changed)     
-            self.excluded_callsigns_vars[band].textChanged.connect(self.on_excluded_callsigns_changed)     
-            self.monitored_cq_zones_vars[band].textChanged.connect(self.on_monitored_cq_zones_changed)     
-        
         self.current_band = list(AMATEUR_BANDS.keys())[0]
         self.tab_widget.currentChanged.connect(self.on_tab_changed)
 
-        self.wanted_callsigns_label     = QtWidgets.QLabel("Wanted Callsign(s):")
-        self.monitored_callsigns_label  = QtWidgets.QLabel("Monitored Callsign(s):")
-        self.monitored_cq_zones_label   = QtWidgets.QLabel("Monitored CQ Zone(s):")
-        self.excluded_callsigns_label   = QtWidgets.QLabel("Excluded Callsign(s):")
-
-        self.wanted_callsigns_label.setStyleSheet("border-radius: 6px; padding: 3px;")
-        self.monitored_callsigns_label.setStyleSheet("border-radius: 6px; padding: 3px;")
-        self.monitored_cq_zones_label.setStyleSheet("border-radius: 6px; padding: 3px;")
-        self.excluded_callsigns_label.setStyleSheet("border-radius: 6px; padding: 3px;")
-
+        """
+            Main output table
+        """
         header_labels = ['Time', 'Band', 'Report', 'DT', 'Freq', 'Message', 'Country', 'CQ', 'Continent']
         self.output_table = QTableWidget(self)
         self.output_table.setColumnCount(len(header_labels))
@@ -496,6 +520,12 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_table.cellClicked.connect(self.on_table_row_clicked)
         self.output_table.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
 
+        """
+            Bottom and Button layout
+        """
+        bottom_layout = QtWidgets.QHBoxLayout()
+        button_layout = QtWidgets.QHBoxLayout()
+
         self.clear_button = QtWidgets.QPushButton("Clear History")
         self.clear_button.setEnabled(False)
         self.clear_button.clicked.connect(self.clear_output_table)
@@ -524,7 +554,6 @@ class MainApp(QtWidgets.QMainWindow):
 
         # Timer label and log analysis
         
-        button_layout = QtWidgets.QHBoxLayout()
         button_layout.addWidget(self.settings)
         button_layout.addWidget(self.clear_button)
 
@@ -533,7 +562,6 @@ class MainApp(QtWidgets.QMainWindow):
 
         button_layout.addWidget(self.quit_button)
 
-        bottom_layout = QtWidgets.QHBoxLayout()
         bottom_layout.addWidget(self.disable_alert_checkbox)
         bottom_layout.addStretch()  
         bottom_layout.addLayout(button_layout)
@@ -550,7 +578,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.enable_sound_directed_my_callsign = params.get('enable_sound_directed_my_callsign', True)
         self.enable_sound_monitored_callsigns = params.get('enable_sound_monitored_callsigns', True)
        
-        # void QGridLayout::addWidget(QWidget *widget, int fromRow, int fromColumn, int rowSpan, int columnSpan, Qt::Alignment alignment = Qt::Alignment())
         main_layout.addWidget(self.focus_frame, 0, 0, 1, 4)
         main_layout.addWidget(self.timer_value_label, 0, 4)
             
@@ -582,21 +609,9 @@ class MainApp(QtWidgets.QMainWindow):
         # Close event to save position
         self.closeEvent = self.on_close
 
-    def add_frame_to_layout(self, layout):
-        for row in range(layout.rowCount()):
-            for col in range(layout.columnCount()):
-                widget = layout.itemAtPosition(row, col)
-                if widget is not None:
-                    frame = QtWidgets.QFrame()
-                    frame.setStyleSheet("border: 1px solid red;")
-                    frame_layout = QtWidgets.QVBoxLayout()
-                    frame_layout.setContentsMargins(0, 0, 0, 0)
-                    frame.setLayout(frame_layout)
-                    frame_layout.addWidget(widget.widget())
-                    layout.addWidget(frame, row, col)
-
     def apply_theme_to_all(self, dark_mode):
         self.apply_palette(dark_mode)
+
 
     def on_tab_changed(self, index):
             self.current_band = self.tab_widget.tabText(index)
@@ -619,17 +634,17 @@ class MainApp(QtWidgets.QMainWindow):
             self.worker.update_settings_signal.emit()
 
     def on_monitored_callsigns_changed(self):
-        self.monitoring_settings.set_monitored_callsigns(self.monitored_callsigns_var.text())
+        self.monitoring_settings.set_monitored_callsigns(self.monitored_callsigns_vars[self.current_band].text())
         if self.worker is not None:
             self.worker.update_settings_signal.emit()
 
     def on_excluded_callsigns_changed(self):
-        self.monitoring_settings.set_excluded_callsigns(self.excluded_callsigns_var.text())
+        self.monitoring_settings.set_excluded_callsigns(self.excluded_callsigns_vars[self.current_band].text())
         if self.worker is not None:
             self.worker.update_settings_signal.emit()
 
     def on_monitored_cq_zones_changed(self):
-        self.monitoring_settings.set_monitored_cq_zones(self.monitored_cq_zones_var.text())
+        self.monitoring_settings.set_monitored_cq_zones(self.monitored_cq_zones_vars[self.current_band].text())
         if self.worker is not None:
             self.worker.update_settings_signal.emit()
 
@@ -641,26 +656,6 @@ class MainApp(QtWidgets.QMainWindow):
                     self.wanted_callsigns_history.pop(0)
                 self.save_wanted_callsigns(self.wanted_callsigns_history)
                 self.update_listbox()
-
-    def update_displayed_fields(self, index):
-        band = self.tab_widget.tabText(index)  
-        self.current_band = band
-
-        # Update displayed widgets
-        self.wanted_callsigns_label.setText("Wanted Callsign(s):")
-        self.monitored_callsigns_label.setText("Monitored Callsign(s):")
-        self.monitored_cq_zones_label.setText("Monitored CQ Zone(s):")
-        self.excluded_callsigns_label.setText("Excluded Callsign(s):")
-
-        self.wanted_callsigns_label.show()
-        self.monitored_callsigns_label.show()
-        self.monitored_cq_zones_label.show()
-        self.excluded_callsigns_label.show()
-
-        self.wanted_callsigns_label.setBuddy(self.wanted_callsigns_vars[band])
-        self.monitored_callsigns_label.setBuddy(self.monitored_callsigns_vars[band])
-        self.monitored_cq_zones_label.setBuddy(self.monitored_cq_zones_vars[band])
-        self.excluded_callsigns_label.setBuddy(self.excluded_callsigns_vars[band])            
 
     @QtCore.pyqtSlot(str)
     def add_message_to_table(self, message, fg_color='white', bg_color=STATUS_TRX_COLOR):
@@ -829,19 +824,19 @@ class MainApp(QtWidgets.QMainWindow):
         """
             Wanted Callsigns
         """
-        if callsign not in self.wanted_callsigns_var.text():
+        if callsign not in self.wanted_callsigns_vars[self.current_band].text():
             actions['add_callsign_to_wanted'] = menu.addAction(f"Add {callsign} to Wanted Callsigns")
         else:
             actions['remove_callsign_from_wanted'] = menu.addAction(f"Remove {callsign} from Wanted Callsigns")
 
-        if callsign != self.wanted_callsigns_var.text():
+        if callsign != self.wanted_callsigns_vars[self.current_band].text():
             actions['replace_wanted_with_callsign'] = menu.addAction(f"Make {callsign} your only Wanted Callsign")
         menu.addSeparator()
 
         """
             Monitored Callsigns
         """
-        if callsign not in self.monitored_callsigns_var.text():
+        if callsign not in self.monitored_callsigns_vars[self.current_band].text():
             actions['add_callsign_to_monitored'] = menu.addAction(f"Add {callsign} to Monitored Callsigns")
         else:
             actions['remove_callsign_from_monitored'] = menu.addAction(f"Remove {callsign} from Monitored Callsigns")
@@ -851,15 +846,15 @@ class MainApp(QtWidgets.QMainWindow):
             Directed Callsigns
         """
         if directed:
-            if directed not in self.wanted_callsigns_var.text():
+            if directed not in self.wanted_callsigns_vars[self.current_band].text():
                 actions['add_directed_to_wanted'] = menu.addAction(f"Add {directed} to Wanted Callsigns")
             else:
                 actions['remove_directed_from_wanted'] = menu.addAction(f"Remove {directed} from Wanted Callsigns")
 
-            if directed != self.wanted_callsigns_var.text():
+            if directed != self.wanted_callsigns_vars[self.current_band].text():
                 actions['replace_wanted_with_directed'] = menu.addAction(f"Make {directed} your only Monitored Callsign")                
 
-            if directed not in self.monitored_callsigns_var.text():
+            if directed not in self.monitored_callsigns_vars[self.current_band].text():
                 actions['add_directed_to_monitored'] = menu.addAction(f"Add {directed} to Monitored Callsigns")
             else:
                 actions['remove_directed_from_monitored'] = menu.addAction(f"Remove {directed} from Monitored Callsigns")
@@ -870,7 +865,7 @@ class MainApp(QtWidgets.QMainWindow):
         """
         if cq_zone:
             try:
-                if str(cq_zone) not in self.monitored_cq_zones_var.text():
+                if str(cq_zone) not in self.monitored_cq_zones_vars[self.current_band].text():
                     actions['add_to_cq_zone'] = menu.addAction(f"Add Zone {cq_zone} to Monitored CQ Zones")
                 else:
                     actions['remove_from_cq_zone'] = menu.addAction(f"Remove Zone {cq_zone} from Monitored CQ Zones")
@@ -896,18 +891,18 @@ class MainApp(QtWidgets.QMainWindow):
                 print("No formatted message to copy")
         else:
             update_actions = {
-                'add_callsign_to_wanted'         : lambda: self.update_var(self.wanted_callsigns_var, callsign),
-                'remove_callsign_from_wanted'    : lambda: self.update_var(self.wanted_callsigns_var, callsign, "remove"),
-                'replace_wanted_with_callsign'   : lambda: self.update_var(self.wanted_callsigns_var, callsign, "replace"),
-                'add_callsign_to_monitored'      : lambda: self.update_var(self.monitored_callsigns_var, callsign),
-                'remove_callsign_from_monitored' : lambda: self.update_var(self.monitored_callsigns_var, callsign, "remove"),
-                'add_directed_to_wanted'         : lambda: self.update_var(self.wanted_callsigns_var, directed),
-                'remove_directed_from_wanted'    : lambda: self.update_var(self.wanted_callsigns_var, directed, "remove"),
-                'replace_wanted_with_directed'   : lambda: self.update_var(self.wanted_callsigns_var, directed, "replace"),
-                'add_directed_to_monitored'      : lambda: self.update_var(self.monitored_callsigns_var, directed),
-                'remove_directed_from_monitored' : lambda: self.update_var(self.monitored_callsigns_var, directed, "remove"),
-                'add_to_cq_zone'                 : lambda: self.update_var(self.monitored_cq_zones_var, cq_zone),
-                'remove_from_cq_zone'            : lambda: self.update_var(self.monitored_cq_zones_var, cq_zone, "remove"),
+                'add_callsign_to_wanted'         : lambda: self.update_var(self.wanted_callsigns_vars[self.current_band], callsign),
+                'remove_callsign_from_wanted'    : lambda: self.update_var(self.wanted_callsigns_vars[self.current_band], callsign, "remove"),
+                'replace_wanted_with_callsign'   : lambda: self.update_var(self.wanted_callsigns_vars[self.current_band], callsign, "replace"),
+                'add_callsign_to_monitored'      : lambda: self.update_var(self.monitored_callsigns_vars[self.current_band], callsign),
+                'remove_callsign_from_monitored' : lambda: self.update_var(self.monitored_callsigns_vars[self.current_band], callsign, "remove"),
+                'add_directed_to_wanted'         : lambda: self.update_var(self.wanted_callsigns_vars[self.current_band], directed),
+                'remove_directed_from_wanted'    : lambda: self.update_var(self.wanted_callsigns_vars[self.current_band], directed, "remove"),
+                'replace_wanted_with_directed'   : lambda: self.update_var(self.wanted_callsigns_vars[self.current_band], directed, "replace"),
+                'add_directed_to_monitored'      : lambda: self.update_var(self.monitored_callsigns_vars[self.current_band], directed),
+                'remove_directed_from_monitored' : lambda: self.update_var(self.monitored_callsigns_vars[self.current_band], directed, "remove"),
+                'add_to_cq_zone'                 : lambda: self.update_var(self.monitored_cq_zones_vars[self.current_band], cq_zone),
+                'remove_from_cq_zone'            : lambda: self.update_var(self.monitored_cq_zones_vars[self.current_band], cq_zone, "remove"),
             }
 
             for key, act in actions.items():
@@ -947,13 +942,12 @@ class MainApp(QtWidgets.QMainWindow):
         self.setWindowTitle(self.base_title)  
 
     def on_listbox_double_click(self, item):
-        if self._running:
-            selected_callsign = item.text()
-            dialog = UpdateWantedDialog(self, selected_callsign=selected_callsign)
-            result = dialog.exec()
-            if result == QtWidgets.QDialog.DialogCode.Accepted:
-                self.wanted_callsigns_var.setText(selected_callsign)
-                self.update_current_callsign_highlight()
+        selected_callsign = item.text()
+        dialog = UpdateWantedDialog(self, selected_callsign=selected_callsign)
+        result = dialog.exec()
+        if result == QtWidgets.QDialog.DialogCode.Accepted:
+            self.wanted_callsigns_vars[self.current_band].setText(selected_callsign)
+            self.update_current_callsign_highlight()
 
     def init_activity_bar(self):
         self.activity_bar.setValue(ACTIVITY_BAR_MAX_VALUE)
@@ -1225,7 +1219,6 @@ class MainApp(QtWidgets.QMainWindow):
             palette.setColor(QtGui.QPalette.ColorRole.Highlight, qt_bg_color)
             palette.setColor(QtGui.QPalette.ColorRole.HighlightedText, qt_fg_color)
             palette.setColor(QtGui.QPalette.ColorGroup.Disabled, QtGui.QPalette.ColorRole.Text, QtGui.QColor('#7F7F7F'))
-
         
         self.setPalette(palette)
         table_palette = self.output_table.palette()
@@ -1482,13 +1475,13 @@ class MainApp(QtWidgets.QMainWindow):
             )
         else:
             layout.itemAtPosition(1, 0).widget().setStyleSheet(
-                ""
+                "border-radius: 6px; padding: 3px;"
             )
             layout.itemAtPosition(2, 0).widget().setStyleSheet(
-                ""
+                "border-radius: 6px; padding: 3px;"
             )
             layout.itemAtPosition(3, 0).widget().setStyleSheet(
-                ""
+                "border-radius: 6px; padding: 3px;"
             )
 
     def create_main_menu(self):
@@ -1616,12 +1609,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.stop_event.clear()
         self.focus_frame.hide()
-        self.callsign_notice.hide()
-
-        wanted_callsigns                    = self.wanted_callsigns_vars[self.current_band].text()
-        monitored_callsigns                 = self.monitored_callsigns_vars[self.current_band].text()
-        monitored_cq_zones                  = self.monitored_cq_zones_vars[self.current_band].text()
-        excluded_callsigns                  = self.excluded_callsigns_vars[self.current_band].text()
+        self.callsign_notice.hide()        
 
         params                              = self.load_params()
         local_ip_address                    = get_local_ip_address()
@@ -1641,16 +1629,23 @@ class MainApp(QtWidgets.QMainWindow):
         
         self.enable_show_all_decoded        = params.get('enable_show_all_decoded', DEFAULT_SHOW_ALL_DECODED)
 
-        self.update_wanted_callsigns_history(wanted_callsigns)
+        self.update_wanted_callsigns_history(self.wanted_callsigns_vars[self.current_band].text())
         self.update_current_callsign_highlight()
 
-        params.update({
-            "monitored_callsigns"           : monitored_callsigns,
-            "monitored_cq_zones"            : monitored_cq_zones,
-            "excluded_callsigns"            : excluded_callsigns,
-            "wanted_callsigns"              : wanted_callsigns,
-            "freq_range_mode"               : freq_range_mode
-        })
+        for band in AMATEUR_BANDS.keys():
+            wanted_callsigns                    = self.wanted_callsigns_vars[band].text()
+            monitored_callsigns                 = self.monitored_callsigns_vars[band].text()
+            monitored_cq_zones                  = self.monitored_cq_zones_vars[band].text()
+            excluded_callsigns                  = self.excluded_callsigns_vars[band].text()
+            
+            params.setdefault(band, {}).update({
+                "monitored_callsigns"           : monitored_callsigns,
+                "monitored_cq_zones"            : monitored_cq_zones,
+                "excluded_callsigns"            : excluded_callsigns,
+                "wanted_callsigns"              : wanted_callsigns
+            })
+
+        params['freq_range_mode']           = freq_range_mode
         self.save_params(params)        
 
         # Create a QThread and a Worker object
@@ -1749,9 +1744,7 @@ class MainApp(QtWidgets.QMainWindow):
 
             self.stop_blinking_status_button()
 
-            self.wanted_callsigns_label.setStyleSheet("")
-            self.monitored_callsigns_label.setStyleSheet("")
-            self.monitored_cq_zones_label.setStyleSheet("")
+            self.update_label_style(False)
 
             # self.callsign_notice.show()
             self.transmitting = False
