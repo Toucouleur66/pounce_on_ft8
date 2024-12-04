@@ -21,6 +21,7 @@ from packaging import version
 from functools import partial
 
 # Custom classes 
+from custom_tab_widget import CustomTabWidget
 from tray_icon import TrayIcon
 from activity_bar import ActivityBar
 from tooltip import ToolTip
@@ -358,7 +359,7 @@ class MainApp(QtWidgets.QMainWindow):
         """
             Widget Tab
         """
-        self.tab_widget = QtWidgets.QTabWidget()
+        self.tab_widget = CustomTabWidget()
 
         self.tab_widget.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
         
@@ -371,6 +372,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.tooltip_monitored_vars             = {}
         self.tooltip_excluded_vars              = {}
         self.tooltip_monitored_cq_zones_vars    = {}
+
+        self.band_indices                       = {}
+        self.band_content_widgets               = {}
 
         vars_dict = {
             'wanted_callsigns'      : self.wanted_callsigns_vars,
@@ -413,10 +417,11 @@ class MainApp(QtWidgets.QMainWindow):
             }
         ]
 
-        for band in AMATEUR_BANDS.keys():
-            tab = QtWidgets.QWidget()
-            self.tab_widget.addTab(tab, band)
-            layout = QtWidgets.QGridLayout(tab)
+        for index, band in enumerate(AMATEUR_BANDS.keys()):
+            self.band_indices[band] = index
+
+            tab_content = QtWidgets.QWidget()
+            layout = QtWidgets.QGridLayout(tab_content)
 
             band_params = params.get(band, {})
 
@@ -442,13 +447,13 @@ class MainApp(QtWidgets.QMainWindow):
                 layout.addWidget(line_edit, idx+1, 1)
 
                 line_edit.textChanged.connect(partial(function, line_edit))
-
                 line_edit.textChanged.connect(on_changed_method)
 
-            tab.setLayout(layout)
-  
-        self.tab_widget.tabBarClicked.connect(self.on_tab_clicked)    
-        
+            tab_content.setLayout(layout)
+            self.band_content_widgets[band] = tab_content
+            self.tab_widget.addTab(tab_content, band)
+
+        self.tab_widget.tabClicked.connect(self.on_tab_clicked) 
         """
         self.current_index = 0
         self.funny_timer = QtCore.QTimer()
@@ -587,9 +592,8 @@ class MainApp(QtWidgets.QMainWindow):
             self.file_handler = add_file_handler(get_log_filename())
 
         self.selected_band_tab = params.get('last_band_used', DEFAULT_SELECTED_BAND)
-        QtCore.QTimer.singleShot(1, lambda: self.apply_band_change(self.selected_band_tab))
         # Need to use QTimer to make sure we got focus on tab
-        # self.apply_band_change(params.get('last_band_used', DEFAULT_SELECTED_BAND))
+        QtCore.QTimer.singleShot(1, lambda: self.apply_band_change(self.selected_band_tab))        
         self.apply_theme_to_all(self.theme_manager.dark_mode)
         self.load_window_position()
         self.init_activity_bar()
@@ -609,24 +613,34 @@ class MainApp(QtWidgets.QMainWindow):
         band = list(AMATEUR_BANDS.keys())[index]
         log.debug(f"Selected_band: {band}")            
         self.selected_band_tab = band
-        self.save_last_used_tab(band)      
+
+        self.tab_widget.set_selected_tab(index)
+
+        if self.selected_band_tab != self.operating_band and self._running:
+            self.tab_widget.set_operating_tab(self.operating_band)
+
+        self.save_last_used_tab(band)
         
     def apply_band_change(self, band):
-            self.tab_widget.setCurrentIndex(list(AMATEUR_BANDS.keys()).index(band))
+        index = self.band_indices.get(band)
+        self.tab_widget.set_selected_tab(index)
 
-            if band != self.operating_band:                
-                log.warning(f"Operating_band: {band}")            
-                self.operating_band = band
-                self.monitoring_settings.set_wanted_callsigns(self.wanted_callsigns_vars[self.operating_band].text())
-                self.monitoring_settings.set_monitored_callsigns(self.monitored_callsigns_vars[self.operating_band].text())
-                self.monitoring_settings.set_excluded_callsigns(self.excluded_callsigns_vars[self.operating_band].text())
-                self.monitoring_settings.set_monitored_cq_zones(self.monitored_cq_zones_vars[self.operating_band].text())                                     
-                
-                if self.worker is not None:
-                    self.worker.update_settings_signal.emit()                          
+        if band != self.operating_band:
+            log.warning(f"Operating_band: {band}")
+            self.operating_band = band
+            self.monitoring_settings.set_wanted_callsigns(self.wanted_callsigns_vars[self.operating_band].text())
+            self.monitoring_settings.set_monitored_callsigns(self.monitored_callsigns_vars[self.operating_band].text())
+            self.monitoring_settings.set_excluded_callsigns(self.excluded_callsigns_vars[self.operating_band].text())
+            self.monitoring_settings.set_monitored_cq_zones(self.monitored_cq_zones_vars[self.operating_band].text())
 
-            self.update_label_style(True)    
-            self.save_last_used_tab(band) 
+            if self.worker is not None:
+                self.worker.update_settings_signal.emit()
+
+        if self._running:
+            self.tab_widget.set_operating_tab(self.operating_band)
+
+        self.update_widget_labels_style(True)
+        self.save_last_used_tab(band)
 
     def save_last_used_tab(self, band):
         params = self.load_params()
@@ -1482,9 +1496,11 @@ class MainApp(QtWidgets.QMainWindow):
         self.status_button.setText(text)
         self.status_button.setStyleSheet(f"background-color: {bg_color}; color: {fg_color}; padding: 5px; border-radius: 5px; border: none;")
 
-    def update_label_style(self, colorized = False):
+    def update_widget_labels_style(self, colorized = False):
         if self.operating_band:
-            layout = self.tab_widget.widget(list(AMATEUR_BANDS.keys()).index(self.operating_band)).layout()
+            index = self.band_indices.get(self.operating_band)
+            content_widget = self.tab_widget.get_content_widget(index)
+            layout = content_widget.layout()
 
             if colorized and self._running:
                 layout.itemAtPosition(1, 0).widget().setStyleSheet(
@@ -1768,7 +1784,7 @@ class MainApp(QtWidgets.QMainWindow):
 
             self.stop_blinking_status_button()
 
-            self.update_label_style(False)
+            self.update_widget_labels_style(False)
 
             # self.callsign_notice.show()
             self.transmitting = False
