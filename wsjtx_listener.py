@@ -304,6 +304,7 @@ class Listener:
         if self.message_callback:
             self.message_callback({
                 'type'                      : 'update_status',
+                'frequency'                 : self.frequency,
                 'decode_packet_count'       : self.decode_packet_count,
                 'last_decode_packet_time'   : self.last_decode_packet_time,
                 'last_heartbeat_time'       : self.last_heartbeat_time,

@@ -10,7 +10,9 @@ import subprocess
 
 from packaging import version
 from datetime import datetime
+from logger import get_logger
 
+log     = get_logger(__name__)
 
 from constants import (
     EXPIRATION_DATE,
@@ -29,7 +31,6 @@ elif platform.system() == 'Darwin':
     custom_font_mono        = QtGui.QFont("Monaco", 13)
     custom_font_mono_lg     = QtGui.QFont("Monaco", 18)
     custom_font_bold        = QtGui.QFont("Monaco", 12, QtGui.QFont.Weight.Bold)
-
 
 class Updater:
     def __init__(self, parent=None):
@@ -71,7 +72,7 @@ class Updater:
             if response.status_code == 200:
                 update_info = response.json()[platform.system().lower()]
                 latest_version = update_info.get('version')
-                print(f"Last known version available: {latest_version}")
+                log.warning(f"Last known version available: {latest_version}")
                 if version.parse(latest_version) > version.parse(CURRENT_VERSION_NUMBER):
                     if self.prompt_user_for_update(update_info):
                         download_url = update_info['download_url']
