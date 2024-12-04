@@ -1018,7 +1018,6 @@ class MainApp(QtWidgets.QMainWindow):
         #if self.dark_mode:
             #style+= "border: 1px solid grey;"
 
-
         self.status_label.setStyleSheet(style)            
 
     def set_value_to_focus(self, formatted_message, contains_my_call):
@@ -1610,6 +1609,23 @@ class MainApp(QtWidgets.QMainWindow):
 
         dialog.exec()        
 
+    def save_band_settings(self):
+        params = self.load_params()
+
+        for band in AMATEUR_BANDS.keys():
+            wanted_callsigns                    = self.wanted_callsigns_vars[band].text()
+            monitored_callsigns                 = self.monitored_callsigns_vars[band].text()
+            monitored_cq_zones                  = self.monitored_cq_zones_vars[band].text()
+            excluded_callsigns                  = self.excluded_callsigns_vars[band].text()
+            
+            params.setdefault(band, {}).update({
+                "monitored_callsigns"           : monitored_callsigns,
+                "monitored_cq_zones"            : monitored_cq_zones,
+                "excluded_callsigns"            : excluded_callsigns,
+                "wanted_callsigns"              : wanted_callsigns
+            })
+        self.save_params(params)               
+
     def start_monitoring(self):
         global tray_icon
 
@@ -1655,19 +1671,6 @@ class MainApp(QtWidgets.QMainWindow):
         enable_log_packet_data              = params.get('enable_log_packet_data', DEFAULT_LOG_PACKET_DATA)
         
         self.enable_show_all_decoded        = params.get('enable_show_all_decoded', DEFAULT_SHOW_ALL_DECODED)
-
-        for band in AMATEUR_BANDS.keys():
-            wanted_callsigns                    = self.wanted_callsigns_vars[band].text()
-            monitored_callsigns                 = self.monitored_callsigns_vars[band].text()
-            monitored_cq_zones                  = self.monitored_cq_zones_vars[band].text()
-            excluded_callsigns                  = self.excluded_callsigns_vars[band].text()
-            
-            params.setdefault(band, {}).update({
-                "monitored_callsigns"           : monitored_callsigns,
-                "monitored_cq_zones"            : monitored_cq_zones,
-                "excluded_callsigns"            : excluded_callsigns,
-                "wanted_callsigns"              : wanted_callsigns
-            })
 
         params['freq_range_mode']           = freq_range_mode
         self.save_params(params)        
@@ -1797,6 +1800,8 @@ def main():
     if is_first_launch_or_new_version(CURRENT_VERSION_NUMBER):
         window.show_about_dialog() 
         save_current_version(CURRENT_VERSION_NUMBER)
+
+    app.aboutToQuit.connect(window.save_band_settings)        
 
     sys.exit(app.exec())
 
