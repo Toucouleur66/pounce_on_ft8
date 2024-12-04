@@ -65,6 +65,7 @@ from constants import (
     STATUS_MONITORING_COLOR,
     STATUS_DECODING_COLOR,
     STATUS_TRX_COLOR,
+    STATUS_LABEL_DISABLED_COLOR,
     # Parameters
     PARAMS_FILE,
     POSITION_FILE,
@@ -1789,7 +1790,11 @@ class MainApp(QtWidgets.QMainWindow):
             # self.callsign_notice.show()
             self.transmitting = False
 
-            self.update_status_label_style("grey", "white")
+            index = self.band_indices.get(self.operating_band)
+            self.tab_widget.set_selected_tab(index)
+            self.tab_widget.set_operating_tab(None)
+
+            self.update_status_label_style(STATUS_LABEL_DISABLED_COLOR, "white")
             
             self.reset_window_title()
 

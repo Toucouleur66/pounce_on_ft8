@@ -39,6 +39,8 @@ STATUS_MONITORING_COLOR         = "#0D81FF"
 STATUS_DECODING_COLOR           = "#2BBE7E"
 STATUS_TRX_COLOR                = "#FF5600"
 
+STATUS_LABEL_DISABLED_COLOR     = "#808080"
+
 SAVED_VERSION_FILE              = os.path.join(get_app_data_dir(), "app_version.json")
 PARAMS_FILE                     = os.path.join(get_app_data_dir(), "params.pkl")
 POSITION_FILE                   = os.path.join(get_app_data_dir(), "window_position.pkl")

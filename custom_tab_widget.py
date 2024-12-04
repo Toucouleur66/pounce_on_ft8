@@ -3,7 +3,8 @@ from PyQt6 import QtWidgets, QtCore, QtGui
 from constants import (    
     STATUS_TRX_COLOR,
     STATUS_MONITORING_COLOR,
-    STATUS_DECODING_COLOR
+    STATUS_DECODING_COLOR,
+    STATUS_LABEL_DISABLED_COLOR
 )
 
 class CustomTabWidget(QtWidgets.QWidget):
@@ -75,10 +76,10 @@ class CustomTabWidget(QtWidgets.QWidget):
             if i == self.current_index and i != self.operating_band_index:
                 button.setStyleSheet(f"""
                     QToolButton {{
-                        background-color: #7c7c7c;
+                        background-color: {STATUS_LABEL_DISABLED_COLOR};
                         color: white;
                         border-radius: 8px;
-                        border: 1px solid #7c7c7c;
+                        border: 1px solid {STATUS_LABEL_DISABLED_COLOR};
                         padding: 4px;                        
                     }}
                     QToolButton:hover {{
@@ -103,16 +104,21 @@ class CustomTabWidget(QtWidgets.QWidget):
                 button.setStyleSheet(self.get_default_button_style())
 
     def set_selected_tab(self, index):
-        self.tab_buttons[self.current_index].setChecked(False)
+        if 0 <= self.current_index < len(self.tab_buttons):
+            self.tab_buttons[self.current_index].setChecked(False)
         self.current_index = index
-        self.tab_buttons[self.current_index].setChecked(True)
+        if 0 <= self.current_index < len(self.tab_buttons):
+            self.tab_buttons[self.current_index].setChecked(True)
         self.update_styles()
         self.stacked_widget.setCurrentIndex(self.current_index)
 
     def set_operating_tab(self, band_name):
-        try:
-            index = [button.text() for button in self.tab_buttons].index(band_name)
-            self.operating_band_index = index
-            self.update_styles()
-        except ValueError:
+        if band_name is None:
             self.operating_band_index = None
+        else:
+            try:
+                index = [button.text() for button in self.tab_buttons].index(band_name)
+                self.operating_band_index = index
+            except ValueError:
+                self.operating_band_index = None
+        self.update_styles()
