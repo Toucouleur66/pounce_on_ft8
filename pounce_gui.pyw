@@ -589,19 +589,15 @@ class MainApp(QtWidgets.QMainWindow):
         if self.enable_pounce_log:
             self.file_handler = add_file_handler(get_log_filename())
 
-
         """
             self.operating_band might be overided as soon as check_connection_status is used
         """
-        self.operating_band = params.get('last_band_used', DEFAULT_SELECTED_BAND)
-        self.gui_selected_band = self.operating_band
+        self.gui_selected_band = params.get('last_band_used', DEFAULT_SELECTED_BAND)
         self.tab_widget.set_selected_tab(self.gui_selected_band)
-        # Need to use QTimer to make sure we got focus on tab
-        QtCore.QTimer.singleShot(1, lambda: self.apply_band_change(self.operating_band))  
-              
+        
         self.apply_theme_to_all(self.theme_manager.dark_mode)
         self.load_window_position()
-        self.init_activity_bar()
+        QtCore.QTimer.singleShot(1000, lambda: self.init_activity_bar())          
 
         # Close event to save position
         self.closeEvent = self.on_close
@@ -611,7 +607,7 @@ class MainApp(QtWidgets.QMainWindow):
 
     def on_tab_clicked(self, tab_band):
         self.gui_selected_band = tab_band
-        log.debug(f"Selected_band: {self.gui_selected_band}")            
+        # log.debug(f"Selected_band: {self.gui_selected_band}")            
 
         self.tab_widget.set_selected_tab(self.gui_selected_band)
 
@@ -620,15 +616,17 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.save_last_used_tab(self.gui_selected_band)
         
-    def apply_band_change(self, new_band):
-        if new_band != self.operating_band:
-            log.warning(f"apply_band_change: {new_band}")
-            self.operating_band = new_band
+    def apply_band_change(self, band):
+        # log.warning(f"apply_band_change: {band}, running: {self._running}, band != self.operating_band: {band != self.operating_band}")
+        if band != self.operating_band:            
+            self.operating_band = band
             self.monitoring_settings.set_wanted_callsigns(self.wanted_callsigns_vars[self.operating_band].text())
             self.monitoring_settings.set_monitored_callsigns(self.monitored_callsigns_vars[self.operating_band].text())
             self.monitoring_settings.set_excluded_callsigns(self.excluded_callsigns_vars[self.operating_band].text())
             self.monitoring_settings.set_monitored_cq_zones(self.monitored_cq_zones_vars[self.operating_band].text())
+            
             self.update_tab_widget_labels_style()
+            
             if self.worker is not None:
                 self.worker.update_settings_signal.emit()
 
@@ -841,12 +839,12 @@ class MainApp(QtWidgets.QMainWindow):
         if sys.platform == 'darwin':
             menu.setStyleSheet(CONTEXT_MENU_DARWIN_QSS)
             menu.setFont(MENU_FONT)
-
-        header_action = QtGui.QAction(self.operating_band)
+        """
+        header_action = QtGui.QAction(f"Apply to {self.operating_band}")
         header_action.setEnabled(False)  
         menu.addAction(header_action)
         menu.addSeparator()
-
+        """
         actions = {}
 
         """
@@ -1087,10 +1085,11 @@ class MainApp(QtWidgets.QMainWindow):
 
         status_text_array   = []
 
-        # Check band and used tab
+        # Check band and control used tab
         if frequency is not None:
-            operating_band = get_amateur_band(frequency)        
-            self.apply_band_change(operating_band)
+            operating_band = get_amateur_band(frequency)     
+            if self.operating_band != operating_band:
+                self.apply_band_change(operating_band)
            
         if self.mode is not None:
             current_mode = f"({self.mode})"
@@ -1508,6 +1507,10 @@ class MainApp(QtWidgets.QMainWindow):
             (
                 BG_COLOR_BLACK_ON_CYAN,
                 FG_COLOR_BLACK_ON_CYAN
+            ),
+            (
+                "transparent",
+                "black"
             )
         ]
 
@@ -1529,6 +1532,7 @@ class MainApp(QtWidgets.QMainWindow):
                 else:
                     label_widget.setStyleSheet("""
                         border-radius: 6px;
+                        color: #808080;                       
                         padding: 3px;
                     """)
 
@@ -1676,9 +1680,11 @@ class MainApp(QtWidgets.QMainWindow):
         self.focus_frame.hide()
         self.callsign_notice.hide()        
 
+        self.apply_band_change(self.gui_selected_band)
+        # Todo: We might need to move update_wanted_callsigns_history in apply_band_change
         self.update_wanted_callsigns_history(self.wanted_callsigns_vars[self.operating_band].text())
         self.update_current_callsign_highlight()
-
+        
         params                              = self.load_params()
         local_ip_address                    = get_local_ip_address()
 
@@ -1768,7 +1774,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         if tray_icon:
             tray_icon.stop()
-            tray_icon = None
+            tray_icon               = None
 
         if self._running:
             self.stop_event.set()
@@ -1784,19 +1790,18 @@ class MainApp(QtWidgets.QMainWindow):
                 finally:
                     self.thread = None                        
 
-            self.worker = None
-            self._running = False
+            self.worker             = None
+            self._running           = False
+            self.operating_band     = None
+            self.transmitting       = False
 
             self.status_button.setEnabled(True)
             self.status_button.setText(STATUS_BUTTON_LABEL_START)
             self.status_button.setStyleSheet("")
 
             self.stop_blinking_status_button()
-
             self.update_tab_widget_labels_style()
-
             # self.callsign_notice.show()
-            self.transmitting = False
 
             self.tab_widget.set_selected_tab(self.band_indices.get(self.operating_band))
             self.tab_widget.set_operating_tab(None)
