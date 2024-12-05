@@ -107,7 +107,6 @@ TOOLTIP_QSS                      = f"""
                 background-color: #9dfffe; 
                 color: #555bc2;
                 padding: 5px;
-                font-size: 13px;
                 border-radius: 6px;
             }}
         """
@@ -143,11 +142,11 @@ DISCORD_SECTION                 = '<a href="https://discord.gg/2MTkwmJX">Support
 DONATION_SECTION                = '<a href="https://www.paypal.com/donate/?cmd=_s-xclick&hosted_button_id=R4HK9ZTUPYHSL&ssrt=1732865689562">Donations are welcome</a>'
 
 if platform.system() == 'Windows':
-    CUSTOM_FONT                 = QtGui.QFont("Segoe UI", 10)
-    CUSTOM_FONT_SMALL           = QtGui.QFont("Segoe UI", 9)
-    CUSTOM_FONT_MONO            = QtGui.QFont("Consolas", 12)
+    CUSTOM_FONT                 = QtGui.QFont("Segoe UI", 13)
+    CUSTOM_FONT_SMALL           = QtGui.QFont("Segoe UI", 11)
+    CUSTOM_FONT_MONO            = QtGui.QFont("Consolas", 13)
     CUSTOM_FONT_MONO_LG         = QtGui.QFont("Consolas", 18)
-    CUSTOM_FONT_BOLD            = QtGui.QFont("Consolas", 12, QtGui.QFont.Weight.Bold)
+    CUSTOM_FONT_BOLD            = QtGui.QFont("Consolas", 13, QtGui.QFont.Weight.Bold)
 
     MENU_FONT                   = QtGui.QFont("Segoe UI")
 elif platform.system() == 'Darwin':
