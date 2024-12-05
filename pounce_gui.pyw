@@ -268,6 +268,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.directed_to_my_call_sound          = QSoundEffect()
         self.ready_to_log_sound                 = QSoundEffect()
         self.error_occurred_sound               = QSoundEffect()
+        self.band_change_sound                  = QSoundEffect()
         self.monitored_callsign_detected_sound  = QSoundEffect()
 
         self.wanted_callsign_detected_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/495650__matrixxx__supershort-ping-or-short-notification.wav"))
@@ -275,8 +276,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.ready_to_log_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/709072__scottyd0es__aeroce-dualtone-5.wav"))
         self.error_occurred_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/142608__autistic-lucario__error.wav"))
         self.monitored_callsign_detected_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/716442__scottyd0es__tone12_alert_3.wav"))
+        self.band_change_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/342759__rhodesmas__score-counter-01.wav"))
         
-        self.menu_bar       = self.menuBar()    
+        self.menu_bar                           = self.menuBar()    
 
         self.load_clublog_action = QtGui.QAction("Load Club Log DXCC Info", self)
         self.load_clublog_action.triggered.connect(self.clublog_manager.load_clublog_info)
@@ -629,6 +631,9 @@ class MainApp(QtWidgets.QMainWindow):
             
             if self.worker is not None:
                 self.worker.update_settings_signal.emit()
+
+                if not self.disable_alert_checkbox.isChecked():      
+                    self.play_sound("band_change")
 
         if self._running:
             self.tab_widget.set_operating_tab(self.operating_band)
@@ -1054,6 +1059,8 @@ class MainApp(QtWidgets.QMainWindow):
                 self.monitored_callsign_detected_sound.play()                        
             elif sound_name == 'ready_to_log':
                 self.ready_to_log_sound.play()
+            elif sound_name == 'band_change':
+                self.band_change_sound.play()                
             elif sound_name == 'error_occurred':
                 self.error_occurred_sound.play()                
             else:
