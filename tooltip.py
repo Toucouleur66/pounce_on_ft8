@@ -4,7 +4,8 @@ import platform
 from PyQt6 import QtWidgets, QtCore, QtGui
 
 from constants import (
-    CUSTOM_FONT_MONO
+    CUSTOM_FONT_MONO,
+    NOTICE_QSS
 )
 
 class ToolTip(QtWidgets.QWidget):
@@ -16,6 +17,7 @@ class ToolTip(QtWidgets.QWidget):
         self.widget.installEventFilter(self)
 
         QtWidgets.QToolTip.setFont(CUSTOM_FONT_MONO)
+        QtWidgets.QApplication.instance().setStyleSheet(NOTICE_QSS)
 
     def eventFilter(self, obj, event):
         if obj == self.widget:

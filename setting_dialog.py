@@ -33,15 +33,9 @@ from constants import (
     DEFAULT_SHOW_ALL_DECODED,
     DEFAULT_DELAY_BETWEEN_SOUND,
     # Fonts
-    CUSTOM_FONT_SMALL
+    CUSTOM_FONT_SMALL,
+    NOTICE_QSS
 )
-
-NOTICE_STYLESHEET = """
-            background-color: #9dfffe; 
-            color: #555bc2;
-            padding: 5px;
-            font-size: 12px;
-        """
 
 class SettingsDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, params=None):
@@ -74,7 +68,7 @@ class SettingsDialog(QtWidgets.QDialog):
         jtdx_notice_label.setWordWrap(True)
         jtdx_notice_label.setFont(small_font)
         jtdx_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
-        jtdx_notice_label.setStyleSheet(NOTICE_STYLESHEET)
+        jtdx_notice_label.setStyleSheet(NOTICE_QSS)
         jtdx_notice_label.setAutoFillBackground(True)
 
         primary_group = QtWidgets.QGroupBox("Primary UDP Server")
@@ -118,7 +112,6 @@ class SettingsDialog(QtWidgets.QDialog):
 
         self.enable_gap_finder = QtWidgets.QCheckBox("Enable frequencies offset updater")
         self.enable_gap_finder.setChecked(DEFAULT_GAP_FINDER)
-        self.enable_gap_finder.stateChanged.connect(self.update_table_frequency_state)
 
         self.enable_watchdog_bypass = QtWidgets.QCheckBox("Enable watchdog bypass")
         self.enable_watchdog_bypass.setChecked(DEFAULT_WATCHDOG_BYPASS)
@@ -252,7 +245,7 @@ class SettingsDialog(QtWidgets.QDialog):
         )
 
         sound_notice_label = QtWidgets.QLabel(sound_notice_text)
-        sound_notice_label.setStyleSheet(NOTICE_STYLESHEET)
+        sound_notice_label.setStyleSheet(NOTICE_QSS)
         sound_notice_label.setWordWrap(True)
         sound_notice_label.setFont(small_font)
 
@@ -316,7 +309,7 @@ class SettingsDialog(QtWidgets.QDialog):
         log_settings_group.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
         tab3_layout.addWidget(log_settings_group)
-        tab3_layout.addStretch()  # Empêche l'étirement vertical
+        tab3_layout.addStretch()  
 
         self.load_params()
 
@@ -327,11 +320,11 @@ class SettingsDialog(QtWidgets.QDialog):
         self.button_box.rejected.connect(self.reject)
 
         layout.addWidget(self.button_box)
-
+        self.enable_gap_finder.stateChanged.connect(self.update_table_frequency_state)
         self.update_table_frequency_state()
 
-        self.tab_widget.currentChanged.connect(self.on_tab_changed)
         self.on_tab_changed(self.tab_widget.currentIndex())  
+        self.tab_widget.currentChanged.connect(self.on_tab_changed)        
 
     def on_table_row_selected(self, row, column):
         button = self.mode_table_widget.cellWidget(row, 0)
@@ -344,6 +337,8 @@ class SettingsDialog(QtWidgets.QDialog):
             self.udp_freq_range_type_group.show()  
         else:
             self.udp_freq_range_type_group.hide()
+
+        self.on_tab_changed(self.tab_widget.currentIndex()) 
 
     def on_tab_changed(self, index):
         current_tab = self.tab_widget.widget(index)

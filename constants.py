@@ -94,27 +94,42 @@ DEFAULT_SHOW_ALL_DECODED        = True
 DEFAULT_DELAY_BETWEEN_SOUND     = 120
 DEFAULT_SELECTED_BAND           = "6m"
 
-CONTEXT_MENU_DARWIN_STYLE       = """
-            QMenu {
+
+NOTICE_QSS                      = f"""
+            QToolTip {{
+                background-color: #9dfffe; 
+                color: #555bc2;
+                padding: 5px;
+                font-size: 12px;
+                border-radius: 6px;
+            }}
+        """
+
+CONTEXT_MENU_DARWIN_QSS         = f"""
+            QMenu {{
                 background-color: rgba(255, 255, 255, 0.95);                
                 border-radius: 6px;
                 padding: 6px;
-            }
-            QMenu::item {
+            }}
+            QMenu::item {{
                 padding: 4px 12px;
                 font-size: 12px;
                 color: black;
-            }
-            QMenu::item:selected {
+            }}
+            QMenu::item:selected,
+            QMenu::item:disabled {{
                 background-color: #499eff;
                 border-radius: 4px;
                 color: white;
-            }
-            QMenu::separator {
+            }}
+            QMenu::item:disabled {{
+                background-color: {STATUS_TRX_COLOR};      
+            }}
+            QMenu::separator {{
                 height: 1px;
                 background: #CCCCCC;
                 margin: 4px 0;
-            }
+            }}
         """
 
 DISCORD_SECTION                 = '<a href="https://discord.gg/2MTkwmJX">Support available on Discord</a>'
