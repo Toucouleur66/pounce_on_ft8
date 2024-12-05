@@ -64,7 +64,6 @@ from constants import (
     STATUS_DECODING_COLOR,
     STATUS_TRX_COLOR,
     STATUS_COLOR_LABEL_SELECTED,
-    STATUS_COLOR_LABEL_OFF,
     # Parameters
     PARAMS_FILE,
     POSITION_FILE,
@@ -105,6 +104,7 @@ from constants import (
     CUSTOM_FONT,
     CUSTOM_FONT_MONO,
     CUSTOM_FONT_MONO_LG,
+    CUSTOM_FONT_SMALL,
     MENU_FONT,
     # URL
     DISCORD_SECTION,
@@ -114,9 +114,6 @@ from constants import (
 log         = get_logger(__name__)
 stop_event  = threading.Event()
 tray_icon   = None
-
-small_font  = QtGui.QFont()
-small_font.setPointSize(11)    
 
 class UpdateWantedDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, selected_callsign=""):
@@ -1390,36 +1387,39 @@ class MainApp(QtWidgets.QMainWindow):
 
         item_band = QTableWidgetItem(band)
         item_band.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
-        item_band.setFont(small_font)
+        item_band.setFont(CUSTOM_FONT_SMALL)
         self.output_table.setItem(row_position, 1, item_band)
             
         item_snr = QTableWidgetItem(f"{snr:+3d} dB")
         item_snr.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
-        item_snr.setFont(small_font)
+        item_snr.setFont(CUSTOM_FONT_SMALL)
         self.output_table.setItem(row_position, 2, item_snr)
         
         item_dt = QTableWidgetItem(f"{delta_time:+5.1f}s")
         item_dt.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
-        item_dt.setFont(small_font)
+        item_dt.setFont(CUSTOM_FONT_SMALL)
         self.output_table.setItem(row_position, 3, item_dt)
         
         item_freq = QTableWidgetItem(f"{delta_freq:+6d}Hz")
         item_freq.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
-        item_freq.setFont(small_font)
+        item_freq.setFont(CUSTOM_FONT_SMALL)
         self.output_table.setItem(row_position, 4, item_freq)
         
         item_msg = QTableWidgetItem(f" {message}")
-        # item_msg.setFont(CUSTOM_FONT_MONO)
+        item_msg.setFont(CUSTOM_FONT)
         self.output_table.setItem(row_position, 5, item_msg)
         
         item_country = QTableWidgetItem(entity)
+        item_country.setFont(CUSTOM_FONT)
         self.output_table.setItem(row_position, 6, item_country)
 
         item_cq_zone = QTableWidgetItem(f"{cq_zone}")
         item_cq_zone.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        item_cq_zone.setFont(CUSTOM_FONT)
         self.output_table.setItem(row_position, 7, item_cq_zone)
 
         item_continent = QTableWidgetItem(continent)
+        item_continent.setFont(CUSTOM_FONT)
         item_continent.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.output_table.setItem(row_position, 8, item_continent)        
         
