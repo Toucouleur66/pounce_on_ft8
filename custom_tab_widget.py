@@ -4,7 +4,9 @@ from constants import (
     STATUS_TRX_COLOR,
     STATUS_MONITORING_COLOR,
     STATUS_DECODING_COLOR,
-    STATUS_LABEL_DISABLED_COLOR
+    STATUS_COLOR_LABEL_OFF,
+    STATUS_COLOR_LABEL_SELECTED,
+    CUSTOM_FONT
 )
 
 class CustomTabWidget(QtWidgets.QWidget):
@@ -13,9 +15,8 @@ class CustomTabWidget(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.tab_bar              = QtWidgets.QToolBar()
-        self.custom_font          = QtGui.QFont(".AppleSystemUIFont", 13) 
         self.stacked_widget       = QtWidgets.QStackedWidget()
-        layout                    = QtWidgets.QVBoxLayout()
+        tab_bar_layout            = QtWidgets.QHBoxLayout()
 
         self.tab_buttons          = []
         self.tab_contents         = []
@@ -25,10 +26,17 @@ class CustomTabWidget(QtWidgets.QWidget):
         self.tab_bar.setMovable(False)
         self.tab_bar.setStyleSheet("background: transparent; border: none;")
 
-        layout.addWidget(self.tab_bar)
-        layout.addWidget(self.stacked_widget)
-        
-        self.setLayout(layout)
+        tab_bar_layout.addWidget(self.tab_bar)
+        tab_bar_layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignHCenter)
+        tab_bar_layout.setContentsMargins(0, 0, 0, 0)
+        tab_bar_container = QtWidgets.QWidget()
+        tab_bar_container.setLayout(tab_bar_layout)
+
+        main_layout = QtWidgets.QVBoxLayout()
+        main_layout.addWidget(tab_bar_container)
+        main_layout.addWidget(self.stacked_widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        self.setLayout(main_layout)
 
     def addTab(self, content_widget, label):
         index = len(self.tab_buttons)
@@ -36,7 +44,7 @@ class CustomTabWidget(QtWidgets.QWidget):
         button = QtWidgets.QToolButton()
         button.setText(label)
         button.setCheckable(True)
-        button.setFont(self.custom_font)
+        button.setFont(CUSTOM_FONT)
         button.setStyleSheet(self.get_default_button_style())
         button.clicked.connect(lambda checked, idx=index: self.on_tab_clicked(idx))
     
@@ -58,7 +66,7 @@ class CustomTabWidget(QtWidgets.QWidget):
     def get_default_button_style(self):
         return f"""
             QToolButton {{
-                background-color: #e5e5e5;
+                background-color: {STATUS_COLOR_LABEL_OFF};
                 color: black;
                 border-radius: 8px;
                 border: 1px solid transparent;
@@ -76,10 +84,10 @@ class CustomTabWidget(QtWidgets.QWidget):
             if i == self.current_index and i != self.operating_band_index:
                 button.setStyleSheet(f"""
                     QToolButton {{
-                        background-color: {STATUS_LABEL_DISABLED_COLOR};
+                        background-color: {STATUS_COLOR_LABEL_SELECTED};
                         color: white;
                         border-radius: 8px;
-                        border: 1px solid {STATUS_LABEL_DISABLED_COLOR};
+                        border: 1px solid {STATUS_COLOR_LABEL_SELECTED};
                         padding: 4px;                        
                     }}
                     QToolButton:hover {{

@@ -1,5 +1,8 @@
 # constants.py
+from PyQt6 import QtGui
+
 import os
+import platform
 
 from datetime import datetime
 from utils import get_app_data_dir
@@ -39,7 +42,8 @@ STATUS_MONITORING_COLOR         = "#0D81FF"
 STATUS_DECODING_COLOR           = "#2BBE7E"
 STATUS_TRX_COLOR                = "#FF5600"
 
-STATUS_LABEL_DISABLED_COLOR     = "#808080"
+STATUS_COLOR_LABEL_OFF          = "#E5E5E5"
+STATUS_COLOR_LABEL_SELECTED     = "#808080"
 
 SAVED_VERSION_FILE              = os.path.join(get_app_data_dir(), "app_version.json")
 PARAMS_FILE                     = os.path.join(get_app_data_dir(), "params.pkl")
@@ -115,3 +119,18 @@ CONTEXT_MENU_DARWIN_STYLE       = """
 
 DISCORD_SECTION                 = '<a href="https://discord.gg/2MTkwmJX">Support available on Discord</a>'
 DONATION_SECTION                = '<a href="https://www.paypal.com/donate/?cmd=_s-xclick&hosted_button_id=R4HK9ZTUPYHSL&ssrt=1732865689562">Donations are welcome</a>'
+
+if platform.system() == 'Windows':
+    CUSTOM_FONT                 = QtGui.QFont("Segoe UI", 12)
+    CUSTOM_FONT_SMALL           = QtGui.QFont("Segoe UI", 10)
+    CUSTOM_FONT_MONO            = QtGui.QFont("Consolas", 12)
+    CUSTOM_FONT_MONO_LG         = QtGui.QFont("Consolas", 18)
+    CUSTOM_FONT_BOLD            = QtGui.QFont("Consolas", 12, QtGui.QFont.Weight.Bold)
+elif platform.system() == 'Darwin':
+    CUSTOM_FONT                 = QtGui.QFont(".AppleSystemUIFont", 13)
+    CUSTOM_FONT_SMALL           = QtGui.QFont(".AppleSystemUIFont", 11)
+    CUSTOM_FONT_MONO            = QtGui.QFont("Monaco", 13)
+    CUSTOM_FONT_MONO_LG         = QtGui.QFont("Monaco", 18)
+    CUSTOM_FONT_BOLD            = QtGui.QFont("Monaco", 12, QtGui.QFont.Weight.Bold)
+
+    MENU_FONT                   = QtGui.QFont(".AppleSystemUIFont")

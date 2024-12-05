@@ -31,8 +31,17 @@ from constants import (
     DEFAULT_POUNCE_LOG,
     DEFAULT_LOG_PACKET_DATA,
     DEFAULT_SHOW_ALL_DECODED,
-    DEFAULT_DELAY_BETWEEN_SOUND
-    )
+    DEFAULT_DELAY_BETWEEN_SOUND,
+    # Fonts
+    CUSTOM_FONT_SMALL
+)
+
+NOTICE_STYLESHEET = """
+            background-color: #9dfffe; 
+            color: #555bc2;
+            padding: 5px;
+            font-size: 12px;
+        """
 
 class SettingsDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, params=None):
@@ -58,8 +67,6 @@ class SettingsDialog(QtWidgets.QDialog):
         tab2_layout = QtWidgets.QVBoxLayout(tab2)
         tab3_layout = QtWidgets.QVBoxLayout(tab3)
         
-
-        # Contenu du premier onglet
         jtdx_notice_text = (
             "For JTDX users, you have to disable automatic logging of QSO (Make sure <u>Settings > Reporting > Logging > Enable automatic logging of QSO</u> is unchecked)<br /><br />You might also need to accept UDP Reply messages from any messages (<u>Misc Menu > Accept UDP Reply Messages > any messages</u>)."
         )
@@ -67,7 +74,7 @@ class SettingsDialog(QtWidgets.QDialog):
         jtdx_notice_label.setWordWrap(True)
         jtdx_notice_label.setFont(small_font)
         jtdx_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
-        jtdx_notice_label.setStyleSheet("background-color: #9dfffe; color: #555bc2; padding: 5px; font-size: 12px;")
+        jtdx_notice_label.setStyleSheet(NOTICE_STYLESHEET)
         jtdx_notice_label.setAutoFillBackground(True)
 
         primary_group = QtWidgets.QGroupBox("Primary UDP Server")
@@ -101,16 +108,17 @@ class SettingsDialog(QtWidgets.QDialog):
         secondary_group.setLayout(secondary_layout)
 
         udp_settings_group = QtWidgets.QGroupBox(f"{GUI_LABEL_NAME} Main settings")
-
+        
         udp_settings_widget = QtWidgets.QWidget()
+        udp_settings_widget.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_PURPLE}; color: {FG_COLOR_BLACK_ON_PURPLE}; ")
         udp_settings_layout = QtWidgets.QGridLayout(udp_settings_widget)
-
+        
         self.enable_sending_reply = QtWidgets.QCheckBox("Enable reply")
         self.enable_sending_reply.setChecked(DEFAULT_SENDING_REPLY)
 
         self.enable_gap_finder = QtWidgets.QCheckBox("Enable frequencies offset updater")
         self.enable_gap_finder.setChecked(DEFAULT_GAP_FINDER)
-        self.enable_gap_finder.stateChanged.connect(self.update_table_state)
+        self.enable_gap_finder.stateChanged.connect(self.update_table_frequency_state)
 
         self.enable_watchdog_bypass = QtWidgets.QCheckBox("Enable watchdog bypass")
         self.enable_watchdog_bypass.setChecked(DEFAULT_WATCHDOG_BYPASS)
@@ -123,12 +131,11 @@ class SettingsDialog(QtWidgets.QDialog):
         udp_settings_layout.addWidget(self.enable_watchdog_bypass, 2, 0, 1, 2)
         udp_settings_layout.addWidget(self.enable_show_all_decoded, 3, 0, 1, 2)
 
-        udp_settings_widget.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_PURPLE}; color: {FG_COLOR_BLACK_ON_PURPLE};")
         udp_settings_group.setLayout(QtWidgets.QVBoxLayout())
         udp_settings_group.layout().setContentsMargins(0, 0, 0, 0)
         udp_settings_group.layout().addWidget(udp_settings_widget)
 
-        udp_freq_range_type_group = QtWidgets.QGroupBox("Select range of frequency being used if offset updater enabled")
+        self.udp_freq_range_type_group = QtWidgets.QGroupBox("Select range of frequency being used for offset updater")
 
         udp_freq_range_type_widget = QtWidgets.QWidget()
         udp_freq_range_type_layout = QtWidgets.QVBoxLayout(udp_freq_range_type_widget)
@@ -148,10 +155,7 @@ class SettingsDialog(QtWidgets.QDialog):
             (self.radio_superfox, MODE_SUPER_FOX, FREQ_MINIMUM, FREQ_MAXIMUM_SUPER_FOX),
         ]
 
-        self.opacity_effect = QtWidgets.QGraphicsOpacityEffect()
-
         self.mode_table_widget = QtWidgets.QTableWidget()
-        self.mode_table_widget.setGraphicsEffect(self.opacity_effect)
         self.mode_table_widget.setRowCount(len(modes))
         self.mode_table_widget.setColumnCount(4)
 
@@ -185,15 +189,23 @@ class SettingsDialog(QtWidgets.QDialog):
         for row, (button, label, freq_min, freq_max) in enumerate(modes):
             self.mode_table_widget.setRowHeight(row, row_height)
             self.mode_table_widget.setCellWidget(row, 0, button)
+
             freq_min_widget = QtWidgets.QLabel(f"{freq_min}Hz")
             freq_min_widget.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
+            freq_min_widget.setFont(CUSTOM_FONT_SMALL)
+
             self.mode_table_widget.setCellWidget(row, 1, freq_min_widget)
+
             freq_max_widget = QtWidgets.QLabel(f"{freq_max}Hz")
             freq_max_widget.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
+            freq_max_widget.setFont(CUSTOM_FONT_SMALL)
+            
             self.mode_table_widget.setCellWidget(row, 2, freq_max_widget)
+
             label_widget = QtWidgets.QLabel(f"{label}")
-            label_widget.setFont(small_font)
             label_widget.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
+            label_widget.setFont(CUSTOM_FONT_SMALL)
+
             self.mode_table_widget.setCellWidget(row, 3, label_widget)
 
         total_height = row_height * len(modes) + 2
@@ -207,31 +219,32 @@ class SettingsDialog(QtWidgets.QDialog):
             }
         """)
 
-        self.mode_table_widget.setStyleSheet("""
-            QTableWidget {
+        self.mode_table_widget.setStyleSheet(f"""
+            QTableWidget {{
                 border: none;
-            }
-            QTableWidget::item:selected {
-                background-color: transparent;
-            }
-            QTableWidget::item {
+            }}
+            QTableWidget::item:selected {{
+                background-color: {BG_COLOR_BLACK_ON_PURPLE}; 
+                color: {FG_COLOR_BLACK_ON_PURPLE};
+            }}
+            QTableWidget::item {{
                 selection-background-color: transparent;  
-            }
+            }}
         """)
         self.mode_table_widget.verticalHeader().setVisible(False)
         self.mode_table_widget.cellClicked.connect(self.on_table_row_selected)
 
         udp_freq_range_type_layout.addWidget(self.mode_table_widget)
 
-        udp_freq_range_type_group.setLayout(QtWidgets.QVBoxLayout())
-        udp_freq_range_type_group.layout().setContentsMargins(0, 0, 0, 0)
-        udp_freq_range_type_group.layout().addWidget(udp_freq_range_type_widget)
+        self.udp_freq_range_type_group.setLayout(QtWidgets.QVBoxLayout())
+        self.udp_freq_range_type_group.layout().setContentsMargins(0, 0, 0, 0)
+        self.udp_freq_range_type_group.layout().addWidget(udp_freq_range_type_widget)
 
         tab1_layout.addWidget(jtdx_notice_label)
         tab1_layout.addWidget(primary_group)
         tab1_layout.addWidget(secondary_group)
         tab1_layout.addWidget(udp_settings_group)
-        tab1_layout.addWidget(udp_freq_range_type_group)
+        tab1_layout.addWidget(self.udp_freq_range_type_group)
         tab1_layout.addStretch() 
 
         sound_notice_text = (
@@ -239,7 +252,7 @@ class SettingsDialog(QtWidgets.QDialog):
         )
 
         sound_notice_label = QtWidgets.QLabel(sound_notice_text)
-        sound_notice_label.setStyleSheet("background-color: #9dfffe; color: #555bc2; padding: 5px; font-size: 12px;")
+        sound_notice_label.setStyleSheet(NOTICE_STYLESHEET)
         sound_notice_label.setWordWrap(True)
         sound_notice_label.setFont(small_font)
 
@@ -315,7 +328,7 @@ class SettingsDialog(QtWidgets.QDialog):
 
         layout.addWidget(self.button_box)
 
-        self.update_table_state()
+        self.update_table_frequency_state()
 
         self.tab_widget.currentChanged.connect(self.on_tab_changed)
         self.on_tab_changed(self.tab_widget.currentIndex())  
@@ -326,13 +339,11 @@ class SettingsDialog(QtWidgets.QDialog):
         if isinstance(button, QtWidgets.QRadioButton):
             button.setChecked(True)         
 
-    def update_table_state(self):
+    def update_table_frequency_state(self):
         if self.enable_gap_finder.isChecked():
-            self.opacity_effect.setOpacity(1.0)  # Pleine opacité
-            self.mode_table_widget.setDisabled(False)  # Activer le tableau
+            self.udp_freq_range_type_group.show()  
         else:
-            self.opacity_effect.setOpacity(0.8)  # 80% d'opacité
-            self.mode_table_widget.setDisabled(True)  # Désactiver le tableau            
+            self.udp_freq_range_type_group.hide()
 
     def on_tab_changed(self, index):
         current_tab = self.tab_widget.widget(index)

@@ -3,11 +3,10 @@ import platform
 
 from PyQt6 import QtWidgets, QtCore, QtGui
 
-if platform.system() == 'Windows':
-    custom_font_mono        = QtGui.QFont("Consolas", 12)    
-elif platform.system() == 'Darwin':
-    custom_font_mono        = QtGui.QFont("Monaco", 13)
-    
+from constants import (
+    CUSTOM_FONT_MONO
+)
+
 class ToolTip(QtWidgets.QWidget):
     def __init__(self, widget, text=''):
         super().__init__()
@@ -16,7 +15,7 @@ class ToolTip(QtWidgets.QWidget):
         self.tooltip_window = None
         self.widget.installEventFilter(self)
 
-        QtWidgets.QToolTip.setFont(custom_font_mono)
+        QtWidgets.QToolTip.setFont(CUSTOM_FONT_MONO)
 
     def eventFilter(self, obj, event):
         if obj == self.widget:

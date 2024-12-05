@@ -19,18 +19,8 @@ from constants import (
     CURRENT_VERSION_NUMBER,
     UPDATE_JSON_INFO_URL,
     GUI_LABEL_VERSION,
+    CUSTOM_FONT,
 )
-
-if platform.system() == 'Windows':
-    custom_font             = QtGui.QFont("Segoe UI", 12)
-    custom_font_mono        = QtGui.QFont("Consolas", 12)
-    custom_font_mono_lg     = QtGui.QFont("Consolas", 18)
-    custom_font_bold        = QtGui.QFont("Consolas", 12, QtGui.QFont.Weight.Bold)
-elif platform.system() == 'Darwin':
-    custom_font             = QtGui.QFont(".AppleSystemUIFont", 13)
-    custom_font_mono        = QtGui.QFont("Monaco", 13)
-    custom_font_mono_lg     = QtGui.QFont("Monaco", 18)
-    custom_font_bold        = QtGui.QFont("Monaco", 12, QtGui.QFont.Weight.Bold)
 
 class Updater:
     def __init__(self, parent=None):
@@ -48,7 +38,7 @@ class Updater:
             layout = QtWidgets.QVBoxLayout(dialog)
 
             label = QtWidgets.QLabel(f"The application expired on <u>{expiration_date_str}</u>.<br /><br />Please contact the author.")
-            label.setFont(custom_font)
+            label.setFont(CUSTOM_FONT)
             label.setTextFormat(QtCore.Qt.TextFormat.RichText)
             label.setWordWrap(True)
             layout.addWidget(label)
@@ -99,7 +89,7 @@ class Updater:
             "Do you want to download and install this update?"
         )
         label.setWordWrap(True)
-        label.setFont(custom_font)
+        label.setFont(CUSTOM_FONT)
         layout.addWidget(label)
 
         buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Yes | QtWidgets.QDialogButtonBox.StandardButton.No)

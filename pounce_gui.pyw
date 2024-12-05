@@ -2,7 +2,7 @@
 
 from PyQt6 import QtWidgets, QtCore, QtGui
 from PyQt6.QtWidgets import QTableWidget, QTableWidgetItem
-from PyQt6.QtCore import QObject, pyqtSignal, QThread
+from PyQt6.QtCore import QThread
 from PyQt6.QtMultimedia import QSoundEffect
 
 import platform
@@ -10,10 +10,8 @@ import re
 import sys
 import pickle
 import os
-import queue
 import threading
 import pyperclip
-import logging
 
 from datetime import datetime, timezone, timedelta
 from collections import deque
@@ -65,7 +63,8 @@ from constants import (
     STATUS_MONITORING_COLOR,
     STATUS_DECODING_COLOR,
     STATUS_TRX_COLOR,
-    STATUS_LABEL_DISABLED_COLOR,
+    STATUS_COLOR_LABEL_SELECTED,
+    STATUS_COLOR_LABEL_OFF,
     # Parameters
     PARAMS_FILE,
     POSITION_FILE,
@@ -102,29 +101,20 @@ from constants import (
     ACTIVITY_BAR_MAX_VALUE,
     # Style
     CONTEXT_MENU_DARWIN_STYLE,
+    # Fonts
+    CUSTOM_FONT,
+    CUSTOM_FONT_MONO,
+    CUSTOM_FONT_MONO_LG,
     # URL
     DISCORD_SECTION,
     DONATION_SECTION
-    )
+)
 
 log         = get_logger(__name__)
 stop_event  = threading.Event()
 tray_icon   = None
 
-if platform.system() == 'Windows':
-    custom_font             = QtGui.QFont("Segoe UI", 12)
-    custom_font_mono        = QtGui.QFont("Consolas", 12)
-    custom_font_mono_lg     = QtGui.QFont("Consolas", 18)
-    custom_font_bold        = QtGui.QFont("Consolas", 12, QtGui.QFont.Weight.Bold)
-elif platform.system() == 'Darwin':
-    custom_font             = QtGui.QFont(".AppleSystemUIFont", 13)
-    custom_font_mono        = QtGui.QFont("Monaco", 13)
-    custom_font_mono_lg     = QtGui.QFont("Monaco", 18)
-    custom_font_bold        = QtGui.QFont("Monaco", 12, QtGui.QFont.Weight.Bold)
-
-    menu_font               = QtGui.QFont(".AppleSystemUIFont")
-
-small_font                  = QtGui.QFont()
+small_font  = QtGui.QFont()
 small_font.setPointSize(11)    
 
 class UpdateWantedDialog(QtWidgets.QDialog):
@@ -152,7 +142,7 @@ class UpdateWantedDialog(QtWidgets.QDialog):
         self.entry = QtWidgets.QLabel(self.selected_callsign)
         self.entry.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignTop)
         self.entry.setWordWrap(True)
-        self.entry.setFont(custom_font_mono)
+        self.entry.setFont(CUSTOM_FONT_MONO)
 
         self.entry.setContentsMargins(5, 5, 5, 5)
         layout.addWidget(self.entry)
@@ -198,7 +188,7 @@ class EditWantedDialog(QtWidgets.QDialog):
         self.entry = QtWidgets.QTextEdit()
         self.entry.setAcceptRichText(False)
         self.entry.setText(initial_value)
-        self.entry.setFont(custom_font_mono)
+        self.entry.setFont(CUSTOM_FONT_MONO)
         self.entry.textChanged.connect(lambda: force_uppercase(self.entry))
         layout.addWidget(self.entry)
 
@@ -224,7 +214,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.monitoring_settings = MonitoringSettings()       
         self.clublog_manager = ClubLogManager(self) 
 
-        self.setGeometry(100, 100, 900, 700)
+        self.setGeometry(100, 100, 1_000, 700)
+        self.setMinimumSize(1_000, 600)
         self.base_title = GUI_LABEL_VERSION
         self.setWindowTitle(self.base_title)
 
@@ -310,7 +301,7 @@ class MainApp(QtWidgets.QMainWindow):
         # Listbox (wanted callsigns)
         self.listbox = QtWidgets.QListWidget()
         self.listbox.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
-        self.listbox.setFont(custom_font)
+        self.listbox.setFont(CUSTOM_FONT)
         self.listbox.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.listbox.itemDoubleClicked.connect(self.on_listbox_double_click)
 
@@ -325,7 +316,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.focus_frame_layout = QtWidgets.QHBoxLayout()
         self.focus_frame.setLayout(self.focus_frame_layout)
         self.focus_value_label = QtWidgets.QLabel("")
-        self.focus_value_label.setFont(custom_font_mono_lg)
+        self.focus_value_label.setFont(CUSTOM_FONT_MONO_LG)
         self.focus_value_label.setStyleSheet("padding: 10px;")
         self.focus_frame_layout.addWidget(self.focus_value_label)
         self.focus_frame.hide()
@@ -333,26 +324,8 @@ class MainApp(QtWidgets.QMainWindow):
 
         # Timer value
         self.timer_value_label = QtWidgets.QLabel(DEFAULT_MODE_TIMER_VALUE)
-        self.timer_value_label.setFont(custom_font_mono_lg)
+        self.timer_value_label.setFont(CUSTOM_FONT_MONO_LG)
         self.timer_value_label.setStyleSheet("background-color: #9dfffe; color: #555bc2; padding: 10px;")
-
-        # Log analysis label and value
-        status_layout = QtWidgets.QGridLayout()
-
-        status_static_label = QtWidgets.QLabel("Status:")
-        status_static_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
-        status_static_label.setStyleSheet("padding-right: 30px;")
-
-        self.status_label = QtWidgets.QLabel(STATUS_BUTTON_LABEL_NOTHING_YET)
-        self.status_label.setFont(custom_font_mono)
-        self.status_label.setStyleSheet("background-color: #D3D3D3; border: 1px solid #bbbbbb; border-radius: 10px; padding: 10px;")
-        self.status_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Preferred)
-        self.status_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
-        status_layout.addWidget(status_static_label, 0, 0) 
-        status_layout.addWidget(self.status_label, 0, 1, 1, 3) 
-
-        status_layout.setColumnStretch(0, 0) 
-        status_layout.setColumnStretch(1, 1) 
 
         self.callsign_notice = QtWidgets.QLabel(CALLSIGN_NOTICE_LABEL)
         self.callsign_notice.setStyleSheet("background-color: #9dfffe; color: #555bc2;")
@@ -376,6 +349,8 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.band_indices                       = {}
         self.band_content_widgets               = {}
+
+        fixed_label_width                        = 150
 
         vars_dict = {
             'wanted_callsigns'      : self.wanted_callsigns_vars,
@@ -433,7 +408,7 @@ class MainApp(QtWidgets.QMainWindow):
                 on_changed_method = var_info['on_changed_method']
 
                 line_edit = QtWidgets.QLineEdit()
-                line_edit.setFont(custom_font)
+                line_edit.setFont(CUSTOM_FONT)
 
                 vars_dict[var_name][band] = line_edit
 
@@ -443,6 +418,7 @@ class MainApp(QtWidgets.QMainWindow):
 
                 line_label = QtWidgets.QLabel(label_text)
                 line_label.setStyleSheet("border-radius: 6px; padding: 3px;")
+                line_label.setMinimumWidth(fixed_label_width)
 
                 layout.addWidget(line_label, idx+1, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
                 layout.addWidget(line_edit, idx+1, 1)
@@ -455,12 +431,31 @@ class MainApp(QtWidgets.QMainWindow):
             self.tab_widget.addTab(tab_content, band)
 
         self.tab_widget.tabClicked.connect(self.on_tab_clicked) 
-        """
-        self.current_index = 0
-        self.funny_timer = QtCore.QTimer()
-        self.funny_timer.timeout.connect(self.smart_tab_change)
-        self.funny_timer.start(500)
-        """
+
+        # Status layout
+        status_layout = QtWidgets.QGridLayout()
+
+        status_static_label = QtWidgets.QLabel("Status:")
+        status_static_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        status_static_label.setStyleSheet("padding-right: 30px;")
+        status_static_label.setMinimumWidth(fixed_label_width)
+
+        self.status_label = QtWidgets.QLabel(STATUS_BUTTON_LABEL_NOTHING_YET)
+        self.status_label.setFont(CUSTOM_FONT_MONO)
+        self.status_label.setStyleSheet(f"""
+            background-color: {STATUS_COLOR_LABEL_SELECTED}; 
+            border-radius: 5px;
+            color: white;
+            padding: 5px;
+        """)
+        self.status_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Preferred)
+        self.status_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        
+        status_layout.addWidget(status_static_label, 0, 0) 
+        status_layout.addWidget(self.status_label, 0, 1, 1, 3) 
+
+        status_layout.setColumnStretch(0, 0) 
+        status_layout.setColumnStretch(1, 1) 
 
         """
             Main output table
@@ -478,7 +473,7 @@ class MainApp(QtWidgets.QMainWindow):
                 header_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
             self.output_table.setHorizontalHeaderItem(i, header_item)
         
-        self.output_table.setFont(custom_font)
+        self.output_table.setFont(CUSTOM_FONT)
         self.output_table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.NoSelection)
         self.output_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
 
@@ -605,11 +600,6 @@ class MainApp(QtWidgets.QMainWindow):
     def apply_theme_to_all(self, dark_mode):
         self.apply_palette(dark_mode)
 
-    def smart_tab_change(self):
-        self.tab_widget.setCurrentIndex(self.current_index)
-        current_widget = self.tab_widget.currentWidget()
-        self.current_index = (self.current_index + 1) % len(AMATEUR_BANDS)
-
     def on_tab_clicked(self, index):
         band = list(AMATEUR_BANDS.keys())[index]
         log.debug(f"Selected_band: {band}")            
@@ -697,7 +687,7 @@ class MainApp(QtWidgets.QMainWindow):
         error_item.setForeground(QtGui.QBrush(QtGui.QColor(fg_color)))
         error_item.setBackground(QtGui.QBrush(QtGui.QColor(bg_color)))
         error_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        error_item.setFont(custom_font_mono)
+        error_item.setFont(CUSTOM_FONT_MONO)
 
         self.output_table.setItem(row_position, 0, error_item)
         self.output_table.setSpan(row_position, 0, 1, self.output_table.columnCount())
@@ -1406,7 +1396,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_table.setItem(row_position, 4, item_freq)
         
         item_msg = QTableWidgetItem(f" {message}")
-        # item_msg.setFont(custom_font_mono)
+        # item_msg.setFont(CUSTOM_FONT_MONO)
         self.output_table.setItem(row_position, 5, item_msg)
         
         item_country = QTableWidgetItem(entity)
@@ -1794,7 +1784,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.tab_widget.set_selected_tab(index)
             self.tab_widget.set_operating_tab(None)
 
-            self.update_status_label_style(STATUS_LABEL_DISABLED_COLOR, "white")
+            self.update_status_label_style(STATUS_COLOR_LABEL_SELECTED, "white")
             
             self.reset_window_title()
 
