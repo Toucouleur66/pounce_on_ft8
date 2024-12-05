@@ -4,9 +4,6 @@ from PyQt6 import QtWidgets, QtCore, QtGui
 
 from utils import get_local_ip_address, get_log_filename
 
-small_font = QtGui.QFont()
-small_font.setPointSize(11)    
-
 from constants import (
     # Colors
     BG_COLOR_BLACK_ON_PURPLE,
@@ -34,7 +31,7 @@ from constants import (
     DEFAULT_DELAY_BETWEEN_SOUND,
     # Fonts
     CUSTOM_FONT_SMALL,
-    NOTICE_QSS
+    SETTING_QSS
 )
 
 class SettingsDialog(QtWidgets.QDialog):
@@ -66,9 +63,9 @@ class SettingsDialog(QtWidgets.QDialog):
         )
         jtdx_notice_label = QtWidgets.QLabel(jtdx_notice_text)
         jtdx_notice_label.setWordWrap(True)
-        jtdx_notice_label.setFont(small_font)
+        jtdx_notice_label.setFont(CUSTOM_FONT_SMALL)
         jtdx_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
-        jtdx_notice_label.setStyleSheet(NOTICE_QSS)
+        jtdx_notice_label.setStyleSheet(SETTING_QSS)
         jtdx_notice_label.setAutoFillBackground(True)
 
         primary_group = QtWidgets.QGroupBox("Primary UDP Server")
@@ -245,15 +242,15 @@ class SettingsDialog(QtWidgets.QDialog):
         )
 
         sound_notice_label = QtWidgets.QLabel(sound_notice_text)
-        sound_notice_label.setStyleSheet(NOTICE_QSS)
+        sound_notice_label.setStyleSheet(SETTING_QSS)
         sound_notice_label.setWordWrap(True)
-        sound_notice_label.setFont(small_font)
+        sound_notice_label.setFont(CUSTOM_FONT_SMALL)
 
         sound_settings_group = QtWidgets.QGroupBox("Sounds Settings")
         sound_settings_layout = QtWidgets.QGridLayout()
 
         play_sound_notice_label = QtWidgets.QLabel("Play Sounds when:")
-        play_sound_notice_label.setFont(small_font)
+        play_sound_notice_label.setFont(CUSTOM_FONT_SMALL)
 
         self.enable_sound_wanted_callsigns = QtWidgets.QCheckBox("Message from any Wanted Callsign")
         self.enable_sound_wanted_callsigns.setChecked(True)

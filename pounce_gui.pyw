@@ -599,7 +599,7 @@ class MainApp(QtWidgets.QMainWindow):
         
         self.apply_theme_to_all(self.theme_manager.dark_mode)
         self.load_window_position()
-        QtCore.QTimer.singleShot(1000, lambda: self.init_activity_bar())          
+        QtCore.QTimer.singleShot(1_000, lambda: self.init_activity_bar())          
 
         # Close event to save position
         self.closeEvent = self.on_close

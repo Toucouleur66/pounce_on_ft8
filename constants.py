@@ -94,13 +94,20 @@ DEFAULT_SHOW_ALL_DECODED        = True
 DEFAULT_DELAY_BETWEEN_SOUND     = 120
 DEFAULT_SELECTED_BAND           = "6m"
 
-
-NOTICE_QSS                      = f"""
-            QToolTip {{
+SETTING_QSS                     = f"""
                 background-color: #9dfffe; 
                 color: #555bc2;
                 padding: 5px;
                 font-size: 12px;
+                border-radius: 6px;
+        """
+
+TOOLTIP_QSS                      = f"""
+            QToolTip {{
+                background-color: #9dfffe; 
+                color: #555bc2;
+                padding: 5px;
+                font-size: 13px;
                 border-radius: 6px;
             }}
         """
