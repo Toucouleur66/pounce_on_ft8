@@ -571,6 +571,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.enable_sound_directed_my_callsign = params.get('enable_sound_directed_my_callsign', True)
         self.enable_sound_monitored_callsigns = params.get('enable_sound_monitored_callsigns', True)
        
+        spacer = QtWidgets.QSpacerItem(0, 10, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)        
+
         main_layout.addWidget(self.focus_frame, 0, 0, 1, 4)
         main_layout.addWidget(self.timer_value_label, 0, 4)
             
@@ -580,8 +582,9 @@ class MainApp(QtWidgets.QMainWindow):
         main_layout.addLayout(status_layout, 8, 1, 1, 1)
         main_layout.addWidget(self.status_button, 8, 3)
         main_layout.addWidget(self.stop_button, 8, 4)
-        main_layout.addWidget(self.output_table, 9, 0, 1, 5)
-        main_layout.addLayout(bottom_layout, 10, 0, 1, 5)
+        main_layout.addItem(spacer, 9, 0, 1, 5)
+        main_layout.addWidget(self.output_table, 10, 0, 1, 5)
+        main_layout.addLayout(bottom_layout, 11, 0, 1, 5)
         
         self.file_handler = None
         if self.enable_pounce_log:
