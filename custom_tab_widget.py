@@ -2,7 +2,6 @@ from PyQt6 import QtWidgets, QtCore, QtGui
 
 from constants import (    
     STATUS_TRX_COLOR,
-    STATUS_MONITORING_COLOR,
     STATUS_DECODING_COLOR,
     STATUS_COLOR_LABEL_OFF,
     STATUS_COLOR_LABEL_SELECTED,
@@ -70,7 +69,8 @@ class CustomTabWidget(QtWidgets.QWidget):
                 color: black;
                 border-radius: 8px;
                 border: 1px solid transparent;
-                padding: 4px;
+                padding: 10px;
+                margin-right: 1px;
             }}
             QToolButton:hover {{
                 background-color: transparent;
@@ -88,12 +88,9 @@ class CustomTabWidget(QtWidgets.QWidget):
                         color: white;
                         border-radius: 8px;
                         border: 1px solid {STATUS_COLOR_LABEL_SELECTED};
-                        padding: 4px;                        
-                    }}
-                    QToolButton:hover {{
-                        background-color: {STATUS_MONITORING_COLOR};
-                        color: white;
-                    }}
+                        padding: 10px;
+                        margin-right: 1px;                    
+                    }}                    
                 """)
             elif i == self.operating_band_index:
                 button.setStyleSheet(f"""
@@ -102,7 +99,8 @@ class CustomTabWidget(QtWidgets.QWidget):
                         color: white;
                         border-radius: 8px;
                         border: 1px solid transparent;
-                        padding: 4px;
+                        padding: 10px;
+                        margin-right: 1px;
                     }}
                     QToolButton:hover {{
                         background-color: {STATUS_DECODING_COLOR};

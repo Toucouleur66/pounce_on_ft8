@@ -105,6 +105,7 @@ from constants import (
     CUSTOM_FONT,
     CUSTOM_FONT_MONO,
     CUSTOM_FONT_MONO_LG,
+    MENU_FONT,
     # URL
     DISCORD_SECTION,
     DONATION_SECTION
@@ -839,7 +840,7 @@ class MainApp(QtWidgets.QMainWindow):
         menu = QtWidgets.QMenu()
         if sys.platform == 'darwin':
             menu.setStyleSheet(CONTEXT_MENU_DARWIN_STYLE)
-            menu.setFont(menu_font)
+            menu.setFont(MENU_FONT)
 
         actions = {}
 
@@ -1085,8 +1086,7 @@ class MainApp(QtWidgets.QMainWindow):
         # Check band and used tab
         if frequency is not None:
             operating_band = get_amateur_band(frequency)                
-            if operating_band != self.selected_band_tab:
-                self.apply_band_change(operating_band)
+            self.apply_band_change(operating_band)
 
         if self.mode is not None:
             current_mode = f"({self.mode})"
@@ -1307,7 +1307,7 @@ class MainApp(QtWidgets.QMainWindow):
         menu = QtWidgets.QMenu()
         if sys.platform == 'darwin':
             menu.setStyleSheet(CONTEXT_MENU_DARWIN_STYLE)
-            menu.setFont(menu_font)
+            menu.setFont(MENU_FONT)
         
         remove_action = menu.addAction("Remove entry")
 
