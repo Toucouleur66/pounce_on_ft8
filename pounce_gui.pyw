@@ -633,6 +633,8 @@ class MainApp(QtWidgets.QMainWindow):
                     self.play_sound("band_change")
 
         if self._running:
+            # Make sure to reset last_sound_played_time if we switch band
+            self.last_sound_played_time = datetime.min
             self.tab_widget.set_operating_tab(self.operating_band)
 
     def save_last_used_tab(self, band):
@@ -643,7 +645,6 @@ class MainApp(QtWidgets.QMainWindow):
     """
         Used for MonitoringSetting
     """
-
     def on_wanted_callsigns_changed(self):
         if self.gui_selected_band == self.operating_band:
             self.monitoring_settings.set_wanted_callsigns(self.wanted_callsigns_vars[self.operating_band].text())
