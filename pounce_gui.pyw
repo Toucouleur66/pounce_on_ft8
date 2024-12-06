@@ -113,7 +113,6 @@ from constants import (
 
 log         = get_logger(__name__)
 stop_event  = threading.Event()
-tray_icon   = None
 
 class UpdateWantedDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, selected_callsign=""):
@@ -208,9 +207,10 @@ class MainApp(QtWidgets.QMainWindow):
     def __init__(self):
         super(MainApp, self).__init__()
 
-        self.worker = None
+        self.worker              = None
+        self.tray_icon           = None
         self.monitoring_settings = MonitoringSettings()       
-        self.clublog_manager = ClubLogManager(self) 
+        self.clublog_manager     = ClubLogManager(self) 
 
         self.setGeometry(100, 100, 1_000, 700)
         self.setMinimumSize(1_000, 600)
@@ -1415,11 +1415,11 @@ class MainApp(QtWidgets.QMainWindow):
 
         item_cq_zone = QTableWidgetItem(f"{cq_zone}")
         item_cq_zone.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
-        item_cq_zone.setFont(CUSTOM_FONT)
+        item_cq_zone.setFont(CUSTOM_FONT_SMALL)
         self.output_table.setItem(row_position, 7, item_cq_zone)
 
         item_continent = QTableWidgetItem(continent)
-        item_continent.setFont(CUSTOM_FONT)
+        item_continent.setFont(CUSTOM_FONT_SMALL)
         item_continent.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.output_table.setItem(row_position, 8, item_continent)        
         
@@ -1663,8 +1663,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.save_params(params)               
 
     def start_monitoring(self):
-        global tray_icon
-
         self._running = True   
 
         self.network_check_status.start(self.network_check_status_interval)
@@ -1755,8 +1753,8 @@ class MainApp(QtWidgets.QMainWindow):
 
     def on_listener_started(self):
         if platform.system() == 'Windows':
-            tray_icon = TrayIcon()
-            tray_icon_thread = threading.Thread(target=tray_icon.start, daemon=True)
+            self.tray_icon = TrayIcon()
+            tray_icon_thread = threading.Thread(target=self.tray_icon.start, daemon=True)
             tray_icon_thread.start()
 
         self.status_label.setText(WAITING_DATA_PACKETS_LABEL)    
@@ -1764,6 +1762,11 @@ class MainApp(QtWidgets.QMainWindow):
 
     def stop_worker(self):
         if self.worker:
+
+            if self.tray_icon:
+                self.tray_icon.stop()
+                self.tray_icon = None
+                
             self.worker.blockSignals(True)
             self.worker = None
         if self.thread.isRunning():
@@ -1771,17 +1774,11 @@ class MainApp(QtWidgets.QMainWindow):
             self.thread.wait()
 
     def stop_monitoring(self):
-        global tray_icon
-
         self.network_check_status.stop()
         self.activity_bar.setValue(0) 
         
         self.timer.stop()
-        self.timer_value_label.setText(DEFAULT_MODE_TIMER_VALUE)
-
-        if tray_icon:
-            tray_icon.stop()
-            tray_icon               = None
+        self.timer_value_label.setText(DEFAULT_MODE_TIMER_VALUE)        
 
         if self._running:
             self.stop_event.set()
