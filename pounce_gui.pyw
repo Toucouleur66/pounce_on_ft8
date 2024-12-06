@@ -1762,16 +1762,16 @@ class MainApp(QtWidgets.QMainWindow):
 
     def stop_worker(self):
         if self.worker:
-
-            if self.tray_icon:
-                self.tray_icon.stop()
-                self.tray_icon = None
-                
             self.worker.blockSignals(True)
             self.worker = None
         if self.thread.isRunning():
             self.thread.quit()
             self.thread.wait()
+
+    def stop_tray_icon(self):
+        if self.tray_icon:
+            self.tray_icon.stop()
+            self.tray_icon = None
 
     def stop_monitoring(self):
         self.network_check_status.stop()
@@ -1798,6 +1798,8 @@ class MainApp(QtWidgets.QMainWindow):
             self._running           = False
             self.operating_band     = None
             self.transmitting       = False
+            
+            self.stop_tray_icon()
 
             self.status_button.setEnabled(True)
             self.status_button.setText(STATUS_BUTTON_LABEL_START)
