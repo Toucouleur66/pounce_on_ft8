@@ -56,7 +56,7 @@ class Updater:
             dialog.exec()
             sys.exit()
 
-    def check_for_updates(self):
+    def check_for_expiration_or_update(self):
         try:
             response = requests.get(UPDATE_JSON_INFO_URL, timeout=5)
             if response.status_code == 200:
@@ -69,6 +69,8 @@ class Updater:
                         self.download_and_install_update(download_url)
         except requests.RequestException:
             pass
+    
+        self.check_expiration()
         return None
 
     def prompt_user_for_update(self, update_info):

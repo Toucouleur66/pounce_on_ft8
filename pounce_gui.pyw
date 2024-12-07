@@ -616,7 +616,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.save_last_used_tab(self.gui_selected_band)
         
     def apply_band_change(self, band):
-        # log.warning(f"apply_band_change: {band}, running: {self._running}, band != self.operating_band: {band != self.operating_band}")
         if band != self.operating_band:            
             self.operating_band = band
             self.monitoring_settings.set_wanted_callsigns(self.wanted_callsigns_vars[self.operating_band].text())
@@ -635,6 +634,7 @@ class MainApp(QtWidgets.QMainWindow):
         if self._running:
             # Make sure to reset last_sound_played_time if we switch band
             self.last_sound_played_time = datetime.min
+            self.focus_frame.hide()
             self.tab_widget.set_operating_tab(self.operating_band)
 
     def save_last_used_tab(self, band):
@@ -1238,7 +1238,6 @@ class MainApp(QtWidgets.QMainWindow):
             palette.setColor(QtGui.QPalette.ColorRole.HighlightedText, qt_bg_color)
             palette.setColor(QtGui.QPalette.ColorGroup.Disabled, QtGui.QPalette.ColorRole.Text, QtGui.QColor('#6C6C6C'))
         else:
-
             qt_bg_color = QtGui.QColor("#ECECEC")
             qt_fg_color = QtGui.QColor("#000000")
         
@@ -1257,20 +1256,33 @@ class MainApp(QtWidgets.QMainWindow):
             palette.setColor(QtGui.QPalette.ColorRole.Highlight, qt_bg_color)
             palette.setColor(QtGui.QPalette.ColorRole.HighlightedText, qt_fg_color)
             palette.setColor(QtGui.QPalette.ColorGroup.Disabled, QtGui.QPalette.ColorRole.Text, QtGui.QColor('#7F7F7F'))
-        
+
         self.setPalette(palette)
-        table_palette = self.output_table.palette()
-        
+        table_palette = QtGui.QPalette()  
+                
         if dark_mode:
             table_palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor('#353535'))
             table_palette.setColor(QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor('#454545'))
-            table_palette.setColor(QtGui.QPalette.ColorRole.Text, QtGui.QColor('white'))
+            table_palette.setColor(QtGui.QPalette.ColorRole.Text, QtGui.QColor('#FFFFFF'))
         else:
-            table_palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor('white'))
-            table_palette.setColor(QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor('#f4f5f5'))
-            table_palette.setColor(QtGui.QPalette.ColorRole.Text, QtGui.QColor('black'))
+            table_palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor('#FFFFFF'))
+            table_palette.setColor(QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor('#F4F5F5'))
+            table_palette.setColor(QtGui.QPalette.ColorRole.Text, QtGui.QColor('#000000'))
         
         self.output_table.setPalette(table_palette)
+
+        gridline_color = 'lightgray' if not dark_mode else '#171717'
+        background_color = '#FFFFFF' if not dark_mode else '#353535'
+        self.output_table.setStyleSheet(f"""
+            QTableWidget {{ 
+                background-color: {background_color};
+                gridline-color: {gridline_color}; 
+            }}
+        """)
+        self.output_table.setPalette(table_palette)
+
+        self.activity_bar.update()
+        self.update_tab_widget_labels_style()
 
     def save_params(self, params):
         with open(PARAMS_FILE, "wb") as f:
@@ -1518,7 +1530,7 @@ class MainApp(QtWidgets.QMainWindow):
             ),
             (
                 "transparent",
-                "black"
+                "palette(text)"
             )
         ]
 
@@ -1540,7 +1552,7 @@ class MainApp(QtWidgets.QMainWindow):
                 else:
                     label_widget.setStyleSheet("""
                         border-radius: 6px;
-                        color: #808080;                       
+                        color: palette(text);                        
                         padding: 3px;
                     """)
 
@@ -1825,10 +1837,8 @@ class MainApp(QtWidgets.QMainWindow):
 def main():
     app = QtWidgets.QApplication(sys.argv)
     updater = Updater()
-    updater.check_expiration()
-
     update_timer = QtCore.QTimer()
-    update_timer.timeout.connect(updater.check_for_updates)
+    update_timer.timeout.connect(updater.check_for_expiration_or_update)
     # Check every 60 minutes
     update_timer.setInterval(60 * 60 * 1_000)  
     update_timer.start()

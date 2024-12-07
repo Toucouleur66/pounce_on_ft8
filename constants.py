@@ -7,7 +7,7 @@ import platform
 from datetime import datetime
 from utils import get_app_data_dir
 
-CURRENT_VERSION_NUMBER          = "2.1.0"
+CURRENT_VERSION_NUMBER          = "2.1.1"
 EXPIRATION_DATE                 = datetime(2024, 12, 15)
 UPDATE_JSON_INFO_URL            = "https://storage.de.cloud.ovh.net/v1/AUTH_31163bb499dc49eb819aacdfd32ae82c/wait.and.pounce/public/update_info.json"
 
@@ -138,7 +138,7 @@ CONTEXT_MENU_DARWIN_QSS         = f"""
             }}
         """
 
-DISCORD_SECTION                 = '<a href="https://discord.gg/2MTkwmJX">Support available on Discord</a>'
+DISCORD_SECTION                 = '<a href="https://discord.gg/fqCu24naCM">Support available on Discord</a>'
 DONATION_SECTION                = '<a href="https://www.paypal.com/donate/?cmd=_s-xclick&hosted_button_id=R4HK9ZTUPYHSL&ssrt=1732865689562">Donations are welcome</a>'
 
 if platform.system() == 'Windows':
