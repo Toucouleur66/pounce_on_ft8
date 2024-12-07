@@ -57,13 +57,13 @@ class ClubLogManager:
             num_entities = len(root.find('entities').findall('entity'))
 
             dialog = QDialog(self.parent)
-            dialog.setWindowTitle("Club Log DXCC Info Updated")
+            dialog.setWindowTitle("Club Log's DXCC Info Updated")
 
             main_layout = QVBoxLayout(dialog)
 
             # Title section
             title_grid = QGridLayout()
-            title_label = QLabel("<b>Club Log XML</b>")
+            title_label = QLabel("<b>Club Log's Data parsed</b>")
             title_font = QFont()
             title_font.setPointSize(14)
             title_label.setFont(title_font)

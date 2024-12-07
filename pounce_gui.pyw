@@ -20,6 +20,7 @@ from functools import partial
 
 # Custom classes 
 from custom_tab_widget import CustomTabWidget
+from custom_button import CustomButtonStyle, CustomButton
 from tray_icon import TrayIcon
 from activity_bar import ActivityBar
 from tooltip import ToolTip
@@ -77,6 +78,7 @@ from constants import (
     STATUS_BUTTON_LABEL_START,
     STATUS_BUTTON_LABEL_TRX,
     STATUS_BUTTON_LABEL_NOTHING_YET,
+    STATUS_COLOR_LABEL_OFF,
     WAITING_DATA_PACKETS_LABEL,
     WANTED_CALLSIGNS_HISTORY_LABEL,
     CALLSIGN_NOTICE_LABEL,
@@ -208,6 +210,7 @@ class MainApp(QtWidgets.QMainWindow):
         super(MainApp, self).__init__()
 
         self.worker              = None
+        self.timer               = None
         self.tray_icon           = None
         self.monitoring_settings = MonitoringSettings()       
         self.clublog_manager     = ClubLogManager(self) 
@@ -277,7 +280,7 @@ class MainApp(QtWidgets.QMainWindow):
         
         self.menu_bar                           = self.menuBar()    
 
-        self.load_clublog_action = QtGui.QAction("Load Club Log DXCC Info", self)
+        self.load_clublog_action = QtGui.QAction("Update DXCC Info", self)
         self.load_clublog_action.triggered.connect(self.clublog_manager.load_clublog_info)
 
         self.create_main_menu()
@@ -517,32 +520,40 @@ class MainApp(QtWidgets.QMainWindow):
         bottom_layout = QtWidgets.QHBoxLayout()
         button_layout = QtWidgets.QHBoxLayout()
 
-        self.clear_button = QtWidgets.QPushButton("Clear History")
+        self.clear_button = CustomButton("Clear History")
         self.clear_button.setEnabled(False)
         self.clear_button.clicked.connect(self.clear_output_table)
 
-        self.settings = QtWidgets.QPushButton("Settings")
+        self.settings = CustomButton("Settings")
         self.settings.clicked.connect(self.open_settings)
 
         self.disable_alert_checkbox = QtWidgets.QCheckBox("Disable all Sounds")
         self.disable_alert_checkbox.setChecked(False)
         self.disable_alert_checkbox.stateChanged.connect(self.update_alert_label_style)
 
-        self.quit_button = QtWidgets.QPushButton("Quit")
+        self.quit_button = CustomButton("Quit")
         self.quit_button.clicked.connect(self.quit_application)
 
         self.inputs_enabled = True
 
         if platform.system() == 'Darwin':
-            self.restart_button = QtWidgets.QPushButton("Restart")
+            self.restart_button = CustomButton("Restart")
             self.restart_button.clicked.connect(self.restart_application)
 
         # Timer and start/stop buttons
-        self.status_button = QtWidgets.QPushButton(STATUS_BUTTON_LABEL_START)
+        self.status_button = CustomButton(STATUS_BUTTON_LABEL_START)
         self.status_button.clicked.connect(self.start_monitoring)
-        self.stop_button = QtWidgets.QPushButton("Stop all")
-        self.stop_button.clicked.connect(self.stop_monitoring)
+        self.status_button.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
 
+        self.status_button.setAttribute(QtCore.Qt.WidgetAttribute.WA_Hover, True)
+        self.status_button.setMouseTracking(True)
+        
+        self.stop_button = CustomButton("Stop all")
+        self.stop_button.clicked.connect(self.stop_monitoring)
+        self.stop_button.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
+
+        self.stop_button.setAttribute(QtCore.Qt.WidgetAttribute.WA_Hover, True)
+        self.stop_button.setMouseTracking(True)
         # Timer label and log analysis
         
         button_layout.addWidget(self.settings)
@@ -1115,12 +1126,12 @@ class MainApp(QtWidgets.QMainWindow):
                 if time_since_last_decode < 3:
                     network_check_status_interval = 100
                     time_since_last_decode_text = f"{time_since_last_decode:.1f}s" 
-                    self.update_status_button(STATUS_BUTTON_LABEL_DECODING, STATUS_DECODING_COLOR)                                  
+                    self.update_status_button(False, STATUS_BUTTON_LABEL_DECODING, STATUS_DECODING_COLOR)                                  
                 else:
                     if time_since_last_decode < 15:
                         network_check_status_interval = 1_000
                     time_since_last_decode_text = f"{int(time_since_last_decode)}s"                  
-                    self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR) 
+                    self.update_status_button(False, STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR) 
 
                 status_text_array.append(f"Last DecodePacket {current_mode}: {time_since_last_decode_text} ago")    
 
@@ -1131,12 +1142,12 @@ class MainApp(QtWidgets.QMainWindow):
         else:
             status_text_array.append("No DecodePacket received yet.")
             if self._running:
-                self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR) 
+                self.update_status_button(False, STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR) 
 
         if self.transmitting:
             self.start_blinking_status_button()
             network_check_status_interval = 100
-            self.update_status_button(STATUS_BUTTON_LABEL_TRX, STATUS_TRX_COLOR)
+            self.update_status_button(False, STATUS_BUTTON_LABEL_TRX, STATUS_TRX_COLOR)
         else:
             self.stop_blinking_status_button()
         
@@ -1258,8 +1269,10 @@ class MainApp(QtWidgets.QMainWindow):
             palette.setColor(QtGui.QPalette.ColorGroup.Disabled, QtGui.QPalette.ColorRole.Text, QtGui.QColor('#7F7F7F'))
 
         self.setPalette(palette)
-        table_palette = QtGui.QPalette()  
-                
+
+
+        table_palette = QtGui.QPalette()          
+
         if dark_mode:
             table_palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor('#353535'))
             table_palette.setColor(QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor('#454545'))
@@ -1271,7 +1284,7 @@ class MainApp(QtWidgets.QMainWindow):
         
         self.output_table.setPalette(table_palette)
 
-        gridline_color = 'lightgray' if not dark_mode else '#171717'
+        gridline_color = '#D3D3D3' if not dark_mode else '#171717'
         background_color = '#FFFFFF' if not dark_mode else '#353535'
         self.output_table.setStyleSheet(f"""
             QTableWidget {{ 
@@ -1508,13 +1521,26 @@ class MainApp(QtWidgets.QMainWindow):
         self.timer_value_label.setText(utc_time)
         self.timer_value_label.setStyleSheet(f"background-color: {background_color}; color: #3d25fb; padding: 10px;")
 
-    def update_status_button(self, text, bg_color, fg_color="#ffffff"):
-        self.status_button.setEnabled(False)
+    def update_status_button(
+            self,
+            enabled,            
+            text,
+            bg_color,
+            fg_color = "white",
+        ):
         self.status_button.setText(text)
-        self.status_button.setStyleSheet(f"background-color: {bg_color}; color: {fg_color}; padding: 5px; border-radius: 5px; border: none;")
+        if enabled is False:
+            self.status_button.setProperty("bg_color", bg_color)
+            self.status_button.setProperty("fg_color", fg_color)
+            self.status_button.setProperty("bd_color", bg_color)
+        else:            
+            self.status_button.setProperty("bg_color", None)
+            self.status_button.setProperty("fg_color", None)
+            self.status_button.setProperty("bd_color", None)
+        self.status_button.style().polish(self.status_button)
+
 
     def update_tab_widget_labels_style(self):
-        log.warning(f"update_tab_widget_labels_style: {self.gui_selected_band} - {self.operating_band}")
         styles = [
             (
                 BG_COLOR_BLACK_ON_YELLOW,
@@ -1686,7 +1712,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.timer.start(200)
 
         # self.output_text.clear()
-        self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR)
+        self.update_status_button(False, STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR)
 
         self.blink_timer = QtCore.QTimer()
         self.blink_timer.timeout.connect(self.toggle_label_visibility)
@@ -1790,8 +1816,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.network_check_status.stop()
         self.activity_bar.setValue(0) 
         
-        self.timer.stop()
-        self.timer_value_label.setText(DEFAULT_MODE_TIMER_VALUE)        
+        if self.timer: 
+            self.timer.stop()
+            self.timer_value_label.setText(DEFAULT_MODE_TIMER_VALUE)        
 
         if self._running:
             self.stop_event.set()
@@ -1814,9 +1841,8 @@ class MainApp(QtWidgets.QMainWindow):
             
             self.stop_tray_icon()
 
+            self.update_status_button(True, STATUS_BUTTON_LABEL_START, STATUS_COLOR_LABEL_OFF, "black")
             self.status_button.setEnabled(True)
-            self.status_button.setText(STATUS_BUTTON_LABEL_START)
-            self.status_button.setStyleSheet("")
 
             self.stop_blinking_status_button()
             self.update_tab_widget_labels_style()
@@ -1836,6 +1862,8 @@ class MainApp(QtWidgets.QMainWindow):
 
 def main():
     app = QtWidgets.QApplication(sys.argv)
+    app.setStyle(CustomButtonStyle(app.style())) 
+    
     updater = Updater()
     update_timer = QtCore.QTimer()
     update_timer.timeout.connect(updater.check_for_expiration_or_update)
