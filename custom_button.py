@@ -43,7 +43,8 @@ class CustomButton(QtWidgets.QPushButton):
         super().__init__(text, parent)
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_Hover, True)
         self.setMouseTracking(True)
-        self.setStyle(CustomButtonStyle(self.style()))
+        style = CustomButtonStyle(QtWidgets.QApplication.style())
+        QtWidgets.QApplication.setStyle(style)
         
     def setHoverColors(self, bg_color, bd_color=None):
         self.setProperty("hover_bg_color", bg_color)
