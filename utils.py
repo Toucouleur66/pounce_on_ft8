@@ -9,6 +9,7 @@ import fnmatch
 
 from PyQt6.QtWidgets import QTextEdit, QLineEdit
 from PyQt6.QtCore import QCoreApplication, QStandardPaths
+from PyQt6.QtGui import QTextCursor
 
 QCoreApplication.setApplicationName("Wait and Pounce")
 
@@ -152,68 +153,96 @@ def get_amateur_band(frequency):
         if lower_bound <= frequency <= upper_bound:
             return band
     
-    return "Invalid"    
-    
-from PyQt6.QtWidgets import QTextEdit, QLineEdit
-from PyQt6.QtGui import QTextCursor
-import re
+    return 'Invalid'       
 
-def force_uppercase(widget):
+def force_input(widget, mode="uppercase"):
     try:
-        allowed_pattern = re.compile(r'[A-Z0-9,/*]+')
+        allowed_pattern = None
+        max_number = None
+
+        if mode == "uppercase":
+            allowed_pattern = re.compile(r'[A-Z0-9,/*]')
+        elif mode == "numbers":
+            allowed_pattern = re.compile(r'[0-9,]')
+            max_number = 40
 
         if isinstance(widget, QTextEdit):
             cursor = widget.textCursor()
             current_pos = cursor.position()
 
-            current_text = widget.toPlainText()
-            uppercase_text = ''.join([char for char in current_text.upper() if allowed_pattern.fullmatch(char)])
-            if current_text != uppercase_text:
+            current_text = widget.toPlainText().upper() if mode == "uppercase" else widget.toPlainText()
+            filtered_text = ''.join(char for char in current_text if allowed_pattern.fullmatch(char))
+
+            if mode == "numbers":
+                filtered_text = re.sub(r',+', ',', filtered_text)
+                filtered_text = re.sub(r'^,', '', filtered_text)
+                parts = filtered_text.split(',')
+                valid_parts = []
+                for part in parts:
+                    if part.isdigit():
+                        number = int(part)
+                        if 1 <= number <= max_number and str(number) not in valid_parts:
+                            valid_parts.append(str(number))
+                    elif part == '':
+                        valid_parts.append('')
+                cleaned_text = ','.join(valid_parts)
+            elif mode == "uppercase":
+                filtered_text = re.sub(r',+', ',', filtered_text)
+                filtered_text = re.sub(r'^,', '', filtered_text)
+                parts = filtered_text.split(',')
+                unique_parts = []
+                for part in parts:
+                    if part and part not in unique_parts:
+                        unique_parts.append(part)
+                cleaned_text = ','.join(unique_parts)
+                if filtered_text.endswith(','):
+                    cleaned_text += ','
+
+            if current_text != cleaned_text:
                 widget.blockSignals(True)
-                widget.setPlainText(uppercase_text)
+                widget.setPlainText(cleaned_text)
                 widget.blockSignals(False)
 
-                cursor = widget.textCursor()
-                cursor.setPosition(current_pos, QTextCursor.MoveMode.MoveAnchor)
-                widget.setTextCursor(cursor)
-        elif isinstance(widget, QLineEdit):
-            current_text = widget.text()
-            uppercase_text = ''.join([char for char in current_text.upper() if allowed_pattern.fullmatch(char)])
-            if current_text != uppercase_text:
-                widget.blockSignals(True)
-                widget.setText(uppercase_text)
-                widget.blockSignals(False)
-
-                widget.setCursorPosition(len(uppercase_text))
-    except Exception as e:
-        pass
-
-def force_numbers_and_commas(widget):
-    try:
-        if isinstance(widget, QTextEdit):
-            cursor = widget.textCursor()
-            current_pos = cursor.position()
-
-            # Obtenir le texte courant et filtrer pour n'autoriser que des chiffres et des virgules
-            current_text = widget.toPlainText()
-            filtered_text = ''.join(char for char in current_text if char.isdigit() or char == ',')
-            if current_text != filtered_text:
-                widget.blockSignals(True)
-                widget.setPlainText(filtered_text)
-                widget.blockSignals(False)
-
-                cursor = widget.textCursor()
-                cursor.setPosition(current_pos, QTextCursor.MoveMode.MoveAnchor)
+                new_pos = min(current_pos, len(cleaned_text))
+                cursor.setPosition(new_pos, QTextCursor.MoveMode.MoveAnchor)
                 widget.setTextCursor(cursor)
 
         elif isinstance(widget, QLineEdit):
-            current_text = widget.text()
-            filtered_text = ''.join(char for char in current_text if char.isdigit() or char == ',')
-            if current_text != filtered_text:
+            current_text = widget.text().upper() if mode == "uppercase" else widget.text()
+            filtered_text = ''.join(char for char in current_text if allowed_pattern.fullmatch(char))
+
+            if mode == "numbers":
+                filtered_text = re.sub(r',+', ',', filtered_text)
+                filtered_text = re.sub(r'^,', '', filtered_text)
+                parts = filtered_text.split(',')
+                valid_parts = []
+                for part in parts:
+                    if part.isdigit():
+                        number = int(part)
+                        if 1 <= number <= max_number and str(number) not in valid_parts:
+                            valid_parts.append(str(number))
+                    elif part == '':
+                        valid_parts.append('')
+                cleaned_text = ','.join(valid_parts)
+            elif mode == "uppercase":
+                filtered_text = re.sub(r',+', ',', filtered_text)
+                filtered_text = re.sub(r'^,', '', filtered_text)
+                parts = filtered_text.split(',')
+                unique_parts = []
+                for part in parts:
+                    if part and part not in unique_parts:
+                        unique_parts.append(part)
+                cleaned_text = ','.join(unique_parts)
+                if filtered_text.endswith(','):
+                    cleaned_text += ','
+
+            if current_text != cleaned_text:
                 widget.blockSignals(True)
-                widget.setText(filtered_text)
+                widget.setText(cleaned_text)
                 widget.blockSignals(False)
 
-                widget.setCursorPosition(len(filtered_text))
+                new_pos = min(widget.cursorPosition(), len(cleaned_text))
+                widget.setCursorPosition(new_pos)
+
     except Exception as e:
-        pass
+        print(f"force_input: {e}")

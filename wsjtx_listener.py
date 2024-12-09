@@ -293,9 +293,14 @@ class Listener:
                 self.decode_parse_packet()
             else:
                 log.error('No StatusPacket received yet, can\'t handle DecodePacket for now.')    
+        elif isinstance(self.the_packet, pywsjtx.ClearPacket):
+            log.debug("Received ClearPacket method")
+        elif isinstance(self.the_packet, pywsjtx.ClosePacket):
+            log.debug("Received ClosePacket method")
+            self.send_stop_monitoring_request()
         else:
             status_update = False
-            log.debug('unknown packet type {}; {}'.format(type(self.the_packet),self.the_packet))
+            log.error('Unknown packet type {}; {}'.format(type(self.the_packet),self.the_packet))
 
         if status_update:
             self.send_status_update()            
@@ -309,6 +314,14 @@ class Listener:
                 'last_decode_packet_time'   : self.last_decode_packet_time,
                 'last_heartbeat_time'       : self.last_heartbeat_time,
                 'transmitting'              : self.transmitting
+            })
+
+    def send_stop_monitoring_request(self):
+        if self.message_callback:
+            self.message_callback({
+                'type'                      : 'stop_monitoring',
+                'decode_packet_count'       : self.decode_packet_count,
+                'last_decode_packet_time'   : self.last_decode_packet_time
             })
 
     def reset_ongoing_contact(self):

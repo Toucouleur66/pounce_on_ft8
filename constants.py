@@ -7,7 +7,7 @@ import platform
 from datetime import datetime
 from utils import get_app_data_dir
 
-CURRENT_VERSION_NUMBER          = "2.1.1"
+CURRENT_VERSION_NUMBER          = "2.1.2"
 EXPIRATION_DATE                 = datetime(2024, 12, 15)
 UPDATE_JSON_INFO_URL            = "https://storage.de.cloud.ovh.net/v1/AUTH_31163bb499dc49eb819aacdfd32ae82c/wait.and.pounce/public/update_info.json"
 
@@ -92,6 +92,7 @@ DEFAULT_POUNCE_LOG              = True
 DEFAULT_LOG_PACKET_DATA         = False
 DEFAULT_SHOW_ALL_DECODED        = True
 DEFAULT_DELAY_BETWEEN_SOUND     = 120
+
 DEFAULT_SELECTED_BAND           = "6m"
 
 SETTING_QSS                     = f"""
@@ -104,9 +105,9 @@ SETTING_QSS                     = f"""
 
 TOOLTIP_QSS                      = f"""
             QToolTip {{
-                background-color: #9dfffe; 
-                color: #555bc2;
-                padding: 5px;
+                background-color: {STATUS_MONITORING_COLOR}; 
+                color: white;
+                padding: 3px;
                 border-radius: 6px;
             }}
         """

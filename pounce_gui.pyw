@@ -33,7 +33,7 @@ from setting_dialog import SettingsDialog
 
 from utils import get_local_ip_address, get_log_filename, matches_any
 from utils import get_mode_interval, get_amateur_band
-from utils import force_uppercase, force_numbers_and_commas, text_to_array
+from utils import force_input, text_to_array
 
 from version import is_first_launch_or_new_version, save_current_version
 
@@ -149,6 +149,10 @@ class UpdateWantedDialog(QtWidgets.QDialog):
         button_box = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.StandardButton.Yes | QtWidgets.QDialogButtonBox.StandardButton.No
         )
+
+        for button in button_box.buttons():
+            text = button.text().replace("&", "") 
+            button.setText(text)
         layout.addWidget(button_box)
 
         button_box.accepted.connect(self.accept)
@@ -188,7 +192,7 @@ class EditWantedDialog(QtWidgets.QDialog):
         self.entry.setAcceptRichText(False)
         self.entry.setText(initial_value)
         self.entry.setFont(CUSTOM_FONT_MONO)
-        self.entry.textChanged.connect(lambda: force_uppercase(self.entry))
+        self.entry.textChanged.connect(lambda: force_input(self.entry, mode="uppercase"))
         layout.addWidget(self.entry)
 
         button_box = QtWidgets.QDialogButtonBox(
@@ -373,25 +377,25 @@ class MainApp(QtWidgets.QMainWindow):
             {
                 'name'             : 'wanted_callsigns',
                 'label'            : 'Wanted Callsigns(s):',
-                'function'         : force_uppercase,
+                'function'         : partial(force_input, mode="uppercase"),
                 'on_changed_method': self.on_wanted_callsigns_changed,
             },
             {
                 'name'             : 'monitored_callsigns',
                 'label'            : 'Monitored Callsign(s):',
-                'function'         : force_uppercase,
+                'function'         : partial(force_input, mode="uppercase"),
                 'on_changed_method': self.on_monitored_callsigns_changed,
             },
             {
                 'name'             : 'monitored_cq_zones',
                 'label'            : 'Monitored CQ Zone(s):',
-                'function'         : force_numbers_and_commas,
+                'function'         : partial(force_input, mode="numbers"),
                 'on_changed_method': self.on_monitored_cq_zones_changed,
             },
             {
                 'name'             : 'excluded_callsigns',
                 'label'            : 'Excluded Callsign(s):',
-                'function'         : force_uppercase,
+                'function'         : partial(force_input, mode="uppercase"),
                 'on_changed_method': self.on_excluded_callsigns_changed,
             }
         ]
@@ -627,7 +631,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.save_last_used_tab(self.gui_selected_band)
         
     def apply_band_change(self, band):
-        if band != self.operating_band:            
+        if band != self.operating_band and band != 'Invalid':            
             self.operating_band = band
             self.monitoring_settings.set_wanted_callsigns(self.wanted_callsigns_vars[self.operating_band].text())
             self.monitoring_settings.set_monitored_callsigns(self.monitored_callsigns_vars[self.operating_band].text())
@@ -721,8 +725,12 @@ class MainApp(QtWidgets.QMainWindow):
                     self.last_frequency = self.frequency
                     frequency = str(self.last_frequency / 1_000) + 'Khz'
                     band      = get_amateur_band(self.frequency)
-                    self.add_message_to_table(f"{frequency} ({band}) {self.mode}")                     
-                    self.tab_widget.set_selected_tab(band)        
+
+                    if band != 'Invalid':
+                        self.add_message_to_table(f"{frequency} ({band}) {self.mode}")                     
+                        self.tab_widget.set_selected_tab(band)   
+            elif message_type == 'stop_monitoring':
+                self.stop_monitoring()     
             elif message_type == 'update_status':
                 self.check_connection_status(
                     message.get('decode_packet_count', 0),
@@ -825,8 +833,9 @@ class MainApp(QtWidgets.QMainWindow):
             pass
     
     def on_table_row_clicked(self, row, column):
-        position = self.output_table.visualRect(self.output_table.model().index(row, column)).center()
-        self.on_table_context_menu(position)        
+        if self.operating_band:
+            position = self.output_table.visualRect(self.output_table.model().index(row, column)).center()
+            self.on_table_context_menu(position)        
 
     def on_table_context_menu(self, position):
         index = self.output_table.indexAt(position)
@@ -1104,7 +1113,7 @@ class MainApp(QtWidgets.QMainWindow):
         # Check band and control used tab
         if frequency is not None:
             operating_band = get_amateur_band(frequency)     
-            if self.operating_band != operating_band:
+            if operating_band != 'Invalid' and self.operating_band != operating_band:
                 self.apply_band_change(operating_band)
            
         if self.mode is not None:
@@ -1863,7 +1872,7 @@ class MainApp(QtWidgets.QMainWindow):
 def main():
     app = QtWidgets.QApplication(sys.argv)
     app.setStyle(CustomButtonStyle(app.style())) 
-    
+
     updater = Updater()
     update_timer = QtCore.QTimer()
     update_timer.timeout.connect(updater.check_for_expiration_or_update)
