@@ -1,6 +1,8 @@
 # setting_dialog
 
-from PyQt6 import QtWidgets, QtCore, QtGui
+from PyQt6 import QtWidgets, QtCore
+
+from custom_button import CustomButton
 
 from utils import get_local_ip_address, get_log_filename
 
@@ -310,11 +312,15 @@ class SettingsDialog(QtWidgets.QDialog):
 
         self.load_params()
 
-        self.button_box = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.StandardButton.Ok | QtWidgets.QDialogButtonBox.StandardButton.Cancel
-        )
-        self.button_box.accepted.connect(self.accept)
-        self.button_box.rejected.connect(self.reject)
+        self.button_box = QtWidgets.QDialogButtonBox()
+        self.ok_button = CustomButton("OK")
+        self.cancel_button = CustomButton("Cancel")
+
+        self.button_box.addButton(self.ok_button, QtWidgets.QDialogButtonBox.ButtonRole.AcceptRole)
+        self.button_box.addButton(self.cancel_button, QtWidgets.QDialogButtonBox.ButtonRole.RejectRole)
+        
+        self.ok_button.clicked.connect(self.accept)
+        self.cancel_button.clicked.connect(self.reject)
 
         layout.addWidget(self.button_box)
         self.enable_gap_finder.stateChanged.connect(self.update_table_frequency_state)

@@ -149,10 +149,6 @@ class UpdateWantedDialog(QtWidgets.QDialog):
         button_box = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.StandardButton.Yes | QtWidgets.QDialogButtonBox.StandardButton.No
         )
-
-        for button in button_box.buttons():
-            text = button.text().replace("&", "") 
-            button.setText(text)
         layout.addWidget(button_box)
 
         button_box.accepted.connect(self.accept)
@@ -1026,11 +1022,15 @@ class MainApp(QtWidgets.QMainWindow):
     def stop_blinking_status_button(self):    
         self.is_status_button_label_blinking = False
         self.blink_timer.stop()
-        self.status_button.setVisibleState(True)
+        #self.status_button.hide()        
 
     def toggle_label_visibility(self):
-        self.is_status_button_label_visible = not self.is_status_button_label_visible
-        self.status_button.setVisibleState(self.is_status_button_label_visible)
+        if self.is_status_button_label_visible:
+            pass
+            self.status_button.hide()
+        else:
+            pass
+            self.status_button.show()
 
     def update_current_callsign_highlight(self):
         if self._running:
@@ -1136,12 +1136,12 @@ class MainApp(QtWidgets.QMainWindow):
                 if time_since_last_decode < 3:
                     network_check_status_interval = 100
                     time_since_last_decode_text = f"{time_since_last_decode:.1f}s" 
-                    self.update_status_button(False, STATUS_BUTTON_LABEL_DECODING, STATUS_DECODING_COLOR)                                  
+                    self.update_status_button(STATUS_BUTTON_LABEL_DECODING, STATUS_DECODING_COLOR)                                  
                 else:
                     if time_since_last_decode < 15:
                         network_check_status_interval = 1_000
                     time_since_last_decode_text = f"{int(time_since_last_decode)}s"                  
-                    self.update_status_button(False, STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR) 
+                    self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR) 
 
                 status_text_array.append(f"Last DecodePacket {current_mode}: {time_since_last_decode_text} ago")    
 
@@ -1152,12 +1152,12 @@ class MainApp(QtWidgets.QMainWindow):
         else:
             status_text_array.append("No DecodePacket received yet.")
             if self._running:
-                self.update_status_button(False, STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR) 
+                self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR) 
 
         if self.transmitting:
             self.start_blinking_status_button()
             network_check_status_interval = 100
-            self.update_status_button(False, STATUS_BUTTON_LABEL_TRX, STATUS_TRX_COLOR)
+            self.update_status_button(STATUS_BUTTON_LABEL_TRX, STATUS_TRX_COLOR)
         else:
             self.stop_blinking_status_button()
         
@@ -1532,24 +1532,20 @@ class MainApp(QtWidgets.QMainWindow):
         self.timer_value_label.setStyleSheet(f"background-color: {background_color}; color: #3d25fb; padding: 10px;")
 
     def update_status_button(
-            self,
-            enabled,            
-            text,
-            bg_color,
+            self,        
+            text = "",
+            bg_color = "black",
             fg_color = "white",
         ):
         self.status_button.setText(text)
-        if enabled is False:
-            self.status_button.setProperty("bg_color", bg_color)
-            self.status_button.setProperty("fg_color", fg_color)
-            self.status_button.setProperty("bd_color", bg_color)
-        else:            
-            self.status_button.setProperty("bg_color", None)
-            self.status_button.setProperty("fg_color", None)
-            self.status_button.setProperty("bd_color", None)
-        self.status_button.style().polish(self.status_button)
-
-
+        self.status_button.setStyleSheet(f"""
+            background-color: {bg_color}; 
+            color: {fg_color};
+            border: 2px solid {bg_color};
+            border-radius: 8px;
+            padding: 5px 10px;
+        """)    
+        
     def update_tab_widget_labels_style(self):
         styles = [
             (
@@ -1685,7 +1681,7 @@ class MainApp(QtWidgets.QMainWindow):
         button_layout = QtWidgets.QHBoxLayout()
         button_layout.addStretch()
 
-        ok_button = QtWidgets.QPushButton("OK")
+        ok_button = CustomButton("OK")
         ok_button.clicked.connect(dialog.accept)
         button_layout.addWidget(ok_button)
 
@@ -1719,13 +1715,11 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.network_check_status.start(self.network_check_status_interval)
 
-         # Timer to update time every second
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update_mode_timer)
         self.timer.start(200)
 
-        # self.output_text.clear()
-        self.update_status_button(False, STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR)
+        self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR)
 
         self.blink_timer = QtCore.QTimer()
         self.blink_timer.timeout.connect(self.toggle_label_visibility)
@@ -1854,12 +1848,14 @@ class MainApp(QtWidgets.QMainWindow):
             
             self.stop_tray_icon()
 
-            self.update_status_button(True, STATUS_BUTTON_LABEL_START, STATUS_COLOR_LABEL_OFF, "black")
+            self.update_status_button(STATUS_BUTTON_LABEL_START, STATUS_COLOR_LABEL_OFF)
+            self.status_button.resetStyle()
             self.status_button.setEnabled(True)
             self.stop_button.setEnabled(False)
 
             self.stop_blinking_status_button()
             self.update_tab_widget_labels_style()
+            
             # self.callsign_notice.show()
 
             self.tab_widget.set_selected_tab(self.band_indices.get(self.operating_band))
@@ -1875,17 +1871,17 @@ class MainApp(QtWidgets.QMainWindow):
             log_file.write(f"{timestamp} {message}\n")
 
 def main():
-    app = QtWidgets.QApplication(sys.argv)
+    app             = QtWidgets.QApplication(sys.argv)
+    updater         = Updater()
+    update_timer    = QtCore.QTimer()
 
-    updater = Updater()
-    update_timer = QtCore.QTimer()
     update_timer.timeout.connect(updater.check_for_expiration_or_update)
-    # Check every 60 minutes
+
     update_timer.setInterval(60 * 60 * 1_000)  
     update_timer.start()
     update_timer.timeout.emit()
     
-    window = MainApp()
+    window          = MainApp()
     window.show()
 
     if is_first_launch_or_new_version(CURRENT_VERSION_NUMBER):

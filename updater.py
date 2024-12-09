@@ -97,9 +97,6 @@ class Updater:
         button_box = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.StandardButton.Yes | QtWidgets.QDialogButtonBox.StandardButton.No
         )
-        for button in button_box.buttons():
-            text = button.text().replace("&", "") 
-            button.setText(text)
         layout.addWidget(button_box)
 
         button_box.accepted.connect(dialog.accept)
