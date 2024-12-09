@@ -7,7 +7,10 @@ import os
 import platform
 import requests
 import subprocess
+import shutil
+import tempfile
 
+from pathlib import Path
 from packaging import version
 from datetime import datetime
 from logger import get_logger
@@ -24,7 +27,8 @@ from constants import (
 
 class Updater:
     def __init__(self, parent=None):
-        self.parent = parent
+        self.parent         = parent
+        self.latest_version = None
 
     def check_expiration(self):
         current_date = datetime.now()
@@ -61,9 +65,9 @@ class Updater:
             response = requests.get(UPDATE_JSON_INFO_URL, timeout=5)
             if response.status_code == 200:
                 update_info = response.json()[platform.system().lower()]
-                latest_version = update_info.get('version')
-                log.warning(f"Last known version available: {latest_version}")
-                if version.parse(latest_version) > version.parse(CURRENT_VERSION_NUMBER):
+                self.latest_version = update_info.get('version')
+                log.warning(f"Last known version available: {self.latest_version}")
+                if version.parse(self.latest_version) > version.parse(CURRENT_VERSION_NUMBER):
                     if self.prompt_user_for_update(update_info):
                         download_url = update_info['download_url']
                         self.download_and_install_update(download_url)
@@ -119,23 +123,44 @@ class Updater:
                 "The update download was cancelled."
             )
 
-    def install_update(self, save_path):
+    def install_update(self, save_path):        
         if platform.system() == 'Windows':
-            os.startfile(save_path)
-            sys.exit()
+            self.run_windows_updater(save_path)
         elif platform.system() == 'Darwin':
-            subprocess.Popen(['open', save_path])
-            QtWidgets.QMessageBox.information(
-                None, 'Manual Installation Required',
-                'The update has been downloaded. Please follow the instructions to install it manually.'
-            )
-            sys.exit()
-        else:
-            QtWidgets.QMessageBox.information(
-                None, 'Update Downloaded',
-                f'The update has been downloaded to {save_path}. Please install it manually.'
-            )
-            sys.exit()
+            self.run_macos_updater(save_path)
+
+    def run_windows_updater(self, save_path):
+        current_exe = sys.executable
+
+        # Créer le contenu du fichier batch
+        batch_content = f"""
+        @echo off
+        :loop
+        tasklist | find /I "{Path(current_exe).name}" >nul 2>&1
+        if not errorlevel 1 (
+            timeout /t 1 /nobreak >nul
+            goto loop
+        )
+        move /Y "{save_path}" "{current_exe}"
+        start "" "{current_exe}"
+        del "%~f0"
+        """
+
+        with tempfile.NamedTemporaryFile('w', delete=False, suffix='.bat') as batch_file:
+            batch_file.write(batch_content)
+            batch_path = batch_file.name
+
+        subprocess.Popen(['cmd', '/c', batch_path], shell=True)
+
+        sys.exit()
+
+    def run_macos_updater(self, save_path):
+        subprocess.Popen(['open', save_path])
+        QtWidgets.QMessageBox.information(
+            None, 'Manual update required',
+            'Sorry but you will need to replace the updated App version manually.'
+        )
+        sys.exit()
 
 class DownloadDialog(QtWidgets.QDialog):
     def __init__(self, url, save_path, parent=None, title=None):
