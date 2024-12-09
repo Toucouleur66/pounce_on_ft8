@@ -5,34 +5,16 @@ import platform
 import sys
 import os
 import PyQt6.QtCore
+import PyQt6.QtGui
+import PyQt6.QtWidgets
+
+print(PyQt6.QtCore.QT_VERSION_STR)
+print(PyQt6.QtWidgets.QStyleFactory.keys())
 
 from constants import CURRENT_VERSION_NUMBER
 
 # app_name = f"Wait & Pounce v{CURRENT_VERSION_NUMBER}"
 app_name = f"WaitAndPounce"
-
-def generate_info_plist(version_number):
-    plist_content = f"""<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" 
-  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>CFBundleName</key>
-    <string>{app_name}</string>
-    <key>CFBundleIdentifier</key>
-    <string>com.citronpresse.waitandpounce</string>
-    <key>CFBundleShortVersionString</key>
-    <string>{version_number}</string>
-    <key>CFBundleVersion</key>
-    <string>{version_number}</string>
-</dict>
-</plist>
-"""
-    plist_path = os.path.join("dist", "Info.plist")
-    os.makedirs("dist", exist_ok=True) 
-    with open(plist_path, "w") as plist_file:
-        plist_file.write(plist_content)
-    return plist_path
 
 # Common options for PyInstaller
 common_options = [
@@ -64,8 +46,6 @@ if platform.system() == 'Windows':
         '--noconfirm',
     ]
 elif platform.system() == 'Darwin':
-    plist_path = generate_info_plist(CURRENT_VERSION_NUMBER)
-    
     pyinstaller_cmd = common_options + [
         "--windowed",
         "--icon=pounce.icns",
@@ -76,9 +56,40 @@ elif platform.system() == 'Darwin':
         '--hidden-import=Foundation',
         '--hidden-import=objc',
         '--noconfirm',
-    ]
+    ]    
 
-    def post_process():
+# Run the PyInstaller command
+subprocess.run(pyinstaller_cmd)
+
+if platform.system() == 'Darwin':
+    def generate_info_plist(version_number):
+        plist_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" 
+        "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>CFBundleName</key>
+            <string>{app_name}</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.waitandpounce</string>
+            <key>CFBundleShortVersionString</key>
+            <string>{version_number}</string>
+            <key>CFBundleVersion</key>
+            <string>{version_number}</string>
+            <key>CFBundleIconFile</key>
+            <string>pounce.icns</string>
+        </dict>
+        </plist>
+        """
+        plist_path = os.path.join("dist", "Info.plist")
+        os.makedirs("dist", exist_ok=True) 
+        with open(plist_path, "w") as plist_file:
+            plist_file.write(plist_content)
+        return plist_path
+   
+    plist_path = generate_info_plist(CURRENT_VERSION_NUMBER)
+
+    def post_process(plist_path):
         app_path = f"dist/{app_name}.app"
         plist_dest = os.path.join(app_path, "Contents", "Info.plist")
         if os.path.exists(app_path):
@@ -88,5 +99,4 @@ elif platform.system() == 'Darwin':
         else:
             print("Error: Application bundle not found. Skipping Info.plist copy.")
 
-# Run the PyInstaller command
-subprocess.run(pyinstaller_cmd)
+    post_process(plist_path)
