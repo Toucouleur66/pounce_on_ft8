@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import QTableWidget, QTableWidgetItem
 from PyQt6.QtCore import QThread
 from PyQt6.QtMultimedia import QSoundEffect
 
+import inspect
 import platform
 import re
 import sys
@@ -544,17 +545,12 @@ class MainApp(QtWidgets.QMainWindow):
         self.status_button = CustomButton(STATUS_BUTTON_LABEL_START)
         self.status_button.clicked.connect(self.start_monitoring)
         self.status_button.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
-
-        self.status_button.setAttribute(QtCore.Qt.WidgetAttribute.WA_Hover, True)
-        self.status_button.setMouseTracking(True)
         
         self.stop_button = CustomButton("Stop all")
         self.stop_button.setEnabled(False)        
         self.stop_button.clicked.connect(self.stop_monitoring)        
         self.stop_button.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
 
-        self.stop_button.setAttribute(QtCore.Qt.WidgetAttribute.WA_Hover, True)
-        self.stop_button.setMouseTracking(True)
         # Timer label and log analysis
         
         button_layout.addWidget(self.settings)
@@ -608,8 +604,8 @@ class MainApp(QtWidgets.QMainWindow):
         
         self.apply_theme_to_all(self.theme_manager.dark_mode)
         self.load_window_position()
-        QtCore.QTimer.singleShot(1_000, lambda: self.init_activity_bar())          
-
+        QtCore.QTimer.singleShot(1_000, lambda: self.init_activity_bar())   
+        
         # Close event to save position
         self.closeEvent = self.on_close
 
@@ -647,6 +643,7 @@ class MainApp(QtWidgets.QMainWindow):
             # Make sure to reset last_sound_played_time if we switch band
             self.last_sound_played_time = datetime.min
             self.focus_frame.hide()
+            self.gui_selected_band = self.operating_band
             self.tab_widget.set_operating_tab(self.operating_band)
 
     def save_last_used_tab(self, band):
@@ -658,25 +655,25 @@ class MainApp(QtWidgets.QMainWindow):
         Used for MonitoringSetting
     """
     def on_wanted_callsigns_changed(self):
-        if self.gui_selected_band == self.operating_band:
+        if self.operating_band:
             self.monitoring_settings.set_wanted_callsigns(self.wanted_callsigns_vars[self.operating_band].text())
             if self.worker is not None:
                 self.worker.update_settings_signal.emit()
 
     def on_monitored_callsigns_changed(self):
-        if self.gui_selected_band == self.operating_band:
+        if self.operating_band:
             self.monitoring_settings.set_monitored_callsigns(self.monitored_callsigns_vars[self.operating_band].text())
             if self.worker is not None:
                 self.worker.update_settings_signal.emit()
 
     def on_excluded_callsigns_changed(self):
-        if self.gui_selected_band == self.operating_band:
+        if self.operating_band:
             self.monitoring_settings.set_excluded_callsigns(self.excluded_callsigns_vars[self.operating_band].text())
             if self.worker is not None:
                 self.worker.update_settings_signal.emit()
 
     def on_monitored_cq_zones_changed(self):
-        if self.gui_selected_band == self.operating_band:
+        if self.operating_band:
             self.monitoring_settings.set_monitored_cq_zones(self.monitored_cq_zones_vars[self.operating_band].text())
             if self.worker is not None:
                 self.worker.update_settings_signal.emit()
@@ -836,7 +833,13 @@ class MainApp(QtWidgets.QMainWindow):
 
     def on_table_context_menu(self, position):
         index = self.output_table.indexAt(position)
-        if not index.isValid():
+
+        menu = QtWidgets.QMenu()
+        if sys.platform == 'darwin':
+            menu.setStyleSheet(CONTEXT_MENU_DARWIN_QSS)
+            menu.setFont(MENU_FONT)
+
+        if not index.isValid() or self.operating_band != self.operating_band:
             return
 
         row = index.row()
@@ -853,18 +856,13 @@ class MainApp(QtWidgets.QMainWindow):
         cq_zone             = data.get('cq_zone')
 
         if not callsign:
-            return
+            return        
 
-        menu = QtWidgets.QMenu()
-        if sys.platform == 'darwin':
-            menu.setStyleSheet(CONTEXT_MENU_DARWIN_QSS)
-            menu.setFont(MENU_FONT)
-        """
-        header_action = QtGui.QAction(f"Apply to {self.operating_band}")
+        header_action = QtGui.QAction(f"Apply to {self.operating_band}:")
         header_action.setEnabled(False)  
         menu.addAction(header_action)
         menu.addSeparator()
-        """
+
         actions = {}
 
         """
@@ -1020,17 +1018,18 @@ class MainApp(QtWidgets.QMainWindow):
             self.is_status_button_label_blinking = True
 
     def stop_blinking_status_button(self):    
-        self.is_status_button_label_blinking = False
-        self.blink_timer.stop()
-        #self.status_button.hide()        
+        if self.is_status_button_label_blinking is True:
+            self.is_status_button_label_blinking = False
+            self.blink_timer.stop()
+            self.status_button.setVisibleState(True)        
 
     def toggle_label_visibility(self):
         if self.is_status_button_label_visible:
-            pass
-            self.status_button.hide()
-        else:
-            pass
-            self.status_button.show()
+            self.is_status_button_label_visible = False
+            self.status_button.setVisibleState(False)                    
+        else:        
+            self.is_status_button_label_visible = True
+            self.status_button.setVisibleState(True)        
 
     def update_current_callsign_highlight(self):
         if self._running:
@@ -1537,14 +1536,12 @@ class MainApp(QtWidgets.QMainWindow):
             bg_color = "black",
             fg_color = "white",
         ):
-        self.status_button.setText(text)
-        self.status_button.setStyleSheet(f"""
-            background-color: {bg_color}; 
-            color: {fg_color};
-            border: 2px solid {bg_color};
-            border-radius: 8px;
-            padding: 5px 10px;
-        """)    
+        if (
+            self.status_button.current_text     != text     or
+            self.status_button.current_bg_color != bg_color or
+            self.status_button.current_fg_color != fg_color
+        ):      
+            self.status_button.updateStyle(text, bg_color, fg_color)
         
     def update_tab_widget_labels_style(self):
         styles = [
@@ -1708,9 +1705,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.save_params(params)               
 
     def start_monitoring(self):
-        self.status_button.setEnabled(False)
-        self.stop_button.setEnabled(True)
-
         self._running = True   
 
         self.network_check_status.start(self.network_check_status_interval)
@@ -1720,7 +1714,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.timer.start(200)
 
         self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR)
-
+        self.status_button.setEnabled(False)
+        self.stop_button.setEnabled(True)
+        
         self.blink_timer = QtCore.QTimer()
         self.blink_timer.timeout.connect(self.toggle_label_visibility)
 
@@ -1877,6 +1873,7 @@ def main():
 
     update_timer.timeout.connect(updater.check_for_expiration_or_update)
 
+    
     update_timer.setInterval(60 * 60 * 1_000)  
     update_timer.start()
     update_timer.timeout.emit()

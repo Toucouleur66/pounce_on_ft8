@@ -170,7 +170,9 @@ def force_input(widget, mode="uppercase"):
             cursor = widget.textCursor()
             current_pos = cursor.position()
 
-            current_text = widget.toPlainText().upper() if mode == "uppercase" else widget.toPlainText()
+            original_text = widget.toPlainText()
+
+            current_text = original_text.upper() if mode == "uppercase" else original_text
             filtered_text = ''.join(char for char in current_text if allowed_pattern.fullmatch(char))
 
             if mode == "numbers":
@@ -198,7 +200,7 @@ def force_input(widget, mode="uppercase"):
                 if filtered_text.endswith(','):
                     cleaned_text += ','
 
-            if current_text != cleaned_text:
+            if original_text != cleaned_text:
                 widget.blockSignals(True)
                 widget.setPlainText(cleaned_text)
                 widget.blockSignals(False)
@@ -208,7 +210,8 @@ def force_input(widget, mode="uppercase"):
                 widget.setTextCursor(cursor)
 
         elif isinstance(widget, QLineEdit):
-            current_text = widget.text().upper() if mode == "uppercase" else widget.text()
+            original_text = widget.text()
+            current_text = original_text.upper() if mode == "uppercase" else original_text
             filtered_text = ''.join(char for char in current_text if allowed_pattern.fullmatch(char))
 
             if mode == "numbers":
@@ -236,7 +239,7 @@ def force_input(widget, mode="uppercase"):
                 if filtered_text.endswith(','):
                     cleaned_text += ','
 
-            if current_text != cleaned_text:
+            if original_text != cleaned_text:
                 widget.blockSignals(True)
                 widget.setText(cleaned_text)
                 widget.blockSignals(False)
