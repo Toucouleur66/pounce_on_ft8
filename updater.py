@@ -1,6 +1,6 @@
 # updater.py
 
-from PyQt6 import QtCore, QtWidgets, QtNetwork, QtGui
+from PyQt6 import QtCore, QtWidgets, QtNetwork
 
 import sys
 import os
@@ -94,11 +94,16 @@ class Updater:
         label.setFont(CUSTOM_FONT)
         layout.addWidget(label)
 
-        buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Yes | QtWidgets.QDialogButtonBox.StandardButton.No)
-        layout.addWidget(buttons)
+        button_box = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Yes | QtWidgets.QDialogButtonBox.StandardButton.No
+        )
+        for button in button_box.buttons():
+            text = button.text().replace("&", "") 
+            button.setText(text)
+        layout.addWidget(button_box)
 
-        buttons.accepted.connect(dialog.accept)
-        buttons.rejected.connect(dialog.reject)
+        button_box.accepted.connect(dialog.accept)
+        button_box.rejected.connect(dialog.reject)
 
         result = dialog.exec()
         return result == QtWidgets.QDialog.DialogCode.Accepted
@@ -129,7 +134,6 @@ class Updater:
             )
             sys.exit()
         else:
-            # Autres plateformes
             QtWidgets.QMessageBox.information(
                 None, 'Update Downloaded',
                 f'The update has been downloaded to {save_path}. Please install it manually.'

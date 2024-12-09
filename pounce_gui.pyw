@@ -20,7 +20,7 @@ from functools import partial
 
 # Custom classes 
 from custom_tab_widget import CustomTabWidget
-from custom_button import CustomButtonStyle, CustomButton
+from custom_button import CustomButton
 from tray_icon import TrayIcon
 from activity_bar import ActivityBar
 from tooltip import ToolTip
@@ -553,7 +553,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.status_button.setMouseTracking(True)
         
         self.stop_button = CustomButton("Stop all")
-        self.stop_button.clicked.connect(self.stop_monitoring)
+        self.stop_button.setEnabled(False)        
+        self.stop_button.clicked.connect(self.stop_monitoring)        
         self.stop_button.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
 
         self.stop_button.setAttribute(QtCore.Qt.WidgetAttribute.WA_Hover, True)
@@ -1025,11 +1026,11 @@ class MainApp(QtWidgets.QMainWindow):
     def stop_blinking_status_button(self):    
         self.is_status_button_label_blinking = False
         self.blink_timer.stop()
-        self.status_button.setVisible(True)
+        self.status_button.setVisibleState(True)
 
     def toggle_label_visibility(self):
         self.is_status_button_label_visible = not self.is_status_button_label_visible
-        self.status_button.setVisible(self.is_status_button_label_visible)    
+        self.status_button.setVisibleState(self.is_status_button_label_visible)
 
     def update_current_callsign_highlight(self):
         if self._running:
@@ -1711,6 +1712,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.save_params(params)               
 
     def start_monitoring(self):
+        self.status_button.setEnabled(False)
+        self.stop_button.setEnabled(True)
+
         self._running = True   
 
         self.network_check_status.start(self.network_check_status_interval)
@@ -1852,6 +1856,7 @@ class MainApp(QtWidgets.QMainWindow):
 
             self.update_status_button(True, STATUS_BUTTON_LABEL_START, STATUS_COLOR_LABEL_OFF, "black")
             self.status_button.setEnabled(True)
+            self.stop_button.setEnabled(False)
 
             self.stop_blinking_status_button()
             self.update_tab_widget_labels_style()
@@ -1871,7 +1876,6 @@ class MainApp(QtWidgets.QMainWindow):
 
 def main():
     app = QtWidgets.QApplication(sys.argv)
-    app.setStyle(CustomButtonStyle(app.style())) 
 
     updater = Updater()
     update_timer = QtCore.QTimer()
