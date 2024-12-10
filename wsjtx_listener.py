@@ -60,17 +60,18 @@ class Listener:
               
         self.packet_store               = {}
         self.packet_counter             = 0
-
+        self.reply_to_packet_time       = None
+        
+        self.call_ready_to_log            = None
         self.targeted_call              = None
         self.targeted_call_frequencies  = set()
         self.targeted_call_period       = None
-        self.grid_being_called          = None
-        self.rst_rcvd_from_being_called = None
-        self.reply_to_packet_time       = None
-        self.qso_time_on                = None
-        self.qso_time_off               = None
-        self.rst_rcvd                   = None
-        self.rst_sent                   = None
+        self.grid_being_called          = {}
+        self.rst_rcvd_from_being_called = {}
+        self.rst_rcvd                   = None        
+        self.qso_time_on                = {}
+        self.qso_time_off               = {}
+        self.rst_sent                   = {}
         self.mode                       = None
         self.last_mode                  = None
         self.transmitting               = None        
@@ -204,15 +205,16 @@ class Listener:
         if self.enable_log_packet_data:
             log.debug('WSJT-X {}'.format(self.the_packet))
         try:
-            self.my_call        = self.the_packet.de_call
-            self.my_grid        = self.the_packet.de_grid
-            self.dx_call        = self.the_packet.dx_call
-            self.tx_df          = self.the_packet.tx_df       
-            self.rx_df          = self.the_packet.rx_df  
-            self.mode           = self.the_packet.mode            
-            self.rst_sent       = self.the_packet.report   
-            self.frequency      = self.the_packet.dial_frequency         
-            self.transmitting   = int(self.the_packet.transmitting)  
+            self.my_call                = self.the_packet.de_call
+            self.my_grid                = self.the_packet.de_grid
+            self.dx_call                = self.the_packet.dx_call
+            self.tx_df                  = self.the_packet.tx_df       
+            self.rx_df                  = self.the_packet.rx_df  
+            self.mode                   = self.the_packet.mode            
+            self.frequency              = self.the_packet.dial_frequency         
+            self.transmitting           = int(self.the_packet.transmitting)  
+            
+            self.rst_sent[self.dx_call] = self.the_packet.report               
 
             error_found     = False
             
@@ -327,16 +329,17 @@ class Listener:
             })
 
     def reset_ongoing_contact(self):
+        self.grid_being_called          .pop(self.targeted_call, None)
+        self.qso_time_on                .pop(self.targeted_call, None)
+        self.qso_time_off               .pop(self.targeted_call, None)
+        self.rst_rcvd_from_being_called .pop(self.targeted_call, None)
+        self.rst_sent                   .pop(self.targeted_call, None)
+
         self.targeted_call              = None
         self.targeted_call_period       = None
         self.targeted_call_frequencies  = set()
-        self.grid_being_called          = None
-        self.reply_to_packet_time       = None
-        self.qso_time_on                = None
-        self.qso_time_off               = None        
-        self.rst_rcvd_from_being_called = None
+        self.reply_to_packet_time       = None    
         self.rst_rcvd                   = None
-        self.rst_sent                   = None
         self.grid                       = None
         self.mode                       = None
         self.frequency                  = None
@@ -489,10 +492,10 @@ class Listener:
                 Reset values to focus on another wanted callsign
             """
             if (
-                self.qso_time_on is not None                              and
-                self.targeted_call is not None                            and
-                (time_now - self.qso_time_on).total_seconds() > 120 and
-                callsign != self.targeted_call                            and            
+                self.targeted_call is not None                                              and
+                self.qso_time_on.get(self.targeted_call)                                    and
+                (time_now - self.qso_time_on.get(self.targeted_call)).total_seconds() > 120 and
+                callsign != self.targeted_call                                              and            
                 wanted is True
             ):
                 log.warning("Waiting [ {} ] but we are about to switch on [ {} ]".format(self.targeted_call, callsign))
@@ -502,11 +505,19 @@ class Listener:
                 How to handle the logic for the message 
             """
             if directed == self.my_call and msg in {"RR73", "73", "RRR"}:
-                log.warning("Found message [ {} ] we should log a QSO for [ {} ]".format(msg, self.targeted_call))
+                log.warning("Found message [ {} ] we should log a QSO for [ {} ]".format(msg, callsign))
+
+                if self.targeted_call is not None and callsign != self.targeted_call:
+                    log.error(f"Received |{msg}| from [ {callsign} ] but ongoing callsign is [ {self.targeted_call} ]")
+                    if self.message_callback:
+                        self.message_callback({
+                            'type': 'error_occurred',                
+                        })
 
                 if self.targeted_call == callsign or self.enable_log_all_valid_contact:
-                    log.warning("Found message to log [ {} ]".format(self.targeted_call))
-                    self.qso_time_off = decode_time
+                    self.call_ready_to_log = callsign 
+                    log.warning("Found message to log [ {} ]".format(self.call_ready_to_log))
+                    self.qso_time_off[self.call_ready_to_log] = decode_time
                     self.log_qso_to_adif()
                     if self.enable_secondary_udp_server:
                         self.log_qso_to_udp()
@@ -515,6 +526,7 @@ class Listener:
                     if callsign in self.wanted_callsigns:
                         self.wanted_callsigns.remove(callsign)
                     self.excluded_callsigns.add(callsign)
+                    self.call_ready_to_log = None
      
                 elif self.targeted_call is not None:
                     log.error(f"Received |{msg}| from [ {callsign} ] but ongoing callsign is [ {self.targeted_call} ]")
@@ -531,12 +543,12 @@ class Listener:
                 
             elif directed == self.my_call:
                 log.warning("Found message directed to my call [ {} ] from [ {} ]".format(directed, callsign))
+                
+                self.rst_rcvd_from_being_called[callsign]   = msg                 
+                self.grid_being_called[callsign]            = grid or ''                    
+                self.qso_time_on[callsign]                  = decode_time
 
                 if wanted is True:                                        
-                    self.rst_rcvd_from_being_called = msg                 
-                    self.grid                       = grid or ''                    
-                    self.qso_time_on                = decode_time
-
                     log.warning("Start focus on callsign [ {} ]\treport:{}".format(callsign, self.rst_rcvd_from_being_called))
                     # We can't use self.the_packet.mode as it returns "~"
                     # self.mode             = self.the_packet.mode
@@ -628,38 +640,18 @@ class Listener:
         self.s.send_packet(self.addr_port, configure_paquet)        
 
     def log_qso_to_adif(self):
-        required_fields = {
-            'targeted_call'         : self.targeted_call,
-            'mode'                  : self.mode,
-            'rst_sent'              : self.rst_sent,
-            'rst_rcvd'              : self.rst_rcvd_from_being_called,
-            'frequency'             : self.frequency,
-            'rx_df'                 : self.rx_df,
-            'tx_df'                 : self.tx_df,
-            'my_call'               : self.my_call,
-            'qso_time_on'           : self.qso_time_on,
-            'qso_time_off'          : self.qso_time_off
-        }
-
-        missing_fields = [name for name, value in required_fields.items() if not value]
-        if missing_fields:
-            log.error(f"Missing data: {', '.join(missing_fields)}")
-            return
-
-        # log.warning(required_fields)
-
-        callsign        = self.targeted_call
-        grid            = self.grid_being_called or ''
+        callsign        = self.call_ready_to_log
+        grid            = self.grid_being_called[self.call_ready_to_log]
         mode            = self.mode
-        rst_sent        = self.get_clean_rst(self.rst_sent)
-        rst_rcvd        = self.get_clean_rst(self.rst_rcvd_from_being_called)
+        rst_sent        = self.get_clean_rst(self.rst_sent[self.call_ready_to_log])
+        rst_rcvd        = self.get_clean_rst(self.rst_rcvd_from_being_called[self.call_ready_to_log])
         freq_rx         = f"{round((self.frequency + self.rx_df) / 1_000_000, 6):.6f}"
         freq            = f"{round((self.frequency + self.tx_df) / 1_000_000, 6):.6f}"
         band            = get_amateur_band(self.frequency)
         my_call         = self.my_call
-        qso_time_on     = self.qso_time_on.strftime('%H%M%S')
-        qso_time_off    = self.qso_time_off.strftime('%H%M%S')
-        qso_date        = self.qso_time_on.strftime('%Y%m%d')
+        qso_date        = self.qso_time_on[self.call_ready_to_log].strftime('%Y%m%d')        
+        qso_time_on     = self.qso_time_on[self.call_ready_to_log].strftime('%H%M%S')
+        qso_time_off    = self.qso_time_off[self.call_ready_to_log].strftime('%H%M%S')
 
         # Création de l'entrée ADIF avec une ligne par élément
         adif_entry = " ".join([
@@ -682,23 +674,28 @@ class Listener:
         try:
             with open("wsjtx_log.adif", "a") as adif_file:
                 adif_file.write(adif_entry)
-            log.warning("QSOLogged [ {} ]".format(self.targeted_call))
+            log.warning("QSOLogged [ {} ]".format(self.call_ready_to_log))
         except Exception as e:
             log.error(f"Can't write ADIF file {e}")
 
     def log_qso_to_udp(self):
         try:
             # Todo remove Debug
-            log.warning("self.rst_sent: {}\tself.rst_rcvd_from_being_called: {}\n\tawaited_rst_sent: {}\tawaited_rst_rcvd: {}".format(self.rst_sent, self.rst_rcvd_from_being_called,self.get_clean_rst(self.rst_sent), self.get_clean_rst(self.rst_rcvd_from_being_called)))
+            log.warning(f"""
+                self.rst_sent: {self.rst_sent[self.call_ready_to_log]}
+                self.rst_rcvd_from_being_called: {self.rst_rcvd_from_being_called[self.call_ready_to_log]}
+                awaited_rst_sent: {self.get_clean_rst(self.rst_sent[self.call_ready_to_log])}
+                awaited_rst_rcvd: {self.get_clean_rst(self.rst_rcvd_from_being_called[self.call_ready_to_log])}
+            """)
 
-            awaited_rst_sent = self.get_clean_rst(self.rst_sent)
-            awaited_rst_rcvd = self.get_clean_rst(self.rst_rcvd_from_being_called)
+            awaited_rst_sent = self.get_clean_rst(self.rst_sent[self.call_ready_to_log])
+            awaited_rst_rcvd = self.get_clean_rst(self.rst_rcvd_from_being_called[self.call_ready_to_log])
 
             self.packet_sender.send_qso_logged_packet(
                 wsjtx_id        = self.the_packet.wsjtx_id,
-                datetime_off    = self.qso_time_off,
-                call            = self.targeted_call,
-                grid            = self.grid_being_called or '',
+                datetime_off    = self.qso_time_off[self.call_ready_to_log],
+                call            = self.call_ready_to_log,
+                grid            = self.grid_being_called[self.call_ready_to_log],
                 frequency       = self.frequency,
                 mode            = self.mode,
                 report_sent     = awaited_rst_sent,
@@ -706,14 +703,14 @@ class Listener:
                 tx_power        = '', 
                 comments        = '',
                 name            = '',
-                datetime_on     = self.qso_time_on,
+                datetime_on     = self.qso_time_on[self.call_ready_to_log],
                 op_call         = '',
                 my_call         = self.my_call,
                 my_grid         = self.my_grid,
                 exchange_sent   = awaited_rst_sent,
                 exchange_recv   = awaited_rst_rcvd
             )
-            log.warning("QSOLoggedPacket sent via UDP for [ {} ]".format(self.targeted_call))
+            log.warning("QSOLoggedPacket sent via UDP for [ {} ]".format(self.call_ready_to_log))
         except Exception as e:
             log.error(f"Error sending QSOLoggedPacket via UDP: {e}")
             log.error("Caught an error while trying to send QSOLoggedPacket packet: error {}\n{}".format(e, traceback.format_exc()))

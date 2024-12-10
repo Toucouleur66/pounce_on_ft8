@@ -1015,8 +1015,8 @@ class MainApp(QtWidgets.QMainWindow):
 
     def start_blinking_status_button(self):
         if self.is_status_button_label_blinking is False:
-            self.blink_timer.start(500)
             self.is_status_button_label_blinking = True
+            self.blink_timer.start(500)
 
     def stop_blinking_status_button(self):    
         if self.is_status_button_label_blinking is True:
@@ -1125,42 +1125,42 @@ class MainApp(QtWidgets.QMainWindow):
         HEARTBEAT_TIMEOUT_THRESHOLD     = 30  # secondes
         DECODE_PACKET_TIMEOUT_THRESHOLD = 60  # secondes
 
-        if self.last_decode_packet_time:
-            time_since_last_decode = (now - self.last_decode_packet_time).total_seconds()
-            network_check_status_interval = 5_000
-
-            if time_since_last_decode > DECODE_PACKET_TIMEOUT_THRESHOLD:
-                status_text_array.append(f"No DecodePacket for more than {DECODE_PACKET_TIMEOUT_THRESHOLD} seconds.")
-                nothing_to_decode = True                
-            else:      
-                if time_since_last_decode < 3:
-                    network_check_status_interval = 100
-                    time_since_last_decode_text = f"{time_since_last_decode:.1f}s" 
-                    self.update_status_button(STATUS_BUTTON_LABEL_DECODING, STATUS_DECODING_COLOR)                                  
-                else:
-                    if time_since_last_decode < 15:
-                        network_check_status_interval = 1_000
-                    time_since_last_decode_text = f"{int(time_since_last_decode)}s"                  
-                    self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR) 
-
-                status_text_array.append(f"Last DecodePacket {current_mode}: {time_since_last_decode_text} ago")    
-
-            # Update new interval if necessary
-            if network_check_status_interval != self.network_check_status_interval:
-                self.network_check_status_interval = network_check_status_interval
-                self.network_check_status.setInterval(self.network_check_status_interval)                               
-        else:
-            status_text_array.append("No DecodePacket received yet.")
-            if self._running:
-                self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR) 
-
         if self.transmitting:
+            self.update_status_button(STATUS_BUTTON_LABEL_TRX, STATUS_TRX_COLOR)
             self.start_blinking_status_button()
             network_check_status_interval = 100
-            self.update_status_button(STATUS_BUTTON_LABEL_TRX, STATUS_TRX_COLOR)
         else:
             self.stop_blinking_status_button()
-        
+
+            if self.last_decode_packet_time:
+                time_since_last_decode = (now - self.last_decode_packet_time).total_seconds()
+                network_check_status_interval = 5_000
+
+                if time_since_last_decode > DECODE_PACKET_TIMEOUT_THRESHOLD:
+                    status_text_array.append(f"No DecodePacket for more than {DECODE_PACKET_TIMEOUT_THRESHOLD} seconds.")
+                    nothing_to_decode = True                
+                else:      
+                    if time_since_last_decode < 3:
+                        network_check_status_interval = 100
+                        time_since_last_decode_text = f"{time_since_last_decode:.1f}s" 
+                        self.update_status_button(STATUS_BUTTON_LABEL_DECODING, STATUS_DECODING_COLOR)                                  
+                    else:
+                        if time_since_last_decode < 15:
+                            network_check_status_interval = 1_000
+                        time_since_last_decode_text = f"{int(time_since_last_decode)}s"                  
+                        self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR) 
+
+                    status_text_array.append(f"Last DecodePacket {current_mode}: {time_since_last_decode_text} ago")    
+
+                # Update new interval if necessary
+                if network_check_status_interval != self.network_check_status_interval:
+                    self.network_check_status_interval = network_check_status_interval
+                    self.network_check_status.setInterval(self.network_check_status_interval)                               
+            else:
+                status_text_array.append("No DecodePacket received yet.")
+                if self._running:
+                    self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR) 
+            
         if self.last_heartbeat_time:
             time_since_last_heartbeat = (now - self.last_heartbeat_time).total_seconds()
             if time_since_last_heartbeat > HEARTBEAT_TIMEOUT_THRESHOLD:
@@ -1537,12 +1537,12 @@ class MainApp(QtWidgets.QMainWindow):
             bg_color = "black",
             fg_color = "white",
         ):
-        if (
-            self.status_button.current_text     != text     or
-            self.status_button.current_bg_color != bg_color or
-            self.status_button.current_fg_color != fg_color
-        ):      
-            self.status_button.updateStyle(text, bg_color, fg_color)
+            if (
+                self.status_button.current_text     != text     or
+                self.status_button.current_bg_color != bg_color or
+                self.status_button.current_fg_color != fg_color
+            ):      
+                self.status_button.updateStyle(text, bg_color, fg_color)
         
     def update_tab_widget_labels_style(self):
         styles = [
@@ -1714,15 +1714,15 @@ class MainApp(QtWidgets.QMainWindow):
         self.timer.timeout.connect(self.update_mode_timer)
         self.timer.start(200)
 
+        self.is_status_button_label_visible = True
+        self.is_status_button_label_blinking = False
+
         self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR)
         self.status_button.setEnabled(False)
         self.stop_button.setEnabled(True)
         
         self.blink_timer = QtCore.QTimer()
         self.blink_timer.timeout.connect(self.toggle_label_visibility)
-
-        self.is_status_button_label_visible = True
-        self.is_status_button_label_blinking = False
 
         self.stop_event.clear()
         self.focus_frame.hide()
