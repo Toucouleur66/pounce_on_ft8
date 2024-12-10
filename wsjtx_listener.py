@@ -210,6 +210,7 @@ class Listener:
             self.tx_df          = self.the_packet.tx_df       
             self.rx_df          = self.the_packet.rx_df  
             self.mode           = self.the_packet.mode            
+            self.rst_sent       = self.the_packet.report   
             self.frequency      = self.the_packet.dial_frequency         
             self.transmitting   = int(self.the_packet.transmitting)  
 
@@ -257,8 +258,7 @@ class Listener:
                     log.error('Watchdog enabled')
                     if self.enable_watchdog_bypass :
                         self.reset_ongoing_contact()            
-                elif self.targeted_call == self.dx_call:
-                    self.rst_sent   = self.the_packet.report     
+                elif self.targeted_call == self.dx_call:  
                     self.time_off   = datetime.now(timezone.utc)
                 elif (
                     status_had_time_to_update and   
