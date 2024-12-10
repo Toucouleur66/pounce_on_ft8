@@ -25,6 +25,7 @@ class Worker(QObject):
             secondary_udp_server_port,
             enable_secondary_udp_server,
             enable_sending_reply,
+            enable_log_all_valid_contact,
             enable_gap_finder,
             enable_watchdog_bypass,
             enable_debug_output,
@@ -35,25 +36,27 @@ class Worker(QObject):
 
         self.update_settings_signal.connect(self.update_settings)
 
-        self.listener                       = None 
+        self.listener                           = None 
+        self.stop_event                         = stop_event
 
-        self.stop_event                     = stop_event
+        self.mode                               = mode
+        self.monitoring_settings                = monitoring_settings                
+            
+        self.primary_udp_server_address         = primary_udp_server_address
+        self.primary_udp_server_port            = primary_udp_server_port
 
-        self.mode                           = mode
-        self.monitoring_settings            = monitoring_settings                
-        
-        self.primary_udp_server_address     = primary_udp_server_address
-        self.primary_udp_server_port        = primary_udp_server_port
-        self.secondary_udp_server_address   = secondary_udp_server_address
-        self.secondary_udp_server_port      = secondary_udp_server_port
-        
-        self.enable_secondary_udp_server    = enable_secondary_udp_server
-        self.enable_sending_reply           = enable_sending_reply
-        self.enable_gap_finder               = enable_gap_finder
-        self.enable_watchdog_bypass         = enable_watchdog_bypass
-        self.enable_debug_output            = enable_debug_output
-        self.enable_pounce_log              = enable_pounce_log   
-        self.enable_log_packet_data         = enable_log_packet_data
+        self.enable_secondary_udp_server        = enable_secondary_udp_server
+                
+        self.secondary_udp_server_address       = secondary_udp_server_address
+        self.secondary_udp_server_port          = secondary_udp_server_port
+            
+        self.enable_sending_reply               = enable_sending_reply
+        self.enable_log_all_valid_contact       = enable_log_all_valid_contact
+        self.enable_gap_finder                   = enable_gap_finder
+        self.enable_watchdog_bypass             = enable_watchdog_bypass
+        self.enable_debug_output                = enable_debug_output
+        self.enable_pounce_log                  = enable_pounce_log   
+        self.enable_log_packet_data             = enable_log_packet_data
 
     def run(self):
         try:
@@ -64,6 +67,7 @@ class Worker(QObject):
                 secondary_udp_server_port       = self.secondary_udp_server_port,
                 enable_secondary_udp_server     = self.enable_secondary_udp_server,
                 enable_sending_reply            = self.enable_sending_reply,
+                enable_log_all_valid_contact    = self.enable_log_all_valid_contact,
                 enable_gap_finder                = self.enable_gap_finder,
                 enable_watchdog_bypass          = self.enable_watchdog_bypass,
                 enable_debug_output             = self.enable_debug_output,

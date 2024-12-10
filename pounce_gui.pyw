@@ -100,6 +100,7 @@ from constants import (
     DEFAULT_POUNCE_LOG,
     DEFAULT_LOG_PACKET_DATA,
     DEFAULT_SHOW_ALL_DECODED,
+    DEFAULT_LOG_ALL_VALID_CONTACT,
     ACTIVITY_BAR_MAX_VALUE,
     # Style
     CONTEXT_MENU_DARWIN_QSS,
@@ -1747,6 +1748,7 @@ class MainApp(QtWidgets.QMainWindow):
         enable_debug_output                 = params.get('enable_debug_output', DEFAULT_DEBUG_OUTPUT)
         enable_pounce_log                   = params.get('enable_pounce_log', DEFAULT_POUNCE_LOG)
         enable_log_packet_data              = params.get('enable_log_packet_data', DEFAULT_LOG_PACKET_DATA)
+        enable_log_all_valid_contact        = params.get('enable_log_all_valid_contact', DEFAULT_LOG_ALL_VALID_CONTACT)
         
         self.enable_show_all_decoded        = params.get('enable_show_all_decoded', DEFAULT_SHOW_ALL_DECODED)
 
@@ -1765,6 +1767,7 @@ class MainApp(QtWidgets.QMainWindow):
             secondary_udp_server_port,
             enable_secondary_udp_server,
             enable_sending_reply,
+            enable_log_all_valid_contact,
             enable_gap_finder,
             enable_watchdog_bypass,
             enable_debug_output,

@@ -39,6 +39,7 @@ class Listener:
             secondary_udp_server_port,
             enable_secondary_udp_server,
             enable_sending_reply,
+            enable_log_all_valid_contact,
             enable_gap_finder,
             enable_watchdog_bypass,
             enable_debug_output,
@@ -88,6 +89,7 @@ class Listener:
         self.enable_secondary_udp_server    = enable_secondary_udp_server or False
 
         self.enable_sending_reply           = enable_sending_reply
+        self.enable_log_all_valid_contact   = enable_log_all_valid_contact
         self.enable_gap_finder               = enable_gap_finder
         self.enable_watchdog_bypass         = enable_watchdog_bypass
         self.enable_debug_output            = enable_debug_output
@@ -502,7 +504,7 @@ class Listener:
             if directed == self.my_call and msg in {"RR73", "73", "RRR"}:
                 log.warning("Found message [ {} ] we should log a QSO for [ {} ]".format(msg, self.targeted_call))
 
-                if self.targeted_call == callsign:
+                if self.targeted_call == callsign or self.enable_log_all_valid_contact:
                     log.warning("Found message to log [ {} ]".format(self.targeted_call))
                     self.qso_time_off = decode_time
                     self.log_qso_to_adif()
