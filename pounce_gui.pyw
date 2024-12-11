@@ -345,9 +345,144 @@ class MainApp(QtWidgets.QMainWindow):
         """
             Widget Tab
         """
-        self.tab_widget = CustomTabWidget()
+        self.tab_widget = self.init_tab_widget_ui(params)
 
-        self.tab_widget.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
+        """
+            Status layout
+        """
+        status_layout = QtWidgets.QGridLayout()
+
+        status_static_label = QtWidgets.QLabel("Status:")
+        status_static_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        status_static_label.setStyleSheet("padding-right: 30px;")
+        status_static_label.setMinimumWidth(150)
+
+        self.status_label = QtWidgets.QLabel(STATUS_BUTTON_LABEL_NOTHING_YET)
+        self.status_label.setFont(CUSTOM_FONT_MONO)
+        self.status_label.setStyleSheet(f"""
+            background-color: {STATUS_COLOR_LABEL_SELECTED}; 
+            border-radius: 5px;
+            color: white;
+            padding: 5px;
+        """)
+        self.status_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Preferred)
+        self.status_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        
+        status_layout.addWidget(status_static_label, 0, 0) 
+        status_layout.addWidget(self.status_label, 0, 1, 1, 3) 
+
+        status_layout.setColumnStretch(0, 0) 
+        status_layout.setColumnStretch(1, 1) 
+
+        """
+            Main output table
+        """
+        self.output_table = self.init_table_ui()
+
+        """
+            Filter layout
+        """
+        filter_layout = self.init_filter_ui()
+
+        """
+            Bottom and Button layout
+        """
+        bottom_layout = QtWidgets.QHBoxLayout()
+        button_layout = QtWidgets.QHBoxLayout()
+
+        self.clear_button = CustomButton("Clear History")
+        self.clear_button.setEnabled(False)
+        self.clear_button.clicked.connect(self.clear_output_table)
+
+        self.settings = CustomButton("Settings")
+        self.settings.clicked.connect(self.open_settings)
+
+        self.disable_alert_checkbox = QtWidgets.QCheckBox("Disable all Sounds")
+        self.disable_alert_checkbox.setChecked(False)
+        self.disable_alert_checkbox.stateChanged.connect(self.update_alert_label_style)
+
+        self.quit_button = CustomButton("Quit")
+        self.quit_button.clicked.connect(self.quit_application)
+
+        self.inputs_enabled = True
+
+        if platform.system() == 'Darwin':
+            self.restart_button = CustomButton("Restart")
+            self.restart_button.clicked.connect(self.restart_application)
+
+        # Timer and start/stop buttons
+        self.status_button = CustomButton(STATUS_BUTTON_LABEL_START)
+        self.status_button.clicked.connect(self.start_monitoring)
+        self.status_button.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
+        
+        self.stop_button = CustomButton("Stop all")
+        self.stop_button.setEnabled(False)        
+        self.stop_button.clicked.connect(self.stop_monitoring)        
+        self.stop_button.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
+
+        # Timer label and log analysis
+        
+        button_layout.addWidget(self.settings)
+        button_layout.addWidget(self.clear_button)
+
+        if platform.system() == 'Darwin':
+            button_layout.addWidget(self.restart_button)
+
+        button_layout.addWidget(self.quit_button)
+
+        bottom_layout.addWidget(self.disable_alert_checkbox)
+        bottom_layout.addStretch()  
+        bottom_layout.addLayout(button_layout)
+
+        self.activity_bar = ActivityBar(max_value=ACTIVITY_BAR_MAX_VALUE)
+        self.activity_bar.setFixedWidth(30)
+
+        outer_layout.addWidget(self.activity_bar)
+
+        self.enable_pounce_log = params.get('enable_pounce_log', True)
+        
+        # Get sound configuration
+        self.enable_sound_wanted_callsigns = params.get('enable_sound_wanted_callsigns', True)
+        self.enable_sound_directed_my_callsign = params.get('enable_sound_directed_my_callsign', True)
+        self.enable_sound_monitored_callsigns = params.get('enable_sound_monitored_callsigns', True)
+       
+        spacer = QtWidgets.QSpacerItem(0, 10, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)        
+
+        main_layout.addWidget(self.focus_frame, 0, 0, 1, 4)
+        main_layout.addWidget(self.timer_value_label, 0, 4)
+            
+        main_layout.addWidget(self.wanted_callsigns_history_label, 1, 3, 1, 2)
+        main_layout.addWidget(self.tab_widget, 2, 0, 4, 3)                
+        main_layout.addWidget(self.listbox, 2, 3, 5, 2)
+        main_layout.addLayout(status_layout, 8, 1, 1, 1)
+        main_layout.addWidget(self.status_button, 8, 3)
+        main_layout.addWidget(self.stop_button, 8, 4)
+        main_layout.addItem(spacer, 9, 0, 1, 5)
+        main_layout.addWidget(self.output_table, 10, 0, 1, 5)
+        main_layout.addWidget(filter_layout, 11, 0, 1, 5)
+        main_layout.addLayout(bottom_layout, 12, 0, 1, 5)
+        
+        self.file_handler = None
+        if self.enable_pounce_log:
+            self.file_handler = add_file_handler(get_log_filename())
+
+        """
+            self.operating_band might be overided as soon as check_connection_status is used
+        """
+        self.gui_selected_band = params.get('last_band_used', DEFAULT_SELECTED_BAND)
+        self.tab_widget.set_selected_tab(self.gui_selected_band)
+        
+        self.apply_theme_to_all(self.theme_manager.dark_mode)
+        self.load_window_position()
+        QtCore.QTimer.singleShot(1_000, lambda: self.init_activity_bar())   
+        
+        # Close event to save position
+        self.closeEvent = self.on_close
+
+    def init_tab_widget_ui(self, params):
+        tab_widget = CustomTabWidget()
+
+        tab_widget.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
         
         self.wanted_callsigns_vars              = {}
         self.monitored_callsigns_vars           = {}
@@ -438,41 +573,17 @@ class MainApp(QtWidgets.QMainWindow):
 
             tab_content.setLayout(layout)
             self.band_content_widgets[band] = tab_content
-            self.tab_widget.addTab(tab_content, band)
+            tab_widget.addTab(tab_content, band)
 
-        self.tab_widget.tabClicked.connect(self.on_tab_clicked) 
+        tab_widget.tabClicked.connect(self.on_tab_clicked)     
 
-        # Status layout
-        status_layout = QtWidgets.QGridLayout()
+        return tab_widget
 
-        status_static_label = QtWidgets.QLabel("Status:")
-        status_static_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
-        status_static_label.setStyleSheet("padding-right: 30px;")
-        status_static_label.setMinimumWidth(fixed_label_width)
+    def init_table_ui(self):
+        output_table = QTableWidget(self)
 
-        self.status_label = QtWidgets.QLabel(STATUS_BUTTON_LABEL_NOTHING_YET)
-        self.status_label.setFont(CUSTOM_FONT_MONO)
-        self.status_label.setStyleSheet(f"""
-            background-color: {STATUS_COLOR_LABEL_SELECTED}; 
-            border-radius: 5px;
-            color: white;
-            padding: 5px;
-        """)
-        self.status_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Preferred)
-        self.status_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
-        
-        status_layout.addWidget(status_static_label, 0, 0) 
-        status_layout.addWidget(self.status_label, 0, 1, 1, 3) 
-
-        status_layout.setColumnStretch(0, 0) 
-        status_layout.setColumnStretch(1, 1) 
-
-        """
-            Main output table
-        """
         header_labels = ['Time', 'Band', 'Report', 'DT', 'Freq', 'Message', 'Country', 'CQ', 'Continent']
-        self.output_table = QTableWidget(self)
-        self.output_table.setColumnCount(len(header_labels))
+        output_table.setColumnCount(len(header_labels))
         for i, label in enumerate(header_labels):
             header_item = QTableWidgetItem(label)
             if label in ['Band', 'Report', 'DT', 'Freq']:
@@ -481,200 +592,216 @@ class MainApp(QtWidgets.QMainWindow):
                 header_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)                
             else:
                 header_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
-            self.output_table.setHorizontalHeaderItem(i, header_item)
+            output_table.setHorizontalHeaderItem(i, header_item)
         
-        self.output_table.setFont(CUSTOM_FONT)
-        self.output_table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.NoSelection)
-        self.output_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
+        output_table.setFont(CUSTOM_FONT)
+        output_table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.NoSelection)
+        output_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
 
-        self.output_table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.output_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.Interactive)        
-        self.output_table.horizontalHeader().setStyleSheet("""
+        output_table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
+        output_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.Interactive)        
+        output_table.horizontalHeader().setStyleSheet("""
             QHeaderView::section {
                 font-weight: normal;
             }
         """)
-        self.output_table.verticalHeader().setVisible(False)
-        self.output_table.verticalHeader().setDefaultSectionSize(24)
-        self.output_table.setAlternatingRowColors(True)
-        self.output_table.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        output_table.verticalHeader().setVisible(False)
+        output_table.verticalHeader().setDefaultSectionSize(24)
+        output_table.setAlternatingRowColors(True)
+        output_table.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
-        self.output_table.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.Fixed)
-        self.output_table.horizontalHeader().setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeMode.Fixed)
-        self.output_table.horizontalHeader().setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeMode.Fixed)
-        self.output_table.horizontalHeader().setSectionResizeMode(3, QtWidgets.QHeaderView.ResizeMode.Fixed)
-        self.output_table.horizontalHeader().setSectionResizeMode(4, QtWidgets.QHeaderView.ResizeMode.Fixed)
-        self.output_table.horizontalHeader().setSectionResizeMode(5, QtWidgets.QHeaderView.ResizeMode.Stretch)
-        self.output_table.horizontalHeader().setSectionResizeMode(6, QtWidgets.QHeaderView.ResizeMode.Stretch)
-        self.output_table.horizontalHeader().setSectionResizeMode(7, QtWidgets.QHeaderView.ResizeMode.Fixed)
-        self.output_table.horizontalHeader().setSectionResizeMode(8, QtWidgets.QHeaderView.ResizeMode.Fixed)
-        self.output_table.horizontalHeader().setStretchLastSection(False)
-        self.output_table.setColumnWidth(0, 160)
-        self.output_table.setColumnWidth(1, 45)
-        self.output_table.setColumnWidth(2, 60)
-        self.output_table.setColumnWidth(3, 60)
-        self.output_table.setColumnWidth(4, 80)
-        self.output_table.setColumnWidth(5, 400)
-        self.output_table.setColumnWidth(7, 50)
-        self.output_table.setColumnWidth(8, 70)
+        output_table.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.Fixed)
+        output_table.horizontalHeader().setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeMode.Fixed)
+        output_table.horizontalHeader().setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeMode.Fixed)
+        output_table.horizontalHeader().setSectionResizeMode(3, QtWidgets.QHeaderView.ResizeMode.Fixed)
+        output_table.horizontalHeader().setSectionResizeMode(4, QtWidgets.QHeaderView.ResizeMode.Fixed)
+        output_table.horizontalHeader().setSectionResizeMode(5, QtWidgets.QHeaderView.ResizeMode.Stretch)
+        output_table.horizontalHeader().setSectionResizeMode(6, QtWidgets.QHeaderView.ResizeMode.Stretch)
+        output_table.horizontalHeader().setSectionResizeMode(7, QtWidgets.QHeaderView.ResizeMode.Fixed)
+        output_table.horizontalHeader().setSectionResizeMode(8, QtWidgets.QHeaderView.ResizeMode.Fixed)
+        output_table.horizontalHeader().setStretchLastSection(False)
+        output_table.setColumnWidth(0, 160)
+        output_table.setColumnWidth(1, 45)
+        output_table.setColumnWidth(2, 60)
+        output_table.setColumnWidth(3, 60)
+        output_table.setColumnWidth(4, 80)
+        output_table.setColumnWidth(5, 400)
+        output_table.setColumnWidth(7, 50)
+        output_table.setColumnWidth(8, 70)
 
-        self.output_table.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
-        self.output_table.customContextMenuRequested.connect(self.on_table_context_menu)
-        self.output_table.cellClicked.connect(self.on_table_row_clicked)
-        self.output_table.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+        output_table.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
+        output_table.customContextMenuRequested.connect(self.on_table_context_menu)
+        output_table.cellClicked.connect(self.on_table_row_clicked)
+        output_table.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
 
-        """
-            Filter layout        
-        """
-        filter_layout = QtWidgets.QGridLayout()
+        return output_table
 
-        # Input fields
-        self.callsign_input = QtWidgets.QLineEdit()
-        self.country_input = QtWidgets.QLineEdit()
-        self.cq_input = QtWidgets.QLineEdit()
-        self.continent_input = QtWidgets.QLineEdit()
+    def init_filter_ui(self):
+        filter_widget = QtWidgets.QWidget()
 
-        # ComboBox for band and color
-        self.band_combo = QtWidgets.QComboBox()
-        self.color_combo = QtWidgets.QComboBox()
+        filter_widget.setStyleSheet(f"""
+            QWidget {{
+                background-color: #E0E0E0;
+                border-radius: 8px;
+            }}
+        """)
 
-        # Add fields to layout
-        filter_layout.addWidget(QtWidgets.QLabel("Callsign"), 0, 0)
-        filter_layout.addWidget(self.callsign_input, 0, 1)
-        filter_layout.addWidget(QtWidgets.QLabel("Country"), 0, 2)
-        filter_layout.addWidget(self.country_input, 0, 3)
-        filter_layout.addWidget(QtWidgets.QLabel("CQ Zone"), 0, 4)
-        filter_layout.addWidget(self.cq_input, 0, 5)
-        filter_layout.addWidget(QtWidgets.QLabel("Continent"), 0, 6)
-        filter_layout.addWidget(self.continent_input, 0, 7)
-        filter_layout.addWidget(QtWidgets.QLabel("Band"), 1, 0)
-        filter_layout.addWidget(self.band_combo, 1, 1)
-        filter_layout.addWidget(QtWidgets.QLabel("Color"), 1, 2)
-        filter_layout.addWidget(self.color_combo, 1, 3)
+        filter_layout = QtWidgets.QGridLayout(filter_widget)
+        filter_layout.setContentsMargins(10, 10, 10, 10)  
+        filter_layout.setVerticalSpacing(2)
 
-        self.filter_button = QtWidgets.QPushButton("Apply Filters")
-        filter_layout.addWidget(self.filter_button, 1, 4)
-        self.filter_button.clicked.connect(self.apply_output_table_filter)
+        self.callsign_input     = self.create_search_field("Callsign")
+        self.country_input      = self.create_search_field("Country")
 
-        """
-            Bottom and Button layout
-        """
-        bottom_layout = QtWidgets.QHBoxLayout()
-        button_layout = QtWidgets.QHBoxLayout()
+        self.cq_combo           = self.create_combo_box("CQ Zone")
+        self.continent_combo    = self.create_combo_box("Continent")
+        self.band_combo         = self.create_combo_box("Band")
+        self.color_combo        = self.create_color_combo_box("Color")
 
-        self.clear_button = CustomButton("Clear History")
-        self.clear_button.setEnabled(False)
-        self.clear_button.clicked.connect(self.clear_output_table)
+        fields = [
+            ("Band",            self.band_combo),            
+            ("Callsign",        self.callsign_input),
+            ("Color",           self.color_combo),            
+            ("Country",         self.country_input),
+            ("CQ Zone",         self.cq_combo),
+            ("Continent",       self.continent_combo),
+        ]
 
-        self.settings = CustomButton("Settings")
-        self.settings.clicked.connect(self.open_settings)
+        for idx, (label_text, widget) in enumerate(fields):
+            label = QtWidgets.QLabel(label_text)
+            label.setFont(CUSTOM_FONT_SMALL)
+            label.setFont(CUSTOM_FONT_SMALL)
+            label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+            filter_layout.addWidget(widget, 0, idx)
+            filter_layout.addWidget(label, 1, idx)
 
-        self.disable_alert_checkbox = QtWidgets.QCheckBox("Disable all Sounds")
-        self.disable_alert_checkbox.setChecked(False)
-        self.disable_alert_checkbox.stateChanged.connect(self.update_alert_label_style)
+        return filter_widget
+    
+    def create_search_field(self, placeholder_text):
+        container = QtWidgets.QWidget()
+        layout = QtWidgets.QHBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
 
-        self.quit_button = CustomButton("Quit")
-        self.quit_button.clicked.connect(self.quit_application)
+        line_edit = QtWidgets.QLineEdit()
+        line_edit.setPlaceholderText(placeholder_text)
+        line_edit.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: white;                
+                border-radius: 4px;
+                padding-right: 25px;
+            }}
+        """)  
+        line_edit.textChanged.connect(lambda text: self.toggle_clear_button_visibility(clear_button, text))
+        line_edit.textChanged.connect(self.apply_filters)
 
-        self.inputs_enabled = True
+        clear_button = QtWidgets.QToolButton()
+        clear_button.setIcon(QtGui.QIcon.fromTheme("edit-clear"))
+        clear_button.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        clear_button.setStyleSheet("QToolButton { border: none; background: transparent; }")
+        clear_button.setVisible(False)  
+        clear_button.clicked.connect(lambda: self.clear_line_edit(line_edit, clear_button))
 
-        if platform.system() == 'Darwin':
-            self.restart_button = CustomButton("Restart")
-            self.restart_button.clicked.connect(self.restart_application)
+        layout.addWidget(line_edit)
+        layout.addWidget(clear_button)
 
-        # Timer and start/stop buttons
-        self.status_button = CustomButton(STATUS_BUTTON_LABEL_START)
-        self.status_button.clicked.connect(self.start_monitoring)
-        self.status_button.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
+        return container
+
+    def toggle_clear_button_visibility(self, button, text):
+        button.setVisible(bool(text.strip()))
+
+    def clear_line_edit(self, line_edit, button):
+        line_edit.clear()
+        button.setVisible(False)
+        self.apply_filters()
+
+    def create_combo_box(self, placeholder_text):
+        combo_box = QtWidgets.QComboBox()
+        combo_box.setEditable(False)
+        combo_box.setMinimumWidth(100)
+        combo_box.addItem("All")
+        combo_box.currentIndexChanged.connect(self.apply_filters)
+
+        return combo_box
         
-        self.stop_button = CustomButton("Stop all")
-        self.stop_button.setEnabled(False)        
-        self.stop_button.clicked.connect(self.stop_monitoring)        
-        self.stop_button.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
+    def create_color_combo_box(self, placeholder_text):
+        color_combo = QtWidgets.QComboBox()
+        color_combo.setMinimumWidth(100)
 
-        # Timer label and log analysis
-        
-        button_layout.addWidget(self.settings)
-        button_layout.addWidget(self.clear_button)
+        color_combo.addItem("All", userData=None)
 
-        if platform.system() == 'Darwin':
-            button_layout.addWidget(self.restart_button)
+        colors = [
+            ("bright_for_my_call", BG_COLOR_FOCUS_MY_CALL),
+            ("black_on_yellow",    BG_COLOR_BLACK_ON_YELLOW),
+            ("black_on_purple",    BG_COLOR_BLACK_ON_PURPLE),
+            ("white_on_blue",      BG_COLOR_WHITE_ON_BLUE),
+            ("black_on_cyan",      BG_COLOR_BLACK_ON_CYAN),
+        ]
 
-        button_layout.addWidget(self.quit_button)
+        for row_color, bg_color in colors:
+            pixmap = QtGui.QPixmap(70, 20)
+            pixmap.fill(QtGui.QColor(bg_color))
+            icon = QtGui.QIcon(pixmap)
+            color_combo.addItem(icon, "", userData=row_color)
 
-        bottom_layout.addWidget(self.disable_alert_checkbox)
-        bottom_layout.addStretch()  
-        bottom_layout.addLayout(button_layout)
+        color_combo.setEditable(False)
+        color_combo.currentIndexChanged.connect(self.apply_filters)
 
-        self.activity_bar = ActivityBar(max_value=ACTIVITY_BAR_MAX_VALUE)
-        self.activity_bar.setFixedWidth(30)
+        return color_combo
 
-        outer_layout.addWidget(self.activity_bar)
+    def apply_filters(self):        
+        callsign_filter         = self.callsign_input.findChild(QtWidgets.QLineEdit).text().strip().upper()
+        country_filter          = self.country_input.findChild(QtWidgets.QLineEdit).text().strip().upper()
+        cq_filter               = self.cq_combo.currentText()
+        continent_filter        = self.continent_combo.currentText()
+        selected_color         = self.color_combo.currentData()  
+        selected_band          = self.band_combo.currentText()  
 
-        self.enable_pounce_log = params.get('enable_pounce_log', True)
-        
-        # Get sound configuration
-        self.enable_sound_wanted_callsigns = params.get('enable_sound_wanted_callsigns', True)
-        self.enable_sound_directed_my_callsign = params.get('enable_sound_directed_my_callsign', True)
-        self.enable_sound_monitored_callsigns = params.get('enable_sound_monitored_callsigns', True)
-       
-        spacer = QtWidgets.QSpacerItem(0, 10, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)        
+        for row in range(self.output_table.rowCount()):
+            match_callsign  = True
+            match_country   = True
+            match_cq        = True
+            match_continent = True
+            match_color     = True
+            match_band  = True
 
-        main_layout.addWidget(self.focus_frame, 0, 0, 1, 4)
-        main_layout.addWidget(self.timer_value_label, 0, 4)
+            row_data = self.output_table.item(row, 0).data(QtCore.Qt.ItemDataRole.UserRole)
+
+            if callsign_filter:
+                callsign_item = self.output_table.item(row, 0)  
+                if callsign_item and callsign_filter not in callsign_item.text().upper():
+                    match_callsign = False
+
+            if country_filter:
+                country_item = self.output_table.item(row, 6)  
+                if country_item and country_filter not in country_item.text().upper():
+                    match_country = False
             
-        main_layout.addWidget(self.wanted_callsigns_history_label, 1, 3, 1, 2)
-        main_layout.addWidget(self.tab_widget, 2, 0, 4, 3)                
-        main_layout.addWidget(self.listbox, 2, 3, 5, 2)
-        main_layout.addLayout(status_layout, 8, 1, 1, 1)
-        main_layout.addWidget(self.status_button, 8, 3)
-        main_layout.addWidget(self.stop_button, 8, 4)
-        main_layout.addItem(spacer, 9, 0, 1, 5)
-        main_layout.addWidget(self.output_table, 10, 0, 1, 5)
-        main_layout.addLayout(filter_layout, 11, 0, 1, 5)
-        main_layout.addLayout(bottom_layout, 12, 0, 1, 5)
-        
-        self.file_handler = None
-        if self.enable_pounce_log:
-            self.file_handler = add_file_handler(get_log_filename())
+            if cq_filter != "All":
+                if row_data and row_data.get("cq_zone") != cq_filter:
+                    match_cq = False
 
-        """
-            self.operating_band might be overided as soon as check_connection_status is used
-        """
-        self.gui_selected_band = params.get('last_band_used', DEFAULT_SELECTED_BAND)
-        self.tab_widget.set_selected_tab(self.gui_selected_band)
-        
-        self.apply_theme_to_all(self.theme_manager.dark_mode)
-        self.load_window_position()
-        QtCore.QTimer.singleShot(1_000, lambda: self.init_activity_bar())   
-        
-        # Close event to save position
-        self.closeEvent = self.on_close
+            if continent_filter != "All":
+                if row_data and row_data.get("continent") != continent_filter:
+                    match_continent = False
 
-    def apply_output_table_filter(self):
-        callsign_filter     = self.callsign_input.text().strip().upper()
-        country_filter      = self.country_input.text().strip().upper()
-        cq_filter           = self.cq_input.text().strip()
-        continent_filter    = self.continent_input.text().strip().upper()
-        band_filter         = self.band_combo.currentText()
-        color_filter        = self.color_combo.currentText()
+            if selected_color:
+                if row_data and row_data.get("row_color") != selected_color:
+                    match_color = False
 
-        for row_id, data in self.row_data.items():
-            show = True
-            if callsign_filter and callsign_filter not in data["callsign"]:
-                show = False
-            if country_filter and country_filter not in data["entity"]:
-                show = False
-            if cq_filter and cq_filter != str(data["cq_zone"]):
-                show = False
-            if continent_filter and continent_filter not in data["continent"]:
-                show = False
-            if band_filter != "All" and band_filter != data["band"]:
-                show = False
-            if color_filter != "All" and color_filter != data["row_color"]:
-                show = False
+            if selected_band != "All":
+                band_item = self.output_table.item(row, 1)  # Colonne Band
+                if band_item and band_item.text() != selected_band:
+                    match_band = False
 
-            self.output_table.setRowHidden(row_id, not show)        
+            self.output_table.setRowHidden(row, not (
+                match_callsign and
+                match_country and
+                match_cq and
+                match_continent and
+                match_color and
+                match_band
+            )) 
 
     def apply_theme_to_all(self, dark_mode):
         self.apply_palette(dark_mode)
