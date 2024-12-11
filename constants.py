@@ -95,6 +95,7 @@ DEFAULT_LOG_ALL_VALID_CONTACT   = True
 DEFAULT_DELAY_BETWEEN_SOUND     = 120
 
 DEFAULT_SELECTED_BAND           = "6m"
+DEFAULT_FILTER_VALUE            = "All"
 
 SETTING_QSS                     = f"""
                 background-color: #9dfffe; 

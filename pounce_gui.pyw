@@ -88,6 +88,8 @@ from constants import (
     DEFAULT_MODE_TIMER_VALUE,
     # Band,
     DEFAULT_SELECTED_BAND,
+    # Needed for filtering
+    DEFAULT_FILTER_VALUE,
     # Working directory
     CURRENT_DIR,
     # UDP related
@@ -219,9 +221,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.clublog_manager     = ClubLogManager(self) 
 
         """
-            Store data from add_row_to_table
+            Store data from update_table_data
         """
-        self.row_data            = {}
+        self.table_raw_data      = []
         self.unique_bands        = set()
         self.unique_colors       = set()
 
@@ -654,9 +656,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.callsign_input.textChanged.connect(self.apply_filters)
         self.country_input.textChanged.connect(self.apply_filters)
 
-        self.cq_combo           = self.create_combo_box("CQ Zone")
-        self.continent_combo    = self.create_combo_box("Continent")
-        self.band_combo         = self.create_combo_box("Band")
+        self.cq_combo           = self.create_combo_box([str(i) for i in range(1, 41)])
+        self.continent_combo    = self.create_combo_box(['AS', 'AF', 'EU', 'OC', 'NA', 'SA'])
+        self.band_combo         = self.create_combo_box(list(AMATEUR_BANDS.keys()))
         self.color_combo        = self.create_color_combo_box("Color")
 
         fields = [
@@ -689,12 +691,19 @@ class MainApp(QtWidgets.QMainWindow):
         button.setVisible(False)
         self.apply_filters()
 
-    def create_combo_box(self, placeholder_text):
+    def create_combo_box(self, values=None, default_value=None):
         combo_box = QtWidgets.QComboBox()
         combo_box.setEditable(False)
         combo_box.setFixedWidth(150)
         combo_box.setFont(CUSTOM_FONT_SMALL)
-        combo_box.addItem("None")
+        
+        if default_value is None:
+            default_value = DEFAULT_FILTER_VALUE
+        combo_box.addItem(default_value)
+
+        if values:
+            combo_box.addItems(values)
+
         combo_box.currentIndexChanged.connect(self.apply_filters)
         combo_box.setStyleSheet("""
                 QComboBox {
@@ -709,7 +718,7 @@ class MainApp(QtWidgets.QMainWindow):
         color_combo.setIconSize(QtCore.QSize(120, 10))  
         color_combo.setFont(CUSTOM_FONT_SMALL)
 
-        color_combo.addItem("None", userData=None)
+        color_combo.addItem(DEFAULT_FILTER_VALUE, userData=None)
 
         # Liste des couleurs et noms associés
         colors = [
@@ -730,60 +739,6 @@ class MainApp(QtWidgets.QMainWindow):
         color_combo.currentIndexChanged.connect(self.apply_filters)
 
         return color_combo
-
-    def apply_filters(self):        
-        callsign_filter         = self.callsign_input.text().strip().upper()
-        country_filter          = self.country_input.text().strip().upper()
-        cq_filter               = self.cq_combo.currentText()
-        continent_filter        = self.continent_combo.currentText()
-        selected_color         = self.color_combo.currentData()  
-        selected_band          = self.band_combo.currentText()  
-
-        for row in range(self.output_table.rowCount()):
-            match_callsign  = True
-            match_country   = True
-            match_cq        = True
-            match_continent = True
-            match_color     = True
-            match_band  = True
-
-            row_data = self.output_table.item(row, 0).data(QtCore.Qt.ItemDataRole.UserRole)
-
-            if callsign_filter:
-                callsign_item = self.output_table.item(row, 0)  
-                if callsign_item and callsign_filter not in callsign_item.text().upper():
-                    match_callsign = False
-
-            if country_filter:
-                country_item = self.output_table.item(row, 6)  
-                if country_item and country_filter not in country_item.text().upper():
-                    match_country = False
-            
-            if cq_filter != "All":
-                if row_data and row_data.get("cq_zone") != cq_filter:
-                    match_cq = False
-
-            if continent_filter != "All":
-                if row_data and row_data.get("continent") != continent_filter:
-                    match_continent = False
-
-            if selected_color:
-                if row_data and row_data.get("row_color") != selected_color:
-                    match_color = False
-
-            if selected_band != "All":
-                band_item = self.output_table.item(row, 1)  # Colonne Band
-                if band_item and band_item.text() != selected_band:
-                    match_band = False
-
-            self.output_table.setRowHidden(row, not (
-                match_callsign and
-                match_country and
-                match_cq and
-                match_continent and
-                match_color and
-                match_band
-            )) 
 
     def apply_theme_to_all(self, dark_mode):
         self.apply_palette(dark_mode)
@@ -977,7 +932,7 @@ class MainApp(QtWidgets.QMainWindow):
                     entity    = "Where?"
                  
                 if self.enable_show_all_decoded or message_color:
-                    self.add_row_to_table(
+                    self.update_table_data(
                         callsign,
                         directed,
                         message.get('decode_time_str'),
@@ -1412,51 +1367,18 @@ class MainApp(QtWidgets.QMainWindow):
             self.apply_palette(self.dark_mode)
         
     def apply_palette(self, dark_mode):
-        print(f"Applying pallete Dark={dark_mode}")
         self.dark_mode = dark_mode
         
         if dark_mode:
-            qt_bg_color = QtGui.QColor("#181818")
-            qt_fg_color = QtGui.QColor("#ECECEC")
-
-            palette = QtGui.QPalette()
-            palette.setColor(QtGui.QPalette.ColorRole.Window, QtGui.QColor('#3C3C3C'))
-            palette.setColor(QtGui.QPalette.ColorRole.WindowText, qt_fg_color)
-            palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor('#353535'))
-            palette.setColor(QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor('#454545'))
-            palette.setColor(QtGui.QPalette.ColorRole.ToolTipBase, qt_fg_color)
-            palette.setColor(QtGui.QPalette.ColorRole.ToolTipText, qt_fg_color)
-            palette.setColor(QtGui.QPalette.ColorRole.Text, qt_fg_color)
-            palette.setColor(QtGui.QPalette.ColorRole.Button, QtGui.QColor('#4A4A4A'))
-            palette.setColor(QtGui.QPalette.ColorRole.ButtonText, qt_fg_color)
-            palette.setColor(QtGui.QPalette.ColorRole.BrightText, QtCore.Qt.GlobalColor.red)
-            palette.setColor(QtGui.QPalette.ColorRole.Link, QtGui.QColor('#2A82DA'))
-            palette.setColor(QtGui.QPalette.ColorRole.Highlight, qt_fg_color)
-            palette.setColor(QtGui.QPalette.ColorRole.HighlightedText, qt_bg_color)
-            palette.setColor(QtGui.QPalette.ColorGroup.Disabled, QtGui.QPalette.ColorRole.Text, QtGui.QColor('#6C6C6C'))
+            qt_bg_color = "#181818"
+            qt_fg_color = "#ECECEC"
         else:
-            qt_bg_color = QtGui.QColor("#E0E0E0")
-            qt_fg_color = QtGui.QColor("#000000")
+            qt_bg_color = "#E0E0E0"
+            qt_fg_color = "#000000"
         
-            palette = QtGui.QPalette()
-            palette.setColor(QtGui.QPalette.ColorRole.Window, qt_bg_color)
-            palette.setColor(QtGui.QPalette.ColorRole.WindowText, qt_fg_color)
-            palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor('white'))
-            palette.setColor(QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor('#B6B6B6'))
-            palette.setColor(QtGui.QPalette.ColorRole.ToolTipBase, qt_bg_color)
-            palette.setColor(QtGui.QPalette.ColorRole.ToolTipText, qt_bg_color)
-            palette.setColor(QtGui.QPalette.ColorRole.Text, QtCore.Qt.GlobalColor.black)
-            palette.setColor(QtGui.QPalette.ColorRole.Button, QtGui.QColor('#E0E0E0'))
-            palette.setColor(QtGui.QPalette.ColorRole.ButtonText, QtCore.Qt.GlobalColor.black)
-            palette.setColor(QtGui.QPalette.ColorRole.BrightText, QtCore.Qt.GlobalColor.red)
-            palette.setColor(QtGui.QPalette.ColorRole.Link, QtGui.QColor('#2A82DA'))
-            palette.setColor(QtGui.QPalette.ColorRole.Highlight, qt_bg_color)
-            palette.setColor(QtGui.QPalette.ColorRole.HighlightedText, qt_fg_color)
-            palette.setColor(QtGui.QPalette.ColorGroup.Disabled, QtGui.QPalette.ColorRole.Text, QtGui.QColor('#7F7F7F'))
-
         self.filter_layout.setStyleSheet(f"""
             QWidget#FilterWidget {{
-                background-color: {qt_bg_color.name()};
+                background-color: {qt_bg_color};
                 border-radius: 8px;
             }}
         """)
@@ -1474,8 +1396,9 @@ class MainApp(QtWidgets.QMainWindow):
         
         self.output_table.setPalette(table_palette)
 
-        gridline_color = '#D3D3D3' if not dark_mode else '#171717'
-        background_color = '#FFFFFF' if not dark_mode else '#353535'
+        gridline_color      = '#D3D3D3' if not dark_mode else '#171717'
+        background_color    = '#FFFFFF' if not dark_mode else '#353535'
+
         self.output_table.setStyleSheet(f"""
             QTableWidget {{ 
                 background-color: {background_color};
@@ -1572,7 +1495,7 @@ class MainApp(QtWidgets.QMainWindow):
         pyperclip.copy(message)
         print(f"Copied to clipboard: {message}")
 
-    def add_row_to_table(
+    def update_table_data(
             self,
             callsign,
             directed,
@@ -1592,30 +1515,45 @@ class MainApp(QtWidgets.QMainWindow):
         """
             Store data for filter use
         """
-        row_id = self.output_table.rowCount()
-        self.row_data[row_id] = {
-            "callsign": callsign,
-            "directed": directed,
-            "band": band,
-            "entity": entity,
-            "cq_zone": cq_zone,
-            "continent": continent,
-            "row_color": row_color,
+        raw_data = {
+            "callsign"          : callsign,
+            "directed"          : directed,
+            "date_str"          : date_str,
+            "band"              : band,
+            "snr"               : snr,
+            "delta_time"        : delta_time,
+            "delta_freq"        : delta_freq,
+            "message"           : message,
+            "formatted_message" : formatted_message,
+            "entity"            : entity,
+            "cq_zone"           : cq_zone,
+            "continent"         : continent,
+            "row_color"         : row_color,
         }
+        self.table_raw_data.append(raw_data)
+        
         self.unique_bands.add(band)
         if row_color:
             self.unique_colors.add(row_color)
-        self.update_filters()
+
+        if self.is_valid_for_filters(raw_data):
+            self.add_row_to_table(raw_data)
 
         self.clear_button.setEnabled(True)
+
+    def add_row_to_table(self, raw_data):
+        row_id = self.output_table.rowCount()  
         self.output_table.insertRow(row_id)
         
-        item_date = QTableWidgetItem(date_str)
+        band            = raw_data["band"]
+        row_color       = raw_data["row_color"]
+        
+        item_date = QTableWidgetItem(raw_data["date_str"])
         item_date.setData(QtCore.Qt.ItemDataRole.UserRole, {
-            'callsign'          : callsign, 
-            'directed'          : directed,
-            'cq_zone'           : cq_zone,
-            'formatted_message' : formatted_message.strip()
+            'callsign'          : raw_data["callsign"], 
+            'directed'          : raw_data["directed"],
+            'cq_zone'           : raw_data["cq_zone"],
+            'formatted_message' : raw_data["formatted_message"].strip()
         })
         self.output_table.setItem(row_id, 0, item_date)
 
@@ -1624,35 +1562,35 @@ class MainApp(QtWidgets.QMainWindow):
         item_band.setFont(CUSTOM_FONT_SMALL)
         self.output_table.setItem(row_id, 1, item_band)
             
-        item_snr = QTableWidgetItem(f"{snr:+3d} dB")
+        item_snr = QTableWidgetItem(f"{raw_data['snr']:+3d} dB")
         item_snr.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
         item_snr.setFont(CUSTOM_FONT_SMALL)
         self.output_table.setItem(row_id, 2, item_snr)
         
-        item_dt = QTableWidgetItem(f"{delta_time:+5.1f}s")
+        item_dt = QTableWidgetItem(f"{raw_data['delta_time']:+5.1f}s")
         item_dt.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
         item_dt.setFont(CUSTOM_FONT_SMALL)
         self.output_table.setItem(row_id, 3, item_dt)
         
-        item_freq = QTableWidgetItem(f"{delta_freq:+6d}Hz")
+        item_freq = QTableWidgetItem(f"{raw_data['delta_freq']:+6d}Hz")
         item_freq.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
         item_freq.setFont(CUSTOM_FONT_SMALL)
         self.output_table.setItem(row_id, 4, item_freq)
         
-        item_msg = QTableWidgetItem(f" {message}")
+        item_msg = QTableWidgetItem(f" {raw_data['message']}")
         item_msg.setFont(CUSTOM_FONT)
         self.output_table.setItem(row_id, 5, item_msg)
         
-        item_country = QTableWidgetItem(entity)
+        item_country = QTableWidgetItem(raw_data['entity'])
         item_country.setFont(CUSTOM_FONT)
         self.output_table.setItem(row_id, 6, item_country)
 
-        item_cq_zone = QTableWidgetItem(f"{cq_zone}")
+        item_cq_zone = QTableWidgetItem(f"{raw_data['cq_zone']}")
         item_cq_zone.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
         item_cq_zone.setFont(CUSTOM_FONT_SMALL)
         self.output_table.setItem(row_id, 7, item_cq_zone)
 
-        item_continent = QTableWidgetItem(continent)
+        item_continent = QTableWidgetItem(raw_data['continent'])
         item_continent.setFont(CUSTOM_FONT_SMALL)
         item_continent.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.output_table.setItem(row_id, 8, item_continent)        
@@ -1660,7 +1598,7 @@ class MainApp(QtWidgets.QMainWindow):
         if row_color:
             self.apply_row_format(row_id, row_color)
         
-        self.output_table.scrollToBottom()
+        self.output_table.scrollToBottom()        
         
     def apply_row_format(self, row, row_color):
         if row_color == 'bright_for_my_call':
@@ -1689,22 +1627,58 @@ class MainApp(QtWidgets.QMainWindow):
                     item.setBackground(bg_color)
                     item.setForeground(fg_color)
 
+    def is_valid_for_filters(self, raw_data):
+        callsign_filter   = self.callsign_input.text().strip().upper()
+        country_filter    = self.country_input.text().strip().upper()
+        cq_filter         = self.cq_combo.currentText()
+        continent_filter  = self.continent_combo.currentText()
+        selected_color   = self.color_combo.currentData()
+        selected_band    = self.band_combo.currentText()
+
+        if callsign_filter:
+            callsign = raw_data.get('callsign')
+            if callsign and callsign_filter not in callsign.upper():
+                return False
+
+        if country_filter:
+            entity = raw_data.get('entity')
+            if entity and country_filter not in entity.upper():
+                return False
+
+        if cq_filter != DEFAULT_FILTER_VALUE:
+            cq_zone = str(raw_data.get('cq_zone'))
+            if cq_zone != cq_filter:
+                return False
+
+        if continent_filter != DEFAULT_FILTER_VALUE:
+            continent = raw_data.get('continent')
+            if continent != continent_filter:
+                return False
+
+        if selected_color:
+            row_color = raw_data.get('row_color', None)
+            if row_color != selected_color:
+                return False
+
+        if selected_band != DEFAULT_FILTER_VALUE:
+            band = raw_data.get('band')
+            if band != selected_band:
+                return False
+
+        return True
+
+    def apply_filters(self):      
+        self.output_table.clearContents()
+        self.output_table.setRowCount(0)
+
+        for raw_data in self.table_raw_data:
+            if self.is_valid_for_filters(raw_data):
+                self.add_row_to_table(raw_data)
+
     def clear_output_table(self):
         self.output_table.setRowCount(0)
         self.clear_button.setEnabled(False)
         self.focus_frame.hide()
-
-    def update_filters(self):
-        self.band_combo.clear()
-        self.band_combo.addItem("All")
-        self.band_combo.addItems(sorted(self.unique_bands))
-
-        self.color_combo.clear()
-        self.color_combo.addItem("All")
-        for color in sorted(self.unique_colors):
-            color_item = QtWidgets.QListWidgetItem()
-            color_item.setBackground(QtGui.QColor(color))
-            self.color_combo.addItem(color)    
 
     def save_window_position(self):
         position = self.geometry()
