@@ -22,6 +22,7 @@ from functools import partial
 # Custom classes 
 from custom_tab_widget import CustomTabWidget
 from custom_button import CustomButton
+from search_field_input import SearchFilterInput
 from tray_icon import TrayIcon
 from activity_bar import ActivityBar
 from tooltip import ToolTip
@@ -225,7 +226,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.unique_colors       = set()
 
         self.setGeometry(100, 100, 1_000, 700)
-        self.setMinimumSize(1_000, 600)
+        self.setMinimumSize(1_020, 600)
         self.base_title = GUI_LABEL_VERSION
         self.setWindowTitle(self.base_title)
 
@@ -382,7 +383,7 @@ class MainApp(QtWidgets.QMainWindow):
         """
             Filter layout
         """
-        filter_layout = self.init_filter_ui()
+        self.filter_layout = self.init_filter_ui()
 
         """
             Bottom and Button layout
@@ -459,7 +460,7 @@ class MainApp(QtWidgets.QMainWindow):
         main_layout.addWidget(self.stop_button, 8, 4)
         main_layout.addItem(spacer, 9, 0, 1, 5)
         main_layout.addWidget(self.output_table, 10, 0, 1, 5)
-        main_layout.addWidget(filter_layout, 11, 0, 1, 5)
+        main_layout.addWidget(self.filter_layout, 11, 0, 1, 5)
         main_layout.addLayout(bottom_layout, 12, 0, 1, 5)
         
         self.file_handler = None
@@ -638,20 +639,20 @@ class MainApp(QtWidgets.QMainWindow):
 
     def init_filter_ui(self):
         filter_widget = QtWidgets.QWidget()
+        filter_widget.setObjectName("FilterWidget")  
 
-        filter_widget.setStyleSheet(f"""
-            QWidget {{
-                background-color: #E0E0E0;
-                border-radius: 8px;
-            }}
-        """)
+        inner_widget = QtWidgets.QWidget()
+        inner_layout = QtWidgets.QGridLayout(inner_widget)
+        inner_layout.setContentsMargins(10, 10, 10, 10)
+        inner_layout.setVerticalSpacing(2)
 
-        filter_layout = QtWidgets.QGridLayout(filter_widget)
-        filter_layout.setContentsMargins(10, 10, 10, 10)  
-        filter_layout.setVerticalSpacing(2)
+        search_filter = SearchFilterInput()
 
-        self.callsign_input     = self.create_search_field("Callsign")
-        self.country_input      = self.create_search_field("Country")
+        self.callsign_input = search_filter.create_search_field("Callsign")
+        self.country_input  = search_filter.create_search_field("Country")
+
+        self.callsign_input.textChanged.connect(self.apply_filters)
+        self.country_input.textChanged.connect(self.apply_filters)
 
         self.cq_combo           = self.create_combo_box("CQ Zone")
         self.continent_combo    = self.create_combo_box("Continent")
@@ -659,54 +660,27 @@ class MainApp(QtWidgets.QMainWindow):
         self.color_combo        = self.create_color_combo_box("Color")
 
         fields = [
+            ("Callsign",        self.callsign_input),            
             ("Band",            self.band_combo),            
-            ("Callsign",        self.callsign_input),
             ("Color",           self.color_combo),            
-            ("Country",         self.country_input),
             ("CQ Zone",         self.cq_combo),
             ("Continent",       self.continent_combo),
+            ("Country",         self.country_input),
         ]
 
         for idx, (label_text, widget) in enumerate(fields):
             label = QtWidgets.QLabel(label_text)
             label.setFont(CUSTOM_FONT_SMALL)
-            label.setFont(CUSTOM_FONT_SMALL)
             label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-            filter_layout.addWidget(widget, 0, idx)
-            filter_layout.addWidget(label, 1, idx)
+            inner_layout.addWidget(widget, 0, idx)
+            inner_layout.addWidget(label, 1, idx)
+
+        outer_layout = QtWidgets.QVBoxLayout(filter_widget)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+        outer_layout.addWidget(inner_widget, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
 
         return filter_widget
     
-    def create_search_field(self, placeholder_text):
-        container = QtWidgets.QWidget()
-        layout = QtWidgets.QHBoxLayout(container)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-
-        line_edit = QtWidgets.QLineEdit()
-        line_edit.setPlaceholderText(placeholder_text)
-        line_edit.setStyleSheet(f"""
-            QLineEdit {{
-                background-color: white;                
-                border-radius: 4px;
-                padding-right: 25px;
-            }}
-        """)  
-        line_edit.textChanged.connect(lambda text: self.toggle_clear_button_visibility(clear_button, text))
-        line_edit.textChanged.connect(self.apply_filters)
-
-        clear_button = QtWidgets.QToolButton()
-        clear_button.setIcon(QtGui.QIcon.fromTheme("edit-clear"))
-        clear_button.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
-        clear_button.setStyleSheet("QToolButton { border: none; background: transparent; }")
-        clear_button.setVisible(False)  
-        clear_button.clicked.connect(lambda: self.clear_line_edit(line_edit, clear_button))
-
-        layout.addWidget(line_edit)
-        layout.addWidget(clear_button)
-
-        return container
-
     def toggle_clear_button_visibility(self, button, text):
         button.setVisible(bool(text.strip()))
 
@@ -718,18 +692,26 @@ class MainApp(QtWidgets.QMainWindow):
     def create_combo_box(self, placeholder_text):
         combo_box = QtWidgets.QComboBox()
         combo_box.setEditable(False)
-        combo_box.setMinimumWidth(100)
-        combo_box.addItem("All")
+        combo_box.setFixedWidth(150)
+        combo_box.setFont(CUSTOM_FONT_SMALL)
+        combo_box.addItem("None")
         combo_box.currentIndexChanged.connect(self.apply_filters)
-
+        combo_box.setStyleSheet("""
+                QComboBox {
+                    font-size: 11px;
+                }
+            """)
         return combo_box
         
     def create_color_combo_box(self, placeholder_text):
         color_combo = QtWidgets.QComboBox()
-        color_combo.setMinimumWidth(100)
+        color_combo.setFixedWidth(150)
+        color_combo.setIconSize(QtCore.QSize(120, 10))  
+        color_combo.setFont(CUSTOM_FONT_SMALL)
 
-        color_combo.addItem("All", userData=None)
+        color_combo.addItem("None", userData=None)
 
+        # Liste des couleurs et noms associés
         colors = [
             ("bright_for_my_call", BG_COLOR_FOCUS_MY_CALL),
             ("black_on_yellow",    BG_COLOR_BLACK_ON_YELLOW),
@@ -739,7 +721,7 @@ class MainApp(QtWidgets.QMainWindow):
         ]
 
         for row_color, bg_color in colors:
-            pixmap = QtGui.QPixmap(70, 20)
+            pixmap = QtGui.QPixmap(120, 10)  
             pixmap.fill(QtGui.QColor(bg_color))
             icon = QtGui.QIcon(pixmap)
             color_combo.addItem(icon, "", userData=row_color)
@@ -750,8 +732,8 @@ class MainApp(QtWidgets.QMainWindow):
         return color_combo
 
     def apply_filters(self):        
-        callsign_filter         = self.callsign_input.findChild(QtWidgets.QLineEdit).text().strip().upper()
-        country_filter          = self.country_input.findChild(QtWidgets.QLineEdit).text().strip().upper()
+        callsign_filter         = self.callsign_input.text().strip().upper()
+        country_filter          = self.country_input.text().strip().upper()
         cq_filter               = self.cq_combo.currentText()
         continent_filter        = self.continent_combo.currentText()
         selected_color         = self.color_combo.currentData()  
@@ -1430,6 +1412,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.apply_palette(self.dark_mode)
         
     def apply_palette(self, dark_mode):
+        print(f"Applying pallete Dark={dark_mode}")
         self.dark_mode = dark_mode
         
         if dark_mode:
@@ -1452,7 +1435,7 @@ class MainApp(QtWidgets.QMainWindow):
             palette.setColor(QtGui.QPalette.ColorRole.HighlightedText, qt_bg_color)
             palette.setColor(QtGui.QPalette.ColorGroup.Disabled, QtGui.QPalette.ColorRole.Text, QtGui.QColor('#6C6C6C'))
         else:
-            qt_bg_color = QtGui.QColor("#ECECEC")
+            qt_bg_color = QtGui.QColor("#E0E0E0")
             qt_fg_color = QtGui.QColor("#000000")
         
             palette = QtGui.QPalette()
@@ -1471,8 +1454,12 @@ class MainApp(QtWidgets.QMainWindow):
             palette.setColor(QtGui.QPalette.ColorRole.HighlightedText, qt_fg_color)
             palette.setColor(QtGui.QPalette.ColorGroup.Disabled, QtGui.QPalette.ColorRole.Text, QtGui.QColor('#7F7F7F'))
 
-        self.setPalette(palette)
-
+        self.filter_layout.setStyleSheet(f"""
+            QWidget#FilterWidget {{
+                background-color: {qt_bg_color.name()};
+                border-radius: 8px;
+            }}
+        """)
 
         table_palette = QtGui.QPalette()          
 
@@ -2099,7 +2086,6 @@ def main():
 
     update_timer.timeout.connect(updater.check_for_expiration_or_update)
 
-    
     update_timer.setInterval(60 * 60 * 1_000)  
     update_timer.start()
     update_timer.timeout.emit()
