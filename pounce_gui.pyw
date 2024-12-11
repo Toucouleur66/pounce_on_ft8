@@ -217,6 +217,13 @@ class MainApp(QtWidgets.QMainWindow):
         self.monitoring_settings = MonitoringSettings()       
         self.clublog_manager     = ClubLogManager(self) 
 
+        """
+            Store data from add_row_to_table
+        """
+        self.row_data            = {}
+        self.unique_bands        = set()
+        self.unique_colors       = set()
+
         self.setGeometry(100, 100, 1_000, 700)
         self.setMinimumSize(1_000, 600)
         self.base_title = GUI_LABEL_VERSION
@@ -517,6 +524,39 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_table.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
 
         """
+            Filter layout        
+        """
+        filter_layout = QtWidgets.QGridLayout()
+
+        # Input fields
+        self.callsign_input = QtWidgets.QLineEdit()
+        self.country_input = QtWidgets.QLineEdit()
+        self.cq_input = QtWidgets.QLineEdit()
+        self.continent_input = QtWidgets.QLineEdit()
+
+        # ComboBox for band and color
+        self.band_combo = QtWidgets.QComboBox()
+        self.color_combo = QtWidgets.QComboBox()
+
+        # Add fields to layout
+        filter_layout.addWidget(QtWidgets.QLabel("Callsign"), 0, 0)
+        filter_layout.addWidget(self.callsign_input, 0, 1)
+        filter_layout.addWidget(QtWidgets.QLabel("Country"), 0, 2)
+        filter_layout.addWidget(self.country_input, 0, 3)
+        filter_layout.addWidget(QtWidgets.QLabel("CQ Zone"), 0, 4)
+        filter_layout.addWidget(self.cq_input, 0, 5)
+        filter_layout.addWidget(QtWidgets.QLabel("Continent"), 0, 6)
+        filter_layout.addWidget(self.continent_input, 0, 7)
+        filter_layout.addWidget(QtWidgets.QLabel("Band"), 1, 0)
+        filter_layout.addWidget(self.band_combo, 1, 1)
+        filter_layout.addWidget(QtWidgets.QLabel("Color"), 1, 2)
+        filter_layout.addWidget(self.color_combo, 1, 3)
+
+        self.filter_button = QtWidgets.QPushButton("Apply Filters")
+        filter_layout.addWidget(self.filter_button, 1, 4)
+        self.filter_button.clicked.connect(self.apply_output_table_filter)
+
+        """
             Bottom and Button layout
         """
         bottom_layout = QtWidgets.QHBoxLayout()
@@ -591,7 +631,8 @@ class MainApp(QtWidgets.QMainWindow):
         main_layout.addWidget(self.stop_button, 8, 4)
         main_layout.addItem(spacer, 9, 0, 1, 5)
         main_layout.addWidget(self.output_table, 10, 0, 1, 5)
-        main_layout.addLayout(bottom_layout, 11, 0, 1, 5)
+        main_layout.addLayout(filter_layout, 11, 0, 1, 5)
+        main_layout.addLayout(bottom_layout, 12, 0, 1, 5)
         
         self.file_handler = None
         if self.enable_pounce_log:
@@ -609,6 +650,31 @@ class MainApp(QtWidgets.QMainWindow):
         
         # Close event to save position
         self.closeEvent = self.on_close
+
+    def apply_output_table_filter(self):
+        callsign_filter     = self.callsign_input.text().strip().upper()
+        country_filter      = self.country_input.text().strip().upper()
+        cq_filter           = self.cq_input.text().strip()
+        continent_filter    = self.continent_input.text().strip().upper()
+        band_filter         = self.band_combo.currentText()
+        color_filter        = self.color_combo.currentText()
+
+        for row_id, data in self.row_data.items():
+            show = True
+            if callsign_filter and callsign_filter not in data["callsign"]:
+                show = False
+            if country_filter and country_filter not in data["entity"]:
+                show = False
+            if cq_filter and cq_filter != str(data["cq_zone"]):
+                show = False
+            if continent_filter and continent_filter not in data["continent"]:
+                show = False
+            if band_filter != "All" and band_filter != data["band"]:
+                show = False
+            if color_filter != "All" and color_filter != data["row_color"]:
+                show = False
+
+            self.output_table.setRowHidden(row_id, not show)        
 
     def apply_theme_to_all(self, dark_mode):
         self.apply_palette(dark_mode)
@@ -693,8 +759,8 @@ class MainApp(QtWidgets.QMainWindow):
     def add_message_to_table(self, message, fg_color='white', bg_color=STATUS_TRX_COLOR):
         self.clear_button.setEnabled(True)
 
-        row_position = self.output_table.rowCount()
-        self.output_table.insertRow(row_position)
+        row_id = self.output_table.rowCount()
+        self.output_table.insertRow(row_id)
 
         error_item = QTableWidgetItem(message)
         error_item.setForeground(QtGui.QBrush(QtGui.QColor(fg_color)))
@@ -702,8 +768,8 @@ class MainApp(QtWidgets.QMainWindow):
         error_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         error_item.setFont(CUSTOM_FONT_MONO)
 
-        self.output_table.setItem(row_position, 0, error_item)
-        self.output_table.setSpan(row_position, 0, 1, self.output_table.columnCount())
+        self.output_table.setItem(row_id, 0, error_item)
+        self.output_table.setSpan(row_id, 0, 1, self.output_table.columnCount())
         error_item.setFlags(QtCore.Qt.ItemFlag.ItemIsEnabled)
         self.output_table.scrollToBottom()
 
@@ -1408,9 +1474,27 @@ class MainApp(QtWidgets.QMainWindow):
             continent,
             row_color         = None
         ):
+
+        """
+            Store data for filter use
+        """
+        row_id = self.output_table.rowCount()
+        self.row_data[row_id] = {
+            "callsign": callsign,
+            "directed": directed,
+            "band": band,
+            "entity": entity,
+            "cq_zone": cq_zone,
+            "continent": continent,
+            "row_color": row_color,
+        }
+        self.unique_bands.add(band)
+        if row_color:
+            self.unique_colors.add(row_color)
+        self.update_filters()
+
         self.clear_button.setEnabled(True)
-        row_position = self.output_table.rowCount()
-        self.output_table.insertRow(row_position)
+        self.output_table.insertRow(row_id)
         
         item_date = QTableWidgetItem(date_str)
         item_date.setData(QtCore.Qt.ItemDataRole.UserRole, {
@@ -1419,48 +1503,48 @@ class MainApp(QtWidgets.QMainWindow):
             'cq_zone'           : cq_zone,
             'formatted_message' : formatted_message.strip()
         })
-        self.output_table.setItem(row_position, 0, item_date)
+        self.output_table.setItem(row_id, 0, item_date)
 
         item_band = QTableWidgetItem(band)
         item_band.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
         item_band.setFont(CUSTOM_FONT_SMALL)
-        self.output_table.setItem(row_position, 1, item_band)
+        self.output_table.setItem(row_id, 1, item_band)
             
         item_snr = QTableWidgetItem(f"{snr:+3d} dB")
         item_snr.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
         item_snr.setFont(CUSTOM_FONT_SMALL)
-        self.output_table.setItem(row_position, 2, item_snr)
+        self.output_table.setItem(row_id, 2, item_snr)
         
         item_dt = QTableWidgetItem(f"{delta_time:+5.1f}s")
         item_dt.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
         item_dt.setFont(CUSTOM_FONT_SMALL)
-        self.output_table.setItem(row_position, 3, item_dt)
+        self.output_table.setItem(row_id, 3, item_dt)
         
         item_freq = QTableWidgetItem(f"{delta_freq:+6d}Hz")
         item_freq.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
         item_freq.setFont(CUSTOM_FONT_SMALL)
-        self.output_table.setItem(row_position, 4, item_freq)
+        self.output_table.setItem(row_id, 4, item_freq)
         
         item_msg = QTableWidgetItem(f" {message}")
         item_msg.setFont(CUSTOM_FONT)
-        self.output_table.setItem(row_position, 5, item_msg)
+        self.output_table.setItem(row_id, 5, item_msg)
         
         item_country = QTableWidgetItem(entity)
         item_country.setFont(CUSTOM_FONT)
-        self.output_table.setItem(row_position, 6, item_country)
+        self.output_table.setItem(row_id, 6, item_country)
 
         item_cq_zone = QTableWidgetItem(f"{cq_zone}")
         item_cq_zone.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
         item_cq_zone.setFont(CUSTOM_FONT_SMALL)
-        self.output_table.setItem(row_position, 7, item_cq_zone)
+        self.output_table.setItem(row_id, 7, item_cq_zone)
 
         item_continent = QTableWidgetItem(continent)
         item_continent.setFont(CUSTOM_FONT_SMALL)
         item_continent.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
-        self.output_table.setItem(row_position, 8, item_continent)        
+        self.output_table.setItem(row_id, 8, item_continent)        
         
         if row_color:
-            self.apply_row_format(row_position, row_color)
+            self.apply_row_format(row_id, row_color)
         
         self.output_table.scrollToBottom()
         
@@ -1495,6 +1579,18 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_table.setRowCount(0)
         self.clear_button.setEnabled(False)
         self.focus_frame.hide()
+
+    def update_filters(self):
+        self.band_combo.clear()
+        self.band_combo.addItem("All")
+        self.band_combo.addItems(sorted(self.unique_bands))
+
+        self.color_combo.clear()
+        self.color_combo.addItem("All")
+        for color in sorted(self.unique_colors):
+            color_item = QtWidgets.QListWidgetItem()
+            color_item.setBackground(QtGui.QColor(color))
+            self.color_combo.addItem(color)    
 
     def save_window_position(self):
         position = self.geometry()
