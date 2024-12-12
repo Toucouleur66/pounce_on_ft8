@@ -2,6 +2,7 @@
 
 from PyQt6 import QtWidgets, QtCore, QtGui
 from PyQt6.QtWidgets import QTableWidget, QTableWidgetItem
+from PyQt6.QtCore import QPropertyAnimation, QRect, QEasingCurve
 from PyQt6.QtCore import QThread
 from PyQt6.QtMultimedia import QSoundEffect
 
@@ -275,6 +276,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.gui_selected_band                  = None
         self.operating_band                     = None
         self.enable_show_all_decoded            = None
+                
+        self.menu_bar                           = self.menuBar() 
 
         self.wanted_callsign_detected_sound     = QSoundEffect()
         self.directed_to_my_call_sound          = QSoundEffect()
@@ -289,14 +292,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.error_occurred_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/142608__autistic-lucario__error.wav"))
         self.monitored_callsign_detected_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/716442__scottyd0es__tone12_alert_3.wav"))
         self.band_change_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/342759__rhodesmas__score-counter-01.wav"))
-        
-        self.menu_bar                           = self.menuBar()    
 
-        self.load_clublog_action = QtGui.QAction("Update DXCC Info", self)
-        self.load_clublog_action.triggered.connect(self.clublog_manager.load_clublog_info)
-
-        self.create_main_menu()
-
+       
         central_widget = QtWidgets.QWidget()
         self.setCentralWidget(central_widget)
 
@@ -306,7 +303,7 @@ class MainApp(QtWidgets.QMainWindow):
         main_layout = QtWidgets.QGridLayout()
         outer_layout.addLayout(main_layout)
 
-        params = self.load_params()
+        params = self.load_params()        
 
         self.wanted_callsigns_history = self.load_wanted_callsigns()
 
@@ -385,7 +382,10 @@ class MainApp(QtWidgets.QMainWindow):
         """
             Filter layout
         """
-        self.filter_layout = self.init_filter_ui()
+        self.filter_widget_visible  = False
+        self.filter_widget          = self.init_filter_ui()
+        self.filter_widget.setMaximumHeight(0)
+        self.filter_widget.setMinimumHeight(0)
 
         """
             Bottom and Button layout
@@ -451,9 +451,11 @@ class MainApp(QtWidgets.QMainWindow):
        
         spacer = QtWidgets.QSpacerItem(0, 10, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)        
 
+        """
+            Main layout
+        """
         main_layout.addWidget(self.focus_frame, 0, 0, 1, 4)
-        main_layout.addWidget(self.timer_value_label, 0, 4)
-            
+        main_layout.addWidget(self.timer_value_label, 0, 4)    
         main_layout.addWidget(self.wanted_callsigns_history_label, 1, 3, 1, 2)
         main_layout.addWidget(self.tab_widget, 2, 0, 4, 3)                
         main_layout.addWidget(self.listbox, 2, 3, 5, 2)
@@ -462,7 +464,7 @@ class MainApp(QtWidgets.QMainWindow):
         main_layout.addWidget(self.stop_button, 8, 4)
         main_layout.addItem(spacer, 9, 0, 1, 5)
         main_layout.addWidget(self.output_table, 10, 0, 1, 5)
-        main_layout.addWidget(self.filter_layout, 11, 0, 1, 5)
+        main_layout.addWidget(self.filter_widget, 11, 0, 1, 5)
         main_layout.addLayout(bottom_layout, 12, 0, 1, 5)
         
         self.file_handler = None
@@ -477,6 +479,8 @@ class MainApp(QtWidgets.QMainWindow):
         
         self.apply_theme_to_all(self.theme_manager.dark_mode)
         self.load_window_position()
+        self.create_main_menu()
+
         QtCore.QTimer.singleShot(1_000, lambda: self.init_activity_bar())   
         
         # Close event to save position
@@ -641,9 +645,15 @@ class MainApp(QtWidgets.QMainWindow):
 
     def init_filter_ui(self):
         filter_widget = QtWidgets.QWidget()
-        filter_widget.setObjectName("FilterWidget")  
+        filter_widget.setObjectName("FilterWidget")
+
+        filter_widget.setMinimumHeight(60)
+        filter_widget.setMaximumHeight(60)
 
         inner_widget = QtWidgets.QWidget()
+
+        inner_widget.setMinimumHeight(60)
+        inner_widget.setMaximumHeight(60)
         inner_layout = QtWidgets.QGridLayout(inner_widget)
         inner_layout.setContentsMargins(10, 10, 10, 10)
         inner_layout.setVerticalSpacing(2)
@@ -651,23 +661,23 @@ class MainApp(QtWidgets.QMainWindow):
         search_filter = SearchFilterInput()
 
         self.callsign_input = search_filter.create_search_field("Callsign")
-        self.country_input  = search_filter.create_search_field("Country")
+        self.country_input = search_filter.create_search_field("Country")
 
         self.callsign_input.textChanged.connect(self.apply_filters)
         self.country_input.textChanged.connect(self.apply_filters)
 
-        self.cq_combo           = self.create_combo_box([str(i) for i in range(1, 41)])
-        self.continent_combo    = self.create_combo_box(['AS', 'AF', 'EU', 'OC', 'NA', 'SA'])
-        self.band_combo         = self.create_combo_box(list(AMATEUR_BANDS.keys()))
-        self.color_combo        = self.create_color_combo_box("Color")
+        self.cq_combo = self.create_combo_box([str(i) for i in range(1, 41)])
+        self.continent_combo = self.create_combo_box(['AS', 'AF', 'EU', 'OC', 'NA', 'SA'])
+        self.band_combo = self.create_combo_box(list(AMATEUR_BANDS.keys()))
+        self.color_combo = self.create_color_combo_box("Color")
 
         fields = [
-            ("Callsign",        self.callsign_input),            
-            ("Band",            self.band_combo),            
-            ("Color",           self.color_combo),            
-            ("CQ Zone",         self.cq_combo),
-            ("Continent",       self.continent_combo),
-            ("Country",         self.country_input),
+            ("Callsign", self.callsign_input),
+            ("Band", self.band_combo),
+            ("Color", self.color_combo),
+            ("CQ Zone", self.cq_combo),
+            ("Continent", self.continent_combo),
+            ("Country", self.country_input),
         ]
 
         for idx, (label_text, widget) in enumerate(fields):
@@ -682,7 +692,52 @@ class MainApp(QtWidgets.QMainWindow):
         outer_layout.addWidget(inner_widget, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
 
         return filter_widget
-    
+
+    def toggle_filter_visibility(self):
+        if self.filter_widget_visible:
+            self.hide_filter_layout()
+        else:
+            self.show_filter_layout()
+
+        self.filter_visibility_action.setChecked(self.filter_widget_visible)
+
+    def hide_filter_layout(self):
+        self.filter_widget_visible = False
+        self.animate_layout_height(self.filter_widget, target_height=0)
+
+    def show_filter_layout(self):
+        self.filter_widget_visible = True
+        self.animate_layout_height(self.filter_widget, target_height=60)  
+
+    def animate_layout_height(self, widget, target_height):
+        widget.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
+        widget.setMinimumHeight(0)
+        widget.setMaximumHeight(widget.height())
+
+        animation = QPropertyAnimation(widget, b"maximumHeight")
+        animation.setDuration(300)
+        animation.setEasingCurve(QtCore.QEasingCurve.Type.InOutCubic)
+
+        animation.setStartValue(widget.height())
+        animation.setEndValue(target_height)
+
+        def on_value_changed(value):
+            widget.setMaximumHeight(value)  
+            widget.updateGeometry() 
+            if widget.parentWidget():
+                widget.parentWidget().updateGeometry()
+
+        animation.valueChanged.connect(on_value_changed)
+
+        def on_finished():
+            if target_height == 0:
+                widget.updateGeometry() 
+
+        animation.finished.connect(on_finished)
+
+        self.current_animation = animation
+        animation.start(QtCore.QAbstractAnimation.DeletionPolicy.DeleteWhenStopped)
+
     def toggle_clear_button_visibility(self, button, text):
         button.setVisible(bool(text.strip()))
 
@@ -821,6 +876,7 @@ class MainApp(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot(str)
     def add_message_to_table(self, message, fg_color='white', bg_color=STATUS_TRX_COLOR):
+        self.toggle_filter_visibility()
         self.clear_button.setEnabled(True)
 
         row_id = self.output_table.rowCount()
@@ -1376,7 +1432,7 @@ class MainApp(QtWidgets.QMainWindow):
             qt_bg_color = "#E0E0E0"
             qt_fg_color = "#000000"
         
-        self.filter_layout.setStyleSheet(f"""
+        self.filter_widget.setStyleSheet(f"""
             QWidget#FilterWidget {{
                 background-color: {qt_bg_color};
                 border-radius: 8px;
@@ -1788,8 +1844,26 @@ class MainApp(QtWidgets.QMainWindow):
 
         # Add "Online" menu
         self.online_menu = self.menu_bar.addMenu("Online")
-        self.online_menu.addAction(self.load_clublog_action)
 
+        load_clublog_action = QtGui.QAction("Update DXCC Info", self)
+        load_clublog_action.triggered.connect(self.clublog_manager.load_clublog_info)
+        
+        self.online_menu.addAction(load_clublog_action)
+
+        # Add "Layout" menu
+        self.layout_menu = self.menu_bar.addMenu("Window")
+        
+        filter_visibility_action = QtGui.QAction("Show Filters", self)
+        filter_visibility_action.setCheckable(True)  
+        filter_visibility_action.setChecked(self.filter_widget_visible)  
+        filter_visibility_action.triggered.connect(self.toggle_filter_visibility)
+
+        filter_visibility_action.setShortcut(QtGui.QKeySequence("Ctrl+F"))
+
+        self.filter_visibility_action = filter_visibility_action
+
+        self.layout_menu.addAction(filter_visibility_action)
+        
     def show_about_dialog(self):
         dialog = QtWidgets.QDialog(self)
         dialog.setWindowTitle(f"About {GUI_LABEL_NAME}")
