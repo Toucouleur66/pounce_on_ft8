@@ -6,7 +6,7 @@ from PyQt6.QtCore import QPropertyAnimation, QRect, QEasingCurve
 from PyQt6.QtCore import QThread
 from PyQt6.QtMultimedia import QSoundEffect
 
-import inspect
+import bisect
 import platform
 import re
 import sys
@@ -223,14 +223,16 @@ class MainApp(QtWidgets.QMainWindow):
         self.monitoring_settings = MonitoringSettings()       
         self.clublog_manager     = ClubLogManager(self) 
 
+        params                   = self.load_params()  
         """
             Store data from update_table_data
         """
         self.table_raw_data      = []
-        self.unique_bands        = set()
-        self.unique_colors       = set()
-
-        params                   = self.load_params()  
+        self.combo_box_values    = {
+            "band"      : set(),
+            "continent" : set(),
+            "cq_zone"   : set(),
+        }
                 
         self.setGeometry(100, 100, 1_000, 700)
         self.setMinimumSize(1_020, 600)
@@ -296,7 +298,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.monitored_callsign_detected_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/716442__scottyd0es__tone12_alert_3.wav"))
         self.band_change_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/342759__rhodesmas__score-counter-01.wav"))
 
-        self.enable_pounce_log = params.get('enable_pounce_log', True)
+        self.enable_pounce_log                  = params.get('enable_pounce_log', True)
+        self.enable_filter_gui                   = params.get('enable_filter_gui', True)
         
         # Get sound configuration
         self.enable_sound_wanted_callsigns      = params.get('enable_sound_wanted_callsigns', True)
@@ -333,21 +336,36 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.update_listbox()
 
-        # Focus value (sequence)
+        """
+            Top layout for focus_frame and timer_value_label
+        """
+        top_layout = QtWidgets.QHBoxLayout()
+        top_layout.setContentsMargins(0, 0, 0, 0)
+        top_layout.setSpacing(0)
         self.focus_frame = QtWidgets.QFrame()
         self.focus_frame_layout = QtWidgets.QHBoxLayout()
+        self.focus_frame_layout.setContentsMargins(0, 0, 0, 0)
         self.focus_frame.setLayout(self.focus_frame_layout)
-        self.focus_value_label = QtWidgets.QLabel("")
+        self.focus_value_label = QtWidgets.QLabel()
         self.focus_value_label.setFont(CUSTOM_FONT_MONO_LG)
+        self.focus_value_label.setFixedHeight(50)
         self.focus_value_label.setStyleSheet("padding: 10px;")
         self.focus_frame_layout.addWidget(self.focus_value_label)
-        self.focus_frame.hide()
+        self.focus_frame.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
+        top_layout.addWidget(self.focus_frame)
+
         self.focus_value_label.mousePressEvent = self.copy_to_clipboard
 
         # Timer value
         self.timer_value_label = QtWidgets.QLabel(DEFAULT_MODE_TIMER_VALUE)
         self.timer_value_label.setFont(CUSTOM_FONT_MONO_LG)
         self.timer_value_label.setStyleSheet("background-color: #9dfffe; color: #555bc2; padding: 10px;")
+        self.timer_value_label.setMaximumWidth(150)
+        self.timer_value_label.setFixedHeight(50)        
+        self.timer_value_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        self.timer_value_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Minimum)
+
+        top_layout.addWidget(self.timer_value_label)
 
         self.callsign_notice = QtWidgets.QLabel(CALLSIGN_NOTICE_LABEL)
         self.callsign_notice.setStyleSheet("background-color: #9dfffe; color: #555bc2;")
@@ -459,8 +477,7 @@ class MainApp(QtWidgets.QMainWindow):
         """
             Main layout
         """
-        main_layout.addWidget(self.focus_frame, 0, 0, 1, 4)
-        main_layout.addWidget(self.timer_value_label, 0, 4)    
+        main_layout.addLayout(top_layout, 0, 0, 1, 5) 
         main_layout.addWidget(self.wanted_callsigns_history_label, 1, 3, 1, 2)
         main_layout.addWidget(self.tab_widget, 2, 0, 4, 3)                
         main_layout.addWidget(self.listbox, 2, 3, 5, 2)
@@ -528,7 +545,7 @@ class MainApp(QtWidgets.QMainWindow):
         sought_variables = [
             {
                 'name'             : 'wanted_callsigns',
-                'label'            : 'Wanted Callsigns(s):',
+                'label'            : 'Wanted Callsign(s):',
                 'function'         : partial(force_input, mode="uppercase"),
                 'on_changed_method': self.on_wanted_callsigns_changed,
             },
@@ -671,16 +688,21 @@ class MainApp(QtWidgets.QMainWindow):
         self.callsign_input.textChanged.connect(self.apply_filters)
         self.country_input.textChanged.connect(self.apply_filters)
 
+        self.cq_combo = self.create_combo_box()
+        self.continent_combo = self.create_combo_box()
+        self.band_combo = self.create_combo_box()
+        """
         self.cq_combo = self.create_combo_box([str(i) for i in range(1, 41)])
         self.continent_combo = self.create_combo_box(['AS', 'AF', 'EU', 'OC', 'NA', 'SA'])
         self.band_combo = self.create_combo_box(list(AMATEUR_BANDS.keys()))
+        """
         self.color_combo = self.create_color_combo_box("Color")
 
         fields = [
             ("Callsign", self.callsign_input),
             ("Band", self.band_combo),
             ("Color", self.color_combo),
-            ("CQ Zone", self.cq_combo),
+            ("Zone", self.cq_combo),
             ("Continent", self.continent_combo),
             ("Country", self.country_input),
         ]
@@ -697,6 +719,17 @@ class MainApp(QtWidgets.QMainWindow):
         outer_layout.addWidget(inner_widget, alignment=QtCore.Qt.AlignmentFlag.AlignLeft)
 
         return filter_widget
+
+    def update_filter_gui_preference(self, checked):
+        params = self.load_params()
+        self.enable_filter_gui      = checked
+        params['enable_filter_gui'] = checked
+        if checked:
+            self.show_filter_layout()
+        else:
+            self.hide_filter_layout()
+
+        self.save_params(params)  
 
     def toggle_filter_visibility(self):
         if self.filter_widget_visible:
@@ -771,7 +804,45 @@ class MainApp(QtWidgets.QMainWindow):
                 }
             """)
         return combo_box
+    
+    def update_combo_box_values(self, raw_data):
+        keys_to_update = set()
+
+        for key in self.combo_box_values.keys():
+            if key in raw_data:
+                new_value = str(raw_data[key]).strip()
+                if (
+                    new_value and 
+                    new_value not in self.combo_box_values[key]
+                ):
+                    self.combo_box_values[key].add(new_value)
+                    keys_to_update.add(key)
+
+        if keys_to_update:
+            self.populate_combo_boxes(keys_to_update)
+
+    def populate_combo_boxes(self, keys_to_update):
+        if "cq_zone" in keys_to_update:
+            self.add_new_items_to_combo(self.cq_combo, self.combo_box_values["cq_zone"])
+
+        if "continent" in keys_to_update:
+            self.add_new_items_to_combo(self.continent_combo, self.combo_box_values["continent"])
+
+        if "band" in keys_to_update:
+            self.add_new_items_to_combo(self.band_combo, self.combo_box_values["band"])
         
+    def add_new_items_to_combo(self, combo, new_items, default_value=DEFAULT_FILTER_VALUE):
+        existing_items      = [combo.itemText(i) for i in range(combo.count()) if combo.itemText(i) != default_value]
+        combined_items      = set(existing_items).union(new_items)
+
+        numeric_items       = sorted((item for item in combined_items if item.isdigit()), key=int)
+        non_numeric_items   = sorted(item for item in combined_items if not item.isdigit())
+
+        sorted_items        = [default_value] + numeric_items + non_numeric_items
+
+        combo.clear()
+        combo.addItems(sorted_items)
+    
     def create_color_combo_box(self, placeholder_text):
         color_combo = QtWidgets.QComboBox()
         color_combo.setFixedWidth(150)
@@ -833,9 +904,17 @@ class MainApp(QtWidgets.QMainWindow):
         if self._running:
             # Make sure to reset last_sound_played_time if we switch band
             self.last_sound_played_time = datetime.min
-            self.focus_frame.hide()
+            self.toggle_focus_frame(visible=False)
             self.gui_selected_band = self.operating_band
             self.tab_widget.set_operating_tab(self.operating_band)
+
+    def toggle_focus_frame(self, visible: bool):
+        if visible:
+            self.focus_value_label.setStyleSheet("")  
+            self.focus_value_label.clear() 
+        else:    
+            self.focus_value_label.setStyleSheet("background-color: transparent; border: none;")
+            self.focus_value_label.clear()
 
     def save_last_used_tab(self, band):
         params = self.load_params()
@@ -880,8 +959,7 @@ class MainApp(QtWidgets.QMainWindow):
                 self.update_listbox()
 
     @QtCore.pyqtSlot(str)
-    def add_message_to_table(self, message, fg_color='white', bg_color=STATUS_TRX_COLOR):
-        self.toggle_filter_visibility()
+    def add_message_to_table(self, message, fg_color='white', bg_color=STATUS_TRX_COLOR):        
         self.clear_button.setEnabled(True)
 
         row_id = self.output_table.rowCount()
@@ -1255,9 +1333,8 @@ class MainApp(QtWidgets.QMainWindow):
         else:
             bg_color_hex = BG_COLOR_REGULAR_FOCUS
             fg_color_hex = FG_COLOR_REGULAR_FOCUS
-            
+                    
         self.focus_value_label.setStyleSheet(f"background-color: {bg_color_hex}; color: {fg_color_hex}; padding: 10px;")
-        self.focus_frame.show()                
 
     def play_sound(self, sound_name):
         try:           
@@ -1595,11 +1672,7 @@ class MainApp(QtWidgets.QMainWindow):
             "row_color"         : row_color,
         }
         self.table_raw_data.append(raw_data)
-        
-        self.unique_bands.add(band)
-        if row_color:
-            self.unique_colors.add(row_color)
-
+        self.update_combo_box_values(raw_data)
         if self.is_valid_for_filters(raw_data):
             self.add_row_to_table(raw_data)
 
@@ -1608,7 +1681,14 @@ class MainApp(QtWidgets.QMainWindow):
     def add_row_to_table(self, raw_data):
         row_id = self.output_table.rowCount()  
         self.output_table.insertRow(row_id)
-        
+
+        if (
+            self.enable_filter_gui is True and
+            self.filter_widget_visible is False and
+            row_id > 20
+        ):
+            self.show_filter_layout()
+
         band            = raw_data["band"]
         row_color       = raw_data["row_color"]
         
@@ -1742,7 +1822,7 @@ class MainApp(QtWidgets.QMainWindow):
     def clear_output_table(self):
         self.output_table.setRowCount(0)
         self.clear_button.setEnabled(False)
-        self.focus_frame.hide()
+        self.toggle_focus_frame(visible=False)
 
     def save_window_position(self):
         position = self.geometry()
@@ -1863,8 +1943,8 @@ class MainApp(QtWidgets.QMainWindow):
         
         filter_visibility_action = QtGui.QAction("Show Filters", self)
         filter_visibility_action.setCheckable(True)  
-        filter_visibility_action.setChecked(self.filter_widget_visible)  
-        filter_visibility_action.triggered.connect(self.toggle_filter_visibility)
+        filter_visibility_action.setChecked(self.enable_filter_gui)  
+        filter_visibility_action.triggered.connect(self.update_filter_gui_preference)
 
         filter_visibility_action.setShortcut(QtGui.QKeySequence("Ctrl+F"))
 
@@ -1991,7 +2071,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.blink_timer.timeout.connect(self.toggle_label_visibility)
 
         self.stop_event.clear()
-        self.focus_frame.hide()
+        self.toggle_focus_frame(visible=False)
         self.callsign_notice.hide()        
 
         self.apply_band_change(self.gui_selected_band)
