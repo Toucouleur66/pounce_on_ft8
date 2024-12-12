@@ -215,6 +215,8 @@ class MainApp(QtWidgets.QMainWindow):
     def __init__(self):
         super(MainApp, self).__init__()
 
+        self.base_title          = GUI_LABEL_VERSION
+
         self.worker              = None
         self.timer               = None
         self.tray_icon           = None
@@ -228,10 +230,11 @@ class MainApp(QtWidgets.QMainWindow):
         self.unique_bands        = set()
         self.unique_colors       = set()
 
+        params                   = self.load_params()  
+                
         self.setGeometry(100, 100, 1_000, 700)
         self.setMinimumSize(1_020, 600)
-        self.base_title = GUI_LABEL_VERSION
-        self.setWindowTitle(self.base_title)
+        self.setWindowTitle(self.base_title)      
 
         if platform.system() == 'Windows':
             if getattr(sys, 'frozen', False): 
@@ -293,7 +296,16 @@ class MainApp(QtWidgets.QMainWindow):
         self.monitored_callsign_detected_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/716442__scottyd0es__tone12_alert_3.wav"))
         self.band_change_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/342759__rhodesmas__score-counter-01.wav"))
 
+        self.enable_pounce_log = params.get('enable_pounce_log', True)
+        
+        # Get sound configuration
+        self.enable_sound_wanted_callsigns      = params.get('enable_sound_wanted_callsigns', True)
+        self.enable_sound_directed_my_callsign  = params.get('enable_sound_directed_my_callsign', True)
+        self.enable_sound_monitored_callsigns   = params.get('enable_sound_monitored_callsigns', True)
        
+        """
+            Central, Outer and Main Layout
+        """
         central_widget = QtWidgets.QWidget()
         self.setCentralWidget(central_widget)
 
@@ -302,8 +314,6 @@ class MainApp(QtWidgets.QMainWindow):
 
         main_layout = QtWidgets.QGridLayout()
         outer_layout.addLayout(main_layout)
-
-        params = self.load_params()        
 
         self.wanted_callsigns_history = self.load_wanted_callsigns()
 
@@ -388,10 +398,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.filter_widget.setMinimumHeight(0)
 
         """
-            Bottom and Button layout
+            Bottom layout
         """
         bottom_layout = QtWidgets.QHBoxLayout()
-        button_layout = QtWidgets.QHBoxLayout()
 
         self.clear_button = CustomButton("Clear History")
         self.clear_button.setEnabled(False)
@@ -422,9 +431,12 @@ class MainApp(QtWidgets.QMainWindow):
         self.stop_button.setEnabled(False)        
         self.stop_button.clicked.connect(self.stop_monitoring)        
         self.stop_button.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
-
-        # Timer label and log analysis
         
+        """
+            Button layout
+        """
+        button_layout = QtWidgets.QHBoxLayout()
+
         button_layout.addWidget(self.settings)
         button_layout.addWidget(self.clear_button)
 
@@ -442,13 +454,6 @@ class MainApp(QtWidgets.QMainWindow):
 
         outer_layout.addWidget(self.activity_bar)
 
-        self.enable_pounce_log = params.get('enable_pounce_log', True)
-        
-        # Get sound configuration
-        self.enable_sound_wanted_callsigns = params.get('enable_sound_wanted_callsigns', True)
-        self.enable_sound_directed_my_callsign = params.get('enable_sound_directed_my_callsign', True)
-        self.enable_sound_monitored_callsigns = params.get('enable_sound_monitored_callsigns', True)
-       
         spacer = QtWidgets.QSpacerItem(0, 10, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)        
 
         """
@@ -1026,7 +1031,7 @@ class MainApp(QtWidgets.QMainWindow):
             menu.setStyleSheet(CONTEXT_MENU_DARWIN_QSS)
             menu.setFont(MENU_FONT)
 
-        if not index.isValid() or self.operating_band != self.operating_band:
+        if not index.isValid() or self.operating_band is False:
             return
 
         row = index.row()
@@ -1445,10 +1450,14 @@ class MainApp(QtWidgets.QMainWindow):
             table_palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor('#353535'))
             table_palette.setColor(QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor('#454545'))
             table_palette.setColor(QtGui.QPalette.ColorRole.Text, QtGui.QColor('#FFFFFF'))
+
+            self.activity_bar.setColors("#3D3D3D", "#FFFFFF", "#101010")
         else:
             table_palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor('#FFFFFF'))
             table_palette.setColor(QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor('#F4F5F5'))
             table_palette.setColor(QtGui.QPalette.ColorRole.Text, QtGui.QColor('#000000'))
+
+            self.activity_bar.setColors("#FFFFFF", "#000000", "#C6C6C6")
         
         self.output_table.setPalette(table_palette)
 
@@ -1463,7 +1472,6 @@ class MainApp(QtWidgets.QMainWindow):
         """)
         self.output_table.setPalette(table_palette)
 
-        self.activity_bar.update()
         self.update_tab_widget_labels_style()
 
     def save_params(self, params):

@@ -36,13 +36,18 @@ class ActivityBar(QtWidgets.QWidget):
         self.animation.setEndValue(min(value, self.max_value))
         self.animation.start()    
 
+    def setColors(self, background_color, text_color, border_color):
+        self.background_color = QtGui.QColor(background_color)
+        self.text_color = QtGui.QColor(text_color)
+        self.border_color = QtGui.QColor(border_color)
+        self.update()        
+
     def paintEvent(self, event):
         painter = QtGui.QPainter(self)
         rect = self.rect()
 
-        painter.fillRect(rect, self.palette().color(QtGui.QPalette.ColorRole.Base))
-
-        painter.setPen(QtGui.QPen(self.palette().color(QtGui.QPalette.ColorRole.AlternateBase), 2))
+        painter.fillRect(rect, self.background_color)
+        painter.setPen(QtGui.QPen(self.border_color, 2))
         painter.drawRect(rect.adjusted(0, 0, 0, 0))
 
         content_rect = rect.adjusted(1, 2, -1, 0)
@@ -61,7 +66,7 @@ class ActivityBar(QtWidgets.QWidget):
         painter.setPen(QtCore.Qt.PenStyle.NoPen)
         painter.drawRect(filled_rect)
 
-        painter.setPen(QtGui.QPen(self.palette().color(QtGui.QPalette.ColorRole.WindowText)))
+        painter.setPen(QtGui.QPen(self.text_color))
         if self.is_overflow:
             text = f"{int(self.max_value)}+"
         else:
