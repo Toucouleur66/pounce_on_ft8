@@ -6,6 +6,7 @@ from PyQt6.QtCore import QPropertyAnimation
 from PyQt6.QtCore import QThread
 from PyQt6.QtMultimedia import QSoundEffect
 
+import inspect
 import platform
 import re
 import sys
@@ -426,7 +427,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.clear_button = CustomButton("Erase")
         self.clear_button.setEnabled(False)
-        self.clear_button.clicked.connect(self.clear_output_table)
+        self.clear_button.clicked.connect(self.clear_output_and_filters)
 
         self.settings = CustomButton("Settings")
         self.settings.clicked.connect(self.open_settings)
@@ -750,6 +751,7 @@ class MainApp(QtWidgets.QMainWindow):
     def toggle_filter_visibility(self):
         if self.filter_widget_visible:
             self.hide_filter_layout()
+            self.clear_filters()
         else:
             self.show_filter_layout()
 
@@ -896,6 +898,8 @@ class MainApp(QtWidgets.QMainWindow):
             self.add_new_items_to_combo(self.band_combo, self.combo_box_values["band"])
         
     def add_new_items_to_combo(self, combo, new_items, default_value=DEFAULT_FILTER_VALUE):
+        combo.blockSignals(True)
+
         existing_items      = [combo.itemText(i) for i in range(combo.count()) if combo.itemText(i) != default_value]
         combined_items      = set(existing_items).union(new_items)
 
@@ -906,7 +910,8 @@ class MainApp(QtWidgets.QMainWindow):
 
         combo.clear()
         combo.addItems(sorted_items)
-    
+        combo.blockSignals(False)
+
     def create_color_combo_box(self, placeholder_text):
         color_combo = QtWidgets.QComboBox()
         color_combo.setFixedWidth(150)
@@ -1744,7 +1749,7 @@ class MainApp(QtWidgets.QMainWindow):
     def add_row_to_table(self, raw_data):
         row_id = self.output_table.rowCount()  
         self.output_table.insertRow(row_id)
-
+        self.index_to_check += 1
         if (
             self.enable_filter_gui is True and
             self.filter_widget_visible is False and
@@ -1763,7 +1768,7 @@ class MainApp(QtWidgets.QMainWindow):
             'directed'          : raw_data["directed"],
             'cq_zone'           : raw_data["cq_zone"],
             'formatted_message' : raw_data["formatted_message"].strip()
-        })
+        })        
         item_date.setData(QtCore.Qt.ItemDataRole.DisplayRole, raw_data["date_str"])
         item_date.setFont(CUSTOM_FONT_SMALL)
         self.output_table.setItem(row_id, 0, item_date)
@@ -1886,16 +1891,18 @@ class MainApp(QtWidgets.QMainWindow):
             if self.is_valid_for_filters(raw_data):
                 self.add_row_to_table(raw_data)
 
-    def clear_output_table(self):
-        self.toggle_focus_frame(visible=False)
-
+    def clear_filters(self):
         self.callsign_input.clear()
         self.country_input.clear()
 
         self.cq_combo.setCurrentIndex(0)
         self.continent_combo.setCurrentIndex(0)
         self.band_combo.setCurrentIndex(0)
-        self.color_combo.setCurrentIndex(0)
+        self.color_combo.setCurrentIndex(0)    
+
+    def clear_output_and_filters(self):
+        self.toggle_focus_frame(visible=False)
+        self.clear_filters()
 
         self.output_table.setRowCount(0)
 

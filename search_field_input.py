@@ -19,14 +19,13 @@ class SearchFilterInput(QtWidgets.QWidget):
         """)
         
         clear_action = QtGui.QAction(QtGui.QIcon.fromTheme("edit-clear"), "", line_edit)
-        line_edit.addAction(clear_action, QtWidgets.QLineEdit.ActionPosition.TrailingPosition)
+        # line_edit.addAction(clear_action, QtWidgets.QLineEdit.ActionPosition.TrailingPosition)
         clear_action.setVisible(False)  
         
         line_edit.textChanged.connect(lambda text: clear_action.setVisible(bool(text.strip())))
         clear_action.triggered.connect(lambda: self.clear_line_edit(line_edit, clear_action))
         line_edit.clearRequested.connect(lambda: self.clear_line_edit(line_edit, clear_action))  
 
-        
         return line_edit
 
     def clear_line_edit(self, line_edit, clear_action):
