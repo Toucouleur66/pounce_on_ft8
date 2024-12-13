@@ -60,6 +60,9 @@ STATUS_BUTTON_LABEL_TRX         = "Transmitting..."
 STATUS_BUTTON_LABEL_START       = "Start Monitoring"
 STATUS_BUTTON_LABEL_NOTHING_YET = "Nothing yet"
 
+DATE_COLUMN_DATETIME            = "Time"
+DATE_COLUMN_AGE                 = "Age"
+
 WAITING_DATA_PACKETS_LABEL      = "Waiting for UDP Packets"
 WANTED_CALLSIGNS_HISTORY_LABEL  = "Wanted Callsigns History (%d):"
 CALLSIGN_NOTICE_LABEL           = "Comma separated list of callsigns - Wildcard allowed (*)"

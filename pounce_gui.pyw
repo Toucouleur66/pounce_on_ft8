@@ -2,11 +2,10 @@
 
 from PyQt6 import QtWidgets, QtCore, QtGui
 from PyQt6.QtWidgets import QTableWidget, QTableWidgetItem
-from PyQt6.QtCore import QPropertyAnimation, QRect, QEasingCurve
+from PyQt6.QtCore import QPropertyAnimation
 from PyQt6.QtCore import QThread
 from PyQt6.QtMultimedia import QSoundEffect
 
-import bisect
 import platform
 import re
 import sys
@@ -23,6 +22,7 @@ from functools import partial
 # Custom classes 
 from custom_tab_widget import CustomTabWidget
 from custom_button import CustomButton
+from time_ago_delegate import TimeAgoDelegate
 from search_field_input import SearchFilterInput
 from tray_icon import TrayIcon
 from activity_bar import ActivityBar
@@ -85,6 +85,9 @@ from constants import (
     WAITING_DATA_PACKETS_LABEL,
     WANTED_CALLSIGNS_HISTORY_LABEL,
     CALLSIGN_NOTICE_LABEL,
+    # Datetime column
+    DATE_COLUMN_DATETIME,
+    DATE_COLUMN_AGE,
     # Timer
     DEFAULT_MODE_TIMER_VALUE,
     # Band,
@@ -300,6 +303,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.enable_pounce_log                  = params.get('enable_pounce_log', True)
         self.enable_filter_gui                   = params.get('enable_filter_gui', True)
+        self.datetime_column_setting            = params.get('datetime_column_setting', DATE_COLUMN_DATETIME)
         
         # Get sound configuration
         self.enable_sound_wanted_callsigns      = params.get('enable_sound_wanted_callsigns', True)
@@ -420,7 +424,7 @@ class MainApp(QtWidgets.QMainWindow):
         """
         bottom_layout = QtWidgets.QHBoxLayout()
 
-        self.clear_button = CustomButton("Clear History")
+        self.clear_button = CustomButton("Erase")
         self.clear_button.setEnabled(False)
         self.clear_button.clicked.connect(self.clear_output_table)
 
@@ -501,8 +505,13 @@ class MainApp(QtWidgets.QMainWindow):
         
         self.apply_theme_to_all(self.theme_manager.dark_mode)
         self.load_window_position()
-        self.create_main_menu()
-
+        self.create_main_menu()        
+        
+        if self.datetime_column_setting == DATE_COLUMN_AGE:
+            self.enable_age_column()
+        else:
+            self.enable_datetime_column()
+        
         QtCore.QTimer.singleShot(1_000, lambda: self.init_activity_bar())   
         
         # Close event to save position
@@ -609,9 +618,9 @@ class MainApp(QtWidgets.QMainWindow):
         return tab_widget
 
     def init_table_ui(self):
-        output_table = QTableWidget(self)
+        output_table            = QTableWidget(self)
 
-        header_labels = ['Time', 'Band', 'Report', 'DT', 'Freq', 'Message', 'Country', 'CQ', 'Continent']
+        header_labels = [DATE_COLUMN_DATETIME, 'Band', 'Report', 'DT', 'Freq', 'Message', 'Country', 'CQ', 'Continent']
         output_table.setColumnCount(len(header_labels))
         for i, label in enumerate(header_labels):
             header_item = QTableWidgetItem(label)
@@ -657,6 +666,15 @@ class MainApp(QtWidgets.QMainWindow):
         output_table.setColumnWidth(5, 400)
         output_table.setColumnWidth(7, 50)
         output_table.setColumnWidth(8, 70)
+
+        output_table.horizontalHeader().sectionClicked.connect(self.on_header_clicked)
+
+        self.time_ago_delegate   = TimeAgoDelegate(output_table)
+        self.default_delegate    = QtWidgets.QStyledItemDelegate(output_table)
+        self.current_delegate    = None
+
+        self.refresh_table_timer = QtCore.QTimer(self)
+        self.refresh_table_timer.timeout.connect(lambda: self.output_table.viewport().update())
 
         output_table.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
         output_table.customContextMenuRequested.connect(self.on_table_context_menu)
@@ -721,15 +739,13 @@ class MainApp(QtWidgets.QMainWindow):
         return filter_widget
 
     def update_filter_gui_preference(self, checked):
-        params = self.load_params()
-        self.enable_filter_gui      = checked
-        params['enable_filter_gui'] = checked
         if checked:
             self.show_filter_layout()
         else:
             self.hide_filter_layout()
-
-        self.save_params(params)  
+        
+        self.enable_filter_gui = checked
+        self.save_unique_param('enable_filter_gui', checked)        
 
     def toggle_filter_visibility(self):
         if self.filter_widget_visible:
@@ -778,6 +794,54 @@ class MainApp(QtWidgets.QMainWindow):
 
     def toggle_clear_button_visibility(self, button, text):
         button.setVisible(bool(text.strip()))
+
+    def on_header_clicked(self, column_index):
+        if column_index == 0:  
+            self.toggle_time_mode()
+
+    def toggle_time_mode(self):
+        if self.datetime_column_setting == DATE_COLUMN_AGE:
+            self.enable_datetime_column()
+        else:
+            self.enable_age_column()
+
+    def enable_age_column(self):
+        self.datetime_column_setting = DATE_COLUMN_AGE   
+
+        header_item = QTableWidgetItem(self.datetime_column_setting)
+        header_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
+
+        self.current_delegate = self.time_ago_delegate
+
+        self.output_table.setItemDelegateForColumn(0, self.current_delegate)
+        self.output_table.viewport().update()
+        self.output_table.setColumnWidth(0, 60)
+        self.output_table.setHorizontalHeaderItem(0, header_item)
+
+        self.refresh_table_timer.start(1_000)
+        self.update_date_mode_param()
+
+    def enable_datetime_column(self):
+        self.datetime_column_setting = DATE_COLUMN_DATETIME
+
+        header_item = QTableWidgetItem(self.datetime_column_setting)
+        header_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
+
+        self.current_delegate = self.default_delegate
+
+        self.output_table.setItemDelegateForColumn(0, self.current_delegate)
+        self.output_table.viewport().update()
+        self.output_table.setColumnWidth(0, 130)
+        self.output_table.setHorizontalHeaderItem(0, header_item)
+
+        self.refresh_table_timer.stop()
+        self.update_date_mode_param()
+
+    def update_date_mode_param(self):
+        self.datetime_column_action.setChecked(self.datetime_column_setting == DATE_COLUMN_DATETIME)
+        self.age_column_action.setChecked(self.datetime_column_setting == DATE_COLUMN_AGE)
+
+        self.save_unique_param('datetime_column_setting', self.datetime_column_setting)  
 
     def clear_line_edit(self, line_edit, button):
         line_edit.clear()
@@ -876,14 +940,12 @@ class MainApp(QtWidgets.QMainWindow):
 
     def on_tab_clicked(self, tab_band):
         self.gui_selected_band = tab_band
-        # log.debug(f"Selected_band: {self.gui_selected_band}")            
-
         self.tab_widget.set_selected_tab(self.gui_selected_band)
 
         if self.gui_selected_band != self.operating_band and self._running:
             self.tab_widget.set_operating_tab(self.operating_band)
 
-        self.save_last_used_tab(self.gui_selected_band)
+        self.save_unique_param('last_band_used', self.gui_selected_band)  
         
     def apply_band_change(self, band):
         if band != self.operating_band and band != 'Invalid':            
@@ -915,11 +977,6 @@ class MainApp(QtWidgets.QMainWindow):
         else:    
             self.focus_value_label.setStyleSheet("background-color: transparent; border: none;")
             self.focus_value_label.clear()
-
-    def save_last_used_tab(self, band):
-        params = self.load_params()
-        params['last_band_used'] = band
-        self.save_params(params)                       
 
     """
         Used for MonitoringSetting
@@ -1551,6 +1608,11 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.update_tab_widget_labels_style()
 
+    def save_unique_param(self, key, value):
+        params      = self.load_params()
+        params[key] = value
+        self.save_params(params)  
+
     def save_params(self, params):
         with open(PARAMS_FILE, "wb") as f:
             pickle.dump(params, f)
@@ -1669,6 +1731,7 @@ class MainApp(QtWidgets.QMainWindow):
             "entity"            : entity,
             "cq_zone"           : cq_zone,
             "continent"         : continent,
+            "row_datetime"      : datetime.now(timezone.utc),
             "row_color"         : row_color,
         }
         self.table_raw_data.append(raw_data)
@@ -1693,12 +1756,16 @@ class MainApp(QtWidgets.QMainWindow):
         row_color       = raw_data["row_color"]
         
         item_date = QTableWidgetItem(raw_data["date_str"])
+
         item_date.setData(QtCore.Qt.ItemDataRole.UserRole, {
+            'datetime'          : raw_data["row_datetime"],
             'callsign'          : raw_data["callsign"], 
             'directed'          : raw_data["directed"],
             'cq_zone'           : raw_data["cq_zone"],
             'formatted_message' : raw_data["formatted_message"].strip()
         })
+        item_date.setData(QtCore.Qt.ItemDataRole.DisplayRole, raw_data["date_str"])
+        item_date.setFont(CUSTOM_FONT_SMALL)
         self.output_table.setItem(row_id, 0, item_date)
 
         item_band = QTableWidgetItem(band)
@@ -1820,9 +1887,17 @@ class MainApp(QtWidgets.QMainWindow):
                 self.add_row_to_table(raw_data)
 
     def clear_output_table(self):
-        self.output_table.setRowCount(0)
-        self.clear_button.setEnabled(False)
         self.toggle_focus_frame(visible=False)
+
+        self.callsign_input.clear()
+        self.country_input.clear()
+
+        self.cq_combo.setCurrentIndex(0)
+        self.continent_combo.setCurrentIndex(0)
+        self.band_combo.setCurrentIndex(0)
+        self.color_combo.setCurrentIndex(0)
+
+        self.output_table.setRowCount(0)
 
     def save_window_position(self):
         position = self.geometry()
@@ -1924,13 +1999,13 @@ class MainApp(QtWidgets.QMainWindow):
         # Add separator
         main_menu.addSeparator()
 
-        # "Settings..." action
+        # Settings...
         settings_action = QtGui.QAction("Settings...", self)
         settings_action.setShortcut("Ctrl+,")  # Default shortcut for macOS
         settings_action.triggered.connect(self.open_settings)
         main_menu.addAction(settings_action)
 
-        # Add "Online" menu
+        # Add Online menu
         self.online_menu = self.menu_bar.addMenu("Online")
 
         load_clublog_action = QtGui.QAction("Update DXCC Info", self)
@@ -1938,8 +2013,8 @@ class MainApp(QtWidgets.QMainWindow):
         
         self.online_menu.addAction(load_clublog_action)
 
-        # Add "Layout" menu
-        self.layout_menu = self.menu_bar.addMenu("Window")
+        # Add Window menu
+        self.window_menu = self.menu_bar.addMenu("Window")
         
         filter_visibility_action = QtGui.QAction("Show Filters", self)
         filter_visibility_action.setCheckable(True)  
@@ -1950,7 +2025,28 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.filter_visibility_action = filter_visibility_action
 
-        self.layout_menu.addAction(filter_visibility_action)
+        self.window_menu.addAction(filter_visibility_action)
+        self.window_menu.addSeparator()
+        
+        format_time_menu = self.window_menu.addMenu("Format Time")
+
+        self.age_column_action = QtGui.QAction("Show Age", self)
+        self.age_column_action.setCheckable(True)
+        self.age_column_action.setChecked(self.datetime_column_setting == DATE_COLUMN_AGE)
+        self.age_column_action.triggered.connect(self.enable_age_column)
+
+        self.datetime_column_action = QtGui.QAction("Show Time", self)
+        self.datetime_column_action.setCheckable(True)
+        self.datetime_column_action.setChecked(self.datetime_column_setting == DATE_COLUMN_DATETIME)
+        self.datetime_column_action.triggered.connect(self.enable_datetime_column)
+
+        format_time_menu.addAction(self.age_column_action)
+        format_time_menu.addAction(self.datetime_column_action)
+
+        action_group = QtGui.QActionGroup(self)
+        action_group.addAction(self.age_column_action)
+        action_group.addAction(self.datetime_column_action)
+        action_group.setExclusive(True)
         
     def show_about_dialog(self):
         dialog = QtWidgets.QDialog(self)
@@ -2097,9 +2193,8 @@ class MainApp(QtWidgets.QMainWindow):
         enable_log_all_valid_contact        = params.get('enable_log_all_valid_contact', DEFAULT_LOG_ALL_VALID_CONTACT)
         
         self.enable_show_all_decoded        = params.get('enable_show_all_decoded', DEFAULT_SHOW_ALL_DECODED)
-
-        params['freq_range_mode']           = freq_range_mode
-        self.save_params(params)        
+        
+        self.save_unique_param('freq_range_mode', freq_range_mode )        
 
         # Create a QThread and a Worker object
         self.thread = QThread()
