@@ -1749,7 +1749,6 @@ class MainApp(QtWidgets.QMainWindow):
     def add_row_to_table(self, raw_data):
         row_id = self.output_table.rowCount()  
         self.output_table.insertRow(row_id)
-        self.index_to_check += 1
         if (
             self.enable_filter_gui is True and
             self.filter_widget_visible is False and
