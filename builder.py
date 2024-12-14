@@ -12,6 +12,7 @@ print(PyQt6.QtCore.QT_VERSION_STR)
 print(PyQt6.QtWidgets.QStyleFactory.keys())
 
 from constants import CURRENT_VERSION_NUMBER
+from termcolor import colored 
 
 # app_name = f"Wait & Pounce v{CURRENT_VERSION_NUMBER}"
 app_name = f"WaitAndPounce"
@@ -100,3 +101,5 @@ if platform.system() == 'Darwin':
             print("Error: Application bundle not found. Skipping Info.plist copy.")
 
     post_process(plist_path)
+
+    print(colored(f"[INFO] Build READY", "yellow"))
