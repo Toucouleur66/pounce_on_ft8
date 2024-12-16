@@ -7,7 +7,7 @@ import platform
 from datetime import datetime
 from utils import get_app_data_dir
 
-CURRENT_VERSION_NUMBER          = "2.2.1"
+CURRENT_VERSION_NUMBER          = "2.2.3"
 EXPIRATION_DATE                 = datetime(2025, 2, 15)
 UPDATE_JSON_INFO_URL            = "https://storage.de.cloud.ovh.net/v1/AUTH_31163bb499dc49eb819aacdfd32ae82c/wait.and.pounce/public/update_info.json"
 
@@ -60,12 +60,15 @@ STATUS_BUTTON_LABEL_TRX         = "Transmitting..."
 STATUS_BUTTON_LABEL_START       = "Start Monitoring"
 STATUS_BUTTON_LABEL_NOTHING_YET = "Nothing yet"
 
+STOP_BUTTON_LABEL               = "Stop all"
+
 DATE_COLUMN_DATETIME            = "Time"
 DATE_COLUMN_AGE                 = "Age"
 
 WAITING_DATA_PACKETS_LABEL      = "Waiting for UDP Packets"
 WANTED_CALLSIGNS_HISTORY_LABEL  = "Wanted Callsigns History (%d):"
-CALLSIGN_NOTICE_LABEL           = "Comma separated list of callsigns - Wildcard allowed (*)"
+CALLSIGN_NOTICE_LABEL           = "Comma separated list of callsigns. Allows wildcards with *"
+CQ_ZONE_NOTICE_LABEL            = "Comma separated list of CQ Zone"
 
 MODE_NORMAL                     = "Regular"
 MODE_FOX_HOUND                  = "Hound"
@@ -113,7 +116,7 @@ TOOLTIP_QSS                      = f"""
                 background-color: {STATUS_MONITORING_COLOR}; 
                 color: white;
                 padding: 3px;
-                border-radius: 6px;
+                border-style: none;
             }}
         """
 

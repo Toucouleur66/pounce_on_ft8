@@ -83,9 +83,11 @@ from constants import (
     STATUS_BUTTON_LABEL_TRX,
     STATUS_BUTTON_LABEL_NOTHING_YET,
     STATUS_COLOR_LABEL_OFF,
+    STOP_BUTTON_LABEL,
     WAITING_DATA_PACKETS_LABEL,
     WANTED_CALLSIGNS_HISTORY_LABEL,
     CALLSIGN_NOTICE_LABEL,
+    CQ_ZONE_NOTICE_LABEL,
     # Datetime column
     DATE_COLUMN_DATETIME,
     DATE_COLUMN_AGE,
@@ -357,6 +359,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.focus_value_label.setStyleSheet("padding: 10px;")
         self.focus_frame_layout.addWidget(self.focus_value_label)
         self.focus_frame.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
+        
         top_layout.addWidget(self.focus_frame)
 
         self.focus_value_label.mousePressEvent = self.copy_to_clipboard
@@ -371,10 +374,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.timer_value_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Minimum)
 
         top_layout.addWidget(self.timer_value_label)
-
-        self.callsign_notice = QtWidgets.QLabel(CALLSIGN_NOTICE_LABEL)
-        self.callsign_notice.setStyleSheet("background-color: #9dfffe; color: #555bc2;")
-    
+  
         """
             Widget Tab
         """
@@ -450,7 +450,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.status_button.clicked.connect(self.start_monitoring)
         self.status_button.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
         
-        self.stop_button = CustomButton("Stop all")
+        self.stop_button = CustomButton(STOP_BUTTON_LABEL)
         self.stop_button.setEnabled(False)        
         self.stop_button.clicked.connect(self.stop_monitoring)        
         self.stop_button.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
@@ -506,7 +506,7 @@ class MainApp(QtWidgets.QMainWindow):
         
         self.apply_theme_to_all(self.theme_manager.dark_mode)
         self.load_window_position()
-        self.create_main_menu()        
+        self.create_main_menu() 
         
         if self.datetime_column_setting == DATE_COLUMN_AGE:
             self.enable_age_column()
@@ -538,14 +538,14 @@ class MainApp(QtWidgets.QMainWindow):
 
         fixed_label_width                        = 150
 
-        vars_dict = {
+        wanted_dict = {
             'wanted_callsigns'      : self.wanted_callsigns_vars,
             'monitored_callsigns'   : self.monitored_callsigns_vars,            
             'monitored_cq_zones'    : self.monitored_cq_zones_vars,
             'excluded_callsigns'    : self.excluded_callsigns_vars,            
         }
 
-        tooltip_vars_dict = {
+        tooltip_wanted_dict = {
             'wanted_callsigns'      : self.tooltip_wanted_vars,
             'monitored_callsigns'   : self.tooltip_monitored_vars,
             'monitored_cq_zones'    : self.tooltip_monitored_cq_zones_vars,
@@ -557,24 +557,28 @@ class MainApp(QtWidgets.QMainWindow):
                 'name'             : 'wanted_callsigns',
                 'label'            : 'Wanted Callsign(s):',
                 'function'         : partial(force_input, mode="uppercase"),
+                'placeholder'      : CALLSIGN_NOTICE_LABEL,
                 'on_changed_method': self.on_wanted_callsigns_changed,
             },
             {
                 'name'             : 'monitored_callsigns',
                 'label'            : 'Monitored Callsign(s):',
                 'function'         : partial(force_input, mode="uppercase"),
+                'placeholder'      : CALLSIGN_NOTICE_LABEL,                
                 'on_changed_method': self.on_monitored_callsigns_changed,
             },
             {
                 'name'             : 'monitored_cq_zones',
                 'label'            : 'Monitored CQ Zone(s):',
                 'function'         : partial(force_input, mode="numbers"),
+                'placeholder'      : CALLSIGN_NOTICE_LABEL,                
                 'on_changed_method': self.on_monitored_cq_zones_changed,
             },
             {
                 'name'             : 'excluded_callsigns',
                 'label'            : 'Excluded Callsign(s):',
                 'function'         : partial(force_input, mode="uppercase"),
+                'placeholder'      : CQ_ZONE_NOTICE_LABEL,                
                 'on_changed_method': self.on_excluded_callsigns_changed,
             }
         ]
@@ -585,30 +589,28 @@ class MainApp(QtWidgets.QMainWindow):
 
             band_params = params.get(band, {})
 
-            for idx, var_info in enumerate(sought_variables):
-                var_name          = var_info['name']
-                label_text        = var_info['label']
-                function          = var_info['function']
-                on_changed_method = var_info['on_changed_method']
-
+            for idx, variable_info in enumerate(sought_variables):
                 line_edit = QtWidgets.QLineEdit()
                 line_edit.setFont(CUSTOM_FONT)
+                line_edit.setPlaceholderText(variable_info['placeholder'])
 
-                vars_dict[var_name][band] = line_edit
+                wanted_dict[variable_info['name']][band] = line_edit
 
-                tooltip_vars_dict[var_name][band] = ToolTip(line_edit)
+                tooltip_wanted_dict[variable_info['name']][band] = ToolTip(line_edit)
 
-                line_edit.setText(band_params.get(var_name, ""))
+                line_edit.setText(band_params.get(variable_info['name'], ""))
 
-                line_label = QtWidgets.QLabel(label_text)
+                line_label = QtWidgets.QLabel(variable_info['label'])
                 line_label.setStyleSheet("border-radius: 6px; padding: 3px;")
                 line_label.setMinimumWidth(fixed_label_width)
+
+                ToolTip(line_label, CALLSIGN_NOTICE_LABEL)
 
                 layout.addWidget(line_label, idx+1, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
                 layout.addWidget(line_edit, idx+1, 1)
 
-                line_edit.textChanged.connect(partial(function, line_edit))
-                line_edit.textChanged.connect(on_changed_method)
+                line_edit.textChanged.connect(partial(variable_info['function'], line_edit))
+                line_edit.textChanged.connect(variable_info['on_changed_method'])
 
             tab_content.setLayout(layout)
             self.band_content_widgets[band] = tab_content
@@ -1171,8 +1173,16 @@ class MainApp(QtWidgets.QMainWindow):
             menu.setStyleSheet(CONTEXT_MENU_DARWIN_QSS)
             menu.setFont(MENU_FONT)
 
-        if not index.isValid() or self.operating_band is False:
+        if not index.isValid() or (
+            self.operating_band is None and
+            self.gui_selected_band is None
+        ):
             return
+        
+        if self.operating_band is None:
+            context_menu_band = self.gui_selected_band
+        else:
+            context_menu_band = self.operating_band
 
         row = index.row()
 
@@ -1190,7 +1200,7 @@ class MainApp(QtWidgets.QMainWindow):
         if not callsign:
             return        
 
-        header_action = QtGui.QAction(f"Apply to {self.operating_band}:")
+        header_action = QtGui.QAction(f"Apply to {context_menu_band}:")
         header_action.setEnabled(False)  
         menu.addAction(header_action)
         menu.addSeparator()
@@ -1200,19 +1210,19 @@ class MainApp(QtWidgets.QMainWindow):
         """
             Wanted Callsigns
         """
-        if callsign not in self.wanted_callsigns_vars[self.operating_band].text():
+        if callsign not in self.wanted_callsigns_vars[context_menu_band].text():
             actions['add_callsign_to_wanted'] = menu.addAction(f"Add {callsign} to Wanted Callsigns")
         else:
             actions['remove_callsign_from_wanted'] = menu.addAction(f"Remove {callsign} from Wanted Callsigns")
 
-        if callsign != self.wanted_callsigns_vars[self.operating_band].text():
+        if callsign != self.wanted_callsigns_vars[context_menu_band].text():
             actions['replace_wanted_with_callsign'] = menu.addAction(f"Make {callsign} your only Wanted Callsign")
         menu.addSeparator()
 
         """
             Monitored Callsigns
         """
-        if callsign not in self.monitored_callsigns_vars[self.operating_band].text():
+        if callsign not in self.monitored_callsigns_vars[context_menu_band].text():
             actions['add_callsign_to_monitored'] = menu.addAction(f"Add {callsign} to Monitored Callsigns")
         else:
             actions['remove_callsign_from_monitored'] = menu.addAction(f"Remove {callsign} from Monitored Callsigns")
@@ -1222,15 +1232,15 @@ class MainApp(QtWidgets.QMainWindow):
             Directed Callsigns
         """
         if directed:
-            if directed not in self.wanted_callsigns_vars[self.operating_band].text():
+            if directed not in self.wanted_callsigns_vars[context_menu_band].text():
                 actions['add_directed_to_wanted'] = menu.addAction(f"Add {directed} to Wanted Callsigns")
             else:
                 actions['remove_directed_from_wanted'] = menu.addAction(f"Remove {directed} from Wanted Callsigns")
 
-            if directed != self.wanted_callsigns_vars[self.operating_band].text():
+            if directed != self.wanted_callsigns_vars[context_menu_band].text():
                 actions['replace_wanted_with_directed'] = menu.addAction(f"Make {directed} your only Monitored Callsign")                
 
-            if directed not in self.monitored_callsigns_vars[self.operating_band].text():
+            if directed not in self.monitored_callsigns_vars[context_menu_band].text():
                 actions['add_directed_to_monitored'] = menu.addAction(f"Add {directed} to Monitored Callsigns")
             else:
                 actions['remove_directed_from_monitored'] = menu.addAction(f"Remove {directed} from Monitored Callsigns")
@@ -1241,7 +1251,7 @@ class MainApp(QtWidgets.QMainWindow):
         """
         if cq_zone:
             try:
-                if str(cq_zone) not in self.monitored_cq_zones_vars[self.operating_band].text():
+                if str(cq_zone) not in self.monitored_cq_zones_vars[context_menu_band].text():
                     actions['add_to_cq_zone'] = menu.addAction(f"Add Zone {cq_zone} to Monitored CQ Zones")
                 else:
                     actions['remove_from_cq_zone'] = menu.addAction(f"Remove Zone {cq_zone} from Monitored CQ Zones")
@@ -1267,18 +1277,18 @@ class MainApp(QtWidgets.QMainWindow):
                 print("No formatted message to copy")
         else:
             update_actions = {
-                'add_callsign_to_wanted'         : lambda: self.update_var(self.wanted_callsigns_vars[self.operating_band], callsign),
-                'remove_callsign_from_wanted'    : lambda: self.update_var(self.wanted_callsigns_vars[self.operating_band], callsign, "remove"),
-                'replace_wanted_with_callsign'   : lambda: self.update_var(self.wanted_callsigns_vars[self.operating_band], callsign, "replace"),
-                'add_callsign_to_monitored'      : lambda: self.update_var(self.monitored_callsigns_vars[self.operating_band], callsign),
-                'remove_callsign_from_monitored' : lambda: self.update_var(self.monitored_callsigns_vars[self.operating_band], callsign, "remove"),
-                'add_directed_to_wanted'         : lambda: self.update_var(self.wanted_callsigns_vars[self.operating_band], directed),
-                'remove_directed_from_wanted'    : lambda: self.update_var(self.wanted_callsigns_vars[self.operating_band], directed, "remove"),
-                'replace_wanted_with_directed'   : lambda: self.update_var(self.wanted_callsigns_vars[self.operating_band], directed, "replace"),
-                'add_directed_to_monitored'      : lambda: self.update_var(self.monitored_callsigns_vars[self.operating_band], directed),
-                'remove_directed_from_monitored' : lambda: self.update_var(self.monitored_callsigns_vars[self.operating_band], directed, "remove"),
-                'add_to_cq_zone'                 : lambda: self.update_var(self.monitored_cq_zones_vars[self.operating_band], cq_zone),
-                'remove_from_cq_zone'            : lambda: self.update_var(self.monitored_cq_zones_vars[self.operating_band], cq_zone, "remove"),
+                'add_callsign_to_wanted'         : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], callsign),
+                'remove_callsign_from_wanted'    : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], callsign, "remove"),
+                'replace_wanted_with_callsign'   : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], callsign, "replace"),
+                'add_callsign_to_monitored'      : lambda: self.update_var(self.monitored_callsigns_vars[context_menu_band], callsign),
+                'remove_callsign_from_monitored' : lambda: self.update_var(self.monitored_callsigns_vars[context_menu_band], callsign, "remove"),
+                'add_directed_to_wanted'         : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], directed),
+                'remove_directed_from_wanted'    : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], directed, "remove"),
+                'replace_wanted_with_directed'   : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], directed, "replace"),
+                'add_directed_to_monitored'      : lambda: self.update_var(self.monitored_callsigns_vars[context_menu_band], directed),
+                'remove_directed_from_monitored' : lambda: self.update_var(self.monitored_callsigns_vars[context_menu_band], directed, "remove"),
+                'add_to_cq_zone'                 : lambda: self.update_var(self.monitored_cq_zones_vars[context_menu_band], cq_zone),
+                'remove_from_cq_zone'            : lambda: self.update_var(self.monitored_cq_zones_vars[context_menu_band], cq_zone, "remove"),
             }
 
             for key, act in actions.items():
@@ -2005,6 +2015,11 @@ class MainApp(QtWidgets.QMainWindow):
         # Add separator
         main_menu.addSeparator()
 
+        self.monitoring_action = QtGui.QAction(self.get_monitoring_action_text(), self)
+        self.monitoring_action.setShortcut(QtGui.QKeySequence("Ctrl+S"))
+        self.update_monitoring_action()
+        main_menu.addAction(self.monitoring_action)
+
         # Settings...
         settings_action = QtGui.QAction("Settings...", self)
         settings_action.setShortcut("Ctrl+,")  # Default shortcut for macOS
@@ -2058,6 +2073,22 @@ class MainApp(QtWidgets.QMainWindow):
         action_group.addAction(self.age_column_action)
         action_group.addAction(self.datetime_column_action)
         action_group.setExclusive(True)
+
+    def get_monitoring_action_text(self):
+        return STOP_BUTTON_LABEL if self._running else STATUS_BUTTON_LABEL_START
+
+    def update_monitoring_action(self):
+        try:
+            self.monitoring_action.triggered.disconnect()
+        except TypeError:
+            pass
+
+        if self._running:
+            self.monitoring_action.setText(STOP_BUTTON_LABEL)
+            self.monitoring_action.triggered.connect(self.stop_monitoring)
+        else:
+            self.monitoring_action.setText(STATUS_BUTTON_LABEL_START)
+            self.monitoring_action.triggered.connect(self.start_monitoring)
         
     def show_about_dialog(self):
         dialog = QtWidgets.QDialog(self)
@@ -2160,6 +2191,7 @@ class MainApp(QtWidgets.QMainWindow):
 
     def start_monitoring(self):
         self._running = True   
+        self.update_monitoring_action()
 
         self.network_check_status.start(self.network_check_status_interval)
 
@@ -2178,8 +2210,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.blink_timer.timeout.connect(self.toggle_label_visibility)
 
         self.stop_event.clear()
-        self.toggle_focus_frame(visible=False)
-        self.callsign_notice.hide()        
+        self.toggle_focus_frame(visible=False)  
 
         self.apply_band_change(self.gui_selected_band)
         # Todo: We might need to move update_wanted_callsigns_history in apply_band_change
@@ -2306,8 +2337,7 @@ class MainApp(QtWidgets.QMainWindow):
 
             self.stop_blinking_status_button()
             self.update_tab_widget_labels_style()
-            
-            # self.callsign_notice.show()
+            self.update_monitoring_action()
 
             self.tab_widget.set_selected_tab(self.band_indices.get(self.operating_band))
             self.tab_widget.set_operating_tab(None)

@@ -79,7 +79,7 @@ class CustomTabWidget(QtWidgets.QWidget):
                 margin-right: 1px;
             }}
             QToolButton:hover {{
-                background-color: transparent;
+                background-color: #ECECEC;
                 border: 1px solid #ccc;
                 padding: 4px;
             }}
