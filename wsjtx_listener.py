@@ -549,7 +549,7 @@ class Listener:
                 self.qso_time_on[callsign]                  = decode_time
 
                 if wanted is True:                                        
-                    log.warning("Start focus on callsign [ {} ]\treport:{}".format(callsign, self.rst_rcvd_from_being_called))
+                    log.warning("Start focus on callsign [ {} ]\treport:{}".format(callsign, self.rst_rcvd_from_being_called[callsign]))
                     # We can't use self.the_packet.mode as it returns "~"
                     # self.mode             = self.the_packet.mode
                     self.reply_to_packet()  
@@ -567,7 +567,7 @@ class Listener:
                     self.targeted_call_frequencies.add(delta_f)     
 
                 # Do not use callback message if wanted callsign already gave us a report
-                if self.message_callback and self.rst_rcvd_from_being_called is None:
+                if self.message_callback and self.rst_rcvd_from_being_called.get('callsign') is None:
                     self.message_callback({
                         'type': 'wanted_callsign_detected',
                         'formatted_message': formatted_message,
