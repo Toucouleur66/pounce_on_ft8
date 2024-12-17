@@ -1294,6 +1294,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.setWindowTitle(self.window_title)
 
     def reset_window_title(self):
+        self.window_title = None
         self.setWindowTitle(self.base_title)  
 
     def init_activity_bar(self):
@@ -1476,6 +1477,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.status_label.setText('<br>'.join(status_text_array))
 
         if connection_lost:
+            self.reset_window_title()
             self.update_status_label_style("red", "white")
             if not self.connection_lost_shown:
                 self.connection_lost_shown = True
@@ -1723,7 +1725,8 @@ class MainApp(QtWidgets.QMainWindow):
             self.add_row_to_output_table(raw_data)
 
         if message_type == 'ready_to_log':
-            self.add_row_to_history_table(raw_data)            
+            self.add_row_to_history_table(raw_data)
+            self.update_var(self.wanted_callsigns_vars[band], callsign, "remove")
 
         self.clear_button.setEnabled(True)
 
