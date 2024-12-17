@@ -576,8 +576,8 @@ class MainApp(QtWidgets.QMainWindow):
         )
         wait_pounce_history_table.setItemDelegateForColumn(0, TimeAgoDelegate())
         wait_pounce_history_table.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+        wait_pounce_history_table.setObjectName("history_table")        
         wait_pounce_history_table.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
-        wait_pounce_history_table.setObjectName("wait_pounce_history_table")
 
         return wait_pounce_history_table
 
@@ -1158,16 +1158,21 @@ class MainApp(QtWidgets.QMainWindow):
         callsign            = data.get('callsign')
         directed            = data.get('directed')
         cq_zone             = data.get('cq_zone')
+        history_band        = data.get('band')
 
         if not callsign:
             return        
+
+        actions = {}        
 
         header_action = QtGui.QAction(f"Apply to {context_menu_band}")
         header_action.setEnabled(False)  
         menu.addAction(header_action)
         menu.addSeparator()
-
-        actions = {}
+        
+        if table.objectName() == 'history_table':
+            actions['remove_callsign_from_worked_history'] = menu.addAction(f"Remove {callsign} on {history_band} from Worked History")
+            menu.addSeparator()
 
         """
             Wanted Callsigns
@@ -1240,18 +1245,19 @@ class MainApp(QtWidgets.QMainWindow):
                 print("No formatted message to copy")
         else:
             update_actions = {
-                'add_callsign_to_wanted'         : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], callsign),
-                'remove_callsign_from_wanted'    : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], callsign, "remove"),
-                'replace_wanted_with_callsign'   : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], callsign, "replace"),
-                'add_callsign_to_monitored'      : lambda: self.update_var(self.monitored_callsigns_vars[context_menu_band], callsign),
-                'remove_callsign_from_monitored' : lambda: self.update_var(self.monitored_callsigns_vars[context_menu_band], callsign, "remove"),
-                'add_directed_to_wanted'         : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], directed),
-                'remove_directed_from_wanted'    : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], directed, "remove"),
-                'replace_wanted_with_directed'   : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], directed, "replace"),
-                'add_directed_to_monitored'      : lambda: self.update_var(self.monitored_callsigns_vars[context_menu_band], directed),
-                'remove_directed_from_monitored' : lambda: self.update_var(self.monitored_callsigns_vars[context_menu_band], directed, "remove"),
-                'add_to_cq_zone'                 : lambda: self.update_var(self.monitored_cq_zones_vars[context_menu_band], cq_zone),
-                'remove_from_cq_zone'            : lambda: self.update_var(self.monitored_cq_zones_vars[context_menu_band], cq_zone, "remove"),
+                'remove_callsign_from_worked_history' : lambda: self.remove_worked_callsign(callsign, history_band),
+                'add_callsign_to_wanted'              : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], callsign),
+                'remove_callsign_from_wanted'         : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], callsign, "remove"),
+                'replace_wanted_with_callsign'        : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], callsign, "replace"),
+                'add_callsign_to_monitored'           : lambda: self.update_var(self.monitored_callsigns_vars[context_menu_band], callsign),
+                'remove_callsign_from_monitored'      : lambda: self.update_var(self.monitored_callsigns_vars[context_menu_band], callsign, "remove"),
+                'add_directed_to_wanted'              : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], directed),
+                'remove_directed_from_wanted'         : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], directed, "remove"),
+                'replace_wanted_with_directed'        : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], directed, "replace"),
+                'add_directed_to_monitored'           : lambda: self.update_var(self.monitored_callsigns_vars[context_menu_band], directed),
+                'remove_directed_from_monitored'      : lambda: self.update_var(self.monitored_callsigns_vars[context_menu_band], directed, "remove"),
+                'add_to_cq_zone'                      : lambda: self.update_var(self.monitored_cq_zones_vars[context_menu_band], cq_zone),
+                'remove_from_cq_zone'                 : lambda: self.update_var(self.monitored_cq_zones_vars[context_menu_band], cq_zone, "remove"),
             }
 
             for key, act in actions.items():
@@ -1608,6 +1614,18 @@ class MainApp(QtWidgets.QMainWindow):
                 return {}
         return {}
 
+    def remove_worked_callsign(self, callsign, band):
+        updated_history = [
+            entry for entry in self.worked_callsigns_history
+            if not (entry.get("callsign") == callsign and entry.get("band") == band)
+        ]
+
+        if len(updated_history) < len(self.worked_callsigns_history):
+            self.worked_callsigns_history = updated_history
+            self.save_worked_callsigns()
+            self.wait_pounce_history_table.setRowCount(0)
+            self.load_worked_history_callsigns()
+
     def save_worked_callsigns(self):
         with open(WORKED_CALLSIGNS_FILE, "wb") as f:
             pickle.dump(self.worked_callsigns_history, f)
@@ -1790,6 +1808,7 @@ class MainApp(QtWidgets.QMainWindow):
         item_date.setData(QtCore.Qt.ItemDataRole.UserRole, {
             'datetime'          : raw_data["row_datetime"],
             'callsign'          : raw_data["callsign"], 
+            'band'              : raw_data["band"], 
             'directed'          : raw_data["directed"],
             'wanted'            : raw_data["directed"],
             'cq_zone'           : raw_data["cq_zone"],
