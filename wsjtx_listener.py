@@ -423,6 +423,7 @@ class Listener:
             log.debug('{}'.format(self.the_packet))
 
         try:
+            message_type                 = None 
             self.packet_counter         += 1
             packet_id                    = self.packet_counter
             self.packet_store[packet_id] = self.the_packet
@@ -467,28 +468,6 @@ class Listener:
             monitored_cq_zone = parsed_data['monitored_cq_zone']
 
             """
-                How to handle message for GUI
-            """                         
-
-            if self.message_callback:
-                self.message_callback({                
-                'packet_id'         : packet_id,   
-                'my_call'           : self.my_call,     
-                'decode_time_str'   : decode_time_str,
-                'callsign'          : callsign,
-                'callsign_info'     : callsign_info,
-                'directed'          : directed,
-                'wanted'            : wanted,
-                'monitored'         : monitored,
-                'monitored_cq_zone' : monitored_cq_zone,
-                'delta_time'        : delta_t,
-                'delta_freq'        : delta_f,
-                'snr'               : snr,                
-                'message'           : f"{message:<21.21}".strip(),
-                'formatted_message' : formatted_message
-            })
-                
-            """
                 Reset values to focus on another wanted callsign
             """
             if (
@@ -509,10 +488,7 @@ class Listener:
 
                 if self.targeted_call is not None and callsign != self.targeted_call:
                     log.error(f"Received |{msg}| from [ {callsign} ] but ongoing callsign is [ {self.targeted_call} ]")
-                    if self.message_callback:
-                        self.message_callback({
-                            'type': 'error_occurred',                
-                        })
+                    message_type = 'error_occurred'
 
                 if self.targeted_call == callsign or self.enable_log_all_valid_contact:
                     self.call_ready_to_log = callsign 
@@ -530,16 +506,10 @@ class Listener:
      
                 elif self.targeted_call is not None:
                     log.error(f"Received |{msg}| from [ {callsign} ] but ongoing callsign is [ {self.targeted_call} ]")
-                    if self.message_callback:
-                        self.message_callback({
-                            'type': 'error_occurred',                
-                        })
+                    message_type = 'error_occurred'
 
                 if self.message_callback:
-                    self.message_callback({
-                        'type': 'ready_to_log',
-                        'formatted_message': formatted_message
-                    })                           
+                    message_type = 'ready_to_log'     
                 
             elif directed == self.my_call:
                 log.warning("Found message directed to my call [ {} ] from [ {} ]".format(directed, callsign))
@@ -554,12 +524,7 @@ class Listener:
                     # self.mode             = self.the_packet.mode
                     self.reply_to_packet()  
 
-                if self.message_callback:
-                    self.message_callback({
-                        'type': 'directed_to_my_call',
-                        'formatted_message': formatted_message,
-                        'contains_my_call': True
-                    })                            
+                message_type = 'directed_to_my_call'    
 
             elif wanted is True:
                 log.debug("Listener wanted_callsign {}".format(callsign))  
@@ -567,12 +532,8 @@ class Listener:
                     self.targeted_call_frequencies.add(delta_f)     
 
                 # Do not use callback message if wanted callsign already gave us a report
-                if self.message_callback and self.rst_rcvd_from_being_called.get('callsign') is None:
-                    self.message_callback({
-                        'type': 'wanted_callsign_detected',
-                        'formatted_message': formatted_message,
-                        'contains_my_call': directed == self.my_call
-                    })                    
+                if self.rst_rcvd_from_being_called.get('callsign') is None:
+                    message_type = 'wanted_callsign_detected'                                  
 
                 if cqing is True:
                     debug_message = "Found CQ message from callsign [ {} ]".format(callsign)
@@ -592,11 +553,30 @@ class Listener:
                     self.message_callback(debug_message)
 
             elif monitored or monitored_cq_zone:
-                if self.message_callback:
-                    self.message_callback({
-                        'type': 'monitored_callsign_detected',
-                        'formatted_message': formatted_message
-                    })                                 
+                message_type = 'monitored_callsign_detected'                    
+            
+            """
+                Handle message to send to GUI
+            """                         
+
+            if self.message_callback:
+                self.message_callback({                
+                'packet_id'         : packet_id,   
+                'my_call'           : self.my_call,     
+                'decode_time_str'   : decode_time_str,
+                'callsign'          : callsign,
+                'callsign_info'     : callsign_info,
+                'directed'          : directed,
+                'wanted'            : wanted,
+                'monitored'         : monitored,
+                'monitored_cq_zone' : monitored_cq_zone,
+                'delta_time'        : delta_t,
+                'delta_freq'        : delta_f,
+                'snr'               : snr,                
+                'message'           : f"{message:<21.21}".strip(),
+                'message_type'      : message_type,
+                'formatted_message' : formatted_message
+            })        
 
         except TypeError as e:
             log.error("Caught a type error in parsing packet: {}; error {}\n{}".format(

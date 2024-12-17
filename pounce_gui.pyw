@@ -72,8 +72,7 @@ from constants import (
     # Parameters
     PARAMS_FILE,
     POSITION_FILE,
-    WANTED_CALLSIGNS_FILE,
-    WANTED_CALLSIGNS_HISTORY_SIZE,
+    WORKED_CALLSIGNS_FILE,
     # Labels
     GUI_LABEL_NAME,
     GUI_LABEL_VERSION,
@@ -85,7 +84,7 @@ from constants import (
     STATUS_COLOR_LABEL_OFF,
     STOP_BUTTON_LABEL,
     WAITING_DATA_PACKETS_LABEL,
-    WANTED_CALLSIGNS_HISTORY_LABEL,
+    WORKED_CALLSIGNS_HISTORY_LABEL,
     CALLSIGN_NOTICE_LABEL,
     CQ_ZONE_NOTICE_LABEL,
     # Datetime column
@@ -127,92 +126,6 @@ from constants import (
 
 log         = get_logger(__name__)
 stop_event  = threading.Event()
-
-class UpdateWantedDialog(QtWidgets.QDialog):
-    def __init__(self, parent=None, selected_callsign=""):
-        super().__init__(parent)
-
-        self.theme_manager = ThemeManager()
-        self.selected_callsign = selected_callsign
-
-        if self.theme_manager:
-            self.theme_manager.theme_changed.connect(self.apply_theme)
-
-        self.init_ui()
-        self.apply_theme(self.theme_manager.dark_mode)
-
-    def init_ui(self):
-        self.setWindowTitle("Update Wanted Callsigns")
-        self.resize(450, 100)
-
-        layout = QtWidgets.QVBoxLayout(self)
-        
-        message_label = QtWidgets.QLabel('Do you want to update Wanted Callsign(s) with:')
-        layout.addWidget(message_label)
-        
-        self.entry = QtWidgets.QLabel(self.selected_callsign)
-        self.entry.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignTop)
-        self.entry.setWordWrap(True)
-        self.entry.setFont(CUSTOM_FONT_MONO)
-
-        self.entry.setContentsMargins(5, 5, 5, 5)
-        layout.addWidget(self.entry)
-        
-        button_box = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.StandardButton.Yes | QtWidgets.QDialogButtonBox.StandardButton.No
-        )
-        layout.addWidget(button_box)
-
-        button_box.accepted.connect(self.accept)
-        button_box.rejected.connect(self.reject)
-
-        self.adjust_dialog_size()
-
-    def apply_theme(self, dark_mode):        
-        if dark_mode:
-            self.entry.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_YELLOW}; color: {FG_COLOR_BLACK_ON_YELLOW};")
-        else:
-            self.entry.setStyleSheet(f"background-color: {FG_COLOR_REGULAR_FOCUS}; color: {BG_COLOR_REGULAR_FOCUS};")
-
-    def adjust_dialog_size(self):
-        self.entry.adjustSize()
-    
-        self.adjustSize()
-        
-        min_width = max(450, self.entry.width() + 40)  
-        min_height = max(50, self.entry.height() + 120)
-        
-        self.setMinimumSize(min_width, min_height)        
-
-class EditWantedDialog(QtWidgets.QDialog):
-    def __init__(self, parent=None, initial_value="", title="Edit Wanted Callsigns"):
-        super().__init__(parent)
-
-        self.setWindowTitle(title)
-        self.resize(600, 200)
-
-        layout = QtWidgets.QVBoxLayout(self)
-
-        message_label = QtWidgets.QLabel("Wanted Callsign(s) (Comma separated list):")
-        layout.addWidget(message_label)
-
-        self.entry = QtWidgets.QTextEdit()
-        self.entry.setAcceptRichText(False)
-        self.entry.setText(initial_value)
-        self.entry.setFont(CUSTOM_FONT_MONO)
-        self.entry.textChanged.connect(lambda: force_input(self.entry, mode="uppercase"))
-        layout.addWidget(self.entry)
-
-        button_box = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.StandardButton.Ok | QtWidgets.QDialogButtonBox.StandardButton.Cancel
-        )
-        layout.addWidget(button_box)
-
-        button_box.accepted.connect(self.accept)
-        button_box.rejected.connect(self.reject)
-
-    def get_result(self):
-        return ",".join(text_to_array(self.entry.toPlainText().strip()))
 
 class MainApp(QtWidgets.QMainWindow):
     error_occurred = QtCore.pyqtSignal(str)    
@@ -325,23 +238,20 @@ class MainApp(QtWidgets.QMainWindow):
         main_layout = QtWidgets.QGridLayout()
         outer_layout.addLayout(main_layout)
 
-        self.wanted_callsigns_history = self.load_wanted_callsigns()
+        """
+            Wait and Pounce History
+        """
+        self.worked_callsigns_history = [] 
 
-        # Wanted callsigns label
-        self.wanted_callsigns_history_label = QtWidgets.QLabel(WANTED_CALLSIGNS_HISTORY_LABEL % len(self.wanted_callsigns_history))
+        self.wait_pounce_history_table = self.init_wait_pounce_history_table_ui()
+        self.wait_pounce_history_table.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
 
-        # Listbox (wanted callsigns)
-        self.listbox = QtWidgets.QListWidget()
-        self.listbox.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
-        self.listbox.setFont(CUSTOM_FONT)
-        self.listbox.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.listbox.itemDoubleClicked.connect(self.on_listbox_double_click)
+        refresh_history_table_timer = QtCore.QTimer(self)
+        refresh_history_table_timer.start(1_000)        
+        refresh_history_table_timer.timeout.connect(lambda: self.wait_pounce_history_table.viewport().update())
 
-        # Context menu for listbox
-        self.listbox.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
-        self.listbox.customContextMenuRequested.connect(self.on_right_click)        
-
-        self.update_listbox()
+        self.worked_history_callsigns_label = QtWidgets.QLabel()
+        self.worked_history_callsigns = self.load_worked_history_callsigns()
 
         """
             Top layout for focus_frame and timer_value_label
@@ -410,7 +320,7 @@ class MainApp(QtWidgets.QMainWindow):
         """
             Main output table
         """
-        self.output_table = self.init_table_ui()
+        self.output_table = self.init_output_table_ui()
 
         """
             Filter layout
@@ -448,12 +358,12 @@ class MainApp(QtWidgets.QMainWindow):
         # Timer and start/stop buttons
         self.status_button = CustomButton(STATUS_BUTTON_LABEL_START)
         self.status_button.clicked.connect(self.start_monitoring)
-        self.status_button.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
+        self.status_button.setFixedWidth(200)
         
         self.stop_button = CustomButton(STOP_BUTTON_LABEL)
         self.stop_button.setEnabled(False)        
         self.stop_button.clicked.connect(self.stop_monitoring)        
-        self.stop_button.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
+        self.stop_button.setFixedWidth(100)
         
         """
             Button layout
@@ -483,9 +393,9 @@ class MainApp(QtWidgets.QMainWindow):
             Main layout
         """
         main_layout.addLayout(top_layout, 0, 0, 1, 5) 
-        main_layout.addWidget(self.wanted_callsigns_history_label, 1, 3, 1, 2)
+        main_layout.addWidget(self.worked_history_callsigns_label, 1, 3, 1, 2)
         main_layout.addWidget(self.tab_widget, 2, 0, 4, 3)                
-        main_layout.addWidget(self.listbox, 2, 3, 5, 2)
+        main_layout.addWidget(self.wait_pounce_history_table, 2, 3, 5, 2)
         main_layout.addLayout(status_layout, 8, 1, 1, 1)
         main_layout.addWidget(self.status_button, 8, 3)
         main_layout.addWidget(self.stop_button, 8, 4)
@@ -493,7 +403,7 @@ class MainApp(QtWidgets.QMainWindow):
         main_layout.addWidget(self.output_table, 10, 0, 1, 5)
         main_layout.addWidget(self.filter_widget, 11, 0, 1, 5)
         main_layout.addLayout(bottom_layout, 12, 0, 1, 5)
-        
+
         self.file_handler = None
         if self.enable_pounce_log:
             self.file_handler = add_file_handler(get_log_filename())
@@ -620,7 +530,51 @@ class MainApp(QtWidgets.QMainWindow):
 
         return tab_widget
 
-    def init_table_ui(self):
+    def init_wait_pounce_history_table_ui(self):
+        wait_pounce_history_table = QtWidgets.QTableWidget()
+        wait_pounce_history_table.setColumnCount(3)  
+
+        header_item = QTableWidgetItem('Age')
+        header_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)     
+        wait_pounce_history_table.setHorizontalHeaderItem(0, header_item)            
+
+        header_item = QTableWidgetItem('Callsign')
+        header_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)   
+        wait_pounce_history_table.setHorizontalHeaderItem(1, header_item)            
+
+        header_item = QTableWidgetItem('Band')
+        header_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)     
+        wait_pounce_history_table.setHorizontalHeaderItem(2, header_item)            
+
+        wait_pounce_history_table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
+        wait_pounce_history_table.setFont(CUSTOM_FONT_SMALL)
+
+        wait_pounce_history_table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.NoSelection)
+        wait_pounce_history_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
+
+        wait_pounce_history_table.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+        wait_pounce_history_table.verticalHeader().setVisible(False)
+        wait_pounce_history_table.verticalHeader().setDefaultSectionSize(24)
+        wait_pounce_history_table.setAlternatingRowColors(True)
+
+        wait_pounce_history_table.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.Fixed)
+        wait_pounce_history_table.horizontalHeader().setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeMode.Stretch)
+        wait_pounce_history_table.horizontalHeader().setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeMode.Fixed)
+
+        wait_pounce_history_table.setColumnWidth(0, 45)
+        wait_pounce_history_table.setColumnWidth(1, 40)
+        wait_pounce_history_table.setColumnWidth(2, 45)
+        
+        # wait_pounce_history_table.itemDoubleClicked.connect(self.on_table_item_double_click)
+        # wait_pounce_history_table.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
+        # wait_pounce_history_table.customContextMenuRequested.connect(self.on_right_click)
+
+        wait_pounce_history_table.setItemDelegateForColumn(0, TimeAgoDelegate())
+
+        return wait_pounce_history_table
+
+    def init_output_table_ui(self):
         output_table            = QTableWidget(self)
 
         header_labels = [DATE_COLUMN_DATETIME, 'Band', 'Report', 'DT', 'Freq', 'Message', 'Country', 'CQ', 'Continent']
@@ -640,12 +594,7 @@ class MainApp(QtWidgets.QMainWindow):
         output_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
 
         output_table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
-        output_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.Interactive)        
-        output_table.horizontalHeader().setStyleSheet("""
-            QHeaderView::section {
-                font-weight: normal;
-            }
-        """)
+        output_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.Interactive)                
         output_table.verticalHeader().setVisible(False)
         output_table.verticalHeader().setDefaultSectionSize(24)
         output_table.setAlternatingRowColors(True)
@@ -1012,16 +961,6 @@ class MainApp(QtWidgets.QMainWindow):
             if self.worker is not None:
                 self.worker.update_settings_signal.emit()
 
-    def update_wanted_callsigns_history(self, new_callsigns):
-        if new_callsigns:
-            new_callsigns = ",".join(sorted([callsign.strip() for callsign in new_callsigns.split(",")]))
-            if new_callsigns not in self.wanted_callsigns_history:
-                self.wanted_callsigns_history.append(new_callsigns)
-                if len(self.wanted_callsigns_history) > WANTED_CALLSIGNS_HISTORY_SIZE:
-                    self.wanted_callsigns_history.pop(0)
-                self.save_wanted_callsigns(self.wanted_callsigns_history)
-                self.update_listbox()
-
     @QtCore.pyqtSlot(str)
     def add_message_to_table(self, message, fg_color='white', bg_color=STATUS_TRX_COLOR):        
         self.clear_button.setEnabled(True)
@@ -1066,13 +1005,30 @@ class MainApp(QtWidgets.QMainWindow):
                     message.get('last_heartbeat_time'),
                     message.get('frequency'),
                     message.get('transmitting')
-                )                
-            elif message_type is not None:
-                formatted_message = message.get('formatted_message')
-                if formatted_message is not None:
-                    contains_my_call = message.get('contains_my_call')
-                    self.set_value_to_focus(formatted_message, contains_my_call)
+                )                               
+            elif 'decode_time_str' in message:
+                formatted_message   = message.get('formatted_message')
+                message_type        = message.get('message_type')
 
+                callsign            = message.get('callsign')
+                callsign_info       = message.get('callsign_info', None)
+                directed            = message.get('directed')
+                my_call             = message.get('my_call')
+                wanted              = message.get('wanted')
+                monitored           = message.get('monitored')
+                monitored_cq_zone   = message.get('monitored_cq_zone')
+
+                empty_str           = ''
+                entity              = empty_str
+                cq_zone             = empty_str
+                continent           = empty_str
+                                
+                if message_type is not None:
+                    self.set_value_to_focus(formatted_message, directed == my_call)
+
+                """
+                    Handle sound notification
+                """
                 play_sound = False
                 if not self.disable_alert_checkbox.isChecked():      
                     if message_type == 'wanted_callsign_detected' and self.enable_sound_wanted_callsigns:
@@ -1095,22 +1051,11 @@ class MainApp(QtWidgets.QMainWindow):
                 if play_sound:
                     self.play_sound(message_type)
 
-            elif 'decode_time_str' in message:
+                """
+                    Handle GUI output
+                """
                 self.message_times.append(datetime.now())    
 
-                callsign            = message.get('callsign')
-                callsign_info       = message.get('callsign_info', None)
-                directed            = message.get('directed')
-                my_call             = message.get('my_call')
-                wanted              = message.get('wanted')
-                monitored           = message.get('monitored')
-                monitored_cq_zone   = message.get('monitored_cq_zone')
-
-                empty_str           = ''
-                entity              = empty_str
-                cq_zone             = empty_str
-                continent           = empty_str
-                
                 if directed == my_call:
                     message_color      = "bright_for_my_call"
                 elif wanted is True:
@@ -1136,6 +1081,7 @@ class MainApp(QtWidgets.QMainWindow):
                  
                 if self.enable_show_all_decoded or message_color:
                     self.update_table_data(
+                        wanted,
                         callsign,
                         directed,
                         message.get('decode_time_str'),
@@ -1144,11 +1090,12 @@ class MainApp(QtWidgets.QMainWindow):
                         message.get('delta_time', 0.0),
                         message.get('delta_freq', 0),
                         message.get('message', ''),
-                        message.get('formatted_message'),
+                        formatted_message,
                         entity,
                         cq_zone,
                         continent,
-                        message_color
+                        message_type,
+                        message_color                      
                     )            
 
         elif isinstance(message, str):
@@ -1326,15 +1273,6 @@ class MainApp(QtWidgets.QMainWindow):
 
     def reset_window_title(self):
         self.setWindowTitle(self.base_title)  
-
-    def on_listbox_double_click(self, item):
-        if self.gui_selected_band:
-            selected_callsign = item.text()
-            dialog = UpdateWantedDialog(self, selected_callsign=selected_callsign)
-            result = dialog.exec()
-            if result == QtWidgets.QDialog.DialogCode.Accepted:            
-                self.wanted_callsigns_vars[self.gui_selected_band].setText(selected_callsign)
-                self.update_current_callsign_highlight()
 
     def init_activity_bar(self):
         self.activity_bar.setValue(ACTIVITY_BAR_MAX_VALUE)
@@ -1613,13 +1551,24 @@ class MainApp(QtWidgets.QMainWindow):
         gridline_color      = '#D3D3D3' if not dark_mode else '#171717'
         background_color    = '#FFFFFF' if not dark_mode else '#353535'
 
-        self.output_table.setStyleSheet(f"""
+        table_qss           = f"""
             QTableWidget {{ 
                 background-color: {background_color};
                 gridline-color: {gridline_color}; 
             }}
-        """)
+            QHeaderView::section {{
+                font-weight: normal;
+                border: none;
+                padding: 0 3px 0 3px;
+                border-right: 1px solid {gridline_color};
+            }}
+        """
+
+        self.output_table.setStyleSheet(table_qss)
         self.output_table.setPalette(table_palette)
+
+        self.wait_pounce_history_table.setStyleSheet(table_qss)
+        self.wait_pounce_history_table.setPalette(table_palette)
 
         self.update_tab_widget_labels_style()
 
@@ -1643,23 +1592,29 @@ class MainApp(QtWidgets.QMainWindow):
                 return {}
         return {}
 
-    def save_wanted_callsigns(self, wanted_callsigns_history):
-        with open(WANTED_CALLSIGNS_FILE, "wb") as f:
-            pickle.dump(wanted_callsigns_history, f)
+    def save_worked_callsigns(self):
+        with open(WORKED_CALLSIGNS_FILE, "wb") as f:
+            pickle.dump(self.worked_callsigns_history, f)
 
-    def load_wanted_callsigns(self):
-        if os.path.exists(WANTED_CALLSIGNS_FILE):
-            with open(WANTED_CALLSIGNS_FILE, "rb") as f:
-                return pickle.load(f)
-        return []
+    def load_worked_history_callsigns(self):
+        if os.path.exists(WORKED_CALLSIGNS_FILE):
+            try:
+                if os.path.getsize(WORKED_CALLSIGNS_FILE) > 0: 
+                    with open(WORKED_CALLSIGNS_FILE, "rb") as f:
+                        self.worked_callsigns_history = pickle.load(f)
 
-    def update_listbox(self):
-        self.listbox.clear()
-        self.listbox.addItems(self.wanted_callsigns_history)
-        self.update_wanted_callsigns_history_counter()
+                    for raw_data in self.worked_callsigns_history:
+                        self.add_row_to_history_table(raw_data, add_to_history=False)
+                    self.update_worked_callsigns_history_counter()
+                else:
+                    self.worked_callsigns_history = []
+            except (EOFError, pickle.UnpicklingError) as e:
+                self.worked_callsigns_history = []
+        else:        
+            self.worked_callsigns_history = []
 
-    def update_wanted_callsigns_history_counter(self):
-        self.wanted_callsigns_history_label.setText(WANTED_CALLSIGNS_HISTORY_LABEL % len(self.wanted_callsigns_history))
+    def update_worked_callsigns_history_counter(self):
+        self.worked_history_callsigns_label.setText(WORKED_CALLSIGNS_HISTORY_LABEL % len(self.worked_callsigns_history))
 
     def update_alert_label_style(self):
         if self.disable_alert_checkbox.isChecked():
@@ -1684,30 +1639,6 @@ class MainApp(QtWidgets.QMainWindow):
         elif action == edit_action:
             self.edit_callsigns()
 
-    def remove_callsign_from_history(self):
-        selected_items = self.listbox.selectedItems()
-        if not selected_items:
-            return
-        for item in selected_items:
-            self.wanted_callsigns_history.remove(item.text())
-            self.listbox.takeItem(self.listbox.row(item))
-        self.save_wanted_callsigns(self.wanted_callsigns_history)
-        self.update_wanted_callsigns_history_counter()
-
-    def edit_callsigns(self):
-        selected_items = self.listbox.selectedItems()
-        if not selected_items:
-            return
-        current_entry = selected_items[0].text()
-        dialog = EditWantedDialog(self, initial_value=current_entry)
-        if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
-            new_callsigns = dialog.get_result()
-            index = self.listbox.row(selected_items[0])
-            self.wanted_callsigns_history[index] = new_callsigns
-            self.listbox.item(index).setText(new_callsigns)
-            self.save_wanted_callsigns(self.wanted_callsigns_history)
-            self.update_wanted_callsigns_history_counter()
-
     def copy_to_clipboard(self, event):
         message = self.focus_value_label.text()
         pyperclip.copy(message)
@@ -1715,6 +1646,7 @@ class MainApp(QtWidgets.QMainWindow):
 
     def update_table_data(
             self,
+            wanted,
             callsign,
             directed,
             date_str,
@@ -1727,6 +1659,7 @@ class MainApp(QtWidgets.QMainWindow):
             entity,
             cq_zone,
             continent,
+            message_type,
             row_color         = None
         ):
 
@@ -1734,6 +1667,7 @@ class MainApp(QtWidgets.QMainWindow):
             Store data for filter use
         """
         raw_data = {
+            "wanted"            : wanted, 
             "callsign"          : callsign,
             "directed"          : directed,
             "date_str"          : date_str,
@@ -1752,11 +1686,14 @@ class MainApp(QtWidgets.QMainWindow):
         self.table_raw_data.append(raw_data)
         self.update_combo_box_values(raw_data)
         if self.is_valid_for_filters(raw_data):
-            self.add_row_to_table(raw_data)
+            self.add_row_to_output_table(raw_data)
+
+        if message_type == 'ready_to_log':
+            self.add_row_to_history_table(raw_data)            
 
         self.clear_button.setEnabled(True)
 
-    def add_row_to_table(self, raw_data):
+    def add_row_to_output_table(self, raw_data):
         row_id = self.output_table.rowCount()  
         self.output_table.insertRow(row_id)
         if (
@@ -1824,7 +1761,38 @@ class MainApp(QtWidgets.QMainWindow):
             self.apply_row_format(row_id, row_color)
         
         self.output_table.scrollToBottom()        
-        
+
+    def add_row_to_history_table(self, raw_data, add_to_history=True):
+        row_id = self.wait_pounce_history_table.rowCount()
+        self.wait_pounce_history_table.insertRow(row_id)
+
+        band            = raw_data["band"]
+        row_color       = raw_data["row_color"]
+
+        item_date = QTableWidgetItem(raw_data["date_str"])
+
+        item_date.setData(QtCore.Qt.ItemDataRole.UserRole, {
+            'datetime'          : raw_data["row_datetime"],
+            'callsign'          : raw_data["callsign"], 
+            'directed'          : raw_data["directed"],
+            'wanted'            : raw_data["directed"],
+            'cq_zone'           : raw_data["cq_zone"],
+            'formatted_message' : raw_data["formatted_message"].strip()
+        })       
+
+        item_date.setData(QtCore.Qt.ItemDataRole.DisplayRole, raw_data["date_str"])
+        self.wait_pounce_history_table.setItem(row_id, 0, item_date)
+
+        item_callsign = QtWidgets.QTableWidgetItem(raw_data["callsign"])
+        self.wait_pounce_history_table.setItem(row_id, 1, item_callsign)
+
+        item_band = QtWidgets.QTableWidgetItem(band)
+        self.wait_pounce_history_table.setItem(row_id, 2, item_band)
+
+        if add_to_history:
+            self.worked_callsigns_history.append(raw_data)
+            self.update_worked_callsigns_history_counter()            
+
     def apply_row_format(self, row, row_color):
         if row_color == 'bright_for_my_call':
             bg_color = QtGui.QColor(BG_COLOR_FOCUS_MY_CALL)
@@ -1898,7 +1866,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         for raw_data in self.table_raw_data:
             if self.is_valid_for_filters(raw_data):
-                self.add_row_to_table(raw_data)
+                self.add_row_to_output_table(raw_data)
 
     def clear_filters(self):
         self.callsign_input.clear()
@@ -2213,9 +2181,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.toggle_focus_frame(visible=False)  
 
         self.apply_band_change(self.gui_selected_band)
-        # Todo: We might need to move update_wanted_callsigns_history in apply_band_change
-        self.update_wanted_callsigns_history(self.wanted_callsigns_vars[self.operating_band].text())
-        self.update_current_callsign_highlight()
         
         params                              = self.load_params()
         local_ip_address                    = get_local_ip_address()
@@ -2232,8 +2197,8 @@ class MainApp(QtWidgets.QMainWindow):
         enable_debug_output                 = params.get('enable_debug_output', DEFAULT_DEBUG_OUTPUT)
         enable_pounce_log                   = params.get('enable_pounce_log', DEFAULT_POUNCE_LOG)
         enable_log_packet_data              = params.get('enable_log_packet_data', DEFAULT_LOG_PACKET_DATA)
-        enable_log_all_valid_contact        = params.get('enable_log_all_valid_contact', DEFAULT_LOG_ALL_VALID_CONTACT)
-        
+
+        self.enable_log_all_valid_contact   = params.get('enable_log_all_valid_contact', DEFAULT_LOG_ALL_VALID_CONTACT)        
         self.enable_show_all_decoded        = params.get('enable_show_all_decoded', DEFAULT_SHOW_ALL_DECODED)
         
         self.save_unique_param('freq_range_mode', freq_range_mode )        
@@ -2250,7 +2215,7 @@ class MainApp(QtWidgets.QMainWindow):
             secondary_udp_server_port,
             enable_secondary_udp_server,
             enable_sending_reply,
-            enable_log_all_valid_contact,
+            self.enable_log_all_valid_contact,
             enable_gap_finder,
             enable_watchdog_bypass,
             enable_debug_output,
@@ -2369,7 +2334,8 @@ def main():
         window.show_about_dialog() 
         save_current_version(CURRENT_VERSION_NUMBER)
 
-    app.aboutToQuit.connect(window.save_band_settings)        
+    app.aboutToQuit.connect(window.save_band_settings)       
+    app.aboutToQuit.connect(window.save_worked_callsigns) 
 
     sys.exit(app.exec())
 

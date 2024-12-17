@@ -7,7 +7,7 @@ import platform
 from datetime import datetime
 from utils import get_app_data_dir
 
-CURRENT_VERSION_NUMBER          = "2.2.3"
+CURRENT_VERSION_NUMBER          = "2.3"
 EXPIRATION_DATE                 = datetime(2025, 2, 15)
 UPDATE_JSON_INFO_URL            = "https://storage.de.cloud.ovh.net/v1/AUTH_31163bb499dc49eb819aacdfd32ae82c/wait.and.pounce/public/update_info.json"
 
@@ -48,8 +48,7 @@ STATUS_COLOR_LABEL_SELECTED     = "#808080"
 SAVED_VERSION_FILE              = os.path.join(get_app_data_dir(), "app_version.json")
 PARAMS_FILE                     = os.path.join(get_app_data_dir(), "params.pkl")
 POSITION_FILE                   = os.path.join(get_app_data_dir(), "window_position.pkl")
-WANTED_CALLSIGNS_FILE           = os.path.join(get_app_data_dir(), "wanted_callsigns.pkl")
-WANTED_CALLSIGNS_HISTORY_SIZE   = 50
+WORKED_CALLSIGNS_FILE           = os.path.join(get_app_data_dir(), "worked_callsigns.pkl")
 
 GUI_LABEL_NAME                  = "Wait and Pounce"
 GUI_LABEL_VERSION               = f"{GUI_LABEL_NAME} v{CURRENT_VERSION_NUMBER}"
@@ -66,7 +65,7 @@ DATE_COLUMN_DATETIME            = "Time"
 DATE_COLUMN_AGE                 = "Age"
 
 WAITING_DATA_PACKETS_LABEL      = "Waiting for UDP Packets"
-WANTED_CALLSIGNS_HISTORY_LABEL  = "Wanted Callsigns History (%d):"
+WORKED_CALLSIGNS_HISTORY_LABEL  = "Worked Callsigns History (%d):"
 CALLSIGN_NOTICE_LABEL           = "Comma separated list of callsigns. Allows wildcards with *"
 CQ_ZONE_NOTICE_LABEL            = "Comma separated list of CQ Zone"
 
