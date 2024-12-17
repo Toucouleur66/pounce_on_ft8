@@ -135,6 +135,7 @@ class MainApp(QtWidgets.QMainWindow):
         super(MainApp, self).__init__()
 
         self.base_title          = GUI_LABEL_VERSION
+        self.window_title        = None
 
         self.worker              = None
         self.timer               = None
@@ -193,6 +194,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.last_heartbeat_time                = None
         self.last_sound_played_time             = datetime.min
         self.mode                               = None
+        self.my_call                            = None
         self.transmitting                       = False
         self.band                               = None
         self.last_frequency                     = None
@@ -566,11 +568,16 @@ class MainApp(QtWidgets.QMainWindow):
         wait_pounce_history_table.setColumnWidth(1, 40)
         wait_pounce_history_table.setColumnWidth(2, 45)
         
-        # wait_pounce_history_table.itemDoubleClicked.connect(self.on_table_item_double_click)
-        # wait_pounce_history_table.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
-        # wait_pounce_history_table.customContextMenuRequested.connect(self.on_right_click)
-
+        wait_pounce_history_table.customContextMenuRequested.connect(
+            lambda position: self.on_table_context_menu(self.wait_pounce_history_table, position)
+        )
+        wait_pounce_history_table.cellClicked.connect(
+            lambda row, column: self.on_table_row_clicked(self.wait_pounce_history_table, row, column)
+        )
         wait_pounce_history_table.setItemDelegateForColumn(0, TimeAgoDelegate())
+        wait_pounce_history_table.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+        wait_pounce_history_table.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
+        wait_pounce_history_table.setObjectName("wait_pounce_history_table")
 
         return wait_pounce_history_table
 
@@ -629,8 +636,13 @@ class MainApp(QtWidgets.QMainWindow):
         self.refresh_table_timer.timeout.connect(lambda: self.output_table.viewport().update())
 
         output_table.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
-        output_table.customContextMenuRequested.connect(self.on_table_context_menu)
-        output_table.cellClicked.connect(self.on_table_row_clicked)
+        output_table.setObjectName("output_table")
+        output_table.customContextMenuRequested.connect(
+            lambda position: self.on_table_context_menu(self.output_table, position)
+        )
+        output_table.cellClicked.connect(
+            lambda row, column: self.on_table_row_clicked(self.output_table, row, column)
+        )
         output_table.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
 
         return output_table
@@ -980,8 +992,16 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_table.scrollToBottom()
 
     @QtCore.pyqtSlot(object)
-    def handle_message_received(self, message):
+    def handle_message_received(self, message):        
         if isinstance(message, dict):
+            if (
+                self.window_title is None and 
+                self.my_call is None and                 
+                message.get('wsjtx_id')
+            ):
+                self.my_call = message.get('my_call')
+                self.update_window_title(message.get('wsjtx_id'))
+
             message_type = message.get('type', None)
 
             if message_type == 'update_mode':
@@ -1098,22 +1118,17 @@ class MainApp(QtWidgets.QMainWindow):
                         message_color                      
                     )            
 
-        elif isinstance(message, str):
-            if message.startswith("wsjtx_id:"):
-                wsjtx_id = message.split("wsjtx_id:")[1].strip()
-                self.update_window_title(wsjtx_id)
-            else:             
-                self.add_message_to_table(message)
+        elif isinstance(message, str):         
+            self.add_message_to_table(message)
         else:
             pass
     
-    def on_table_row_clicked(self, row, column):
-        if self.operating_band:
-            position = self.output_table.visualRect(self.output_table.model().index(row, column)).center()
-            self.on_table_context_menu(position)        
+    def on_table_row_clicked(self, table, row, column):
+        position = table.visualRect(table.model().index(row, column)).center()
+        self.on_table_context_menu(table, position)        
 
-    def on_table_context_menu(self, position):
-        index = self.output_table.indexAt(position)
+    def on_table_context_menu(self, table, position):
+        index = table.indexAt(position)
 
         menu = QtWidgets.QMenu()
         if sys.platform == 'darwin':
@@ -1125,15 +1140,15 @@ class MainApp(QtWidgets.QMainWindow):
             self.gui_selected_band is None
         ):
             return
-        
-        if self.operating_band is None:
+
+        if self.gui_selected_band is not None:
             context_menu_band = self.gui_selected_band
         else:
             context_menu_band = self.operating_band
 
         row = index.row()
 
-        item = self.output_table.item(row, 0)
+        item = table.item(row, 0)
         data = item.data(QtCore.Qt.ItemDataRole.UserRole)
 
         if not data:
@@ -1147,7 +1162,7 @@ class MainApp(QtWidgets.QMainWindow):
         if not callsign:
             return        
 
-        header_action = QtGui.QAction(f"Apply to {context_menu_band}:")
+        header_action = QtGui.QAction(f"Apply to {context_menu_band}")
         header_action.setEnabled(False)  
         menu.addAction(header_action)
         menu.addSeparator()
@@ -1178,20 +1193,21 @@ class MainApp(QtWidgets.QMainWindow):
         """
             Directed Callsigns
         """
-        if directed:
-            if directed not in self.wanted_callsigns_vars[context_menu_band].text():
-                actions['add_directed_to_wanted'] = menu.addAction(f"Add {directed} to Wanted Callsigns")
-            else:
-                actions['remove_directed_from_wanted'] = menu.addAction(f"Remove {directed} from Wanted Callsigns")
+        if table.objectName() == 'output_table':
+            if directed and directed != self.my_call:
+                if directed not in self.wanted_callsigns_vars[context_menu_band].text():
+                    actions['add_directed_to_wanted'] = menu.addAction(f"Add {directed} to Wanted Callsigns")
+                else:
+                    actions['remove_directed_from_wanted'] = menu.addAction(f"Remove {directed} from Wanted Callsigns")
 
-            if directed != self.wanted_callsigns_vars[context_menu_band].text():
-                actions['replace_wanted_with_directed'] = menu.addAction(f"Make {directed} your only Monitored Callsign")                
+                if directed != self.wanted_callsigns_vars[context_menu_band].text():
+                    actions['replace_wanted_with_directed'] = menu.addAction(f"Make {directed} your only Monitored Callsign")                
 
-            if directed not in self.monitored_callsigns_vars[context_menu_band].text():
-                actions['add_directed_to_monitored'] = menu.addAction(f"Add {directed} to Monitored Callsigns")
-            else:
-                actions['remove_directed_from_monitored'] = menu.addAction(f"Remove {directed} from Monitored Callsigns")
-            menu.addSeparator()
+                if directed not in self.monitored_callsigns_vars[context_menu_band].text():
+                    actions['add_directed_to_monitored'] = menu.addAction(f"Add {directed} to Monitored Callsigns")
+                else:
+                    actions['remove_directed_from_monitored'] = menu.addAction(f"Remove {directed} from Monitored Callsigns")
+                menu.addSeparator()
 
         """
             Monitored CQ Zones
@@ -1211,7 +1227,7 @@ class MainApp(QtWidgets.QMainWindow):
         """
         actions['copy_message'] = menu.addAction("Copy message to Clipboard")
 
-        action = menu.exec(self.output_table.viewport().mapToGlobal(position))
+        action = menu.exec(table.viewport().mapToGlobal(position))
 
         if action is None:
             return
@@ -1268,8 +1284,8 @@ class MainApp(QtWidgets.QMainWindow):
         var.setText(','.join(map(str, items)))
 
     def update_window_title(self, wsjtx_id):
-            new_title = f"{self.base_title} - Connected to {wsjtx_id}"
-            self.setWindowTitle(new_title)
+            self.window_title = f"{self.base_title} - Connected to {wsjtx_id}"
+            self.setWindowTitle(self.window_title)
 
     def reset_window_title(self):
         self.setWindowTitle(self.base_title)  
@@ -1781,12 +1797,14 @@ class MainApp(QtWidgets.QMainWindow):
         })       
 
         item_date.setData(QtCore.Qt.ItemDataRole.DisplayRole, raw_data["date_str"])
+        item_date.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.wait_pounce_history_table.setItem(row_id, 0, item_date)
 
         item_callsign = QtWidgets.QTableWidgetItem(raw_data["callsign"])
         self.wait_pounce_history_table.setItem(row_id, 1, item_callsign)
 
         item_band = QtWidgets.QTableWidgetItem(band)
+        item_band.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.wait_pounce_history_table.setItem(row_id, 2, item_band)
 
         if add_to_history:

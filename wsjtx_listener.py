@@ -558,11 +558,11 @@ class Listener:
             """
                 Handle message to send to GUI
             """                         
-
             if self.message_callback:
-                self.message_callback({                
-                'packet_id'         : packet_id,   
+                self.message_callback({           
+                'wsjtx_id'          : self.the_packet.wsjtx_id,
                 'my_call'           : self.my_call,     
+                'packet_id'         : packet_id,                   
                 'decode_time_str'   : decode_time_str,
                 'callsign'          : callsign,
                 'callsign_info'     : callsign_info,
