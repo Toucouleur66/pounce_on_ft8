@@ -27,7 +27,8 @@ from constants import (
     MODE_SUPER_FOX,
     FREQ_MINIMUM,
     FREQ_MAXIMUM,
-    FREQ_MINIMUM_FOX_HOUND
+    FREQ_MINIMUM_FOX_HOUND,
+    ADIF_WORKED_CALLSIGNS_FILE
 )
 
 class Listener:
@@ -652,7 +653,7 @@ class Listener:
         ])
 
         try:
-            with open("wsjtx_log.adif", "a") as adif_file:
+            with open(ADIF_WORKED_CALLSIGNS_FILE, "a") as adif_file:
                 adif_file.write(adif_entry)
             log.warning("QSOLogged [ {} ]".format(self.call_ready_to_log))
         except Exception as e:

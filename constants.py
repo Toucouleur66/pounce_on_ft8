@@ -49,6 +49,9 @@ SAVED_VERSION_FILE              = os.path.join(get_app_data_dir(), "app_version.
 PARAMS_FILE                     = os.path.join(get_app_data_dir(), "params.pkl")
 POSITION_FILE                   = os.path.join(get_app_data_dir(), "window_position.pkl")
 WORKED_CALLSIGNS_FILE           = os.path.join(get_app_data_dir(), "worked_callsigns.pkl")
+WORKED_CALLSIGNS_FILE           = os.path.join(get_app_data_dir(), "worked_callsigns.pkl")
+ADIF_WORKED_CALLSIGNS_FILE      = os.path.join(get_app_data_dir(), "worked_callsigns.adif")
+
 
 GUI_LABEL_NAME                  = "Wait and Pounce"
 GUI_LABEL_VERSION               = f"{GUI_LABEL_NAME} v{CURRENT_VERSION_NUMBER}"
@@ -72,6 +75,10 @@ CQ_ZONE_NOTICE_LABEL            = "Comma separated list of CQ Zone"
 MODE_NORMAL                     = "Regular"
 MODE_FOX_HOUND                  = "Hound"
 MODE_SUPER_FOX                  = "SuperFox"
+
+REPLY_WKB4_MODE_ALWAYS          = 1
+REPLY_WKB4_MODE_CURRENT_YEAR    = 2
+REPLY_WKB4_MODE_NEVER           = 3
 
 DEFAULT_MODE_TIMER_VALUE        = "--:--:--"
 
@@ -106,6 +113,7 @@ SETTING_QSS                     = f"""
                 background-color: #9dfffe; 
                 color: #555bc2;
                 padding: 5px;
+                margin-bottom: 15px;
                 font-size: 12px;
                 border-radius: 6px;
         """

@@ -2,6 +2,7 @@
 
 import socket
 import datetime
+import time
 import re
 import os
 import sys
@@ -10,6 +11,8 @@ import fnmatch
 from PyQt6.QtWidgets import QTextEdit, QLineEdit
 from PyQt6.QtCore import QCoreApplication, QStandardPaths
 from PyQt6.QtGui import QTextCursor
+
+from collections import defaultdict
 
 QCoreApplication.setApplicationName("Wait and Pounce")
 
@@ -249,3 +252,56 @@ def force_input(widget, mode="uppercase"):
 
     except Exception as e:
         print(f"force_input: {e}")
+
+def parse_adif_record(record):
+    call_match = re.search(r"<CALL:\d+>([^ <]+)", record, re.IGNORECASE)
+    band_match = re.search(r"<BAND:\d+>([^ <]+)", record, re.IGNORECASE)
+    date_match = re.search(r"<QSO_DATE:\d+>(\d{4})", record, re.IGNORECASE)
+    
+    call = call_match.group(1).upper() if call_match else None
+    band = band_match.group(1).lower() if band_match else None
+    year = date_match.group(1) if date_match else None
+
+    return year, band, call
+
+def parse_adif(filename):
+    start_time = time.time()
+
+    parsed_data = defaultdict(lambda: defaultdict(set))
+
+    current_record_lines = []
+    with open(filename, 'r', encoding='utf-8', errors='replace') as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                current_record_lines.append(line)
+                if "<EOR>" in line.upper():
+                    record = " ".join(current_record_lines)
+                    year, band, call = parse_adif_record(record)
+                    if year and band and call:
+                        parsed_data[year][band].add(call)
+                    current_record_lines = []
+
+    end_time = time.time()
+    processing_time = end_time - start_time
+
+    return parsed_data, processing_time
+
+def is_worked_b4_year_band(data, callsign, year, band):
+    if callsign in data.get(year, {}).get(band, set()):
+        print(f"{callsign} worked {year} ({band})")
+        return True
+    else:
+        return False
+
+def is_worked_b4(data, callsign):
+    occurrences = []
+    for years, bands in data.items():
+        for band, callsigns in bands.items():
+            if callsign in callsigns:
+                occurrences.append((years, band))
+
+    if occurrences:
+        print(f"{callsign} worked:")
+        for year, band in sorted(occurrences):
+            print(f" - {year} ({band})")

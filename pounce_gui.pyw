@@ -1615,6 +1615,12 @@ class MainApp(QtWidgets.QMainWindow):
                 os.remove(PARAMS_FILE) 
                 return {}
         return {}
+    
+    def clear_worked_callsigns(self):
+        self.worked_callsigns_history = []
+        self.save_worked_callsigns()
+        self.wait_pounce_history_table.setRowCount(0)            
+        self.clear_worked_history_action.setEnabled(False)
 
     def remove_worked_callsign(self, callsign, band):
         updated_history = [
@@ -1627,6 +1633,8 @@ class MainApp(QtWidgets.QMainWindow):
             self.save_worked_callsigns()
             self.wait_pounce_history_table.setRowCount(0)
             self.load_worked_history_callsigns()
+        
+        self.clear_worked_history_action.setEnabled(len(self.worked_callsigns_history) > 0)
 
     def save_worked_callsigns(self):
         with open(WORKED_CALLSIGNS_FILE, "wb") as f:
@@ -2075,12 +2083,19 @@ class MainApp(QtWidgets.QMainWindow):
         self.datetime_column_action.triggered.connect(self.enable_datetime_column)
 
         format_time_menu.addAction(self.age_column_action)
-        format_time_menu.addAction(self.datetime_column_action)
+        format_time_menu.addAction(self.datetime_column_action)        
 
         action_group = QtGui.QActionGroup(self)
         action_group.addAction(self.age_column_action)
         action_group.addAction(self.datetime_column_action)
         action_group.setExclusive(True)
+
+        self.window_menu.addSeparator()
+        self.clear_worked_history_action = QtGui.QAction("Clear Worked Callsigns History", self)
+        self.clear_worked_history_action.setEnabled(len(self.worked_callsigns_history) > 0)
+        self.clear_worked_history_action.triggered.connect(self.clear_worked_callsigns)
+
+        self.window_menu.addAction(self.clear_worked_history_action)
 
     def get_monitoring_action_text(self):
         return STOP_BUTTON_LABEL if self._running else STATUS_BUTTON_LABEL_START
