@@ -50,7 +50,7 @@ PARAMS_FILE                     = os.path.join(get_app_data_dir(), "params.pkl")
 POSITION_FILE                   = os.path.join(get_app_data_dir(), "window_position.pkl")
 WORKED_CALLSIGNS_FILE           = os.path.join(get_app_data_dir(), "worked_callsigns.pkl")
 WORKED_CALLSIGNS_FILE           = os.path.join(get_app_data_dir(), "worked_callsigns.pkl")
-ADIF_WORKED_CALLSIGNS_FILE      = os.path.join(get_app_data_dir(), "worked_callsigns.adif")
+ADIF_WORKED_CALLSIGNS_FILE      = os.path.join(get_app_data_dir(), "wait_pounce_log.adif")
 
 
 GUI_LABEL_NAME                  = "Wait and Pounce"
@@ -76,9 +76,9 @@ MODE_NORMAL                     = "Regular"
 MODE_FOX_HOUND                  = "Hound"
 MODE_SUPER_FOX                  = "SuperFox"
 
-REPLY_WKB4_MODE_ALWAYS          = 1
-REPLY_WKB4_MODE_CURRENT_YEAR    = 2
-REPLY_WKB4_MODE_NEVER           = 3
+WKB4_REPLY_MODE_ALWAYS          = 1
+WKB4_REPLY_MODE_CURRENT_YEAR    = 2
+WKB4_REPLY_MODE_NEVER           = 3
 
 DEFAULT_MODE_TIMER_VALUE        = "--:--:--"
 

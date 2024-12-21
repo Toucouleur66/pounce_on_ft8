@@ -23,6 +23,7 @@ from functools import partial
 # Custom classes 
 from custom_tab_widget import CustomTabWidget
 from custom_button import CustomButton
+from adif_summary_dialog import AdifSummaryDialog
 from time_ago_delegate import TimeAgoDelegate
 from search_field_input import SearchFilterInput
 from tray_icon import TrayIcon
@@ -38,6 +39,7 @@ from setting_dialog import SettingsDialog
 from utils import get_local_ip_address, get_log_filename, matches_any
 from utils import get_mode_interval, get_amateur_band
 from utils import force_input, text_to_array
+from utils import parse_adif
 
 from version import is_first_launch_or_new_version, save_current_version
 
@@ -111,6 +113,7 @@ from constants import (
     DEFAULT_SHOW_ALL_DECODED,
     DEFAULT_LOG_ALL_VALID_CONTACT,
     ACTIVITY_BAR_MAX_VALUE,
+    WKB4_REPLY_MODE_ALWAYS,
     # Style
     CONTEXT_MENU_DARWIN_QSS,
     # Fonts
@@ -140,6 +143,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.worker              = None
         self.timer               = None
         self.tray_icon           = None
+
         self.monitoring_settings = MonitoringSettings()       
         self.clublog_manager     = ClubLogManager(self) 
 
@@ -222,6 +226,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.enable_pounce_log                  = params.get('enable_pounce_log', True)
         self.enable_filter_gui                   = params.get('enable_filter_gui', True)
         self.datetime_column_setting            = params.get('datetime_column_setting', DATE_COLUMN_DATETIME)
+        self.adif_file_path                      = params.get('adif_file_path', None)
+        self.worked_before_preference           = params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS)
         
         # Get sound configuration
         self.enable_sound_wanted_callsigns      = params.get('enable_sound_wanted_callsigns', True)
@@ -276,7 +282,9 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.focus_value_label.mousePressEvent = self.copy_to_clipboard
 
-        # Timer value
+        """
+            Timer label
+        """
         self.timer_value_label = QtWidgets.QLabel(DEFAULT_MODE_TIMER_VALUE)
         self.timer_value_label.setFont(CUSTOM_FONT_MONO_LG)
         self.timer_value_label.setStyleSheet("background-color: #9dfffe; color: #555bc2; padding: 10px;")
@@ -322,7 +330,7 @@ class MainApp(QtWidgets.QMainWindow):
         """
             Main output table
         """
-        self.output_table = self.init_output_table_ui()
+        self.output_table          = self.init_output_table_ui()
 
         """
             Filter layout
@@ -419,6 +427,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.apply_theme_to_all(self.theme_manager.dark_mode)
         self.load_window_position()
         self.create_main_menu() 
+        self.toggle_wkb4_column_visibility()
         
         if self.datetime_column_setting == DATE_COLUMN_AGE:
             self.enable_age_column()
@@ -584,17 +593,17 @@ class MainApp(QtWidgets.QMainWindow):
     def init_output_table_ui(self):
         output_table            = QTableWidget(self)
 
-        header_labels = [DATE_COLUMN_DATETIME, 'Band', 'Report', 'DT', 'Freq', 'Message', 'Country', 'CQ', 'Continent']
+        header_labels = [DATE_COLUMN_DATETIME, 'Band', 'Report', 'DT', 'Freq', 'Message', 'Country', 'CQ', 'Continent', 'WkB4']
         output_table.setColumnCount(len(header_labels))
         for i, label in enumerate(header_labels):
             header_item = QTableWidgetItem(label)
             if label in ['Band', 'Report', 'DT', 'Freq']:
                 header_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
-            elif label in ['CQ', 'Continent']:
+            elif label in ['CQ', 'Continent', 'WkB4']:
                 header_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)                
             else:
                 header_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
-            output_table.setHorizontalHeaderItem(i, header_item)
+            output_table.setHorizontalHeaderItem(i, header_item)          
         
         output_table.setFont(CUSTOM_FONT)
         output_table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.NoSelection)
@@ -616,6 +625,8 @@ class MainApp(QtWidgets.QMainWindow):
         output_table.horizontalHeader().setSectionResizeMode(6, QtWidgets.QHeaderView.ResizeMode.Stretch)
         output_table.horizontalHeader().setSectionResizeMode(7, QtWidgets.QHeaderView.ResizeMode.Fixed)
         output_table.horizontalHeader().setSectionResizeMode(8, QtWidgets.QHeaderView.ResizeMode.Fixed)
+        output_table.horizontalHeader().setSectionResizeMode(9, QtWidgets.QHeaderView.ResizeMode.Fixed)
+
         output_table.horizontalHeader().setStretchLastSection(False)
         output_table.setColumnWidth(0, 160)
         output_table.setColumnWidth(1, 45)
@@ -625,6 +636,7 @@ class MainApp(QtWidgets.QMainWindow):
         output_table.setColumnWidth(5, 400)
         output_table.setColumnWidth(7, 50)
         output_table.setColumnWidth(8, 70)
+        output_table.setColumnWidth(9, 60)
 
         output_table.horizontalHeader().sectionClicked.connect(self.on_header_clicked)
 
@@ -710,6 +722,12 @@ class MainApp(QtWidgets.QMainWindow):
         
         self.enable_filter_gui = checked
         self.save_unique_param('enable_filter_gui', checked)        
+
+    def toggle_wkb4_column_visibility(self):
+        if self.worked_before_preference == WKB4_REPLY_MODE_ALWAYS:
+            self.output_table.setColumnHidden(9, True)
+        else:
+            self.output_table.setColumnHidden(9, False)
 
     def toggle_filter_visibility(self):
         if self.filter_widget_visible:
@@ -1037,6 +1055,7 @@ class MainApp(QtWidgets.QMainWindow):
                 wanted              = message.get('wanted')
                 monitored           = message.get('monitored')
                 monitored_cq_zone   = message.get('monitored_cq_zone')
+                wkb4_year           = message.get('wkb4_year')
 
                 empty_str           = ''
                 entity              = empty_str
@@ -1103,6 +1122,7 @@ class MainApp(QtWidgets.QMainWindow):
                     self.update_table_data(
                         wanted,
                         callsign,
+                        wkb4_year,
                         directed,
                         message.get('decode_time_str'),
                         self.operating_band,
@@ -1511,6 +1531,11 @@ class MainApp(QtWidgets.QMainWindow):
             self.enable_sound_wanted_callsigns      = params.get('enable_sound_wanted_callsigns', True)
             self.enable_sound_directed_my_callsign  = params.get('enable_sound_directed_my_callsign', True)
             self.enable_sound_monitored_callsigns   = params.get('enable_sound_monitored_callsigns', True)
+            
+            self.adif_file_path                      = params.get('adif_file_path', None)
+            self.worked_before_preference           = params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS)
+
+            self.toggle_wkb4_column_visibility()
 
             if self.enable_pounce_log and not previous_enable_pounce_log:
                 self.file_handler = add_file_handler(log_filename)
@@ -1692,6 +1717,7 @@ class MainApp(QtWidgets.QMainWindow):
             self,
             wanted,
             callsign,
+            wkb4_year,
             directed,
             date_str,
             band,
@@ -1713,6 +1739,7 @@ class MainApp(QtWidgets.QMainWindow):
         raw_data = {
             "wanted"            : wanted, 
             "callsign"          : callsign,
+            "wkb4_year"         : wkb4_year,
             "directed"          : directed,
             "date_str"          : date_str,
             "band"              : band,
@@ -1802,6 +1829,12 @@ class MainApp(QtWidgets.QMainWindow):
         item_continent.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.output_table.setItem(row_id, 8, item_continent)        
         
+        wkb4_year = raw_data['wkb4_year'] or ""
+        item_wkb4_year = QTableWidgetItem(f"{wkb4_year}")
+        item_wkb4_year.setFont(CUSTOM_FONT_SMALL)
+        item_wkb4_year.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        self.output_table.setItem(row_id, 9, item_wkb4_year)   
+
         if row_color:
             self.apply_row_format(row_id, row_color)
         
@@ -1836,6 +1869,8 @@ class MainApp(QtWidgets.QMainWindow):
         item_band = QtWidgets.QTableWidgetItem(band)
         item_band.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.wait_pounce_history_table.setItem(row_id, 2, item_band)
+
+        self.wait_pounce_history_table.scrollToBottom()    
 
         if add_to_history:
             self.worked_callsigns_history.append(raw_data)
@@ -2036,6 +2071,11 @@ class MainApp(QtWidgets.QMainWindow):
         self.update_monitoring_action()
         main_menu.addAction(self.monitoring_action)
 
+        restart_action = QtGui.QAction("Restart Program", self)
+        restart_action.setShortcut(QtGui.QKeySequence("Ctrl+R"))
+        restart_action.triggered.connect(self.restart_application)
+        main_menu.addAction(restart_action)
+
         # Settings...
         settings_action = QtGui.QAction("Settings...", self)
         settings_action.setShortcut("Ctrl+,")  # Default shortcut for macOS
@@ -2061,8 +2101,9 @@ class MainApp(QtWidgets.QMainWindow):
         filter_visibility_action.setShortcut(QtGui.QKeySequence("Ctrl+F"))
 
         self.filter_visibility_action = filter_visibility_action
-
+        
         self.window_menu.addAction(filter_visibility_action)
+
         self.window_menu.addSeparator()
 
         clear_filters_action = QtGui.QAction("Clear Filters", self)
@@ -2096,6 +2137,23 @@ class MainApp(QtWidgets.QMainWindow):
         self.clear_worked_history_action.triggered.connect(self.clear_worked_callsigns)
 
         self.window_menu.addAction(self.clear_worked_history_action)
+
+        self.window_menu.addSeparator()
+
+        show_adif_summary_action = QtGui.QAction("Show ADIF stats", self)
+        show_adif_summary_action.setEnabled(self.adif_file_path is not None)
+        show_adif_summary_action.triggered.connect(self.show_adif_summary_dialog)
+
+        show_adif_summary_action.setShortcut(QtGui.QKeySequence("Ctrl+P"))
+
+        self.show_adif_summary_action = show_adif_summary_action
+
+        self.window_menu.addAction(show_adif_summary_action)
+
+    def show_adif_summary_dialog(self):        
+        parsed_data, processing_time = parse_adif(self.adif_file_path)
+        summary_dialog = AdifSummaryDialog(parsed_data, processing_time, self)
+        summary_dialog.exec()
 
     def get_monitoring_action_text(self):
         return STOP_BUTTON_LABEL if self._running else STATUS_BUTTON_LABEL_START
@@ -2252,8 +2310,10 @@ class MainApp(QtWidgets.QMainWindow):
         enable_debug_output                 = params.get('enable_debug_output', DEFAULT_DEBUG_OUTPUT)
         enable_pounce_log                   = params.get('enable_pounce_log', DEFAULT_POUNCE_LOG)
         enable_log_packet_data              = params.get('enable_log_packet_data', DEFAULT_LOG_PACKET_DATA)
+        enable_log_all_valid_contact        = params.get('enable_log_all_valid_contact', DEFAULT_LOG_ALL_VALID_CONTACT)        
 
-        self.enable_log_all_valid_contact   = params.get('enable_log_all_valid_contact', DEFAULT_LOG_ALL_VALID_CONTACT)        
+        self.adif_file_path                  = params.get('adif_file_path', None)
+        self.worked_before_preference       = params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS)
         self.enable_show_all_decoded        = params.get('enable_show_all_decoded', DEFAULT_SHOW_ALL_DECODED)
         
         self.save_unique_param('freq_range_mode', freq_range_mode )        
@@ -2270,12 +2330,14 @@ class MainApp(QtWidgets.QMainWindow):
             secondary_udp_server_port,
             enable_secondary_udp_server,
             enable_sending_reply,
-            self.enable_log_all_valid_contact,
+            enable_log_all_valid_contact,
             enable_gap_finder,
             enable_watchdog_bypass,
             enable_debug_output,
             enable_pounce_log,
-            enable_log_packet_data          
+            enable_log_packet_data,
+            self.adif_file_path,
+            self.worked_before_preference           
         )
         self.worker.moveToThread(self.thread)
 

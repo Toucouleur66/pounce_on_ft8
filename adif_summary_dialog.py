@@ -8,6 +8,8 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt
 
+from custom_button import CustomButton
+
 from utils import(
     AMATEUR_BANDS
 )
@@ -35,10 +37,14 @@ class AdifSummaryDialog(QDialog):
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         main_layout.addWidget(title_label)
 
+        processing_time_label = QLabel(f"Total processing time: {processing_time:.4f}s")
+        processing_time_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        main_layout.addWidget(processing_time_label)
+
         main_layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed))
 
         # Section Détails : Temps de traitement
-        processing_label = QLabel(f"<b>Total processing time:</b> {processing_time:.4f} seconds")
+        processing_label = QLabel(f"Unique callsigns per Year and per Band:")
         processing_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
         main_layout.addWidget(processing_label)
 
@@ -77,7 +83,7 @@ class AdifSummaryDialog(QDialog):
 
         main_layout.addSpacerItem(QSpacerItem(20, 10, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed))
 
-        button = QPushButton("OK")
+        button = CustomButton("Ok")
         button.setFixedWidth(80)
         button.clicked.connect(self.accept)
         button_layout = QHBoxLayout()

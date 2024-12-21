@@ -72,7 +72,6 @@ class CallsignLookup:
                 }
                 self.callsign_exceptions[call] = exception_data
 
-            # Traitement des opérations invalides
             invalid_elem = root.find('invalid_operations')
             for invalid_op in invalid_elem.findall('invalid'):
                 call_elem = invalid_op.find('call')
@@ -81,7 +80,6 @@ class CallsignLookup:
                 call = call_elem.text.upper()
                 self.invalid_operations[call] = True
 
-            # Traitement des exceptions de zone
             zone_exceptions_elem = root.find('zone_exceptions')
             for zone_exception in zone_exceptions_elem.findall('zone_exception'):
                 call_elem = zone_exception.find('call')
@@ -95,7 +93,6 @@ class CallsignLookup:
                 cqz = int(zone_elem.text)
                 self.zone_exceptions[call] = cqz
 
-            # Traitement des préfixes de la section <prefixes>
             prefixes_elem = root.find('prefixes')
             for prefix_elem in prefixes_elem.findall('prefix'):
                 call_elem = prefix_elem.find('call')
@@ -138,10 +135,8 @@ class CallsignLookup:
                     'start': start,
                     'end': end,
                 }
-                # Ajouter à la liste des préfixes
                 self.prefixes.setdefault(call, []).append(prefix_data)
 
-            # Traitement des entités et expansion des préfixes
             entities_elem = root.find('entities')
             for entity in entities_elem.findall('entity'):
                 adif_elem = entity.find('adif')
@@ -216,7 +211,6 @@ class CallsignLookup:
     def _expand_prefix_range(self, start, end):
         prefixes = []
         if len(start) != len(end):
-            # Ne peut pas étendre des plages de longueurs différentes
             return [start.upper(), end.upper()]
         else:
             common_part = start[:-1]

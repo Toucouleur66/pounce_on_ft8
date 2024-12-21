@@ -2,10 +2,12 @@
 
 import pywsjtx.extra.simple_server
 
+import time
 import threading
 import traceback
 import socket
 import re
+import os
 import bisect
 
 from wsjtx_packet_sender import WSJTXPacketSender
@@ -13,7 +15,10 @@ from datetime import datetime, timezone
 from collections import deque
 
 from logger import get_logger
+
 from utils import get_local_ip_address, get_mode_interval, get_amateur_band, parse_wsjtx_message
+from utils import parse_adif, get_wkb4_year
+
 from callsign_lookup import CallsignLookup
 
 log     = get_logger(__name__)
@@ -24,7 +29,9 @@ from constants import (
     ODD,
     MODE_FOX_HOUND,
     MODE_NORMAL,
-    MODE_SUPER_FOX,
+    WKB4_REPLY_MODE_ALWAYS,
+    WKB4_REPLY_MODE_NEVER,
+    WKB4_REPLY_MODE_CURRENT_YEAR,
     FREQ_MINIMUM,
     FREQ_MAXIMUM,
     FREQ_MINIMUM_FOX_HOUND,
@@ -48,6 +55,8 @@ class Listener:
             enable_log_packet_data, 
             monitoring_settings,
             freq_range_mode,
+            adif_file_path,
+            worked_before_preference,
             message_callback=None
         ):
 
@@ -63,7 +72,7 @@ class Listener:
         self.packet_counter             = 0
         self.reply_to_packet_time       = None
         
-        self.call_ready_to_log            = None
+        self.call_ready_to_log          = None
         self.targeted_call              = None
         self.targeted_call_frequencies  = set()
         self.targeted_call_period       = None
@@ -97,6 +106,8 @@ class Listener:
         self.enable_debug_output            = enable_debug_output
         self.enable_pounce_log              = enable_pounce_log 
         self.enable_log_packet_data         = enable_log_packet_data
+        self.adif_file_path                  = adif_file_path
+        self.worked_before_preference       = worked_before_preference        
 
         self.monitoring_settings            = monitoring_settings
 
@@ -107,11 +118,25 @@ class Listener:
         self.freq_range_mode                = freq_range_mode
         self.message_callback               = message_callback
 
+        self.adif_data                      = None
+        
         self.update_settings()
 
         self._running                       = True
+        
+        """
+            Check ADIF file to handle Worked B4 
+        """
 
-        # To check gap, we keep a list of used df
+        if worked_before_preference != WKB4_REPLY_MODE_ALWAYS and adif_file_path:
+            self.adif_last_mtime            = None
+            self.adif_monitoring_thread     = threading.Thread(target=self.monitor_adif_file, daemon=True)
+            self.adif_monitoring_thread.start()
+
+        """
+            Check what period to use
+        """
+
         self.last_period_index              = None
         self.used_frequencies               = {
             EVEN                            : deque([set()], maxlen=2),
@@ -467,7 +492,26 @@ class Listener:
             wanted            = parsed_data['wanted']
             monitored         = parsed_data['monitored']
             monitored_cq_zone = parsed_data['monitored_cq_zone']
+            wkb4_year         = None
 
+            """
+                Check if wanted and is Worked b4
+            """
+            if self.adif_data:
+                wkb4_year = get_wkb4_year(self.adif_data, callsign, get_amateur_band(self.frequency))
+                if wanted:
+                    if (
+                        (
+                            wkb4_year is not None and 
+                            self.worked_before_preference == WKB4_REPLY_MODE_NEVER
+                        ) or 
+                        (
+                            wkb4_year == datetime.now().year and
+                            self.worked_before_preference == WKB4_REPLY_MODE_CURRENT_YEAR
+                        )
+                    ):
+                        wanted = False
+                
             """
                 Reset values to focus on another wanted callsign
             """
@@ -571,6 +615,7 @@ class Listener:
                 'wanted'            : wanted,
                 'monitored'         : monitored,
                 'monitored_cq_zone' : monitored_cq_zone,
+                'wkb4_year'         : wkb4_year,
                 'delta_time'        : delta_t,
                 'delta_freq'        : delta_f,
                 'snr'               : snr,                
@@ -696,9 +741,6 @@ class Listener:
             log.error(f"Error sending QSOLoggedPacket via UDP: {e}")
             log.error("Caught an error while trying to send QSOLoggedPacket packet: error {}\n{}".format(e, traceback.format_exc()))
 
-    def get_cuarto():
-        return 15 * (datetime.now().second // 15)
-
     def get_clean_rst(self, rst):
         def repl(match):
             sign = match.group(1)       
@@ -708,3 +750,15 @@ class Listener:
         pattern = r'^R?([+-]?)(\d+)$'
         cleaned_rst = re.sub(pattern, repl, rst)
         return cleaned_rst    
+    
+    def monitor_adif_file(self): 
+        while self._running:
+            if os.path.exists(self.adif_file_path):                
+                current_mtime = os.path.getmtime(self.adif_file_path)
+
+                if self.adif_last_mtime is None or current_mtime != self.adif_last_mtime:
+                    self.adif_last_mtime = current_mtime
+                    self.adif_data, processing_time = parse_adif(self.adif_file_path)
+                    log.info(f"Updated ADIF. Total processing time: {processing_time:.4f}s")
+
+            time.sleep(7.5)

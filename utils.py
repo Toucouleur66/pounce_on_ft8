@@ -264,13 +264,13 @@ def parse_adif_record(record):
 
     return year, band, call
 
-def parse_adif(filename):
+def parse_adif(file_path):
     start_time = time.time()
 
     parsed_data = defaultdict(lambda: defaultdict(set))
 
     current_record_lines = []
-    with open(filename, 'r', encoding='utf-8', errors='replace') as f:
+    with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
         for line in f:
             line = line.strip()
             if line:
@@ -289,19 +289,16 @@ def parse_adif(filename):
 
 def is_worked_b4_year_band(data, callsign, year, band):
     if callsign in data.get(year, {}).get(band, set()):
-        print(f"{callsign} worked {year} ({band})")
         return True
     else:
         return False
 
-def is_worked_b4(data, callsign):
-    occurrences = []
-    for years, bands in data.items():
-        for band, callsigns in bands.items():
-            if callsign in callsigns:
-                occurrences.append((years, band))
+def get_wkb4_year(data, callsign, band):
+    worked_years = []    
+    for year, bands in data.items():
+        if band in bands and callsign in bands[band]:
+            worked_years.append(year)
 
-    if occurrences:
-        print(f"{callsign} worked:")
-        for year, band in sorted(occurrences):
-            print(f" - {year} ({band})")
+    if worked_years:
+        return int(max(worked_years))
+    return None

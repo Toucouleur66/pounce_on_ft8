@@ -30,7 +30,9 @@ class Worker(QObject):
             enable_watchdog_bypass,
             enable_debug_output,
             enable_pounce_log,
-            enable_log_packet_data                      
+            enable_log_packet_data,
+            adif_file_path,
+            worked_before_preference                          
         ):
         super(Worker, self).__init__()
 
@@ -45,11 +47,10 @@ class Worker(QObject):
         self.primary_udp_server_address         = primary_udp_server_address
         self.primary_udp_server_port            = primary_udp_server_port
 
-        self.enable_secondary_udp_server        = enable_secondary_udp_server
-                
         self.secondary_udp_server_address       = secondary_udp_server_address
         self.secondary_udp_server_port          = secondary_udp_server_port
-            
+
+        self.enable_secondary_udp_server        = enable_secondary_udp_server                            
         self.enable_sending_reply               = enable_sending_reply
         self.enable_log_all_valid_contact       = enable_log_all_valid_contact
         self.enable_gap_finder                   = enable_gap_finder
@@ -57,6 +58,8 @@ class Worker(QObject):
         self.enable_debug_output                = enable_debug_output
         self.enable_pounce_log                  = enable_pounce_log   
         self.enable_log_packet_data             = enable_log_packet_data
+        self.adif_file_path                      = adif_file_path
+        self.worked_before_preference           = worked_before_preference
 
     def run(self):
         try:
@@ -75,6 +78,8 @@ class Worker(QObject):
                 enable_log_packet_data          = self.enable_log_packet_data,
                 monitoring_settings             = self.monitoring_settings,
                 freq_range_mode                 = self.mode,
+                adif_file_path                   = self.adif_file_path,
+                worked_before_preference        = self.worked_before_preference,
                 message_callback                = self.message.emit
             )
             self.listener.listen()

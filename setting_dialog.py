@@ -5,17 +5,15 @@ import subprocess
 import os
 
 from PyQt6 import QtWidgets, QtCore
-from PyQt6.QtWidgets import QMessageBox, QDialog, QVBoxLayout, QGridLayout, QLabel, QPushButton, QSpacerItem, QSizePolicy
-from PyQt6.QtGui import QFont
+from PyQt6.QtWidgets import QMessageBox
 
 from custom_button import CustomButton
-from clickable_label import ClickableLabel
 from adif_summary_dialog import AdifSummaryDialog
 
 from datetime import datetime
 
 from utils import get_local_ip_address, get_log_filename, get_app_data_dir
-from utils import parse_adif_record, parse_adif
+from utils import parse_adif
 
 from constants import (
     # Colors
@@ -27,9 +25,9 @@ from constants import (
     MODE_NORMAL,
     MODE_FOX_HOUND,
     MODE_SUPER_FOX,
-    REPLY_WKB4_MODE_ALWAYS,
-    REPLY_WKB4_MODE_CURRENT_YEAR,
-    REPLY_WKB4_MODE_NEVER,
+    WKB4_REPLY_MODE_ALWAYS,
+    WKB4_REPLY_MODE_CURRENT_YEAR,
+    WKB4_REPLY_MODE_NEVER,
     FREQ_MINIMUM,
     FREQ_MAXIMUM,
     FREQ_MINIMUM_FOX_HOUND,
@@ -65,21 +63,28 @@ class SettingsDialog(QtWidgets.QDialog):
         self.tab_widget = QtWidgets.QTabWidget()
         layout.addWidget(self.tab_widget)
 
-        tab1 = QtWidgets.QWidget()
-        tab2 = QtWidgets.QWidget()
-        tab3 = QtWidgets.QWidget()
-        tab4 = QtWidgets.QWidget()
+        tab_1 = QtWidgets.QWidget()
+        tab_2 = QtWidgets.QWidget()
+        tab_3 = QtWidgets.QWidget()
+        tab_4 = QtWidgets.QWidget()
+        tab_5 = QtWidgets.QWidget()
 
-        self.tab_widget.addTab(tab1, "General")
-        self.tab_widget.addTab(tab2, "Sounds")
-        self.tab_widget.addTab(tab3, "ADIF file")
-        self.tab_widget.addTab(tab4, "Debug")
+        self.tab_widget.addTab(tab_1, "General")
+        self.tab_widget.addTab(tab_2, "Sounds")
+        self.tab_widget.addTab(tab_3, "Worked B4")
+        self.tab_widget.addTab(tab_4, "Backup")
+        self.tab_widget.addTab(tab_5, "Debugging")
 
-        tab1_layout = QtWidgets.QVBoxLayout(tab1)
-        tab2_layout = QtWidgets.QVBoxLayout(tab2)
-        tab3_layout = QtWidgets.QVBoxLayout(tab3)
-        tab4_layout = QtWidgets.QVBoxLayout(tab4)
+        tab_1_layout = QtWidgets.QVBoxLayout(tab_1)
+        tab_2_layout = QtWidgets.QVBoxLayout(tab_2)
+        tab_3_layout = QtWidgets.QVBoxLayout(tab_3)
+        tab_4_layout = QtWidgets.QVBoxLayout(tab_4)
+        tab_5_layout = QtWidgets.QVBoxLayout(tab_5)
         
+        """
+            Main Settings
+        """
+
         jtdx_notice_text = (
             "For JTDX users, you have to disable automatic logging of QSO (Make sure <u>Settings > Reporting > Logging > Enable automatic logging of QSO</u> is unchecked)<br /><br />You might also need to accept UDP Reply messages from any messages (<u>Misc Menu > Accept UDP Reply Messages > any messages</u>)."
         )
@@ -256,12 +261,16 @@ class SettingsDialog(QtWidgets.QDialog):
         self.udp_freq_range_type_group.layout().setContentsMargins(0, 0, 0, 0)
         self.udp_freq_range_type_group.layout().addWidget(udp_freq_range_type_widget)
 
-        tab1_layout.addWidget(jtdx_notice_label)
-        tab1_layout.addWidget(primary_group)
-        tab1_layout.addWidget(secondary_group)
-        tab1_layout.addWidget(udp_settings_group)
-        tab1_layout.addWidget(self.udp_freq_range_type_group)
-        tab1_layout.addStretch() 
+        tab_1_layout.addWidget(jtdx_notice_label)
+        tab_1_layout.addWidget(primary_group)
+        tab_1_layout.addWidget(secondary_group)
+        tab_1_layout.addWidget(udp_settings_group)
+        tab_1_layout.addWidget(self.udp_freq_range_type_group)
+        tab_1_layout.addStretch() 
+
+        """
+            Sound Settings
+        """
 
         sound_notice_text = (
             "You can enable or disable the sounds as per your requirement. You can even set a delay between each sound triggered by a message where a monitored callsign has been found. This mainly helps you to be notified when the band opens or when you have a callsign on the air that you want to monitor.<br /><br />Monitored callsigns will never get reply from this program. Only <u>Wanted callsigns will get a reply</u>."
@@ -287,11 +296,11 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_sound_monitored_callsigns = QtWidgets.QCheckBox("Message from any Monitored Callsign")
         self.enable_sound_monitored_callsigns.setChecked(True)
 
-        self.delay_between_sound_for_monitored_callsign = QtWidgets.QLineEdit()
-        self.delay_between_sound_for_monitored_callsign.setFixedWidth(50)
+        self.delay_between_sound_for_monitored = QtWidgets.QLineEdit()
+        self.delay_between_sound_for_monitored.setFixedWidth(50)
 
         delay_layout = QtWidgets.QHBoxLayout()
-        delay_layout.addWidget(self.delay_between_sound_for_monitored_callsign)
+        delay_layout.addWidget(self.delay_between_sound_for_monitored)
         delay_layout.addWidget(QtWidgets.QLabel("seconds"))
         delay_layout.addStretch()
 
@@ -307,20 +316,79 @@ class SettingsDialog(QtWidgets.QDialog):
         sound_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
         sound_settings_group.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
-        tab2_layout.addWidget(sound_notice_label)
-        tab2_layout.addWidget(sound_settings_group)
-        tab2_layout.addStretch()  
+        tab_2_layout.addWidget(sound_notice_label)
+        tab_2_layout.addWidget(sound_settings_group)
+        tab_2_layout.addStretch()  
 
-        adif_notice_text = (
-            f"{GUI_LABEL_NAME} program will write specific ADIF file for each valid QSO monitored. This is mainly a backup for your main ADIF file. <br /><br />In addition, you can also <u>set your working ADIF file from WSJT-x or JTDX</u>. {GUI_LABEL_NAME} won't update your main ADIF file. Still, it can read and parse it, and will allow you to check which station was worked before (Wkb4). Then you can ask {GUI_LABEL_NAME} to not reply to any station worked before. But you can also ask {GUI_LABEL_NAME} to reply to station not worked on the current year."
+        """
+            Worked B4 Settings
+        """
+
+        worked_b4_notice_text = (
+            f"While using {GUI_LABEL_NAME}, you can <u>set your working ADIF file from WSJT-x or JTDX</u>. {GUI_LABEL_NAME} won't update your main ADIF file. Still, it can read and parse it.<br><br>Then it will check which station was worked before (WkedB4)."
         )
 
-        adif_notice_label = QtWidgets.QLabel(adif_notice_text)
-        adif_notice_label.setStyleSheet(SETTING_QSS)
-        adif_notice_label.setWordWrap(True)
-        adif_notice_label.setFont(CUSTOM_FONT_SMALL)
+        worked_b4_notice_label = QtWidgets.QLabel(worked_b4_notice_text)
+        worked_b4_notice_label.setStyleSheet(SETTING_QSS)
+        worked_b4_notice_label.setWordWrap(True)
+        worked_b4_notice_label.setFont(CUSTOM_FONT_SMALL)
+        worked_b4_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
-        adif_backup_selection_group = QtWidgets.QGroupBox(f"{GUI_LABEL_NAME} ADIF File")
+        file_selection_group = QtWidgets.QGroupBox("ADIF File to check Worked B4 Callsigns")
+        file_selection_group.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
+
+        file_selection_widget = QtWidgets.QWidget()
+        file_selection_layout = QtWidgets.QGridLayout(file_selection_widget)
+        
+        self.select_file_button = QtWidgets.QPushButton("Select File")
+        self.select_file_button.setFixedWidth(120)
+        self.select_file_button.clicked.connect(self.open_file_dialog)
+
+        self.adif_file_path = QtWidgets.QLineEdit()
+        self.adif_file_path.setReadOnly(True) 
+
+        file_selection_layout.addWidget(self.adif_file_path, 0, 0)
+        file_selection_layout.addWidget(self.select_file_button, 0, 1)
+
+        file_selection_group.setLayout(QtWidgets.QVBoxLayout())
+        file_selection_group.layout().setContentsMargins(0, 0, 0, 0)
+        file_selection_group.layout().addWidget(file_selection_widget)
+               
+        self.adif_action_group = QtWidgets.QGroupBox("What should we do with Worked B4?")
+        adif_action_layout = QtWidgets.QVBoxLayout()
+
+        self.radio_reply_always = QtWidgets.QRadioButton("Reply to any Wanted Callsign even if Worked B4")
+        self.radio_reply_current_year = QtWidgets.QRadioButton("Reply to Wanted Callsign if not Worked B4 in current year ({})".format(datetime.now().year))
+        self.radio_reply_never = QtWidgets.QRadioButton("Do not reply to any Callsign Worked B4")
+        
+        adif_action_layout.addWidget(self.radio_reply_always)
+        adif_action_layout.addWidget(self.radio_reply_current_year)
+        adif_action_layout.addWidget(self.radio_reply_never)
+
+        self.adif_action_group.setLayout(adif_action_layout)
+        self.adif_action_group.setVisible(False)
+
+        tab_3_layout.addWidget(worked_b4_notice_label)
+        tab_3_layout.addWidget(file_selection_group)
+        tab_3_layout.addWidget(self.adif_action_group)
+        tab_3_layout.addStretch()  
+
+        """
+            Backup Settings
+        """
+
+        adif_backup_selection_group = QtWidgets.QGroupBox(f"{GUI_LABEL_NAME} Backup File")
+        adif_backup_selection_group.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
+
+        working_log_notice_text = (
+            f"{GUI_LABEL_NAME} program will write a new entry on a dedicated and specific ADIF File for each monitored QSO.<br /><br />This file can be used as a backup of your main logging sequence with JTDX or WSJT-x."
+        )
+
+        working_log_notice_label = QtWidgets.QLabel(working_log_notice_text)
+        working_log_notice_label.setStyleSheet(SETTING_QSS)
+        working_log_notice_label.setWordWrap(True)
+        working_log_notice_label.setFont(CUSTOM_FONT_SMALL)
+        working_log_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
         adif_backup_widget = QtWidgets.QWidget()
         adif_backup_layout = QtWidgets.QGridLayout(adif_backup_widget)
@@ -328,7 +396,7 @@ class SettingsDialog(QtWidgets.QDialog):
         show_backup_file_path = QtWidgets.QLineEdit(f"{ADIF_WORKED_CALLSIGNS_FILE}")
         show_backup_file_path.setReadOnly(True) 
 
-        open_backup_file_button = CustomButton("Show File")
+        open_backup_file_button = QtWidgets.QPushButton("Open Folder")
         open_backup_file_button.setFixedWidth(120)
         open_backup_file_button.clicked.connect(self.open_backup_file_location) 
 
@@ -339,53 +407,13 @@ class SettingsDialog(QtWidgets.QDialog):
         adif_backup_selection_group.layout().setContentsMargins(0, 0, 0, 0)
         adif_backup_selection_group.layout().addWidget(adif_backup_widget)
 
-        file_selection_group = QtWidgets.QGroupBox("ADIF File to check Worked Before")
-
-        file_selection_widget = QtWidgets.QWidget()
-        file_selection_layout = QtWidgets.QGridLayout(file_selection_widget)
-
-        self.selected_file_path = QtWidgets.QLineEdit()
-        self.selected_file_path.setReadOnly(True) 
-
-        self.select_file_button = CustomButton("Select File")
-        self.select_file_button.setFixedWidth(120)
-        self.select_file_button.clicked.connect(self.open_file_dialog)
-
-        file_selection_layout.addWidget(self.selected_file_path, 0, 0)
-        file_selection_layout.addWidget(self.select_file_button, 0, 1)
-
-        file_selection_group.setLayout(QtWidgets.QVBoxLayout())
-        file_selection_group.layout().setContentsMargins(0, 0, 0, 0)
-        file_selection_group.layout().addWidget(file_selection_widget)
-       
-        adif_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
-        adif_backup_selection_group.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
-        file_selection_group.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
-
-        self.adif_action_group = QtWidgets.QGroupBox("What should we do with your ADIF file?")
-        adif_action_layout = QtWidgets.QVBoxLayout()
-
-        self.radio_reply_always = QtWidgets.QRadioButton("Reply to Wanted Callsign even if Worked before")
-        self.radio_reply_current_year = QtWidgets.QRadioButton("Reply to Wanted Callsign if not worked in {}".format(datetime.now().year))
-        self.radio_reply_never = QtWidgets.QRadioButton("Never reply to callsign worked before")
+        tab_4_layout.addWidget(working_log_notice_label)
+        tab_4_layout.addWidget(adif_backup_selection_group)
+        tab_4_layout.addStretch()  
         
-        self.adif_action_button_group = QtWidgets.QButtonGroup()
-        self.adif_action_button_group.addButton(self.radio_reply_always)
-        self.adif_action_button_group.addButton(self.radio_reply_current_year)
-        self.adif_action_button_group.addButton(self.radio_reply_never)
-
-        adif_action_layout.addWidget(self.radio_reply_always)
-        adif_action_layout.addWidget(self.radio_reply_current_year)
-        adif_action_layout.addWidget(self.radio_reply_never)
-
-        self.adif_action_group.setLayout(adif_action_layout)
-        self.adif_action_group.setVisible(False)
-
-        tab3_layout.addWidget(adif_notice_label)
-        tab3_layout.addWidget(adif_backup_selection_group)
-        tab3_layout.addWidget(file_selection_group)
-        tab3_layout.addWidget(self.adif_action_group)
-        tab3_layout.addStretch()  
+        """
+            Debug Settings
+        """
 
         log_settings_group = QtWidgets.QGroupBox("Log Settings")
         log_settings_layout = QtWidgets.QGridLayout()
@@ -407,8 +435,8 @@ class SettingsDialog(QtWidgets.QDialog):
 
         log_settings_group.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
-        tab4_layout.addWidget(log_settings_group)
-        tab4_layout.addStretch()  
+        tab_5_layout.addWidget(log_settings_group)
+        tab_5_layout.addStretch()  
 
         self.load_params()
 
@@ -468,7 +496,7 @@ class SettingsDialog(QtWidgets.QDialog):
             parsed_data, processing_time = parse_adif(file_path)
 
             if parsed_data:
-                self.selected_file_path.setText(file_path)
+                self.adif_file_path.setText(file_path)
                 self.adif_action_group.setVisible(True)  
 
                 summary_dialog = AdifSummaryDialog(parsed_data, processing_time, self)
@@ -499,7 +527,7 @@ class SettingsDialog(QtWidgets.QDialog):
     def load_params(self):
         local_ip_address = get_local_ip_address()
 
-        freq_range_mode = self.params.get("selected_mode", MODE_NORMAL)
+        freq_range_mode = self.params.get("freq_range_mode", MODE_NORMAL)
 
         if freq_range_mode == "Normal":
             self.radio_normal.setChecked(True)
@@ -549,8 +577,8 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_log_all_valid_contact.setChecked(
             self.params.get('enable_log_all_valid_contact', True)
         )        
-        self.delay_between_sound_for_monitored_callsign.setText(
-            str(self.params.get('delay_between_sound_for_monitored_callsign', DEFAULT_DELAY_BETWEEN_SOUND))
+        self.delay_between_sound_for_monitored.setText(
+            str(self.params.get('delay_between_sound_for_monitored', DEFAULT_DELAY_BETWEEN_SOUND))
         )
         self.enable_sound_wanted_callsigns.setChecked(
             self.params.get('enable_sound_wanted_callsigns', True)
@@ -561,17 +589,17 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_sound_monitored_callsigns.setChecked(
             self.params.get('enable_sound_monitored_callsigns', True)
         )        
-        selected_file = self.params.get('selected_file_path', get_app_data_dir())
-        self.selected_file_path.setText(selected_file)
+        selected_file = self.params.get('adif_file_path', None)
+        self.adif_file_path.setText(selected_file)
 
         if selected_file:
             self.adif_action_group.setVisible(True)
-            reply_mode = self.params.get('reply_worked_before_mode', REPLY_WKB4_MODE_ALWAYS)  
-            if reply_mode == REPLY_WKB4_MODE_ALWAYS:
+            reply_mode = self.params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS)  
+            if reply_mode == WKB4_REPLY_MODE_ALWAYS:
                 self.radio_reply_always.setChecked(True)
-            elif reply_mode == REPLY_WKB4_MODE_CURRENT_YEAR:
+            elif reply_mode == WKB4_REPLY_MODE_CURRENT_YEAR:
                 self.radio_reply_current_year.setChecked(True)
-            elif reply_mode == REPLY_WKB4_MODE_NEVER:
+            elif reply_mode == WKB4_REPLY_MODE_NEVER:
                 self.radio_reply_never.setChecked(True)
             else:
                 self.radio_reply_always.setChecked(True)  
@@ -579,20 +607,20 @@ class SettingsDialog(QtWidgets.QDialog):
             self.adif_action_group.setVisible(False)
 
     def get_result(self):
-        selected_mode = MODE_NORMAL 
+        freq_range_mode = MODE_NORMAL 
         if self.radio_foxhound.isChecked():
-            selected_mode = MODE_FOX_HOUND
+            freq_range_mode = MODE_FOX_HOUND
         elif self.radio_superfox.isChecked():
-            selected_mode = MODE_SUPER_FOX
+            freq_range_mode = MODE_SUPER_FOX
 
         if self.radio_reply_always.isChecked():
-            reply_worked_before_mode = REPLY_WKB4_MODE_ALWAYS
+            worked_before_preference = WKB4_REPLY_MODE_ALWAYS
         elif self.radio_reply_current_year.isChecked():
-            reply_worked_before_mode = REPLY_WKB4_MODE_CURRENT_YEAR
+            worked_before_preference = WKB4_REPLY_MODE_CURRENT_YEAR
         elif self.radio_reply_never.isChecked():
-            reply_worked_before_mode = REPLY_WKB4_MODE_NEVER
+            worked_before_preference = WKB4_REPLY_MODE_NEVER
         else:
-            reply_worked_before_mode = REPLY_WKB4_MODE_ALWAYS            
+            worked_before_preference = WKB4_REPLY_MODE_ALWAYS            
 
         return {
             'primary_udp_server_address'                 : self.primary_udp_server_address.text(),
@@ -610,8 +638,8 @@ class SettingsDialog(QtWidgets.QDialog):
             'enable_sound_wanted_callsigns'              : self.enable_sound_wanted_callsigns.isChecked(),
             'enable_sound_directed_my_callsign'          : self.enable_sound_directed_my_callsign.isChecked(),
             'enable_sound_monitored_callsigns'           : self.enable_sound_monitored_callsigns.isChecked(),
-            'delay_between_sound_for_monitored_callsign' : self.delay_between_sound_for_monitored_callsign.text(),
-            'selected_mode'                              : selected_mode,
-            'selected_file_path'                          : self.selected_file_path.text(),
-            'reply_worked_before_mode'                   : reply_worked_before_mode
+            'delay_between_sound_for_monitored'          : self.delay_between_sound_for_monitored.text(),
+            'adif_file_path'                              : self.adif_file_path.text(),            
+            'freq_range_mode'                            : freq_range_mode,
+            'worked_before_preference'                   : worked_before_preference            
         }
