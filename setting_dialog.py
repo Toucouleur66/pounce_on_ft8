@@ -5,14 +5,15 @@ import subprocess
 import os
 
 from PyQt6 import QtWidgets, QtCore
-from PyQt6.QtWidgets import QMessageBox
+from PyQt6.QtCore import QDir
+from PyQt6.QtWidgets import QFileDialog
 
 from custom_button import CustomButton
 from adif_summary_dialog import AdifSummaryDialog
 
 from datetime import datetime
 
-from utils import get_local_ip_address, get_log_filename, get_app_data_dir
+from utils import get_local_ip_address, get_log_filename
 from utils import parse_adif
 
 from constants import (
@@ -484,29 +485,32 @@ class SettingsDialog(QtWidgets.QDialog):
         self.setFixedHeight(total_height)
 
     def open_file_dialog(self):
-        options = QtWidgets.QFileDialog.Option.ReadOnly | QtWidgets.QFileDialog.Option.DontUseNativeDialog
-        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self,
-            "Select ADIF File",
-            "",
-            "ADIF File (*.adif)",
-            options=options
+        dialog = QFileDialog(self, "Select ADIF File")
+        dialog.setNameFilter("ADIF Files (*.adif *.adi);;All Files (*)")
+        dialog.setFileMode(QFileDialog.FileMode.AnyFile)
+        dialog.setOptions(
+            QFileDialog.Option.DontUseCustomDirectoryIcons
         )
-        if file_path:
-            parsed_data, processing_time = parse_adif(file_path)
+        
+        if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            selected_files = dialog.selectedFiles()
+            if selected_files:
+                file_path = selected_files[0]
+                parsed_data, processing_time = parse_adif(file_path)
+                if parsed_data:
+                    self.adif_file_path.setText(file_path)
+                    self.adif_action_group.setVisible(True)
 
-            if parsed_data:
-                self.adif_file_path.setText(file_path)
-                self.adif_action_group.setVisible(True)  
-
-                summary_dialog = AdifSummaryDialog(parsed_data, processing_time, self)
-                summary_dialog.exec()
-            else:
-                QMessageBox.warning(
-                    self,
-                    "No Data found",
-                    "Seems your file is either empty or corrupted"
-                )
+                    summary_dialog = AdifSummaryDialog(parsed_data, processing_time, self)
+                    summary_dialog.exec()
+                else:
+                    QtWidgets.QMessageBox.warning(
+                        self,
+                        "No Data found",
+                        "Seems your file is either empty or corrupted"
+                    )
+        else:
+            print("No file selected.")
 
     def open_backup_file_location(self):
         backup_file_path = os.path.abspath(ADIF_WORKED_CALLSIGNS_FILE)
