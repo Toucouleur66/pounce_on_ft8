@@ -61,8 +61,8 @@ def get_log_filename():
 
 def parse_wsjtx_message(
         message,
-        lookup,
-        wanted_callsigns,
+        lookup              = None,
+        wanted_callsigns    = set(),
         excluded_callsigns  = set(),
         monitored_callsigns = set(),
         monitored_cq_zones  = set()
@@ -83,7 +83,7 @@ def parse_wsjtx_message(
         callsign = match.group(1)
         msg = match.group(2)
     else:      
-        match = re.match(r"^CQ\s+(?:(\w{2,3})\s+)?([A-Z0-9/]+)(?:\s+([A-Z]{2}\d{2}))?", message)
+        match = re.match(r"^CQ\s+(?:(\w{2,5})\s+)?([A-Z0-9/]+)(?:\s+([A-Z]{2}\d{2}))?", message)
         if match:
             # Handle CQ messages      
             cqing    = True
@@ -99,7 +99,7 @@ def parse_wsjtx_message(
                 callsign = match.group(2)
                 msg      = match.group(3)
 
-    if callsign:         
+    if callsign and lookup:         
         callsign_info = lookup.lookup_callsign(callsign)    
 
         if callsign_info:            

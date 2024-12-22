@@ -70,13 +70,23 @@ if platform.system() == 'Darwin':
         <plist version="1.0">
         <dict>
             <key>CFBundleName</key>
-            <string>{app_name}</string>
+            <string>WaitAndPounce</string>
+
             <key>CFBundleIdentifier</key>
-            <string>com.waitandpounce</string>
+            <string>com.f5ukw.waitandpounce</string>
+
+            <key>CFBundleExecutable</key>
+            <string>WaitAndPounce</string>
+
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            
             <key>CFBundleShortVersionString</key>
             <string>{version_number}</string>
+            
             <key>CFBundleVersion</key>
             <string>{version_number}</string>
+            
             <key>CFBundleIconFile</key>
             <string>pounce.icns</string>
         </dict>
