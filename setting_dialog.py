@@ -343,10 +343,10 @@ class SettingsDialog(QtWidgets.QDialog):
         
         self.select_file_button = QtWidgets.QPushButton("Select File")
         self.select_file_button.setFixedWidth(120)
-        self.select_file_button.clicked.connect(self.open_file_dialog)
+        self.select_file_button.clicked.connect(self.open_adif_file_dialog)
 
         self.adif_file_path = QtWidgets.QLineEdit()
-        self.adif_file_path.setReadOnly(True) 
+        # self.adif_file_path.setReadOnly(True) 
 
         file_selection_layout.addWidget(self.adif_file_path, 0, 0)
         file_selection_layout.addWidget(self.select_file_button, 0, 1)
@@ -357,10 +357,12 @@ class SettingsDialog(QtWidgets.QDialog):
                
         self.adif_action_group = QtWidgets.QGroupBox("What should we do with Worked B4?")
         adif_action_layout = QtWidgets.QVBoxLayout()
+        adif_action_layout.setSpacing(10)
 
         self.radio_reply_always = QtWidgets.QRadioButton("Reply to any Wanted Callsign even if Worked B4")
         self.radio_reply_current_year = QtWidgets.QRadioButton("Reply to Wanted Callsign if not Worked B4 in current year ({})".format(datetime.now().year))
         self.radio_reply_never = QtWidgets.QRadioButton("Do not reply to any Callsign Worked B4")
+        self.radio_reply_never.setChecked(True)
         
         adif_action_layout.addWidget(self.radio_reply_always)
         adif_action_layout.addWidget(self.radio_reply_current_year)
@@ -484,7 +486,7 @@ class SettingsDialog(QtWidgets.QDialog):
 
         self.setFixedHeight(total_height)
 
-    def open_file_dialog(self):
+    def open_adif_file_dialog(self):
         dialog = QFileDialog(self, "Select ADIF File")
         dialog.setNameFilter("ADIF Files (*.adif *.adi);;All Files (*)")
         dialog.setFileMode(QFileDialog.FileMode.AnyFile)
@@ -500,6 +502,7 @@ class SettingsDialog(QtWidgets.QDialog):
                 if parsed_data:
                     self.adif_file_path.setText(file_path)
                     self.adif_action_group.setVisible(True)
+                    self.on_tab_changed(self.tab_widget.currentIndex())
 
                     summary_dialog = AdifSummaryDialog(parsed_data, processing_time, self)
                     summary_dialog.exec()

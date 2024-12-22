@@ -2151,9 +2151,10 @@ class MainApp(QtWidgets.QMainWindow):
         self.window_menu.addAction(show_adif_summary_action)
 
     def show_adif_summary_dialog(self):        
-        parsed_data, processing_time = parse_adif(self.adif_file_path)
-        summary_dialog = AdifSummaryDialog(parsed_data, processing_time, self)
-        summary_dialog.exec()
+        if self.adif_file_path and not self.adif_file_path.strip():
+            parsed_data, processing_time = parse_adif(self.adif_file_path)
+            summary_dialog = AdifSummaryDialog(parsed_data, processing_time, self)
+            summary_dialog.exec()
 
     def get_monitoring_action_text(self):
         return STOP_BUTTON_LABEL if self._running else STATUS_BUTTON_LABEL_START
