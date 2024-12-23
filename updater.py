@@ -131,27 +131,40 @@ class Updater:
 
     def run_windows_updater(self, save_path):
         current_exe = sys.executable
+        temp_dir = tempfile.gettempdir()
+        batch_path = os.path.join(temp_dir, "update_script.bat")
 
-        # Créer le contenu du fichier batch
         batch_content = f"""
         @echo off
-        :loop
-        tasklist | find /I "{Path(current_exe).name}" >nul 2>&1
-        if not errorlevel 1 (
-            timeout /t 1 /nobreak >nul
-            goto loop
+        :checkPrivileges
+        net session >nul 2>&1
+        if %errorLevel% neq 0 (
+            echo Requesting administrative privileges...
+            powershell -Command "Start-Process '%~f0' -Verb RunAs"
+            exit /b
         )
+
+        echo Attempting to close the current executable
+        taskkill /IM "{Path(current_exe).name}" /F >nul 2>&1
+        timeout /t 1 /nobreak >nul
+
+        echo Replacing executable
         move /Y "{save_path}" "{current_exe}"
+        if %errorLevel% neq 0 (
+            echo Failed to replace the executable. Exiting...
+            exit /b
+        )
+
+        echo Restarting application
         start "" "{current_exe}"
         del "%~f0"
+        exit
         """
 
-        with tempfile.NamedTemporaryFile('w', delete=False, suffix='.bat') as batch_file:
+        with open(batch_path, 'w') as batch_file:
             batch_file.write(batch_content)
-            batch_path = batch_file.name
 
         subprocess.Popen(['cmd', '/c', batch_path], shell=True)
-
         sys.exit()
 
     def run_macos_updater(self, save_path):
