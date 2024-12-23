@@ -6,7 +6,6 @@ from PyQt6.QtCore import QPropertyAnimation
 from PyQt6.QtCore import QThread
 from PyQt6.QtMultimedia import QSoundEffect
 
-import inspect
 import platform
 import re
 import sys
@@ -38,7 +37,7 @@ from setting_dialog import SettingsDialog
 
 from utils import get_local_ip_address, get_log_filename, matches_any
 from utils import get_mode_interval, get_amateur_band
-from utils import force_input, text_to_array
+from utils import force_input, focus_out_event, text_to_array
 from utils import parse_adif
 
 from version import is_first_launch_or_new_version, save_current_version
@@ -112,6 +111,7 @@ from constants import (
     DEFAULT_LOG_PACKET_DATA,
     DEFAULT_SHOW_ALL_DECODED,
     DEFAULT_LOG_ALL_VALID_CONTACT,
+    DEFAULT_DELAY_BETWEEN_SOUND,
     ACTIVITY_BAR_MAX_VALUE,
     WKB4_REPLY_MODE_ALWAYS,
     # Style
@@ -233,6 +233,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.enable_sound_wanted_callsigns      = params.get('enable_sound_wanted_callsigns', True)
         self.enable_sound_directed_my_callsign  = params.get('enable_sound_directed_my_callsign', True)
         self.enable_sound_monitored_callsigns   = params.get('enable_sound_monitored_callsigns', True)
+        self.delay_between_sound_for_monitored  = params.get('delay_between_sound_for_monitored', DEFAULT_DELAY_BETWEEN_SOUND)
        
         """
             Central, Outer and Main Layout
@@ -531,6 +532,7 @@ class MainApp(QtWidgets.QMainWindow):
                 layout.addWidget(line_edit, idx+1, 1)
 
                 line_edit.textChanged.connect(partial(variable_info['function'], line_edit))
+                focus_out_event(line_edit, mode=variable_info['function'].keywords.get('mode', 'uppercase'))
                 line_edit.textChanged.connect(variable_info['on_changed_method'])
 
             tab_content.setLayout(layout)
@@ -1082,7 +1084,7 @@ class MainApp(QtWidgets.QMainWindow):
                         message_type == 'monitored_callsign_detected' 
                     ) and self.enable_sound_monitored_callsigns:
                         current_time = datetime.now()
-                        delay = 600                   
+                        delay = self.delay_between_sound_for_monitored                   
                         if (current_time - self.last_sound_played_time).total_seconds() > delay:                                                 
                             play_sound = True
                             self.last_sound_played_time = current_time               

@@ -169,89 +169,60 @@ def force_input(widget, mode="uppercase"):
             allowed_pattern = re.compile(r'[0-9,]')
             max_number = 40
 
-        if isinstance(widget, QTextEdit):
-            cursor = widget.textCursor()
-            current_pos = cursor.position()
+        original_text = widget.text()
+        current_text = original_text.upper() if mode == "uppercase" else original_text
+        filtered_text = ''.join(char for char in current_text if allowed_pattern.fullmatch(char))
 
-            original_text = widget.toPlainText()
+        # During typing, allow intermediate inputs
+        filtered_text = re.sub(r',+', ',', filtered_text)
+        filtered_text = re.sub(r'^,', '', filtered_text)
 
-            current_text = original_text.upper() if mode == "uppercase" else original_text
-            filtered_text = ''.join(char for char in current_text if allowed_pattern.fullmatch(char))
-
-            if mode == "numbers":
-                filtered_text = re.sub(r',+', ',', filtered_text)
-                filtered_text = re.sub(r'^,', '', filtered_text)
-                parts = filtered_text.split(',')
-                valid_parts = []
-                for part in parts:
-                    if part.isdigit():
-                        number = int(part)
-                        if 1 <= number <= max_number and str(number) not in valid_parts:
-                            valid_parts.append(str(number))
-                    elif part == '':
-                        valid_parts.append('')
-                cleaned_text = ','.join(valid_parts)
-            elif mode == "uppercase":
-                filtered_text = re.sub(r',+', ',', filtered_text)
-                filtered_text = re.sub(r'^,', '', filtered_text)
-                parts = filtered_text.split(',')
-                unique_parts = []
-                for part in parts:
-                    if part and part not in unique_parts:
-                        unique_parts.append(part)
-                cleaned_text = ','.join(unique_parts)
-                if filtered_text.endswith(','):
-                    cleaned_text += ','
-
-            if original_text != cleaned_text:
-                widget.blockSignals(True)
-                widget.setPlainText(cleaned_text)
-                widget.blockSignals(False)
-
-                new_pos = min(current_pos, len(cleaned_text))
-                cursor.setPosition(new_pos, QTextCursor.MoveMode.MoveAnchor)
-                widget.setTextCursor(cursor)
-
-        elif isinstance(widget, QLineEdit):
-            original_text = widget.text()
-            current_text = original_text.upper() if mode == "uppercase" else original_text
-            filtered_text = ''.join(char for char in current_text if allowed_pattern.fullmatch(char))
-
-            if mode == "numbers":
-                filtered_text = re.sub(r',+', ',', filtered_text)
-                filtered_text = re.sub(r'^,', '', filtered_text)
-                parts = filtered_text.split(',')
-                valid_parts = []
-                for part in parts:
-                    if part.isdigit():
-                        number = int(part)
-                        if 1 <= number <= max_number and str(number) not in valid_parts:
-                            valid_parts.append(str(number))
-                    elif part == '':
-                        valid_parts.append('')
-                cleaned_text = ','.join(valid_parts)
-            elif mode == "uppercase":
-                filtered_text = re.sub(r',+', ',', filtered_text)
-                filtered_text = re.sub(r'^,', '', filtered_text)
-                parts = filtered_text.split(',')
-                unique_parts = []
-                for part in parts:
-                    if part and part not in unique_parts:
-                        unique_parts.append(part)
-                cleaned_text = ','.join(unique_parts)
-                if filtered_text.endswith(','):
-                    cleaned_text += ','
-
-            if original_text != cleaned_text:
-                widget.blockSignals(True)
-                widget.setText(cleaned_text)
-                widget.blockSignals(False)
-
-                new_pos = min(widget.cursorPosition(), len(cleaned_text))
-                widget.setCursorPosition(new_pos)
+        if original_text != filtered_text:
+            widget.blockSignals(True)
+            widget.setText(filtered_text)
+            widget.blockSignals(False)
 
     except Exception as e:
         print(f"force_input: {e}")
+
+def focus_out_event(widget, mode):
+    original_focus_out = widget.focusOutEvent
+
+    def custom_focus_out(event):
+        try:
+            if mode == "numbers":
+                text = widget.text()
+                parts = text.split(',')
+                valid_parts = []
+                for part in parts:
+                    if part.isdigit():
+                        number = int(part)
+                        if 1 <= number <= 40:
+                            valid_parts.append(number)
+
+                valid_parts = sorted(set(valid_parts))
+                widget.blockSignals(True)
+                widget.setText(','.join(map(str, valid_parts)))
+                widget.blockSignals(False)
+
+            elif mode == "uppercase":
+                text = widget.text()
+                parts = text.split(',')
+                unique_parts = []
+                for part in parts:
+                    if part and part not in unique_parts:
+                        unique_parts.append(part)
+
+                widget.blockSignals(True)
+                widget.setText(','.join(unique_parts))
+                widget.blockSignals(False)
+
+        except Exception as e:
+            print(f"focusOutEvent: {e}")
+
+        original_focus_out(event)
+
+    widget.focusOutEvent = custom_focus_out
 
 def parse_adif_record(record):
     call_match = re.search(r"<CALL:\d+>([^ <]+)", record, re.IGNORECASE)
