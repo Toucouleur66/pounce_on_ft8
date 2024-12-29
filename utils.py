@@ -83,7 +83,7 @@ def parse_wsjtx_message(
         callsign = match.group(1)
         msg = match.group(2)
     else:      
-        match = re.match(r"^CQ\s+(?:(\w{2,5})\s+)?([A-Z0-9/]+)(?:\s+([A-Z]{2}\d{2}))?", message)
+        match = re.match(r"^CQ\s+(?:(\w{2,4})\s+)?([A-Z0-9/]+)(?:\s+([A-Z]{2}\d{2}))?", message)
         if match:
             # Handle CQ messages      
             cqing    = True

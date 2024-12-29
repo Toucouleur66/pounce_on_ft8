@@ -1187,15 +1187,15 @@ class MainApp(QtWidgets.QMainWindow):
 
         actions = {}        
 
+        if table.objectName() == 'history_table':
+            actions['remove_callsign_from_worked_history'] = menu.addAction(f"Remove {callsign} on {history_band} from Worked History")
+            menu.addSeparator()
+
         header_action = QtGui.QAction(f"Apply to {context_menu_band}")
         header_action.setEnabled(False)  
         menu.addAction(header_action)
         menu.addSeparator()
         
-        if table.objectName() == 'history_table':
-            actions['remove_callsign_from_worked_history'] = menu.addAction(f"Remove {callsign} on {history_band} from Worked History")
-            menu.addSeparator()
-
         """
             Wanted Callsigns
         """

@@ -24,7 +24,10 @@ class TimeAgoDelegate(QtWidgets.QStyledItemDelegate):
                 option.text = f"{int(seconds // 60)}m"
             elif seconds < 86_400:
                 option.text = f"{int(seconds // 3_600)}h"
-            else:
+            elif seconds <= 864_000:  # 10 days in seconds
                 option.text = f"{int(seconds // 86_400)}d"
+            else:
+                weeks = seconds // (86_400 * 7)
+                option.text = f"{int(weeks)}w"
 
             option.displayAlignment = QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter
