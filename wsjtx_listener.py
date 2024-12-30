@@ -113,9 +113,9 @@ class Listener:
 
         self.wanted_callsigns               = None
         self.excluded_callsigns             = None
-        self.worked_callsigns               = None
         self.monitored_callsigns            = None
         self.monitored_cq_zones             = None
+        self.worked_callsigns               = set()        
         self.freq_range_mode                = freq_range_mode
         self.message_callback               = message_callback
 
