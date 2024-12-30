@@ -63,6 +63,7 @@ def parse_wsjtx_message(
         message,
         lookup              = None,
         wanted_callsigns    = set(),
+        worked_callsigns    = set(),
         excluded_callsigns  = set(),
         monitored_callsigns = set(),
         monitored_cq_zones  = set()
@@ -83,21 +84,28 @@ def parse_wsjtx_message(
         callsign = match.group(1)
         msg = match.group(2)
     else:      
-        match = re.match(r"^CQ\s+(?:(\w{2,4})\s+)?([A-Z0-9/]+)(?:\s+([A-Z]{2}\d{2}))?", message)
+        match = re.match(r"^CQ\s+(?:(\w{2,4})\s+)([A-Z0-9/]+)(?:\s+([A-Z]{2}\d{2}))", message)        
         if match:
-            # Handle CQ messages      
+            # Handle CQ messages with directed CQ   
             cqing    = True
             directed = match.group(1)
             callsign = match.group(2)
             grid     = match.group(3)
-
         else:
-            # Handle directed calls and standard messages
-            match = re.match(r"^([A-Z0-9/]+)\s+([A-Z0-9/]+)\s+([A-Z0-9+-]+)", message)
+            match = re.match(r"^CQ\s+([A-Z0-9/]+)(?:\s+([A-Z]{2}\d{2}))?", message)
             if match:
-                directed = match.group(1)
-                callsign = match.group(2)
-                msg      = match.group(3)
+                print("Regular CQ")
+                # Handle CQ messages      
+                cqing    = True
+                callsign = match.group(1)
+                grid     = match.group(2)
+            else:
+                # Handle directed calls and standard messages
+                match = re.match(r"^([A-Z0-9/]+)\s+([A-Z0-9/]+)\s+([A-Z0-9+-]+)", message)
+                if match:
+                    directed = match.group(1)
+                    callsign = match.group(2)
+                    msg      = match.group(3)
 
     if callsign and lookup:         
         callsign_info = lookup.lookup_callsign(callsign)    
@@ -110,6 +118,7 @@ def parse_wsjtx_message(
         """
         is_wanted    = matches_any(wanted_callsigns, callsign)
         is_excluded  = matches_any(excluded_callsigns, callsign)
+        is_worked    = matches_any(worked_callsigns, callsign)
         is_monitored = matches_any(monitored_callsigns, callsign)
         """
             Check if CQ Zone matches
@@ -118,7 +127,7 @@ def parse_wsjtx_message(
         if cq_zone and cq_zone in monitored_cq_zones:
             is_monitored_cq_zone = True
 
-        wanted            = is_wanted and not is_excluded
+        wanted            = is_wanted and not is_excluded and not is_worked
         monitored         = is_monitored and not is_excluded
         monitored_cq_zone = is_monitored_cq_zone and not is_excluded
 
