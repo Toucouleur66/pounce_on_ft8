@@ -1084,7 +1084,7 @@ class MainApp(QtWidgets.QMainWindow):
                         message_type == 'monitored_callsign_detected' 
                     ) and self.enable_sound_monitored_callsigns:
                         current_time = datetime.now()
-                        delay = self.delay_between_sound_for_monitored                   
+                        delay = int(self.delay_between_sound_for_monitored)                   
                         if (current_time - self.last_sound_played_time).total_seconds() > delay:                                                 
                             play_sound = True
                             self.last_sound_played_time = current_time               
