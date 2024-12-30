@@ -1872,11 +1872,11 @@ class MainApp(QtWidgets.QMainWindow):
         item_band.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.wait_pounce_history_table.setItem(row_id, 2, item_band)
 
-        self.wait_pounce_history_table.scrollToBottom()    
-
         if add_to_history:
             self.worked_callsigns_history.append(raw_data)
-            self.update_worked_callsigns_history_counter()            
+            self.update_worked_callsigns_history_counter()     
+
+        self.wait_pounce_history_table.scrollToBottom()    
 
     def apply_row_format(self, row, row_color):
         if row_color == 'bright_for_my_call':
