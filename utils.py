@@ -84,21 +84,27 @@ def parse_wsjtx_message(
         callsign = match.group(1)
         msg = match.group(2)
     else:      
-        match = re.match(r"^CQ\s+(?:(\w{2,4})\s+)?([A-Z0-9/]+)(?:\s+([A-Z]{2}\d{2}))?", message)
+        match = re.match(r"^CQ\s+(?:(\w{2,4})\s+)([A-Z0-9/]+)(?:\s+([A-Z]{2}\d{2}))", message)        
         if match:
-            # Handle CQ messages      
+            # Handle CQ messages with directed CQ   
             cqing    = True
             directed = match.group(1)
             callsign = match.group(2)
             grid     = match.group(3)
-
         else:
-            # Handle directed calls and standard messages
-            match = re.match(r"^([A-Z0-9/]+)\s+([A-Z0-9/]+)\s+([A-Z0-9+-]+)", message)
+            match = re.match(r"^CQ\s+([A-Z0-9/]+)(?:\s+([A-Z]{2}\d{2}))?", message)
             if match:
-                directed = match.group(1)
-                callsign = match.group(2)
-                msg      = match.group(3)
+                # Handle CQ messages with Grid only      
+                cqing    = True
+                callsign = match.group(1)
+                grid     = match.group(2)
+            else:
+                # Handle directed calls and standard messages
+                match = re.match(r"^([A-Z0-9/]+)\s+([A-Z0-9/]+)\s+([A-Z0-9+-]+)", message)
+                if match:
+                    directed = match.group(1)
+                    callsign = match.group(2)
+                    msg      = match.group(3)
 
     if callsign and lookup:         
         callsign_info = lookup.lookup_callsign(callsign)    

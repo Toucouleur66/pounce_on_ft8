@@ -113,6 +113,7 @@ class Listener:
 
         self.wanted_callsigns               = None
         self.excluded_callsigns             = None
+        self.worked_callsigns               = None
         self.monitored_callsigns            = None
         self.monitored_cq_zones             = None
         self.freq_range_mode                = freq_range_mode
@@ -479,6 +480,7 @@ class Listener:
                 message,
                 lookup,
                 self.wanted_callsigns,
+                self.worked_callsigns,
                 self.excluded_callsigns,
                 self.monitored_callsigns,
                 self.monitored_cq_zones
@@ -546,7 +548,7 @@ class Listener:
                     # Make sure to remove this callsign once QSO done
                     if callsign in self.wanted_callsigns:
                         self.wanted_callsigns.remove(callsign)
-                    self.excluded_callsigns.add(callsign)
+                    self.worked_callsigns.add(callsign)
                     self.call_ready_to_log = None
      
                 elif self.targeted_call is not None:
