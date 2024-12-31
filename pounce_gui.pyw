@@ -16,10 +16,10 @@ import pyperclip
 
 from datetime import datetime, timezone, timedelta
 from collections import deque
-from packaging import version
 from functools import partial
 
 # Custom classes 
+from animated_toggle import AnimatedToggle
 from custom_tab_widget import CustomTabWidget
 from custom_button import CustomButton
 from adif_summary_dialog import AdifSummaryDialog
@@ -353,9 +353,24 @@ class MainApp(QtWidgets.QMainWindow):
         self.settings = CustomButton("Settings")
         self.settings.clicked.connect(self.open_settings)
 
-        self.disable_alert_checkbox = QtWidgets.QCheckBox("Disable all Sounds")
-        self.disable_alert_checkbox.setChecked(False)
-        self.disable_alert_checkbox.stateChanged.connect(self.update_alert_label_style)
+        self.disable_alert_toggle = AnimatedToggle(
+                checked_color= STATUS_MONITORING_COLOR,
+                pulse_checked_color=f"{STATUS_MONITORING_COLOR}FF"
+        )
+        self.disable_alert_toggle.stateChanged.connect(self.update_alert_label_style)
+        self.disable_alert_toggle.setFixedSize(self.disable_alert_toggle.sizeHint())
+        self.disable_alert_toggle.setChecked(True)
+        
+        self.disable_alert_layout = QtWidgets.QWidget()
+        horizontal_layout = QtWidgets.QHBoxLayout() 
+        horizontal_layout.setContentsMargins(0, 0, 0, 0)
+        horizontal_layout.setSpacing(0)
+
+        horizontal_layout.addWidget(QtWidgets.QLabel("Enable Sounds"))
+        horizontal_layout.addWidget(self.disable_alert_toggle)
+
+        self.disable_alert_layout.setLayout(horizontal_layout)
+        self.disable_alert_layout.setFixedHeight(42)
 
         self.quit_button = CustomButton("Quit")
         self.quit_button.clicked.connect(self.quit_application)
@@ -389,9 +404,18 @@ class MainApp(QtWidgets.QMainWindow):
 
         button_layout.addWidget(self.quit_button)
 
-        bottom_layout.addWidget(self.disable_alert_checkbox)
+        bottom_layout.addWidget(self.disable_alert_layout)
         bottom_layout.addStretch()  
         bottom_layout.addLayout(button_layout)
+
+        bottom_widget = QtWidgets.QWidget()
+        bottom_widget.setLayout(bottom_layout)
+        bottom_layout.setContentsMargins(0, 0, 0, 0)
+        bottom_widget.setFixedHeight(40)    
+
+        """
+            Activity Bar
+        """
 
         self.activity_bar = ActivityBar(max_value=ACTIVITY_BAR_MAX_VALUE)
         self.activity_bar.setFixedWidth(30)
@@ -403,6 +427,7 @@ class MainApp(QtWidgets.QMainWindow):
         """
             Main layout
         """
+
         main_layout.addLayout(top_layout, 0, 0, 1, 5) 
         main_layout.addWidget(self.worked_history_callsigns_label, 1, 3, 1, 2)
         main_layout.addWidget(self.tab_widget, 2, 0, 4, 3)                
@@ -413,7 +438,7 @@ class MainApp(QtWidgets.QMainWindow):
         main_layout.addItem(spacer, 9, 0, 1, 5)
         main_layout.addWidget(self.output_table, 10, 0, 1, 5)
         main_layout.addWidget(self.filter_widget, 11, 0, 1, 5)
-        main_layout.addLayout(bottom_layout, 12, 0, 1, 5)
+        main_layout.addWidget(bottom_widget, 12, 0, 1, 5)
 
         self.file_handler = None
         if self.enable_pounce_log:
@@ -948,7 +973,7 @@ class MainApp(QtWidgets.QMainWindow):
             if self.worker is not None:
                 self.worker.update_settings_signal.emit()
 
-                if not self.disable_alert_checkbox.isChecked():      
+                if self.disable_alert_toggle.isChecked():      
                     self.play_sound("band_change")
 
         if self._running:
@@ -1071,7 +1096,7 @@ class MainApp(QtWidgets.QMainWindow):
                     Handle sound notification
                 """
                 play_sound = False
-                if not self.disable_alert_checkbox.isChecked():      
+                if self.disable_alert_toggle.isChecked():      
                     if message_type == 'wanted_callsign_detected' and self.enable_sound_wanted_callsigns:
                         play_sound = True
                     elif message_type == 'directed_to_my_call' and self.enable_sound_directed_my_callsign:
@@ -1688,10 +1713,11 @@ class MainApp(QtWidgets.QMainWindow):
         self.worked_history_callsigns_label.setText(WORKED_CALLSIGNS_HISTORY_LABEL % len(self.worked_callsigns_history))
 
     def update_alert_label_style(self):
-        if self.disable_alert_checkbox.isChecked():
-            self.disable_alert_checkbox.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_YELLOW};")
+        if self.disable_alert_toggle.isChecked():
+            pass
+            # self.disable_alert_layout.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_YELLOW};")
         else:
-            self.disable_alert_checkbox.setStyleSheet("")
+            self.disable_alert_layout.setStyleSheet("")
 
     def on_right_click(self, position):
         menu = QtWidgets.QMenu()

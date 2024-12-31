@@ -24,7 +24,7 @@ class TimeAgoDelegate(QtWidgets.QStyledItemDelegate):
                 option.text = f"{int(seconds // 60)}m"
             elif seconds < 86_400:
                 option.text = f"{int(seconds // 3_600)}h"
-            elif seconds <= 1_036_800:  # 2 weeks in seconds
+            elif seconds <= 1_209_600:  # 2 weeks in seconds
                 option.text = f"{int(seconds // 86_400)}d"
             else:
                 weeks = seconds // (86_400 * 7)
