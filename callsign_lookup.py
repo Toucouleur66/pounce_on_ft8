@@ -1,33 +1,129 @@
-# callsign_lookup.py
-
 import xml.etree.ElementTree as ET
 import datetime
-
 from collections import OrderedDict
+import json
+import os
 
-from constants import (    
-    CURRENT_DIR
-)
+from shapely.geometry import shape, Point
+from shapely.ops import unary_union
+
+from constants import CURRENT_DIR  
+
+from logger import get_logger
+
+log = get_logger(__name__)
 
 class CallsignLookup:
-    def __init__(self):
+    def __init__(
+            self,
+            xml_file_path           = f"{CURRENT_DIR}/cty.xml",
+            cq_zones_geojson_path  = f"{CURRENT_DIR}/cq-zones.geojson",
+            cache_file              = f"{CURRENT_DIR}/lookup_cache.json",              
+            cache_size             = 3_00,
+        ):
         self.callsign_exceptions = {}
-        self.prefixes = {}
-        self.entities = {}
-        self.invalid_operations = {}
-        self.zone_exceptions = {}
+        self.prefixes             = {}
+        self.entities            = {}
+        self.invalid_operations  = {}
+        self.zone_exceptions     = {}
 
-        self.cache = OrderedDict()
-        self.cache_size = 200
+        self.cache               = OrderedDict()
+        self.cache_size          = cache_size
+        self.cache_file           = cache_file
 
-        self.load_clublog_xml()
+        self.load_clublog_xml(xml_file_path)
 
-    def load_clublog_xml(self, xml_file_path=f"{CURRENT_DIR}/cty.xml"):
+        self.zone_polygons = self.load_cq_zones(cq_zones_geojson_path)
+
+        self.load_cache_from_disk()
+
+    def load_cache_from_disk(self):
+        """
+            Loads the cache from self.cache_file if it exists.
+            Reconstructs date fields from ISO8601 strings, and stores them in self.cache.
+        """
+        if not os.path.exists(self.cache_file):
+            return  # no existing cache
+
+        try:
+            with open(self.cache_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception as e:
+            log.error(f"Failed to load cache file '{self.cache_file}': {e}")
+            return
+
+        # 'data' is a dict: { callsign: {...}, callsign2: {...}, ... }
+        # Rebuild into an OrderedDict
+        for callsign, info in data.items():
+            # Convert date fields back to datetime if they exist
+            deserialized = self._deserialize_info(info)
+            self.cache[callsign] = deserialized
+
+        for k in list(self.cache.keys()):
+            self.cache.move_to_end(k)
+
+        log.info(f"File {self.cache_file} loading is complete with {len(self.cache)} entries.")
+
+    def save_cache(self):
+        """
+            Saves the in-memory self.cache to a JSON file on disk.
+            This must be called explicitly if you want to persist the updated data.
+        """
+        # Convert the OrderedDict to a normal dict for JSON
+        data_to_save = {}
+        for callsign, info in self.cache.items():
+            data_to_save[callsign] = self._serialize_info(info)
+
+        try:
+            with open(self.cache_file, "w", encoding="utf-8") as f:
+                json.dump(data_to_save, f, indent=2)
+            log.info(f"Cache file {self.cache_file} saved with {len(self.cache)} entries.")
+        except Exception as e:
+            log.error(f"Failed to save cache to {self.cache_file}: {e}")
+
+    def _serialize_info(self, info: dict) -> dict:
+        """
+            Convert any non-JSON-serializable fields (e.g., datetime) into strings.
+            Returns a JSON-friendly dict
+        """
+        # Make a shallow copy so we don't mutate the original
+        safe_dict = {}
+        for k, v in info.items():
+            if isinstance(v, datetime.datetime):
+                # store as ISO8601 string
+                safe_dict[k] = v.isoformat()
+            else:
+                safe_dict[k] = v
+        return safe_dict
+
+    def _deserialize_info(self, info: dict) -> dict:
+        """
+            Convert serialized fields (like ISO8601 date strings) back into datetime objects if needed. Returns a Python dict with corrected fields.
+        """
+        new_dict = {}
+        for k, v in info.items():
+            if isinstance(v, str):
+                # Attempt to parse if it looks like an ISO date
+                # We'll just do a quick check
+                if self._looks_like_iso8601(v):
+                    try:
+                        new_dict[k] = datetime.datetime.fromisoformat(v)
+                        continue
+                    except ValueError:
+                        pass
+            new_dict[k] = v
+        return new_dict
+
+    def _looks_like_iso8601(self, s: str) -> bool:
+        if len(s) >= 10 and s[4] == '-':
+            return True
+        return False
+
+    def load_clublog_xml(self, xml_file_path):
         try:
             tree = ET.parse(xml_file_path)
             root = tree.getroot()
 
-            # Traitement des exceptions
             exceptions_elem = root.find('exceptions')
             for exception in exceptions_elem.findall('exception'):
                 call_elem = exception.find('call')
@@ -54,10 +150,10 @@ class CallsignLookup:
                 longitude = float(long_elem.text) if long_elem is not None else None
 
                 start_elem = exception.find('start')
-                start = self._parse_date(start_elem.text) if start_elem is not None else None
+                start = self.parse_date(start_elem.text) if start_elem is not None else None
 
                 end_elem = exception.find('end')
-                end = self._parse_date(end_elem.text) if end_elem is not None else None
+                end = self.parse_date(end_elem.text) if end_elem is not None else None
 
                 exception_data = {
                     'call': call,
@@ -119,10 +215,10 @@ class CallsignLookup:
                 longitude = float(long_elem.text) if long_elem is not None else None
 
                 start_elem = prefix_elem.find('start')
-                start = self._parse_date(start_elem.text) if start_elem is not None else None
+                start = self.parse_date(start_elem.text) if start_elem is not None else None
 
                 end_elem = prefix_elem.find('end')
-                end = self._parse_date(end_elem.text) if end_elem is not None else None
+                end = self.parse_date(end_elem.text) if end_elem is not None else None
 
                 prefix_data = {
                     'call': call,
@@ -166,10 +262,10 @@ class CallsignLookup:
                 longitude = float(long_elem.text) if long_elem is not None else None
 
                 start_elem = entity.find('start')
-                start = self._parse_date(start_elem.text) if start_elem is not None else None
+                start = self.parse_date(start_elem.text) if start_elem is not None else None
 
                 end_elem = entity.find('end')
-                end = self._parse_date(end_elem.text) if end_elem is not None else None
+                end = self.parse_date(end_elem.text) if end_elem is not None else None
 
                 entity_data = {
                     'name': name,
@@ -184,31 +280,29 @@ class CallsignLookup:
                 }
                 self.entities[adif] = entity_data
 
-                # Expansion et ajout des préfixes de l'entité
-                expanded_prefixes = self._expand_prefixes(prefix_str)
+                expanded_prefixes = self.expand_prefixes(prefix_str)
                 for prefix in expanded_prefixes:
                     prefix = prefix.upper()
                     prefix_data = entity_data.copy()
                     prefix_data['call'] = prefix
-                    # Ajouter à la liste des préfixes
                     self.prefixes.setdefault(prefix, []).append(prefix_data)
 
-            print(f"File {xml_file_path} loading is complete.")
+            log.info(f"File {xml_file_path} loading is complete.")
         except Exception as e:
-            print(f"Fail to load file: {e}")
+            log.error(f"Fail to load file: {e}")
 
-    def _expand_prefixes(self, prefix_str):
+    def expand_prefixes(self, prefix_str):
         prefixes = []
         parts = prefix_str.replace(',', ' ').split()
         for part in parts:
             if '-' in part:
                 start, end = part.split('-')
-                prefixes.extend(self._expand_prefix_range(start.strip().upper(), end.strip().upper()))
+                prefixes.extend(self.expand_prefix_range(start.strip().upper(), end.strip().upper()))
             else:
                 prefixes.append(part.strip().upper())
         return prefixes
 
-    def _expand_prefix_range(self, start, end):
+    def expand_prefix_range(self, start, end):
         prefixes = []
         if len(start) != len(end):
             return [start.upper(), end.upper()]
@@ -220,32 +314,131 @@ class CallsignLookup:
                 prefixes.append((common_part + chr(c)).upper())
         return prefixes
 
-    def _parse_date(self, date_str):
+    def parse_date(self, date_str):
         try:
             return datetime.datetime.strptime(date_str[:19], '%Y-%m-%dT%H:%M:%S').replace(tzinfo=datetime.timezone.utc)
         except Exception as e:
-            print(f"Fail to extract date '{date_str}': {e}")
+            log.error(f"Fail to extract date '{date_str}': {e}")
             return None
 
-    def lookup_callsign(self, callsign, date=None):
+    def load_cq_zones(self, geojson_path: str):
+        """
+            Load CQ zone polygons from a local GeoJSON file,
+            fix invalid polygons if needed, and return a list of (zone_id, fixed_polygon).
+        """
         try:
+            with open(geojson_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        except Exception as e:
+            log.error(f"Failed to load {geojson_path}: {e}")
+            return []
+
+        zone_polygons = []
+        for feature in data.get("features", []):
+            zone_id = feature.get("properties", {}).get("cq_zone_number")
+            geom = shape(feature.get("geometry", {}))
+            if not geom.is_valid:
+                geom = geom.buffer(0)
+            zone_polygons.append((zone_id, geom))
+
+        log.info(f"File {geojson_path} loading is complete.")
+
+        return zone_polygons
+
+    def locator_to_lat_lon_partial(self, grid: str):
+        """
+            Decodes a 2-, 4-, or 6-character locator into (lat, lon), 
+            placing the coordinate in the center of the corresponding area.
+        """
+        grid = grid.strip().upper()
+        if len(grid) < 2:
+            raise ValueError("Locator must have >= 2 characters (e.g. AB)")
+
+        # Field
+        field_lon = (ord(grid[0]) - ord('A')) * 20 - 180
+        field_lat = (ord(grid[1]) - ord('A')) * 10 - 90
+        lon = field_lon
+        lat = field_lat
+
+        # If 4+ chars => decode square
+        if len(grid) >= 4:
+            square_lon = int(grid[2]) * 2
+            square_lat = int(grid[3]) * 1
+            lon += square_lon
+            lat += square_lat
+        else:
+            # Only 2 chars => center of 10° x 20°
+            lon += 10.0
+            lat += 5.0
+            return (lat, lon)
+
+        # If 6+ chars => decode subsquare
+        if len(grid) >= 6:
+            subsq_lon = (ord(grid[4]) - ord('A')) * (2.0 / 24.0)
+            subsq_lat = (ord(grid[5]) - ord('A')) * (1.0 / 24.0)
+            lon += subsq_lon
+            lat += subsq_lat
+            # Center offset for final cell
+            lon += (2.0/24.0)/2.0
+            lat += (1.0/24.0)/2.0
+        else:
+            # Exactly 4 chars => center of 1° x 2°
+            lon += 1.0
+            lat += 0.5
+
+        return (lat, lon)
+
+    def lat_lon_to_cq_zone(self, lat: float, lon: float):
+        """
+            Returns the zone_id if the point is contained 
+            in a polygon from self.zone_polygons, else None.
+        """
+        pt = Point(lon, lat)
+        for (zone_id, poly) in self.zone_polygons:
+            if poly.contains(pt):
+                return zone_id
+        return None
+
+    def grid_to_cq_zone(self, grid: str):
+        """
+            High-level function:
+            1) Convert a Maidenhead locator (2,4,6 chars) to lat/lon (center).
+            2) Return (lat, lon, zone)
+        """
+        lat, lon = self.locator_to_lat_lon_partial(grid)
+        zone = self.lat_lon_to_cq_zone(lat, lon)
+        return (lat, lon, zone)
+
+    def lookup_callsign(self, callsign, grid=None, date=None):
+        try:
+            new_zone = None
+
             callsign = callsign.strip().upper()
             if date is None:
                 date = datetime.datetime.now(datetime.timezone.utc)
 
             if callsign in self.cache:
+                # Pull from cache
+                cached_info = self.cache[callsign]
+                if grid is not None:
+                    lat, lon, new_zone = self.grid_to_cq_zone(grid)
+                    if new_zone is not None:
+                        cached_info['cqz'] = new_zone
+                # Move to end (LRU-ish), then return
                 self.cache.move_to_end(callsign)
-                return self.cache[callsign]
+                if new_zone:
+                    self.save_cache()
+                return cached_info
 
             lookup_result = None
 
             if callsign in self.callsign_exceptions:
                 exception = self.callsign_exceptions[callsign]
-                if self._is_valid_for_date(exception, date):
+                if self.is_valid_for_date(exception, date):
                     lookup_result = exception
 
             elif callsign in self.invalid_operations:
-                print(f"{callsign} set as invalid.")
+                log.error(f"{callsign} set as invalid.")
                 lookup_result = None
 
             else:
@@ -254,26 +447,35 @@ class CallsignLookup:
                     if callsign.startswith(prefix):
                         prefix_entries = self.prefixes[prefix]
                         for entry in prefix_entries:
-                            if self._is_valid_for_date(entry, date):
+                            if self.is_valid_for_date(entry, date):
                                 lookup_result = entry
                                 break
                         if lookup_result:
                             break
 
+            if lookup_result is None:
+                log.error(f"No information found for {callsign}.")
+                lookup_result = {}
+
+            if grid is not None:
+                lat, lon, new_zone = self.grid_to_cq_zone(grid)
+                if new_zone is not None:
+                    lookup_result['cqz'] = new_zone
+
             self.cache[callsign] = lookup_result
             if len(self.cache) > self.cache_size:
                 self.cache.popitem(last=False)
 
-            if lookup_result is None:
-                print(f"No information found for {callsign}.")
+            if new_zone is not None:
+                self.save_cache()                
 
             return lookup_result
 
         except Exception as e:
-            print(f"Fail to extract '{callsign}': {e}")
+            log.error(f"Fail to extract '{callsign}': {e}")
             return None
 
-    def _is_valid_for_date(self, info, date):
+    def is_valid_for_date(self, info, date):
         start = info.get('start')
         end = info.get('end')
         if start and date < start:
