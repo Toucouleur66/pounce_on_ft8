@@ -141,17 +141,13 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_watchdog_bypass = QtWidgets.QCheckBox("Enable watchdog bypass")
         self.enable_watchdog_bypass.setChecked(DEFAULT_WATCHDOG_BYPASS)
 
-        self.enable_show_all_decoded = QtWidgets.QCheckBox("Show all decoded messages (do not filter on Wanted or Monitored)")
-        self.enable_show_all_decoded.setChecked(DEFAULT_SHOW_ALL_DECODED)
-
         self.enable_log_all_valid_contact = QtWidgets.QCheckBox("Log all valid contacts (not only from Wanted)")
         self.enable_log_all_valid_contact.setChecked(True)
 
         udp_settings_layout.addWidget(self.enable_sending_reply, 0, 0, 1, 2)
         udp_settings_layout.addWidget(self.enable_gap_finder, 1, 0, 1, 2)
         udp_settings_layout.addWidget(self.enable_watchdog_bypass, 2, 0, 1, 2)
-        udp_settings_layout.addWidget(self.enable_show_all_decoded, 3, 0, 1, 2)
-        udp_settings_layout.addWidget(self.enable_log_all_valid_contact, 4, 0, 1, 2)
+        udp_settings_layout.addWidget(self.enable_log_all_valid_contact, 3, 0, 1, 2)
 
         udp_settings_group.setLayout(QtWidgets.QVBoxLayout())
         udp_settings_group.layout().setContentsMargins(0, 0, 0, 0)
@@ -346,7 +342,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.select_file_button.clicked.connect(self.open_adif_file_dialog)
 
         self.adif_file_path = QtWidgets.QLineEdit()
-        # self.adif_file_path.setReadOnly(True) 
+        self.adif_file_path.setReadOnly(True) 
 
         file_selection_layout.addWidget(self.adif_file_path, 0, 0)
         file_selection_layout.addWidget(self.select_file_button, 0, 1)
@@ -578,9 +574,6 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_log_packet_data.setChecked(
             self.params.get('enable_log_packet_data', DEFAULT_LOG_PACKET_DATA)
         )
-        self.enable_show_all_decoded.setChecked(
-            self.params.get('enable_show_all_decoded', DEFAULT_SHOW_ALL_DECODED)
-        )
         self.enable_log_all_valid_contact.setChecked(
             self.params.get('enable_log_all_valid_contact', True)
         )        
@@ -641,7 +634,6 @@ class SettingsDialog(QtWidgets.QDialog):
             'enable_debug_output'                        : self.enable_debug_output.isChecked(),
             'enable_pounce_log'                          : self.enable_pounce_log.isChecked(),
             'enable_log_packet_data'                     : self.enable_log_packet_data.isChecked(),
-            'enable_show_all_decoded'                    : self.enable_show_all_decoded.isChecked(),
             'enable_sound_wanted_callsigns'              : self.enable_sound_wanted_callsigns.isChecked(),
             'enable_sound_directed_my_callsign'          : self.enable_sound_directed_my_callsign.isChecked(),
             'enable_sound_monitored_callsigns'           : self.enable_sound_monitored_callsigns.isChecked(),

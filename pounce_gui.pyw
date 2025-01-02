@@ -215,6 +215,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.error_occurred_sound               = QSoundEffect()
         self.band_change_sound                  = QSoundEffect()
         self.monitored_callsign_detected_sound  = QSoundEffect()
+        self.enabled_global_sound               = QSoundEffect()
 
         self.wanted_callsign_detected_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/495650__matrixxx__supershort-ping-or-short-notification.wav"))
         self.directed_to_my_call_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/716445__scottyd0es__tone12_error.wav"))
@@ -222,12 +223,16 @@ class MainApp(QtWidgets.QMainWindow):
         self.error_occurred_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/142608__autistic-lucario__error.wav"))
         self.monitored_callsign_detected_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/716442__scottyd0es__tone12_alert_3.wav"))
         self.band_change_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/342759__rhodesmas__score-counter-01.wav"))
-
+        self.enabled_global_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/342754__rhodesmas__searching-01.wav"))
+        
         self.enable_pounce_log                  = params.get('enable_pounce_log', True)
-        self.enable_filter_gui                   = params.get('enable_filter_gui', True)
+        self.enable_filter_gui                   = params.get('enable_filter_gui', True)        
+        self.enable_global_sound                = params.get('enable_global_sound', True)
+
         self.datetime_column_setting            = params.get('datetime_column_setting', DATE_COLUMN_DATETIME)
         self.adif_file_path                      = params.get('adif_file_path', None)
         self.worked_before_preference           = params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS)
+        self.enable_show_all_decoded            = params.get('enable_show_all_decoded', DEFAULT_SHOW_ALL_DECODED)
         
         # Get sound configuration
         self.enable_sound_wanted_callsigns      = params.get('enable_sound_wanted_callsigns', True)
@@ -342,10 +347,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.filter_widget.setMinimumHeight(0)
 
         """
-            Bottom layout
+            Toggle buttons
         """
-        bottom_layout = QtWidgets.QHBoxLayout()
-
         self.clear_button = CustomButton("Erase")
         self.clear_button.setEnabled(False)
         self.clear_button.clicked.connect(self.clear_output_and_filters)
@@ -353,24 +356,52 @@ class MainApp(QtWidgets.QMainWindow):
         self.settings = CustomButton("Settings")
         self.settings.clicked.connect(self.open_settings)
 
-        self.disable_alert_toggle = AnimatedToggle(
-                checked_color= STATUS_MONITORING_COLOR,
-                pulse_checked_color=f"{STATUS_MONITORING_COLOR}FF"
+        self.global_sound_toggle = AnimatedToggle(
+            checked_color=STATUS_MONITORING_COLOR,
+            pulse_checked_color=f"{STATUS_MONITORING_COLOR}FF"
         )
-        self.disable_alert_toggle.stateChanged.connect(self.update_alert_label_style)
-        self.disable_alert_toggle.setFixedSize(self.disable_alert_toggle.sizeHint())
-        self.disable_alert_toggle.setChecked(True)
-        
-        self.disable_alert_layout = QtWidgets.QWidget()
-        horizontal_layout = QtWidgets.QHBoxLayout() 
+        self.global_sound_toggle.stateChanged.connect(self.toggle_global_sound_preference)
+        self.global_sound_toggle.setFixedSize(self.global_sound_toggle.sizeHint())
+        self.global_sound_toggle.setChecked(self.enable_global_sound)
+
+        self.show_all_decoded_toggle = AnimatedToggle(
+            checked_color=STATUS_MONITORING_COLOR,
+            pulse_checked_color=f"{STATUS_MONITORING_COLOR}FF"
+        )
+        self.show_all_decoded_toggle.stateChanged.connect(self.update_show_all_decoded_preference)
+        self.show_all_decoded_toggle.setFixedSize(self.show_all_decoded_toggle.sizeHint())
+        self.show_all_decoded_toggle.setChecked(self.enable_show_all_decoded)
+
+        self.filter_gui_toggle = AnimatedToggle(
+            checked_color=STATUS_MONITORING_COLOR,
+            pulse_checked_color=f"{STATUS_MONITORING_COLOR}FF"
+        )
+        self.filter_gui_toggle.stateChanged.connect(self.update_filter_gui_preference)
+        self.filter_gui_toggle.setFixedSize(self.filter_gui_toggle.sizeHint())
+        self.filter_gui_toggle.setChecked(self.enable_filter_gui)
+
+        self.toggle_buttons_layout = QtWidgets.QWidget()
+        horizontal_layout = QtWidgets.QHBoxLayout()
         horizontal_layout.setContentsMargins(0, 0, 0, 0)
-        horizontal_layout.setSpacing(0)
+        horizontal_layout.setSpacing(0)  
 
         horizontal_layout.addWidget(QtWidgets.QLabel("Enable Sounds"))
-        horizontal_layout.addWidget(self.disable_alert_toggle)
+        horizontal_layout.addWidget(self.global_sound_toggle)
+        horizontal_layout.addSpacing(20)
+        horizontal_layout.addWidget(QtWidgets.QLabel("Show All Messages"))  
+        horizontal_layout.addWidget(self.show_all_decoded_toggle)
+        horizontal_layout.addSpacing(20)
+        horizontal_layout.addWidget(QtWidgets.QLabel("Show Filters"))  
+        horizontal_layout.addWidget(self.filter_gui_toggle)
 
-        self.disable_alert_layout.setLayout(horizontal_layout)
-        self.disable_alert_layout.setFixedHeight(42)
+        # Apply layout to the widget
+        self.toggle_buttons_layout.setLayout(horizontal_layout)
+        self.toggle_buttons_layout.setFixedHeight(42)
+        
+        """
+            Bottom layout
+        """
+        bottom_layout = QtWidgets.QHBoxLayout()
 
         self.quit_button = CustomButton("Quit")
         self.quit_button.clicked.connect(self.quit_application)
@@ -404,7 +435,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         button_layout.addWidget(self.quit_button)
 
-        bottom_layout.addWidget(self.disable_alert_layout)
+        bottom_layout.addWidget(self.toggle_buttons_layout)
         bottom_layout.addStretch()  
         bottom_layout.addLayout(button_layout)
 
@@ -741,6 +772,22 @@ class MainApp(QtWidgets.QMainWindow):
 
         return filter_widget
 
+    def update_global_sound_preference(self, checked):     
+        self.enable_global_sound = checked
+        self.global_sound_toggle.setChecked(checked)
+        self.save_unique_param('enable_global_sound', checked)       
+
+    def toggle_global_sound_preference(self, checked):
+        if checked:
+            QtCore.QTimer.singleShot(100, lambda: self.play_sound('enable_global_sound'))
+
+        self.update_global_sound_preference(checked)
+
+    def update_show_all_decoded_preference(self, checked):
+        self.enable_show_all_decoded = checked
+        self.show_all_decoded_toggle.setChecked(checked)
+        self.save_unique_param('enable_show_all_decoded', checked)   
+
     def update_filter_gui_preference(self, checked):
         if checked:
             self.show_filter_layout()
@@ -748,6 +795,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.hide_filter_layout()
         
         self.enable_filter_gui = checked
+        self.filter_gui_toggle.setChecked(checked)
         self.save_unique_param('enable_filter_gui', checked)        
 
     def toggle_wkb4_column_visibility(self):
@@ -755,15 +803,6 @@ class MainApp(QtWidgets.QMainWindow):
             self.output_table.setColumnHidden(9, True)
         else:
             self.output_table.setColumnHidden(9, False)
-
-    def toggle_filter_visibility(self):
-        if self.filter_widget_visible:
-            self.hide_filter_layout()
-            self.clear_filters()
-        else:
-            self.show_filter_layout()
-
-        self.filter_visibility_action.setChecked(self.filter_widget_visible)
 
     def hide_filter_layout(self):
         self.filter_widget_visible = False
@@ -973,7 +1012,7 @@ class MainApp(QtWidgets.QMainWindow):
             if self.worker is not None:
                 self.worker.update_settings_signal.emit()
 
-                if self.disable_alert_toggle.isChecked():      
+                if self.global_sound_toggle.isChecked():      
                     self.play_sound("band_change")
 
         if self._running:
@@ -1096,7 +1135,7 @@ class MainApp(QtWidgets.QMainWindow):
                     Handle sound notification
                 """
                 play_sound = False
-                if self.disable_alert_toggle.isChecked():      
+                if self.global_sound_toggle.isChecked():      
                     if message_type == 'wanted_callsign_detected' and self.enable_sound_wanted_callsigns:
                         play_sound = True
                     elif message_type == 'directed_to_my_call' and self.enable_sound_directed_my_callsign:
@@ -1430,6 +1469,8 @@ class MainApp(QtWidgets.QMainWindow):
                 self.band_change_sound.play()                
             elif sound_name == 'error_occurred':
                 self.error_occurred_sound.play()                
+            elif sound_name == 'enable_global_sound':
+                self.enabled_global_sound.play()               
             else:
                 print(f"Unknown sound: {sound_name}")            
         except Exception as e:
@@ -1712,13 +1753,6 @@ class MainApp(QtWidgets.QMainWindow):
     def update_worked_callsigns_history_counter(self):
         self.worked_history_callsigns_label.setText(WORKED_CALLSIGNS_HISTORY_LABEL % len(self.worked_callsigns_history))
 
-    def update_alert_label_style(self):
-        if self.disable_alert_toggle.isChecked():
-            pass
-            # self.disable_alert_layout.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_YELLOW};")
-        else:
-            self.disable_alert_layout.setStyleSheet("")
-
     def on_right_click(self, position):
         menu = QtWidgets.QMenu()
         if sys.platform == 'darwin':
@@ -1796,12 +1830,6 @@ class MainApp(QtWidgets.QMainWindow):
     def add_row_to_output_table(self, raw_data):
         row_id = self.output_table.rowCount()  
         self.output_table.insertRow(row_id)
-        if (
-            self.enable_filter_gui is True and
-            self.filter_widget_visible is False and
-            row_id > 20
-        ):
-            self.show_filter_layout()
 
         band            = raw_data["band"]
         row_color       = raw_data["row_color"]
@@ -2095,7 +2123,7 @@ class MainApp(QtWidgets.QMainWindow):
         main_menu.addSeparator()
 
         self.monitoring_action = QtGui.QAction(self.get_monitoring_action_text(), self)
-        self.monitoring_action.setShortcut(QtGui.QKeySequence("Ctrl+S"))
+        self.monitoring_action.setShortcut(QtGui.QKeySequence("Ctrl+M"))
         self.update_monitoring_action()
         main_menu.addAction(self.monitoring_action)
 
@@ -2103,6 +2131,15 @@ class MainApp(QtWidgets.QMainWindow):
         restart_action.setShortcut(QtGui.QKeySequence("Ctrl+R"))
         restart_action.triggered.connect(self.restart_application)
         main_menu.addAction(restart_action)
+
+        main_menu.addSeparator()
+
+        enable_sound_action = QtGui.QAction("Enable Sounds", self)
+        enable_sound_action.setShortcut(QtGui.QKeySequence("Ctrl+S"))
+        enable_sound_action.triggered.connect(self.update_global_sound_preference)
+        enable_sound_action.setCheckable(True)  
+        enable_sound_action.setChecked(self.enable_global_sound)  
+        main_menu.addAction(enable_sound_action)
 
         # Settings...
         settings_action = QtGui.QAction("Settings...", self)
@@ -2120,13 +2157,22 @@ class MainApp(QtWidgets.QMainWindow):
 
         # Add Window menu
         self.window_menu = self.menu_bar.addMenu("Window")
+
+        show_all_messages_action = QtGui.QAction("Show All Messages", self)
+        show_all_messages_action.setShortcut(QtGui.QKeySequence("Ctrl+E"))
+        show_all_messages_action.setCheckable(True)  
+        show_all_messages_action.setChecked(self.enable_show_all_decoded)  
+        show_all_messages_action.triggered.connect(self.update_show_all_decoded_preference)
+
+        self.show_all_messages_action = show_all_messages_action
+        
+        self.window_menu.addAction(show_all_messages_action)
         
         filter_visibility_action = QtGui.QAction("Show Filters", self)
+        filter_visibility_action.setShortcut(QtGui.QKeySequence("Ctrl+F"))
         filter_visibility_action.setCheckable(True)  
         filter_visibility_action.setChecked(self.enable_filter_gui)  
         filter_visibility_action.triggered.connect(self.update_filter_gui_preference)
-
-        filter_visibility_action.setShortcut(QtGui.QKeySequence("Ctrl+F"))
 
         self.filter_visibility_action = filter_visibility_action
         
@@ -2178,11 +2224,19 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.window_menu.addAction(show_adif_summary_action)
 
-    def show_adif_summary_dialog(self):        
-        if self.adif_file_path and not self.adif_file_path.strip():
-            parsed_data, processing_time = parse_adif(self.adif_file_path)
-            summary_dialog = AdifSummaryDialog(parsed_data, processing_time, self)
-            summary_dialog.exec()
+    def show_adif_summary_dialog(self):   
+        if self.adif_file_path:
+            if not os.path.exists(self.adif_file_path):                
+                return
+            
+            try:
+                parsed_data, processing_time = parse_adif(self.adif_file_path)
+                summary_dialog = AdifSummaryDialog(parsed_data, processing_time, self)
+                summary_dialog.exec()
+            except Exception as e:
+                QtWidgets.QMessageBox.critical(self, "Error", f"Failed to process the ADIF file.\n\n{str(e)}")
+        else:
+            QtWidgets.QMessageBox.warning(self, "Warning", "No ADIF file path specified.")
 
     def get_monitoring_action_text(self):
         return STOP_BUTTON_LABEL if self._running else STATUS_BUTTON_LABEL_START
@@ -2343,7 +2397,6 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.adif_file_path                  = params.get('adif_file_path', None)
         self.worked_before_preference       = params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS)
-        self.enable_show_all_decoded        = params.get('enable_show_all_decoded', DEFAULT_SHOW_ALL_DECODED)
         
         self.save_unique_param('freq_range_mode', freq_range_mode )        
 

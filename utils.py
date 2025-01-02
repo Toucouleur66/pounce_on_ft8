@@ -106,8 +106,12 @@ def parse_wsjtx_message(
                     callsign = match.group(2)
                     msg      = match.group(3)
 
+                    # Get grid 
+                    if not re.match(r"^(RRR|RR73|73|\+[0-9]{2}|-[0-9]{2})$", msg):
+                        grid = msg
+
     if callsign and lookup:         
-        callsign_info = lookup.lookup_callsign(callsign)    
+        callsign_info = lookup.lookup_callsign(callsign, grid)    
 
         if callsign_info:            
             cq_zone = callsign_info["cqz"]
