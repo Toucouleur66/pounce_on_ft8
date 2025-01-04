@@ -368,8 +368,6 @@ class Listener:
         self.reply_to_packet_time       = None    
         self.rst_rcvd                   = None
         self.grid                       = None
-        self.mode                       = None
-        self.frequency                  = None
         self.suggested_frequency        = None
 
     def collect_used_frequencies(self):
