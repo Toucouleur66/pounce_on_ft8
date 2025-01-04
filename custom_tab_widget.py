@@ -72,6 +72,7 @@ class CustomTabWidget(QtWidgets.QWidget):
             QToolButton {{
                 background-color: {STATUS_COLOR_LABEL_OFF};
                 color: black;
+                width: 30px;
                 border-radius: 8px;
                 font-size: 12px;
                 border: 1px solid transparent;
@@ -92,6 +93,7 @@ class CustomTabWidget(QtWidgets.QWidget):
                     QToolButton {{
                         background-color: {STATUS_COLOR_LABEL_SELECTED};
                         color: white;
+                        width: 30px;
                         border-radius: 8px;
                         font-size: 12px;
                         border: 1px solid {STATUS_COLOR_LABEL_SELECTED};

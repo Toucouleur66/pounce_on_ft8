@@ -65,11 +65,13 @@ from constants import (
     FG_COLOR_BLACK_ON_PURPLE,
     BG_COLOR_BLACK_ON_CYAN,
     FG_COLOR_BLACK_ON_CYAN,
-    # Status button
+    # Status buttons
     STATUS_MONITORING_COLOR,
     STATUS_DECODING_COLOR,
     STATUS_TRX_COLOR,
     STATUS_COLOR_LABEL_SELECTED,
+    # Actions
+    ACTION_RESTART,
     # Parameters
     PARAMS_FILE,
     POSITION_FILE,
@@ -159,7 +161,7 @@ class MainApp(QtWidgets.QMainWindow):
         }
                 
         self.setGeometry(100, 100, 1_000, 700)
-        self.setMinimumSize(1_020, 600)
+        self.setMinimumSize(900, 600)
         self.setWindowTitle(self.base_title)      
 
         if platform.system() == 'Windows':
@@ -218,6 +220,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.enabled_global_sound               = QSoundEffect()
 
         self.wanted_callsign_detected_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/495650__matrixxx__supershort-ping-or-short-notification.wav"))
+
+        #self.wanted_callsign_detected_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/716444__scottyd0es__tone12_alert_5.wav"))
         self.directed_to_my_call_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/716445__scottyd0es__tone12_error.wav"))
         self.ready_to_log_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/709072__scottyd0es__aeroce-dualtone-5.wav"))
         self.error_occurred_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/142608__autistic-lucario__error.wav"))
@@ -226,9 +230,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.enabled_global_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/342754__rhodesmas__searching-01.wav"))
         
         self.enable_pounce_log                  = params.get('enable_pounce_log', True)
-        self.enable_filter_gui                   = params.get('enable_filter_gui', True)        
+        self.enable_filter_gui                   = params.get('enable_filter_gui', False)        
         self.enable_global_sound                = params.get('enable_global_sound', True)
-
         self.datetime_column_setting            = params.get('datetime_column_setting', DATE_COLUMN_DATETIME)
         self.adif_file_path                      = params.get('adif_file_path', None)
         self.worked_before_preference           = params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS)
@@ -386,6 +389,7 @@ class MainApp(QtWidgets.QMainWindow):
         horizontal_layout.setSpacing(0)  
 
         horizontal_layout.addWidget(QtWidgets.QLabel("Enable Sounds"))
+        
         horizontal_layout.addWidget(self.global_sound_toggle)
         horizontal_layout.addSpacing(20)
         horizontal_layout.addWidget(QtWidgets.QLabel("Show All Messages"))  
@@ -409,13 +413,13 @@ class MainApp(QtWidgets.QMainWindow):
         self.inputs_enabled = True
 
         if platform.system() == 'Darwin':
-            self.restart_button = CustomButton("Restart")
+            self.restart_button = CustomButton(ACTION_RESTART)
             self.restart_button.clicked.connect(self.restart_application)
 
         # Timer and start/stop buttons
         self.status_button = CustomButton(STATUS_BUTTON_LABEL_START)
         self.status_button.clicked.connect(self.start_monitoring)
-        self.status_button.setFixedWidth(200)
+        self.status_button.setFixedWidth(150)
         
         self.stop_button = CustomButton(STOP_BUTTON_LABEL)
         self.stop_button.setEnabled(False)        
@@ -514,8 +518,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.band_indices                       = {}
         self.band_content_widgets               = {}
 
-        fixed_label_width                        = 150
-
         wanted_dict = {
             'wanted_callsigns'      : self.wanted_callsigns_vars,
             'monitored_callsigns'   : self.monitored_callsigns_vars,            
@@ -580,7 +582,7 @@ class MainApp(QtWidgets.QMainWindow):
 
                 line_label = QtWidgets.QLabel(variable_info['label'])
                 line_label.setStyleSheet("border-radius: 6px; padding: 3px;")
-                line_label.setMinimumWidth(fixed_label_width)
+                line_label.setMinimumWidth(100)
 
                 ToolTip(line_label, CALLSIGN_NOTICE_LABEL)
 
@@ -686,6 +688,7 @@ class MainApp(QtWidgets.QMainWindow):
         output_table.horizontalHeader().setSectionResizeMode(9, QtWidgets.QHeaderView.ResizeMode.Fixed)
 
         output_table.horizontalHeader().setStretchLastSection(False)
+        
         output_table.setColumnWidth(0, 160)
         output_table.setColumnWidth(1, 45)
         output_table.setColumnWidth(2, 60)
@@ -1390,16 +1393,12 @@ class MainApp(QtWidgets.QMainWindow):
         time_delta_in_seconds = get_mode_interval(self.mode)
         # We need to double time_delta_to_be_used the time transmitting == 1 
         # otherwise we are loosing accuracy of activity bar
-        if self.transmitting:
-            time_delta_in_seconds*= 2
+        if not self.transmitting:
+            cutoff_time = datetime.now() - timedelta(seconds=time_delta_in_seconds)
+            while self.message_times and self.message_times[0] < cutoff_time:
+                self.message_times.popleft()
 
-        cutoff_time = datetime.now() - timedelta(seconds=time_delta_in_seconds)
-        while self.message_times and self.message_times[0] < cutoff_time:
-            self.message_times.popleft()
-
-        message_count = len(self.message_times)
-
-        self.activity_bar.setValue(message_count)                                     
+        self.activity_bar.setValue(len(self.message_times))                                     
 
     def start_blinking_status_button(self):
         if self.is_status_button_label_blinking is False:
@@ -2127,7 +2126,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.update_monitoring_action()
         main_menu.addAction(self.monitoring_action)
 
-        restart_action = QtGui.QAction("Restart Program", self)
+        restart_action = QtGui.QAction(ACTION_RESTART, self)
         restart_action.setShortcut(QtGui.QKeySequence("Ctrl+R"))
         restart_action.triggered.connect(self.restart_application)
         main_menu.addAction(restart_action)
@@ -2159,7 +2158,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.window_menu = self.menu_bar.addMenu("Window")
 
         show_all_messages_action = QtGui.QAction("Show All Messages", self)
-        show_all_messages_action.setShortcut(QtGui.QKeySequence("Ctrl+E"))
+        show_all_messages_action.setShortcut(QtGui.QKeySequence("Ctrl+T"))
         show_all_messages_action.setCheckable(True)  
         show_all_messages_action.setChecked(self.enable_show_all_decoded)  
         show_all_messages_action.triggered.connect(self.update_show_all_decoded_preference)

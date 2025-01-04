@@ -61,6 +61,8 @@ STATUS_BUTTON_LABEL_TRX         = "Transmitting..."
 STATUS_BUTTON_LABEL_START       = "Start Monitoring"
 STATUS_BUTTON_LABEL_NOTHING_YET = "Nothing yet"
 
+ACTION_RESTART                  = "Restart"
+
 STOP_BUTTON_LABEL               = "Stop all"
 
 DATE_COLUMN_DATETIME            = "Time"
@@ -101,7 +103,7 @@ DEFAULT_WATCHDOG_BYPASS         = False
 DEFAULT_DEBUG_OUTPUT            = False
 DEFAULT_POUNCE_LOG              = True
 DEFAULT_LOG_PACKET_DATA         = False
-DEFAULT_SHOW_ALL_DECODED        = True
+DEFAULT_SHOW_ALL_DECODED        = False
 DEFAULT_LOG_ALL_VALID_CONTACT   = True
 DEFAULT_DELAY_BETWEEN_SOUND     = 120
 
