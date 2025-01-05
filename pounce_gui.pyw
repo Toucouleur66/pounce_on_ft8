@@ -483,7 +483,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.operating_band might be overided as soon as check_connection_status is used
         """
         self.gui_selected_band = params.get('last_band_used', DEFAULT_SELECTED_BAND)
-        
+
         QtCore.QTimer.singleShot(100, lambda: self.tab_widget.set_selected_tab(self.gui_selected_band))
         
         self.apply_theme_to_all(self.theme_manager.dark_mode)
@@ -1183,8 +1183,8 @@ class MainApp(QtWidgets.QMainWindow):
                 
                 if callsign_info:
                     entity    = (callsign_info.get("entity") or callsign_info.get("name", "Unknown")).title()
-                    cq_zone   = callsign_info["cqz"]
-                    continent = callsign_info["cont"]
+                    cq_zone   = callsign_info.get("cqz")
+                    continent = callsign_info.get("cont")
                 elif callsign_info is None:
                     entity    = "Where?"
                  
