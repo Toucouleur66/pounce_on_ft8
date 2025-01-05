@@ -483,7 +483,8 @@ class MainApp(QtWidgets.QMainWindow):
             self.operating_band might be overided as soon as check_connection_status is used
         """
         self.gui_selected_band = params.get('last_band_used', DEFAULT_SELECTED_BAND)
-        self.tab_widget.set_selected_tab(self.gui_selected_band)
+        
+        QtCore.QTimer.singleShot(100, lambda: self.tab_widget.set_selected_tab(self.gui_selected_band))
         
         self.apply_theme_to_all(self.theme_manager.dark_mode)
         self.load_window_position()

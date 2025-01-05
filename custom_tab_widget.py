@@ -13,9 +13,27 @@ class CustomTabWidget(QtWidgets.QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.tab_bar = QtWidgets.QToolBar()
+       
+        self.tab_container = QtWidgets.QWidget()
+        self.tab_layout = QtWidgets.QHBoxLayout(self.tab_container)
+        self.tab_layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignHCenter)
+        self.tab_layout.setContentsMargins(0, 0, 0, 0)
+        self.tab_layout.setSpacing(0)
+        
+        self.scroll_area = QtWidgets.QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.scroll_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.scroll_area.setWidget(self.tab_container)
+        self.scroll_area.setStyleSheet("background: transparent; border: none;")
+
         self.stacked_widget = QtWidgets.QStackedWidget()
-        tab_bar_layout = QtWidgets.QHBoxLayout()
+
+        main_layout = QtWidgets.QVBoxLayout()
+        main_layout.addWidget(self.scroll_area)
+        main_layout.addWidget(self.stacked_widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        self.setLayout(main_layout)
 
         self.tab_buttons = {}
         self.tab_contents = {}
@@ -23,21 +41,6 @@ class CustomTabWidget(QtWidgets.QWidget):
         self.index_to_band_name = {}
         self.current_band_name = None
         self.operating_band_name = None
-
-        self.tab_bar.setMovable(False)
-        self.tab_bar.setStyleSheet("background: transparent; border: none;")
-
-        tab_bar_layout.addWidget(self.tab_bar)
-        tab_bar_layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignHCenter)
-        tab_bar_layout.setContentsMargins(0, 0, 0, 0)
-        tab_bar_container = QtWidgets.QWidget()
-        tab_bar_container.setLayout(tab_bar_layout)
-
-        main_layout = QtWidgets.QVBoxLayout()
-        main_layout.addWidget(tab_bar_container)
-        main_layout.addWidget(self.stacked_widget)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        self.setLayout(main_layout)
 
     def addTab(self, content_widget, band_name):
         index = self.stacked_widget.count()
@@ -51,7 +54,7 @@ class CustomTabWidget(QtWidgets.QWidget):
         button.setStyleSheet(self.get_default_button_style())
         button.clicked.connect(lambda checked, bname=band_name: self.on_tab_clicked(bname))
 
-        self.tab_bar.addWidget(button)
+        self.tab_layout.addWidget(button) 
         self.tab_buttons[band_name] = button
         self.stacked_widget.addWidget(content_widget)
         self.tab_contents[band_name] = content_widget
@@ -77,7 +80,7 @@ class CustomTabWidget(QtWidgets.QWidget):
                 font-size: 12px;
                 border: 1px solid transparent;
                 padding: 10px;
-                margin-right: 1px;
+                margin-right: 3px;
             }}
             QToolButton:hover {{
                 background-color: #ECECEC;
@@ -98,7 +101,7 @@ class CustomTabWidget(QtWidgets.QWidget):
                         font-size: 12px;
                         border: 1px solid {STATUS_COLOR_LABEL_SELECTED};
                         padding: 10px;
-                        margin-right: 1px;                    
+                        margin-right: 3px;                    
                     }}                    
                 """)
             elif band_name == self.operating_band_name:
@@ -110,7 +113,7 @@ class CustomTabWidget(QtWidgets.QWidget):
                         font-size: 12px;
                         border: 1px solid transparent;
                         padding: 10px;
-                        margin-right: 1px;
+                        margin-right: 3px;
                     }}
                     QToolButton:hover {{
                         background-color: {STATUS_DECODING_COLOR};
@@ -119,13 +122,16 @@ class CustomTabWidget(QtWidgets.QWidget):
             else:
                 button.setStyleSheet(self.get_default_button_style())
 
-    def set_selected_tab(self, band_name):
+    def set_selected_tab(self, band_name):      
         if self.current_band_name is not None and self.current_band_name in self.tab_buttons:
             self.tab_buttons[self.current_band_name].setChecked(False)
         self.current_band_name = band_name
         if self.current_band_name in self.tab_buttons:
             self.tab_buttons[self.current_band_name].setChecked(True)
+        
         self.update_styles()
+        self.update_scroll_position(self.current_band_name)
+
         index = self.band_name_to_index.get(self.current_band_name)
         if index is not None:
             self.stacked_widget.setCurrentIndex(index)
@@ -137,4 +143,17 @@ class CustomTabWidget(QtWidgets.QWidget):
             self.operating_band_name = band_name
         else:
             self.operating_band_name = None
+        
         self.update_styles()
+
+    def update_scroll_position(self, band):
+        if band:
+            button = self.tab_buttons.get(band)
+            if button is not None:
+                rect_in_scroll_widget = button.geometry()
+                self.scroll_area.ensureVisible(
+                    rect_in_scroll_widget.x(), 
+                    rect_in_scroll_widget.y(), 
+                    rect_in_scroll_widget.width(), 
+                    rect_in_scroll_widget.height()
+                )
