@@ -68,17 +68,19 @@ def parse_wsjtx_message(
         monitored_callsigns = set(),
         monitored_cq_zones  = set()
     ):
-    directed          = None
-    callsign          = None
-    callsign_info     = None
-    grid              = None
-    cq_zone           = None
-    msg               = None
-    cqing             = False
-    wanted            = False
-    monitored         = False
-    monitored_cq_zone = False
+    directed                = None
+    callsign                = None
+    callsign_info           = None
+    grid                    = None
+    cq_zone                 = None
+    msg                     = None
+    report                  = None
+    cqing                   = False
+    wanted                  = False
+    monitored               = False
+    monitored_cq_zone       = False
 
+    # Handle <...> message
     match = re.match(r"^<\.\.\.>\s+([A-Z0-9/]*\d[A-Z0-9/]*)\s+(\w{2,3}|RR73|\d{2}[A-Z]{2})?", message)
     if match:
         callsign = match.group(1)
@@ -106,9 +108,12 @@ def parse_wsjtx_message(
                     callsign = match.group(2)
                     msg      = match.group(3)
 
-                    # Get grid 
-                    if not re.match(r"^(RRR|RR73|73|\+[0-9]{2}|-[0-9]{2})$", msg):
+                    if re.match(r"^(RRR|RR73|73)$", msg):
+                        pass
+                    elif re.match(r"^[A-Z]{2}\d{2}$", msg):
                         grid = msg
+                    elif re.match(r"^(?:R[+\-]|[+\-])\d{2}$", msg):
+                        report = msg
 
     if callsign and lookup:         
         callsign_info = lookup.lookup_callsign(callsign, grid)    
@@ -139,6 +144,7 @@ def parse_wsjtx_message(
         'callsign'           : callsign,
         'callsign_info'      : callsign_info,
         'grid'               : grid,
+        'report'             : report,
         'msg'                : msg,
         'cqing'              : cqing,
         'wanted'             : wanted,

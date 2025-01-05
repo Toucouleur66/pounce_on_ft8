@@ -487,6 +487,7 @@ class Listener:
             callsign          = parsed_data['callsign']
             callsign_info     = parsed_data['callsign_info']
             grid              = parsed_data['grid']
+            report            = parsed_data['report']
             msg               = parsed_data['msg']
             cqing             = parsed_data['cqing']
             wanted            = parsed_data['wanted']
@@ -528,7 +529,7 @@ class Listener:
             """
                 How to handle the logic for the message 
             """
-            if directed == self.my_call and msg in {"RR73", "73", "RRR"}:
+            if directed == self.my_call and msg in {'RR73', '73', 'RRR'}:
                 log.warning("Found message [ {} ] we should log a QSO for [ {} ]".format(msg, callsign))
 
                 if self.targeted_call is not None and callsign != self.targeted_call:
@@ -557,14 +558,15 @@ class Listener:
                     message_type = 'ready_to_log'     
                 
             elif directed == self.my_call:
-                log.warning("Found message directed to my call [ {} ] from [ {} ]".format(directed, callsign))
+                log.warning(f"Found message directed to my call [ {directed} ] from [ {callsign} ]")
                 
-                self.rst_rcvd_from_being_called[callsign]   = msg                 
+                self.rst_rcvd_from_being_called[callsign]   = report                 
                 self.grid_being_called[callsign]            = grid or ''                    
                 self.qso_time_on[callsign]                  = decode_time
 
-                if wanted is True:                                        
-                    log.warning("Start focus on callsign [ {} ]\treport:{}".format(callsign, self.rst_rcvd_from_being_called[callsign]))
+                if wanted is True:    
+                    focus_info = f"Report: {report}" if report else f"Grid: {grid}"
+                    log.warning(f"Focus on callsign [ {callsign} ]\t{focus_info}")
                     # We can't use self.the_packet.mode as it returns "~"
                     # self.mode             = self.the_packet.mode
                     self.reply_to_packet()  
@@ -700,7 +702,7 @@ class Listener:
         try:
             with open(ADIF_WORKED_CALLSIGNS_FILE, "a") as adif_file:
                 adif_file.write(adif_entry)
-            log.warning("QSOLogged [ {} ]".format(self.call_ready_to_log))
+            log.warning("QSO Logged [ {} ]".format(self.call_ready_to_log))
         except Exception as e:
             log.error(f"Can't write ADIF file {e}")
 
@@ -708,8 +710,8 @@ class Listener:
         try:
             # Todo remove Debug
             log.warning(f"""
-                self.rst_sent: {self.rst_sent[self.call_ready_to_log]}
-                self.rst_rcvd_from_being_called: {self.rst_rcvd_from_being_called[self.call_ready_to_log]}
+                rst_sent: {self.rst_sent[self.call_ready_to_log]}
+                rst_rcvd_from_being_called: {self.rst_rcvd_from_being_called[self.call_ready_to_log]}
                 awaited_rst_sent: {self.get_clean_rst(self.rst_sent[self.call_ready_to_log])}
                 awaited_rst_rcvd: {self.get_clean_rst(self.rst_rcvd_from_being_called[self.call_ready_to_log])}
             """)
