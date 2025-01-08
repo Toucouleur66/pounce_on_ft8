@@ -15,11 +15,11 @@ from datetime import datetime, timezone
 from collections import deque
 
 from logger import get_logger
-
 from utils import get_local_ip_address, get_mode_interval, get_amateur_band, parse_wsjtx_message
-from utils import parse_adif, get_wkb4_year
+from utils import get_wkb4_year
 
 from callsign_lookup import CallsignLookup
+from adif_monitor import AdifMonitor
 
 log     = get_logger(__name__)
 lookup  = CallsignLookup()
@@ -106,7 +106,6 @@ class Listener:
         self.enable_debug_output            = enable_debug_output
         self.enable_pounce_log              = enable_pounce_log 
         self.enable_log_packet_data         = enable_log_packet_data
-        self.adif_file_path                  = adif_file_path
         self.worked_before_preference       = worked_before_preference        
 
         self.monitoring_settings            = monitoring_settings
@@ -119,7 +118,7 @@ class Listener:
         self.freq_range_mode                = freq_range_mode
         self.message_callback               = message_callback
 
-        self.adif_data                      = None
+        self.adif_data                      = {}
         
         self.update_settings()
 
@@ -128,11 +127,10 @@ class Listener:
         """
             Check ADIF file to handle Worked B4 
         """
-
-        if worked_before_preference != WKB4_REPLY_MODE_ALWAYS and adif_file_path:
-            self.adif_last_mtime            = None
-            self.adif_monitoring_thread     = threading.Thread(target=self.monitor_adif_file, daemon=True)
-            self.adif_monitoring_thread.start()
+        if worked_before_preference != WKB4_REPLY_MODE_ALWAYS and adif_file_path:            
+            adif_monitor                    = AdifMonitor(adif_file_path, ADIF_WORKED_CALLSIGNS_FILE)
+            adif_monitor.start()
+            adif_monitor.register_callback(self.update_adif_data)
 
         """
             Check what period to use
@@ -517,10 +515,10 @@ class Listener:
                 Reset values to focus on another wanted callsign
             """
             if (
-                self.targeted_call is not None                                              and
-                self.qso_time_on.get(self.targeted_call)                                    and
+                self.targeted_call is not None and
+                self.qso_time_on.get(self.targeted_call) and
                 (time_now - self.qso_time_on.get(self.targeted_call)).total_seconds() > 120 and
-                callsign != self.targeted_call                                              and            
+                callsign != self.targeted_call and            
                 wanted is True
             ):
                 log.warning("Waiting [ {} ] but we are about to switch on [ {} ]".format(self.targeted_call, callsign))
@@ -753,14 +751,5 @@ class Listener:
         cleaned_rst = re.sub(pattern, repl, rst)
         return cleaned_rst    
     
-    def monitor_adif_file(self): 
-        while self._running:
-            if os.path.exists(self.adif_file_path):                
-                current_mtime = os.path.getmtime(self.adif_file_path)
-
-                if self.adif_last_mtime is None or current_mtime != self.adif_last_mtime:
-                    self.adif_last_mtime = current_mtime
-                    self.adif_data, processing_time = parse_adif(self.adif_file_path)
-                    log.info(f"Updated ADIF. Total processing time: {processing_time:.4f}s")
-
-            time.sleep(7.5)
+    def update_adif_data(self, new_data):
+        self.adif_data = new_data

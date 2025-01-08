@@ -7,7 +7,7 @@ import platform
 from datetime import datetime
 from utils import get_app_data_dir
 
-CURRENT_VERSION_NUMBER          = "2.4"
+CURRENT_VERSION_NUMBER          = "2.4.1"
 EXPIRATION_DATE                 = datetime(2025, 2, 15)
 UPDATE_JSON_INFO_URL            = "https://storage.de.cloud.ovh.net/v1/AUTH_31163bb499dc49eb819aacdfd32ae82c/wait.and.pounce/public/update_info.json"
 
@@ -166,7 +166,7 @@ if platform.system() == 'Windows':
     CUSTOM_FONT.setPointSize(11)
     CUSTOM_FONT_SMALL.setPointSize(9)
 
-    CUSTOM_FONT_MONO            = QtGui.QFont("Consolas", 13)
+    CUSTOM_FONT_MONO            = QtGui.QFont("Consolas", 12)
     CUSTOM_FONT_MONO_LG         = QtGui.QFont("Consolas", 18)
     CUSTOM_FONT_BOLD            = QtGui.QFont("Consolas", 13, QtGui.QFont.Weight.Bold)
 
@@ -174,7 +174,7 @@ if platform.system() == 'Windows':
 elif platform.system() == 'Darwin':
     CUSTOM_FONT                 = QtGui.QFont(".AppleSystemUIFont", 13)
     CUSTOM_FONT_SMALL           = QtGui.QFont(".AppleSystemUIFont", 11)
-    CUSTOM_FONT_MONO            = QtGui.QFont("Monaco", 13)
+    CUSTOM_FONT_MONO            = QtGui.QFont("Monaco", 12)
     CUSTOM_FONT_MONO_LG         = QtGui.QFont("Monaco", 18)
     CUSTOM_FONT_BOLD            = QtGui.QFont("Monaco", 12, QtGui.QFont.Weight.Bold)
 
