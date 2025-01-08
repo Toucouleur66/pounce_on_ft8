@@ -790,6 +790,8 @@ class MainApp(QtWidgets.QMainWindow):
     def update_show_all_decoded_preference(self, checked):
         self.enable_show_all_decoded = checked
         self.show_all_decoded_toggle.setChecked(checked)
+        self.apply_filters()
+        
         self.save_unique_param('enable_show_all_decoded', checked)   
 
     def update_filter_gui_preference(self, checked):
@@ -1188,25 +1190,24 @@ class MainApp(QtWidgets.QMainWindow):
                 elif callsign_info is None:
                     entity    = "Where?"
                  
-                if self.enable_show_all_decoded or message_color:
-                    self.update_table_data(
-                        wanted,
-                        callsign,
-                        wkb4_year,
-                        directed,
-                        message.get('decode_time_str'),
-                        self.operating_band,
-                        message.get('snr', 0),
-                        message.get('delta_time', 0.0),
-                        message.get('delta_freq', 0),
-                        message.get('message', ''),
-                        formatted_message,
-                        entity,
-                        cq_zone,
-                        continent,
-                        message_type,
-                        message_color                      
-                    )            
+                self.update_table_data(
+                    wanted,
+                    callsign,
+                    wkb4_year,
+                    directed,
+                    message.get('decode_time_str'),
+                    self.operating_band,
+                    message.get('snr', 0),
+                    message.get('delta_time', 0.0),
+                    message.get('delta_freq', 0),
+                    message.get('message', ''),
+                    formatted_message,
+                    entity,
+                    cq_zone,
+                    continent,
+                    message_type,
+                    message_color                      
+                )            
 
         elif isinstance(message, str):         
             self.add_message_to_table(message)
@@ -1901,7 +1902,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.wait_pounce_history_table.insertRow(row_id)
 
         band            = raw_data["band"]
-        row_color       = raw_data["row_color"]
 
         item_date = QTableWidgetItem(raw_data["date_str"])
 
@@ -1960,6 +1960,12 @@ class MainApp(QtWidgets.QMainWindow):
                     item.setForeground(fg_color)
 
     def is_valid_for_filters(self, raw_data):
+        if not self.enable_show_all_decoded:
+            if not raw_data.get('row_color'):
+                return False
+            
+        any_filter        = False
+
         callsign_filter   = self.callsign_input.text().strip().upper()
         country_filter    = self.country_input.text().strip().upper()
         cq_filter         = self.cq_combo.currentText()
@@ -1968,36 +1974,45 @@ class MainApp(QtWidgets.QMainWindow):
         selected_band    = self.band_combo.currentText()
 
         if callsign_filter:
+            any_filter = True
             callsign = raw_data.get('callsign')
-            if callsign and callsign_filter not in callsign.upper():
-                return False
+            if callsign and callsign_filter in callsign.upper():
+                return True
 
         if country_filter:
+            any_filter = True
             entity = raw_data.get('entity')
-            if entity and country_filter not in entity.upper():
-                return False
+            if entity and country_filter in entity.upper():
+                return True
 
         if cq_filter != DEFAULT_FILTER_VALUE:
+            any_filter = True
             cq_zone = str(raw_data.get('cq_zone'))
-            if cq_zone != cq_filter:
-                return False
+            if cq_zone == cq_filter:
+                return True
 
         if continent_filter != DEFAULT_FILTER_VALUE:
+            any_filter = True
             continent = raw_data.get('continent')
-            if continent != continent_filter:
-                return False
+            if continent == continent_filter:
+                return True
 
         if selected_color:
+            any_filter = True
             row_color = raw_data.get('row_color', None)
-            if row_color != selected_color:
-                return False
+            if row_color == selected_color:
+                return True
 
         if selected_band != DEFAULT_FILTER_VALUE:
+            any_filter = True
             band = raw_data.get('band')
-            if band != selected_band:
-                return False
+            if band == selected_band:
+                return True
 
-        return True
+        if any_filter:
+            return False
+        else:
+            return True
 
     def apply_filters(self):      
         self.output_table.clearContents()
