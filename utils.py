@@ -187,17 +187,22 @@ def force_input(widget, mode="uppercase"):
             allowed_pattern = re.compile(r'[0-9,]')
             max_number = 40
 
+        old_cursor_pos = widget.cursorPosition()
+
         original_text = widget.text()
         current_text = original_text.upper() if mode == "uppercase" else original_text
         filtered_text = ''.join(char for char in current_text if allowed_pattern.fullmatch(char))
 
-        # During typing, allow intermediate inputs
-        filtered_text = re.sub(r',+', ',', filtered_text)
+        filtered_text = re.sub(r',+', ',', filtered_text)  
         filtered_text = re.sub(r'^,', '', filtered_text)
 
         if original_text != filtered_text:
             widget.blockSignals(True)
             widget.setText(filtered_text)
+
+            new_cursor_pos = min(old_cursor_pos, len(filtered_text))
+            widget.setCursorPosition(new_cursor_pos)
+
             widget.blockSignals(False)
 
     except Exception as e:
