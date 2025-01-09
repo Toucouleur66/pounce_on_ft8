@@ -152,19 +152,20 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.monitoring_settings = MonitoringSettings()       
         self.clublog_manager     = ClubLogManager(self) 
+        self.status_menu_agent   = None
 
-        if platform.system() == 'Darwina':
+        if sys.platform == 'darwin':
             self.status_menu_agent = StatusMenuAgent()
             self.status_menu_agent.clicked.connect(self.on_status_menu_clicked)
             self.status_menu_agent.run()
-
+            
             self.pobjc_timer = QtCore.QTimer(self)
-            self.pobjc_timer.timeout.connect(self.process_pobjc_events)
+            self.pobjc_timer.timeout.connect(self.status_menu_agent.process_events)
             self.pobjc_timer.start(10) 
-        else:
-            self.status_menu_agent = None
-
+            
+        
         params                   = self.load_params()  
+        
         """
             Store data from update_table_data
         """
@@ -427,7 +428,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.inputs_enabled = True
 
-        if platform.system() == 'Darwin':
+        if sys.platform == 'darwin':
             self.restart_button = CustomButton(ACTION_RESTART)
             self.restart_button.clicked.connect(self.restart_application)
 
@@ -449,7 +450,7 @@ class MainApp(QtWidgets.QMainWindow):
         button_layout.addWidget(self.settings)
         button_layout.addWidget(self.clear_button)
 
-        if platform.system() == 'Darwin':
+        if sys.platform == 'darwin':
             button_layout.addWidget(self.restart_button)
 
         button_layout.addWidget(self.quit_button)
@@ -466,7 +467,6 @@ class MainApp(QtWidgets.QMainWindow):
         """
             Activity Bar
         """
-
         self.activity_bar = ActivityBar(max_value=ACTIVITY_BAR_MAX_VALUE)
         self.activity_bar.setFixedWidth(30)
 
@@ -477,7 +477,6 @@ class MainApp(QtWidgets.QMainWindow):
         """
             Main layout
         """
-
         main_layout.addLayout(top_layout, 0, 0, 1, 5) 
         main_layout.addWidget(self.worked_history_callsigns_label, 1, 3, 1, 2)
         main_layout.addWidget(self.tab_widget, 2, 0, 4, 3)                
@@ -515,10 +514,6 @@ class MainApp(QtWidgets.QMainWindow):
         
         # Close event to save position
         self.closeEvent = self.on_close
-        
-    def process_pobjc_events(self):
-        # Traiter les événements PyObjC
-        self.status_menu_agent.process_events()
 
     @QtCore.pyqtSlot()
     def on_status_menu_clicked(self):
@@ -1735,7 +1730,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.update_tab_widget_labels_style()
 
     def save_unique_param(self, key, value):
-
+        """
         frame = inspect.currentframe()
         try:
             caller = frame.f_back
@@ -1743,12 +1738,14 @@ class MainApp(QtWidgets.QMainWindow):
             log.warning(f"save_unique_param: '{co_name}' from '{caller}'")
         finally:
             del frame
-            
+        """
+
         params      = self.load_params()
         params[key] = value
         self.save_params(params)  
 
     def save_params(self, params):
+        """
         frame = inspect.currentframe()
         try:
             caller = frame.f_back
@@ -1756,6 +1753,7 @@ class MainApp(QtWidgets.QMainWindow):
             log.warning(f"save_params: '{co_name}' from '{caller}'")
         finally:
             del frame
+        """
 
         with open(PARAMS_FILE, "wb") as f:
             pickle.dump(params, f)
@@ -2591,6 +2589,13 @@ class MainApp(QtWidgets.QMainWindow):
         timestamp = datetime.now(timezone.utc).strftime("%y%m%d_%H%M%S")
         with open(filename, "a") as log_file:
             log_file.write(f"{timestamp} {message}\n")
+    
+    @QtCore.pyqtSlot()
+    def status_menu_agent_cleaner(self):
+        log.error("status_menu_agent_cleaner")
+        if sys.platform == 'darwin':
+            self.status_menu_agent.hide_status_bar()
+            self.status_menu_agent.deleteLater()            
 
 def main():
     app             = QtWidgets.QApplication(sys.argv)
@@ -2610,10 +2615,13 @@ def main():
         window.show_about_dialog() 
         save_current_version(CURRENT_VERSION_NUMBER)
 
+    app.aboutToQuit.connect(window.status_menu_agent_cleaner)       
     app.aboutToQuit.connect(window.save_band_settings)       
     app.aboutToQuit.connect(window.save_worked_callsigns) 
 
-    sys.exit(app.exec())
+    exit_code = app.exec()
+
+    sys.exit(exit_code)
 
 if __name__ == '__main__':
     main()

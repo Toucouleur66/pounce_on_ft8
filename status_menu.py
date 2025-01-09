@@ -37,9 +37,9 @@ class MyStatusBarView(NSView):
         if self is None:
             return None
 
-        self._text = "READY TO WAIT AND POUNCE"
-        self._bgColorHex = "#000000"
-        self._fgColorHex = "#FFFFFF"
+        self._text = ''
+        self._bgColorHex = '#000000'
+        self._fgColorHex = '#FFFFFF'
         self._timer = None
         self._offset = 0.0
         self._direction = +1
@@ -169,14 +169,15 @@ class AppDelegate(NSObject):
             self.signal.emit()
 
 class StatusMenuAgent(QtCore.QObject):
-    # Définir un signal pour les clics
     clicked = QtCore.pyqtSignal()
 
     def __init__(self):
         super(StatusMenuAgent, self).__init__() 
-        self.app = NSApplication.sharedApplication()
         self.delegate = AppDelegate.alloc().initWithSignal_(self.clicked)
-        self.app.setDelegate_(self.delegate)
+        self.thread = QtCore.QThread()
+        self.moveToThread(self.thread)
+        self.thread.started.connect(self.run)
+        self.thread.start()
 
     def run(self):
         pass
