@@ -48,7 +48,7 @@ def add_file_handler(filename):
     file_handler = logging.FileHandler(filename)
     file_handler.setFormatter(file_formatter)
     root_logger.addHandler(file_handler)
-    root_logger.info(f"FileHandler set for {filename}")
+    root_logger.info(f"FileHandler set:{filename}")
     return file_handler
 
 def remove_file_handler(file_handler):

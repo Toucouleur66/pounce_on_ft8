@@ -60,9 +60,9 @@ class AdifMonitor:
 
                             self.merge_adif_data(new_data)
                             
-                            log.info(f"Monitored ADIF file < {file_path} >. Total processing time: {processing_time:.4f}s")
+                            log.info(f"Processed ({processing_time:.4f}s): {file_path}")
                     except Exception as e:
-                        log.error(f"Error processing file {file_path}: {e}")
+                        log.error(f"Error processing {file_path}: {e}")
 
             self.stop_event.wait(7.5)
 

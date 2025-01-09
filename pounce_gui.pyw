@@ -14,6 +14,13 @@ import os
 import threading
 import pyperclip
 
+import sys
+import json
+import socket
+import subprocess
+import threading
+import time
+
 from datetime import datetime, timezone, timedelta
 from collections import deque
 from functools import partial
@@ -34,6 +41,7 @@ from updater import Updater
 from theme_manager import ThemeManager
 from clublog import ClubLogManager
 from setting_dialog import SettingsDialog
+from status_menu import StatusMenuAgent
 
 from utils import get_local_ip_address, get_log_filename, matches_any
 from utils import get_mode_interval, get_amateur_band
@@ -139,15 +147,25 @@ class MainApp(QtWidgets.QMainWindow):
     def __init__(self):
         super(MainApp, self).__init__()
 
-        self.base_title          = GUI_LABEL_VERSION
-        self.window_title        = None
+        self.base_title             = GUI_LABEL_VERSION
+        self.window_title           = None
 
-        self.worker              = None
-        self.timer               = None
-        self.tray_icon           = None
+        self.worker                 = None
+        self.timer                  = None
+        self.tray_icon              = None
 
         self.monitoring_settings = MonitoringSettings()       
         self.clublog_manager     = ClubLogManager(self) 
+
+        self.status_menu_agent      = None
+        if platform.system() == 'Darwin':
+            self.status_menu_socket = None
+            self.status_menu_agent  = StatusMenuAgent(on_click_callback=self.on_status_menu_clicked)
+            self.status_menu_agent.run()
+
+            self.pobjc_timer        = QtCore.QTimer(self)
+            self.pobjc_timer.timeout.connect(self.process_pobjc_events)
+            self.pobjc_timer.start(10)
 
         params                   = self.load_params()  
         """
@@ -495,11 +513,40 @@ class MainApp(QtWidgets.QMainWindow):
             self.enable_age_column()
         else:
             self.enable_datetime_column()
-        
+
         QtCore.QTimer.singleShot(1_000, lambda: self.init_activity_bar())   
         
         # Close event to save position
         self.closeEvent = self.on_close
+        
+    def process_pobjc_events(self):
+        self.status_menu_agent.process_events()
+
+    @QtCore.pyqtSlot()
+    def on_status_menu_clicked(self):
+        self.show()
+        self.showNormal()
+        self.raise_()
+        self.activateWindow()
+        self.hide_status_menu()
+            
+        try:
+            from AppKit import NSRunningApplication, NSApplicationActivateIgnoringOtherApps
+            NSRunningApplication.currentApplication().activateWithOptions_(NSApplicationActivateIgnoringOtherApps)
+        except ImportError:
+            pass
+
+    def update_status_menu_message(self, text, bg_color, fg_color):
+        if not self.status_menu_agent:
+            pass
+        else:
+            self.status_menu_agent.set_text_and_colors(text, bg_color, fg_color)  
+
+    def hide_status_menu(self):
+        if not self.status_menu_agent:
+            pass
+        else:
+            self.status_menu_agent.hide_status_bar()
 
     def init_tab_widget_ui(self, params):
         tab_widget = CustomTabWidget()
@@ -1222,7 +1269,7 @@ class MainApp(QtWidgets.QMainWindow):
         index = table.indexAt(position)
 
         menu = QtWidgets.QMenu()
-        if sys.platform == 'darwin':
+        if sys.platform() == 'Darwin':
             menu.setStyleSheet(CONTEXT_MENU_DARWIN_QSS)
             menu.setFont(MENU_FONT)
 
@@ -1455,6 +1502,12 @@ class MainApp(QtWidgets.QMainWindow):
             fg_color_hex = FG_COLOR_REGULAR_FOCUS
                     
         self.focus_value_label.setStyleSheet(f"background-color: {bg_color_hex}; color: {fg_color_hex}; padding: 10px;")
+
+        self.update_status_menu_message(
+            formatted_message,
+            BG_COLOR_FOCUS_MY_CALL,
+            FG_COLOR_FOCUS_MY_CALL
+        )
 
     def play_sound(self, sound_name):
         try:           
@@ -1756,7 +1809,7 @@ class MainApp(QtWidgets.QMainWindow):
 
     def on_right_click(self, position):
         menu = QtWidgets.QMenu()
-        if sys.platform == 'darwin':
+        if sys.platform() == 'Darwin':
             menu.setStyleSheet(CONTEXT_MENU_DARWIN_QSS)
             menu.setFont(MENU_FONT)
         
@@ -2372,6 +2425,12 @@ class MainApp(QtWidgets.QMainWindow):
         self._running = True   
         self.update_monitoring_action()
 
+        self.update_status_menu_message(
+            "test me gently",
+            BG_COLOR_FOCUS_MY_CALL,
+            FG_COLOR_FOCUS_MY_CALL
+        )
+
         self.network_check_status.start(self.network_check_status_interval)
 
         self.timer = QtCore.QTimer()
@@ -2452,7 +2511,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.worker.message.connect(self.handle_message_received)
 
-        self.thread.start()    
+        self.thread.start()   
 
     def handle_worker_error(self, error_message):
         self.stop_worker() 
@@ -2483,6 +2542,7 @@ class MainApp(QtWidgets.QMainWindow):
     def stop_monitoring(self):
         self.network_check_status.stop()
         self.activity_bar.setValue(0) 
+        self.hide_status_menu()
         
         if self.timer: 
             self.timer.stop()
