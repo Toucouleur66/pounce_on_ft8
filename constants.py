@@ -18,12 +18,12 @@ EVEN_COLOR                      = "#9DFFFE"
 ODD_COLOR                       = "#FFFE9F"
 
 BG_COLOR_FOCUS_MY_CALL          = "#80D0D0"
-FG_COLOR_FOCUS_MY_CALL          = "red"
+FG_COLOR_FOCUS_MY_CALL          = "#FF0000"
 
 BG_COLOR_REGULAR_FOCUS          = "#000000"
 FG_COLOR_REGULAR_FOCUS          = "#01FFFF"
 
-BG_COLOR_BLACK_ON_YELLOW        = "yellow"
+BG_COLOR_BLACK_ON_YELLOW        = "#FFFF00"
 FG_COLOR_BLACK_ON_YELLOW        = "#000000"
 
 BG_COLOR_WHITE_ON_BLUE          = "#AEB4FF"
@@ -33,7 +33,7 @@ BG_COLOR_BLACK_ON_PURPLE        = "#FFBDFF"
 FG_COLOR_BLACK_ON_PURPLE        = "#000000"
 
 BG_COLOR_BLACK_ON_WHITE         = "#000000"
-FG_COLOR_BLACK_ON_WHITE         = "white"
+FG_COLOR_BLACK_ON_WHITE         = "#FFFFFF"
 
 BG_COLOR_BLACK_ON_CYAN          = "#C8F0C9"
 FG_COLOR_BLACK_ON_CYAN          = "#000000"

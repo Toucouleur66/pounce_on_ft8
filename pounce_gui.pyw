@@ -13,13 +13,9 @@ import pickle
 import os
 import threading
 import pyperclip
-
+import inspect
 import sys
-import json
-import socket
-import subprocess
 import threading
-import time
 
 from datetime import datetime, timezone, timedelta
 from collections import deque
@@ -147,25 +143,26 @@ class MainApp(QtWidgets.QMainWindow):
     def __init__(self):
         super(MainApp, self).__init__()
 
-        self.base_title             = GUI_LABEL_VERSION
-        self.window_title           = None
+        self.base_title          = GUI_LABEL_VERSION
+        self.window_title        = None
 
-        self.worker                 = None
-        self.timer                  = None
-        self.tray_icon              = None
+        self.worker              = None
+        self.timer               = None
+        self.tray_icon           = None
 
         self.monitoring_settings = MonitoringSettings()       
         self.clublog_manager     = ClubLogManager(self) 
 
-        self.status_menu_agent      = None
-        if platform.system() == 'Darwin':
-            self.status_menu_socket = None
-            self.status_menu_agent  = StatusMenuAgent(on_click_callback=self.on_status_menu_clicked)
+        if platform.system() == 'Darwina':
+            self.status_menu_agent = StatusMenuAgent()
+            self.status_menu_agent.clicked.connect(self.on_status_menu_clicked)
             self.status_menu_agent.run()
 
-            self.pobjc_timer        = QtCore.QTimer(self)
+            self.pobjc_timer = QtCore.QTimer(self)
             self.pobjc_timer.timeout.connect(self.process_pobjc_events)
-            self.pobjc_timer.start(10)
+            self.pobjc_timer.start(10) 
+        else:
+            self.status_menu_agent = None
 
         params                   = self.load_params()  
         """
@@ -520,6 +517,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.closeEvent = self.on_close
         
     def process_pobjc_events(self):
+        # Traiter les événements PyObjC
         self.status_menu_agent.process_events()
 
     @QtCore.pyqtSlot()
@@ -528,7 +526,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.showNormal()
         self.raise_()
         self.activateWindow()
-        self.hide_status_menu()
             
         try:
             from AppKit import NSRunningApplication, NSApplicationActivateIgnoringOtherApps
@@ -537,15 +534,11 @@ class MainApp(QtWidgets.QMainWindow):
             pass
 
     def update_status_menu_message(self, text, bg_color, fg_color):
-        if not self.status_menu_agent:
-            pass
-        else:
+        if self.status_menu_agent:
             self.status_menu_agent.set_text_and_colors(text, bg_color, fg_color)  
 
     def hide_status_menu(self):
-        if not self.status_menu_agent:
-            pass
-        else:
+        if self.status_menu_agent:
             self.status_menu_agent.hide_status_bar()
 
     def init_tab_widget_ui(self, params):
@@ -823,10 +816,11 @@ class MainApp(QtWidgets.QMainWindow):
 
         return filter_widget
 
-    def update_global_sound_preference(self, checked):     
-        self.enable_global_sound = checked
-        self.global_sound_toggle.setChecked(checked)
-        self.save_unique_param('enable_global_sound', checked)       
+    def update_global_sound_preference(self, checked):  
+        if self.enable_global_sound != checked:
+            self.enable_global_sound = checked
+            self.global_sound_toggle.setChecked(checked)
+            self.save_unique_param('enable_global_sound', checked)       
 
     def toggle_global_sound_preference(self, checked):
         if checked:
@@ -835,11 +829,12 @@ class MainApp(QtWidgets.QMainWindow):
         self.update_global_sound_preference(checked)
 
     def update_show_all_decoded_preference(self, checked):
-        self.enable_show_all_decoded = checked
-        self.show_all_decoded_toggle.setChecked(checked)
-        self.apply_filters()
-        
-        self.save_unique_param('enable_show_all_decoded', checked)   
+        if self.enable_show_all_decoded != checked:
+            self.enable_show_all_decoded = checked
+            self.show_all_decoded_toggle.setChecked(checked)
+            self.apply_filters()
+            
+            self.save_unique_param('enable_show_all_decoded', checked)   
 
     def update_filter_gui_preference(self, checked):
         if checked:
@@ -847,9 +842,10 @@ class MainApp(QtWidgets.QMainWindow):
         else:
             self.hide_filter_layout()
         
-        self.enable_filter_gui = checked
-        self.filter_gui_toggle.setChecked(checked)
-        self.save_unique_param('enable_filter_gui', checked)        
+        if self.enable_filter_gui != checked:
+            self.enable_filter_gui = checked
+            self.filter_gui_toggle.setChecked(checked)
+            self.save_unique_param('enable_filter_gui', checked)        
 
     def toggle_wkb4_column_visibility(self):
         if self.worked_before_preference == WKB4_REPLY_MODE_ALWAYS:
@@ -1182,7 +1178,7 @@ class MainApp(QtWidgets.QMainWindow):
                 continent           = empty_str
                                 
                 if message_type is not None:
-                    self.set_value_to_focus(formatted_message, directed == my_call)
+                    self.set_value_to_focus(message, directed == my_call)
 
                 """
                     Handle sound notification
@@ -1269,7 +1265,7 @@ class MainApp(QtWidgets.QMainWindow):
         index = table.indexAt(position)
 
         menu = QtWidgets.QMenu()
-        if sys.platform() == 'Darwin':
+        if sys.platform == 'darwin':
             menu.setStyleSheet(CONTEXT_MENU_DARWIN_QSS)
             menu.setFont(MENU_FONT)
 
@@ -1492,8 +1488,8 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.status_label.setStyleSheet(style)            
 
-    def set_value_to_focus(self, formatted_message, contains_my_call):
-        self.focus_value_label.setText(formatted_message)
+    def set_value_to_focus(self, message, contains_my_call):
+        self.focus_value_label.setText(message.get('formatted_message').strip())
         if contains_my_call:
             bg_color_hex = BG_COLOR_FOCUS_MY_CALL
             fg_color_hex = FG_COLOR_FOCUS_MY_CALL
@@ -1503,11 +1499,7 @@ class MainApp(QtWidgets.QMainWindow):
                     
         self.focus_value_label.setStyleSheet(f"background-color: {bg_color_hex}; color: {fg_color_hex}; padding: 10px;")
 
-        self.update_status_menu_message(
-            formatted_message,
-            BG_COLOR_FOCUS_MY_CALL,
-            FG_COLOR_FOCUS_MY_CALL
-        )
+        self.update_status_menu_message(message.get('message', ''), bg_color_hex, fg_color_hex)
 
     def play_sound(self, sound_name):
         try:           
@@ -1672,6 +1664,7 @@ class MainApp(QtWidgets.QMainWindow):
     def quit_application(self):
         self.save_window_position()
         QtWidgets.QApplication.quit()
+        log.debug("Quit")
 
     def restart_application(self):
         self.save_window_position()
@@ -1690,10 +1683,8 @@ class MainApp(QtWidgets.QMainWindow):
         
         if dark_mode:
             qt_bg_color = "#181818"
-            qt_fg_color = "#ECECEC"
         else:
             qt_bg_color = "#E0E0E0"
-            qt_fg_color = "#000000"
         
         self.filter_widget.setStyleSheet(f"""
             QWidget#FilterWidget {{
@@ -1744,11 +1735,28 @@ class MainApp(QtWidgets.QMainWindow):
         self.update_tab_widget_labels_style()
 
     def save_unique_param(self, key, value):
+
+        frame = inspect.currentframe()
+        try:
+            caller = frame.f_back
+            co_name = caller.f_code.co_name        
+            log.warning(f"save_unique_param: '{co_name}' from '{caller}'")
+        finally:
+            del frame
+            
         params      = self.load_params()
         params[key] = value
         self.save_params(params)  
 
     def save_params(self, params):
+        frame = inspect.currentframe()
+        try:
+            caller = frame.f_back
+            co_name = caller.f_code.co_name        
+            log.warning(f"save_params: '{co_name}' from '{caller}'")
+        finally:
+            del frame
+
         with open(PARAMS_FILE, "wb") as f:
             pickle.dump(params, f)
 
@@ -1809,7 +1817,7 @@ class MainApp(QtWidgets.QMainWindow):
 
     def on_right_click(self, position):
         menu = QtWidgets.QMenu()
-        if sys.platform() == 'Darwin':
+        if sys.platform == 'darwin':
             menu.setStyleSheet(CONTEXT_MENU_DARWIN_QSS)
             menu.setFont(MENU_FONT)
         
@@ -2423,13 +2431,7 @@ class MainApp(QtWidgets.QMainWindow):
 
     def start_monitoring(self):
         self._running = True   
-        self.update_monitoring_action()
-
-        self.update_status_menu_message(
-            "test me gently",
-            BG_COLOR_FOCUS_MY_CALL,
-            FG_COLOR_FOCUS_MY_CALL
-        )
+        self.update_monitoring_action()      
 
         self.network_check_status.start(self.network_check_status_interval)
 

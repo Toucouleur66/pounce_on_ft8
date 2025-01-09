@@ -5,12 +5,6 @@ import CoreFoundation
 
 from Foundation import NSTimer, NSObject
 
-from constants import (
-    CURRENT_VERSION_NUMBER,    
-    GUI_LABEL_NAME,
-    GUI_LABEL_VERSION
-)
-
 from AppKit import (
     NSApplication,
     NSStatusBar,
@@ -26,6 +20,8 @@ from AppKit import (
     NSForegroundColorAttributeName,
     NSFontAttributeName
 )
+
+from PyQt6 import QtCore
 
 def color_from_hex(hex_str, alpha=1.0):
     if hex_str.startswith('#'):
@@ -106,7 +102,7 @@ class MyStatusBarView(NSView):
         usable_width = W - 2*margin
 
         if text_size.width <= usable_width:
-            x = sub_rect.origin.x + margin + (usable_width - text_size.width)/2
+            x = sub_rect.origin.x + margin + (usable_width - text_size.width) / 2
         else:
             min_offset = usable_width - text_size.width
             max_offset = 0.0
@@ -118,7 +114,7 @@ class MyStatusBarView(NSView):
                 self._direction = -1
             x = sub_rect.origin.x + margin + self._offset
 
-        y = sub_rect.origin.y + (sub_rect.size.height - text_size.height)/2.0
+        y = sub_rect.origin.y + (sub_rect.size.height - text_size.height) / 2.0
         text_to_draw.drawAtPoint_((x, y))
 
     def mouseDown_(self, event):
@@ -126,52 +122,73 @@ class MyStatusBarView(NSView):
             self.delegate.on_click()
 
 class AppDelegate(NSObject):
-    def initWithCallback_(self, callback):
+    def initWithSignal_(self, signal):
         self = objc.super(AppDelegate, self).init()
         if self is None:
             return None
-        self.callback = callback
+        self.signal = signal 
+        self.statusItem = None 
+        self.view = None 
         return self
 
-    def applicationDidFinishLaunching_(self, notif):
-        self.statusItem = NSStatusBar.systemStatusBar().statusItemWithLength_(
-            NSVariableStatusItemLength
-        )
-        view = MyStatusBarView.alloc().initWithFrame_(NSMakeRect(0,0,120,22))
-        view.startScrolling()
-        view.delegate = self 
-        self.statusItem.setView_(view)
+    def show_status_bar(self, text, bg_color, fg_color):
+        if self.statusItem is None:
+            self.statusItem = NSStatusBar.systemStatusBar().statusItemWithLength_(
+                NSVariableStatusItemLength
+            )
+            view = MyStatusBarView.alloc().initWithFrame_(NSMakeRect(0, 0, 120, 22))
+            view.startScrolling()
+            view.delegate = self  
+            self.statusItem.setView_(view)
 
-        menu = NSMenu.alloc().init()
-        quit_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-            "Leave WaitAndPounce", "quitApp:", ""
-        )
-        menu.addItem_(quit_item)
-        self.statusItem.setMenu_(menu)
+            menu = NSMenu.alloc().init()
+            quit_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+                "Leave", "quitApp:", ""
+            )
+            menu.addItem_(quit_item)
+            self.statusItem.setMenu_(menu)
 
-        self.view = view
+            self.view = view
+
+        if self.view:
+            self.view.setTextAndColors(text, bg_color, fg_color)
+
+    def hide_status_bar(self):
+        if self.statusItem:
+            NSStatusBar.systemStatusBar().removeStatusItem_(self.statusItem)
+            self.statusItem = None
+            self.view = None
 
     @objc.IBAction
     def quitApp_(self, sender):
         NSApplication.sharedApplication().terminate_(None)
 
     def on_click(self):
-        if self.callback:
-            self.callback()
+        if self.signal:
+            print("AppDelegate: Emitting clicked signal")  
+            self.signal.emit()
 
-class StatusMenuAgent:
-    def __init__(self, on_click_callback):
+class StatusMenuAgent(QtCore.QObject):
+    # Définir un signal pour les clics
+    clicked = QtCore.pyqtSignal()
+
+    def __init__(self):
+        super(StatusMenuAgent, self).__init__() 
         self.app = NSApplication.sharedApplication()
-        self.delegate = AppDelegate.alloc().initWithCallback_(on_click_callback)
+        self.delegate = AppDelegate.alloc().initWithSignal_(self.clicked)
         self.app.setDelegate_(self.delegate)
 
     def run(self):
-        # Ne pas appeler app.run() ici, gérer via le loop principal
         pass
 
     def process_events(self):
         CoreFoundation.CFRunLoopRunInMode(CoreFoundation.kCFRunLoopDefaultMode, 0.01, False)
 
     def set_text_and_colors(self, text, bg_color, fg_color):
-        if hasattr(self.delegate, 'view') and self.delegate.view:    
-            self.delegate.view.setTextAndColors(text, bg_color, fg_color)        
+        if hasattr(self.delegate, 'view') and self.delegate.view:
+            self.delegate.view.setTextAndColors(text, bg_color, fg_color)
+        else:
+            self.delegate.show_status_bar(text, bg_color, fg_color)
+
+    def hide_status_bar(self):
+        self.delegate.hide_status_bar()
