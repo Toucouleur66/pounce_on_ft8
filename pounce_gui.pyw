@@ -1067,17 +1067,18 @@ class MainApp(QtWidgets.QMainWindow):
         if self._running:
             # Make sure to reset last_sound_played_time if we switch band
             self.last_sound_played_time = datetime.min
-            self.toggle_focus_frame(visible=False)
+            self.hide_focus_value_label(visible=False)
             self.gui_selected_band = self.operating_band
             self.tab_widget.set_operating_tab(self.operating_band)
 
-    def toggle_focus_frame(self, visible: bool):
+    def hide_focus_value_label(self, visible: bool):
         if visible:
             self.focus_value_label.setStyleSheet("")  
             self.focus_value_label.clear() 
         else:    
             self.focus_value_label.setStyleSheet("background-color: transparent; border: none;")
             self.focus_value_label.clear()
+        self.hide_status_menu()
 
     """
         Used for MonitoringSetting
@@ -2096,7 +2097,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.color_combo.setCurrentIndex(0)    
 
     def clear_output_and_filters(self):
-        self.toggle_focus_frame(visible=False)
+        self.hide_focus_value_label(visible=False)
         self.clear_filters()
 
         self.output_table.setRowCount(0)
@@ -2453,7 +2454,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.blink_timer.timeout.connect(self.toggle_label_visibility)
 
         self.stop_event.clear()
-        self.toggle_focus_frame(visible=False)  
+        self.hide_focus_value_label(visible=False)  
 
         self.apply_band_change(self.gui_selected_band)
         
