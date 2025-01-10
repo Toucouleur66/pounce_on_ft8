@@ -286,8 +286,7 @@ class MainApp(QtWidgets.QMainWindow):
         refresh_history_table_timer.timeout.connect(lambda: self.wait_pounce_history_table.viewport().update())
 
         self.worked_history_callsigns_label = QtWidgets.QLabel()
-        self.worked_history_callsigns = self.load_worked_history_callsigns()
-
+        
         """
             Top layout for focus_frame and timer_value_label
         """
@@ -500,12 +499,16 @@ class MainApp(QtWidgets.QMainWindow):
         """
         self.gui_selected_band = params.get('last_band_used', DEFAULT_SELECTED_BAND)
 
+       
         QtCore.QTimer.singleShot(100, lambda: self.tab_widget.set_selected_tab(self.gui_selected_band))
-        
+
+        self.load_worked_history_callsigns()
         self.apply_theme_to_all(self.theme_manager.dark_mode)
         self.load_window_position()
         self.create_main_menu() 
-        self.toggle_wkb4_column_visibility()
+        self.toggle_wkb4_column_visibility()        
+
+        QtCore.QTimer.singleShot(100, lambda: self.wait_pounce_history_table.scrollToBottom())
         
         if self.datetime_column_setting == DATE_COLUMN_AGE:
             self.enable_age_column()
@@ -1810,7 +1813,7 @@ class MainApp(QtWidgets.QMainWindow):
             except (EOFError, pickle.UnpicklingError) as e:
                 self.worked_callsigns_history = []
         else:        
-            self.worked_callsigns_history = []
+            self.worked_callsigns_history = []          
 
     def update_worked_callsigns_history_counter(self):
         self.worked_history_callsigns_label.setText(WORKED_CALLSIGNS_HISTORY_LABEL % len(self.worked_callsigns_history))

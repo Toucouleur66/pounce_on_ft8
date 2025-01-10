@@ -2,11 +2,9 @@
 
 import objc
 import time
-
 import CoreFoundation
 
 from Foundation import NSTimer, NSObject
-
 from AppKit import (
     NSApplication,
     NSStatusBar,
@@ -66,31 +64,65 @@ class MyStatusBarView(NSView):
 
     @objc.python_method
     def setTextAndColors(self, txt, bg, fg):
-        self._text                  = txt
-        self._bgColorHex            = bg
-        self._fgColorHex            = fg
-        self._offset                = 0.0
-        self._direction             = +1
+        self._text       = txt
+        self._bgColorHex = bg
+        self._fgColorHex = fg
+        self._offset     = 0.0
+        self._direction  = +1
+        self.stopScrolling()
+
+        fg_color = color_from_hex(self._fgColorHex)
+        font = NSFont.fontWithName_size_("Monaco", 12) or NSFont.menuFontOfSize_(13)
+        attributes = {
+            NSForegroundColorAttributeName: fg_color,
+            NSFontAttributeName: font
+        }
+        text_to_draw = NSAttributedString.alloc().initWithString_attributes_(self._text, attributes)
+        text_size = text_to_draw.size()
+        self.text_size = text_size
+
+        inset = 3
+        margin = 4.0
+        self.usable_width = self.frame().size.width - 2 * margin - 2 * inset
+
+        overflow = text_size.width - self.usable_width
+        threshold = 10.0
+
+        if overflow > threshold:
+            scroll_range = text_size.width - self.usable_width
+            self.min_offset = -scroll_range / 2
+            self.max_offset = scroll_range / 2
+            self._offset = self.min_offset
+            self.animation_start_time = time.time()
+            self.animation_direction = 1
+            self.startScrolling()
+        else:
+            self._offset = 0.0
+
         self.setNeedsDisplay_(True)
 
     def startScrolling(self):
         if self._timer:
             self._timer.invalidate()
+            self._timer = None
 
-        self.animation_start_time   = time.time()
-        self.animation_direction    = 1 
+        self.animation_start_time = time.time()
+        self.animation_direction  = 1 
 
         self._timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
-            0.03, self, b'animate:', None, True
+            0.016, self, b'animate:', None, True  
         )
 
     def stopScrolling(self):
         if self._timer:
             self._timer.invalidate()
-            self._timer             = None
-        self.animation_start_time   = None    
+            self._timer = None
+        self.animation_start_time = None    
 
     def animate_(self, timer):
+        if not self.animation_start_time:
+            return
+
         current_time = time.time()
         elapsed = current_time - self.animation_start_time
 
@@ -114,11 +146,12 @@ class MyStatusBarView(NSView):
 
     def drawRect_(self, rect):
         inset = 3
+
         sub_rect = NSMakeRect(
             rect.origin.x + inset,
             rect.origin.y + inset,
-            rect.size.width - 2*inset,
-            rect.size.height - 2*inset
+            rect.size.width - 2 * inset,
+            rect.size.height - 2 * inset
         )
 
         corner_radius = 3.0
@@ -127,46 +160,24 @@ class MyStatusBarView(NSView):
         )
         
         rounded_path.setClip()
-                
+                    
         bg_color = color_from_hex(self._bgColorHex)
         bg_color.setFill()
         rounded_path.fill()
 
-        fg = color_from_hex(self._fgColorHex)
+        fg_color = color_from_hex(self._fgColorHex)
         font = NSFont.fontWithName_size_("Monaco", 12) or NSFont.menuFontOfSize_(13)
-        attr = {
-            NSForegroundColorAttributeName: fg,
+        attributes = {
+            NSForegroundColorAttributeName: fg_color,
             NSFontAttributeName: font
         }
-        text_to_draw = NSAttributedString.alloc().initWithString_attributes_(
-            self._text, attr
-        )
-        text_size = text_to_draw.size()
-        self.text_size = text_size
+        text_to_draw = NSAttributedString.alloc().initWithString_attributes_(self._text, attributes)
 
-        margin = 5.0
-        self.usable_width = sub_rect.size.width - 2*margin
-
-        overflow = text_size.width - self.usable_width
-        threshold = 10.0  
-
-        if overflow <= 0 or overflow <= threshold:
-            x = sub_rect.origin.x + margin + (self.usable_width - text_size.width) / 2.0
-            self.stopScrolling()
-            self._offset = x - (sub_rect.origin.x + margin)
-        else:
-            self.min_offset = self.usable_width - text_size.width
-            self.max_offset = 0.0
-
-            x = sub_rect.origin.x + margin + self._offset
-            y = sub_rect.origin.y + (sub_rect.size.height - text_size.height) / 2.0
+        if self.text_size and self.usable_width:
+            x_center = sub_rect.origin.x + (sub_rect.size.width - self.text_size.width) / 2.0
+            x = x_center + self._offset
+            y = sub_rect.origin.y + (sub_rect.size.height - self.text_size.height) / 2.0
             text_to_draw.drawAtPoint_(NSMakePoint(x, y))
-
-            return
-
-        y = sub_rect.origin.y + (sub_rect.size.height - text_size.height) / 2.0
-
-        text_to_draw.drawAtPoint_(NSMakePoint(x, y))
 
     def mouseDown_(self, event):
         if self.delegate and hasattr(self.delegate, 'on_click'):
@@ -174,12 +185,12 @@ class MyStatusBarView(NSView):
 
 class AppDelegate(NSObject):
     def initWithSignal_(self, signal):
-        self                = objc.super(AppDelegate, self).init()
+        self = objc.super(AppDelegate, self).init()
         if self is None:
             return None
-        self.signal         = signal 
-        self.statusItem     = None 
-        self.view           = None 
+        self.signal     = signal 
+        self.statusItem = None 
+        self.view       = None 
 
         return self
 
@@ -189,7 +200,6 @@ class AppDelegate(NSObject):
                 NSVariableStatusItemLength
             )
             view = MyStatusBarView.alloc().initWithFrame_(NSMakeRect(0, 0, 90, 22))
-            view.startScrolling()
             view.delegate = self  
             self.statusItem.setView_(view)
 
