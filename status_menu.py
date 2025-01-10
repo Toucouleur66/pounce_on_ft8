@@ -213,7 +213,7 @@ class AppDelegate(NSObject):
 
     def on_click(self):
         if self.signal:
-            print("AppDelegate: Emitting clicked signal")  
+            # print("AppDelegate: Emitting clicked signal")  
             self.signal.emit()
 
 class StatusMenuAgent(QtCore.QObject):

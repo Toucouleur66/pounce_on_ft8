@@ -70,7 +70,7 @@ DATE_COLUMN_AGE                 = "Age"
 
 WAITING_DATA_PACKETS_LABEL      = "Waiting for UDP Packets"
 WORKED_CALLSIGNS_HISTORY_LABEL  = "Worked Callsigns History (%d):"
-CALLSIGN_NOTICE_LABEL           = "Comma separated list of callsigns. Allows wildcards with *"
+CALLSIGN_NOTICE_LABEL           = "Comma-separated list of callsigns (or prefixes). Allows wildcards with *"
 CQ_ZONE_NOTICE_LABEL            = "Comma separated list of CQ Zone"
 
 MODE_NORMAL                     = "Regular"

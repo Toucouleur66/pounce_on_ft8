@@ -37,7 +37,9 @@ from updater import Updater
 from theme_manager import ThemeManager
 from clublog import ClubLogManager
 from setting_dialog import SettingsDialog
-from status_menu import StatusMenuAgent
+
+if sys.platform == 'darwin':
+    from status_menu import StatusMenuAgent
 
 from utils import get_local_ip_address, get_log_filename, matches_any
 from utils import get_mode_interval, get_amateur_band
