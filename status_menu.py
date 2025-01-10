@@ -53,7 +53,7 @@ class MyStatusBarView(NSView):
         self._offset                = 0.0
         self._direction             = +1
 
-        self.animation_duration     = 1.3
+        self.animation_duration     = 2.3
         self.animation_start_time   = None
         self.animation_direction    = 1
 
@@ -121,12 +121,16 @@ class MyStatusBarView(NSView):
             rect.size.height - 2*inset
         )
 
-        path = NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
-            sub_rect, 3.0, 3.0
+        corner_radius = 3.0
+        rounded_path = NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
+            sub_rect, corner_radius, corner_radius
         )
-        bg = color_from_hex(self._bgColorHex)
-        bg.setFill()
-        path.fill()
+        
+        rounded_path.setClip()
+                
+        bg_color = color_from_hex(self._bgColorHex)
+        bg_color.setFill()
+        rounded_path.fill()
 
         fg = color_from_hex(self._fgColorHex)
         font = NSFont.fontWithName_size_("Monaco", 12) or NSFont.menuFontOfSize_(13)
@@ -141,27 +145,27 @@ class MyStatusBarView(NSView):
         self.text_size = text_size
 
         margin = 5.0
-        W = sub_rect.size.width
-        usable_width = W - 2*margin
-        self.usable_width = usable_width
+        self.usable_width = sub_rect.size.width - 2*margin
 
-        overflow = text_size.width - usable_width
-        threshold = 10.0  # Seuil minimal pour animer
+        overflow = text_size.width - self.usable_width
+        threshold = 10.0  
 
         if overflow <= 0 or overflow <= threshold:
-            x = sub_rect.origin.x + margin + (usable_width - text_size.width) / 2.0
+            x = sub_rect.origin.x + margin + (self.usable_width - text_size.width) / 2.0
             self.stopScrolling()
             self._offset = x - (sub_rect.origin.x + margin)
         else:
-            self.min_offset = usable_width - text_size.width
+            self.min_offset = self.usable_width - text_size.width
             self.max_offset = 0.0
 
-            if not self._timer:
-                self.startScrolling()
-
             x = sub_rect.origin.x + margin + self._offset
+            y = sub_rect.origin.y + (sub_rect.size.height - text_size.height) / 2.0
+            text_to_draw.drawAtPoint_(NSMakePoint(x, y))
+
+            return
 
         y = sub_rect.origin.y + (sub_rect.size.height - text_size.height) / 2.0
+
         text_to_draw.drawAtPoint_(NSMakePoint(x, y))
 
     def mouseDown_(self, event):
@@ -184,7 +188,7 @@ class AppDelegate(NSObject):
             self.statusItem = NSStatusBar.systemStatusBar().statusItemWithLength_(
                 NSVariableStatusItemLength
             )
-            view = MyStatusBarView.alloc().initWithFrame_(NSMakeRect(0, 0, 120, 22))
+            view = MyStatusBarView.alloc().initWithFrame_(NSMakeRect(0, 0, 90, 22))
             view.startScrolling()
             view.delegate = self  
             self.statusItem.setView_(view)

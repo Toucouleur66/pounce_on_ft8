@@ -7,7 +7,7 @@ import platform
 from datetime import datetime
 from utils import get_app_data_dir
 
-CURRENT_VERSION_NUMBER          = "2.4.1"
+CURRENT_VERSION_NUMBER          = "2.4.2"
 EXPIRATION_DATE                 = datetime(2025, 2, 15)
 UPDATE_JSON_INFO_URL            = "https://storage.de.cloud.ovh.net/v1/AUTH_31163bb499dc49eb819aacdfd32ae82c/wait.and.pounce/public/update_info.json"
 
@@ -17,7 +17,7 @@ ODD                             = "ODD"
 EVEN_COLOR                      = "#9DFFFE"
 ODD_COLOR                       = "#FFFE9F"
 
-BG_COLOR_FOCUS_MY_CALL          = "#80D0D0"
+BG_COLOR_FOCUS_MY_CALL          = "#CCDEAA"
 FG_COLOR_FOCUS_MY_CALL          = "#FF0000"
 
 BG_COLOR_REGULAR_FOCUS          = "#000000"

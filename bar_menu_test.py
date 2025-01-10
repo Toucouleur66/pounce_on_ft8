@@ -56,8 +56,8 @@ class MyStatusView(NSView):
             return None
 
         self._text          = "F5UKW DU6/PE1NSQ RR73"
-        self._bgColorHex    = BG_COLOR_FOCUS_MY_CALL
-        self._fgColorHex    = FG_COLOR_FOCUS_MY_CALL
+        self._bgColorHex    = FG_COLOR_FOCUS_MY_CALL
+        self._fgColorHex    = BG_COLOR_FOCUS_MY_CALL
 
         self._timer         = None
         self._offset        = 0.0
@@ -67,9 +67,10 @@ class MyStatusView(NSView):
         self.text_size      = NSMakeRect(0, 0, 0, 0)
 
         # Variables pour l'easing
-        self.animation_duration = 1.0  # Durée totale d'une va-et-vient en secondes
+        self.animation_duration = 2.0  # Durée totale d'une va-et-vient en secondes
         self.animation_start_time = None
         self.animation_direction = 1  # 1 pour aller, -1 pour revenir
+        #self.setFrameSize_(NSMakeRect(0, 0, 100, 22).size)
 
         return self
 
@@ -138,12 +139,17 @@ class MyStatusView(NSView):
         rounded_path = NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
             sub_rect, corner_radius, corner_radius
         )
-        bg_color = color_from_hex("#000000")  # noir
+        
+        # Définir le clipping path
+        rounded_path.setClip()
+        
+        # Remplir l'arrière-plan
+        bg_color = color_from_hex("#01FFFF")  # Exemple de couleur de fond
         bg_color.setFill()
         rounded_path.fill()
 
         # Préparation du texte (couleur + police)
-        txt_color = color_from_hex("#01FFFF")  # cyan
+        txt_color = color_from_hex("#000000")  # Couleur du texte
         my_font = NSFont.fontWithName_size_("Monaco", 12)
         if not my_font:
             my_font = NSFont.menuFontOfSize_(13)
@@ -162,7 +168,7 @@ class MyStatusView(NSView):
         W = sub_rect.size.width
 
         # --- MARGE à gauche et à droite ---
-        margin = 5.0
+        margin = 0
         # zone "utile" pour le ping-pong = (W - 2*margin)
         self.usable_width = W - 2 * margin
 
@@ -197,6 +203,7 @@ class MyStatusView(NSView):
 
         # Dessin
         text_to_draw.drawAtPoint_(NSMakePoint(x, y))
+
 
     def mouseDown_(self, event):
         """
