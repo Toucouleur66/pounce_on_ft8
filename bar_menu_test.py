@@ -1,4 +1,5 @@
 import objc
+import time
 
 from Foundation import NSTimer
 from AppKit import (
@@ -38,19 +39,37 @@ def color_from_hex(hex_str, alpha=1.0):
 
     return NSColor.colorWithSRGBRed_green_blue_alpha_(r, g, b, alpha)
 
+def ease_in_out_cubic(t):
+    """
+    Fonction d'easing InOutCubic.
+    t doit être dans l'intervalle [0, 1].
+    """
+    if t < 0.5:
+        return 4 * t * t * t
+    else:
+        return 1 - pow(-2 * t + 2, 3) / 2
+
 class MyStatusView(NSView):
     def initWithFrame_(self, frame):
         self = objc.super(MyStatusView, self).initWithFrame_(frame)
         if self is None:
             return None
 
-        self._text          = "F5UKW DU6/PE1NSQ +12"
+        self._text          = "F5UKW DU6/PE1NSQ RR73"
         self._bgColorHex    = BG_COLOR_FOCUS_MY_CALL
         self._fgColorHex    = FG_COLOR_FOCUS_MY_CALL
 
         self._timer         = None
         self._offset        = 0.0
         self._direction     = +1
+
+        self.usable_width   = 0.0
+        self.text_size      = NSMakeRect(0, 0, 0, 0)
+
+        # Variables pour l'easing
+        self.animation_duration = 1.0  # Durée totale d'une va-et-vient en secondes
+        self.animation_start_time = None
+        self.animation_direction = 1  # 1 pour aller, -1 pour revenir
 
         return self
 
@@ -67,19 +86,44 @@ class MyStatusView(NSView):
             self._timer.invalidate()
             self._timer = None
 
+        self.animation_start_time = time.time()
+        self.animation_direction = 1  # Démarrer par l'aller
+
         self._timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
-            0.06, self, b'animate:', None, True
+            0.016, self, b'animate:', None, True  # ~60 FPS
         )
 
     def stopScrolling(self):
         if self._timer:
             self._timer.invalidate()
             self._timer = None
+        self.animation_start_time = None
 
     def animate_(self, timer):
-        self._offset += self._direction
+        current_time = time.time()
+        elapsed = current_time - self.animation_start_time
+
+        t = elapsed / self.animation_duration  # Progression [0, 1]
+
+        if t > 1.0:
+            t = 1.0
+
+        eased_t = ease_in_out_cubic(t)
+
+        # Calculer l'offset en fonction de la direction de l'animation
+        if self.animation_direction == 1:
+            # Aller de min_offset à max_offset
+            self._offset = self.min_offset + (self.max_offset - self.min_offset) * eased_t
+        else:
+            # Revenir de max_offset à min_offset
+            self._offset = self.max_offset - (self.max_offset - self.min_offset) * eased_t
 
         self.setNeedsDisplay_(True)
+
+        if t >= 1.0:
+            # Inverser la direction et réinitialiser le temps de départ
+            self.animation_direction *= -1
+            self.animation_start_time = current_time
 
     def drawRect_(self, rect):
         inset = 3
@@ -112,6 +156,7 @@ class MyStatusView(NSView):
             self._text, attributes
         )
         text_size = text_to_draw.size()
+        self.text_size = text_size
 
         # Largeur totale disponible (dans sub_rect)
         W = sub_rect.size.width
@@ -119,31 +164,33 @@ class MyStatusView(NSView):
         # --- MARGE à gauche et à droite ---
         margin = 5.0
         # zone "utile" pour le ping-pong = (W - 2*margin)
-        usable_width = W - 2 * margin
+        self.usable_width = W - 2 * margin
 
-        # Si le texte rentre tout entier dans usable_width, on le centre => pas d'animation
-        if text_size.width <= usable_width:
-            x = sub_rect.origin.x + margin + (usable_width - text_size.width) / 2.0
+        # Calcul du dépassement
+        overflow = text_size.width - self.usable_width
+        threshold = 10.0  # Seuil minimal pour animer
 
+        if overflow <= 0 or overflow <= threshold:
+            # Le texte tient dans la zone ou dépasse légèrement, centrer
+            x = sub_rect.origin.x + margin + (self.usable_width - text_size.width) / 2.0
+            self.stopScrolling()
+            self._offset = x - (sub_rect.origin.x + margin)
         else:
-            # -- Ping-pong --
+            # Animation ping-pong avec easing
+            self.min_offset = self.usable_width - text_size.width
+            self.max_offset = 0.0
 
-            # min_offset = texte aligné à droite dans la zone "utile"
-            # (valeur négative si text_size > usable_width)
-            min_offset = usable_width - text_size.width
-            # max_offset = 0 => texte aligné complètement à gauche (dans la zone "utile")
-            max_offset = 0.0
+            if not self._timer:
+                self.startScrolling()
 
-            # Contrôle si offset sort des bornes
-            if self._offset < min_offset:
-                self._offset = min_offset
-                self._direction = +1  # rebond => maintenant on va vers la gauche => droite
-            elif self._offset > max_offset:
-                self._offset = max_offset
-                self._direction = -1  # rebond => on repart vers la droite => gauche
+            # Centrage vertical
+            y = sub_rect.origin.y + (sub_rect.size.height - text_size.height) / 2.0
 
-            # On applique la marge + offset
+            # Dessin
             x = sub_rect.origin.x + margin + self._offset
+            y = sub_rect.origin.y + (sub_rect.size.height - text_size.height) / 2.0
+            text_to_draw.drawAtPoint_(NSMakePoint(x, y))
+            return  # Exit early since animate_ will handle the drawing
 
         # Centrage vertical
         y = sub_rect.origin.y + (sub_rect.size.height - text_size.height) / 2.0
@@ -157,7 +204,6 @@ class MyStatusView(NSView):
         """
         print("End of the program")
         NSApplication.sharedApplication().terminate_(None)
-
 
 class AppDelegate(NSObject):
     def applicationDidFinishLaunching_(self, notification):

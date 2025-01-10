@@ -2429,7 +2429,7 @@ class MainApp(QtWidgets.QMainWindow):
 
     def start_monitoring(self):
         self._running = True   
-        self.update_monitoring_action()      
+        self.update_monitoring_action()   
 
         self.network_check_status.start(self.network_check_status_interval)
 
@@ -2610,6 +2610,7 @@ def main():
     
     window          = MainApp()
     window.show()
+    # window.update_status_menu_message((f'Welcome to {GUI_LABEL_VERSION}').upper(), BG_COLOR_REGULAR_FOCUS, FG_COLOR_REGULAR_FOCUS)   
 
     if is_first_launch_or_new_version(CURRENT_VERSION_NUMBER):
         window.show_about_dialog() 
