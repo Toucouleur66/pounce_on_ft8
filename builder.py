@@ -43,6 +43,7 @@ if platform.system() == 'Windows':
         "--add-data=cty.xml;.",
         "--add-data=cq-zones.geojson:.",
         f'--add-binary={qt_plugins_path};PyQt6/Qt6/plugins/multimedia',
+        '--hidden-import=PyQt6.QtWidgets',
         '--hidden-import=Foundation',
         '--hidden-import=numpy._globals',
         '--hidden-import=shapely',        
