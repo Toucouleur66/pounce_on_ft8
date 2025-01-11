@@ -44,6 +44,8 @@ if platform.system() == 'Windows':
         "--add-data=cq-zones.geojson:.",
         f'--add-binary={qt_plugins_path};PyQt6/Qt6/plugins/multimedia',
         '--hidden-import=Foundation',
+        '--hidden-import=numpy._globals',
+        '--hidden-import=shapely',        
         '--hidden-import=objc',
         '--noconfirm',
     ]

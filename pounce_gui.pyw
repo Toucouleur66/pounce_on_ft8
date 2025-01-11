@@ -14,6 +14,7 @@ import os
 import threading
 import pyperclip
 import inspect
+import traceback
 import sys
 import threading
 
@@ -306,7 +307,7 @@ class MainApp(QtWidgets.QMainWindow):
         
         top_layout.addWidget(self.focus_frame)
 
-        self.focus_value_label.mousePressEvent = self.copy_to_clipboard
+        self.focus_value_label.mousePressEvent = self.event_copy_to_clipboard
 
         """
             Timer label
@@ -526,6 +527,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.showNormal()
         self.raise_()
         self.activateWindow()
+        self.event_copy_to_clipboard()
+        self.hide_status_menu()
             
         try:
             from AppKit import NSRunningApplication, NSApplicationActivateIgnoringOtherApps
@@ -1672,7 +1675,22 @@ class MainApp(QtWidgets.QMainWindow):
 
         QtCore.QProcess.startDetached(sys.executable, sys.argv)
         QtWidgets.QApplication.quit()
-        
+    
+    def restart_application(self):
+        try:
+            self.save_window_position()
+            
+            executable = sys.executable
+            args = sys.argv
+            working_dir = os.path.dirname(executable)
+            
+            QtCore.QProcess.startDetached(executable, args, working_dir)
+            QtWidgets.QApplication.quit()
+        except Exception as e:
+            with open("restart_error.log", "w") as f:
+                f.write(str(e) + "\n")
+                f.write(traceback.format_exc())
+
     def check_theme_change(self):
         current_dark_mode = ThemeManager.is_dark_apperance()
         if current_dark_mode != self.dark_mode:
@@ -1836,10 +1854,11 @@ class MainApp(QtWidgets.QMainWindow):
         elif action == edit_action:
             self.edit_callsigns()
 
-    def copy_to_clipboard(self, event):
+    def event_copy_to_clipboard(self, event= None):
         message = self.focus_value_label.text()
-        pyperclip.copy(message)
-        print(f"Copied to clipboard: {message}")
+        if message:
+            pyperclip.copy(message)
+            print(f"Copied to clipboard: {message}")
 
     def update_table_data(
             self,
@@ -2616,7 +2635,7 @@ def main():
     
     window          = MainApp()
     window.show()
-    # window.update_status_menu_message((f'Welcome to {GUI_LABEL_VERSION}').upper(), BG_COLOR_REGULAR_FOCUS, FG_COLOR_REGULAR_FOCUS)   
+    window.update_status_menu_message((f'Welcome to {GUI_LABEL_VERSION}').upper(), BG_COLOR_REGULAR_FOCUS, FG_COLOR_REGULAR_FOCUS)   
 
     if is_first_launch_or_new_version(CURRENT_VERSION_NUMBER):
         window.show_about_dialog() 
