@@ -127,6 +127,7 @@ class Listener:
         """
             Check ADIF file to handle Worked B4 
         """
+        
         if worked_before_preference != WKB4_REPLY_MODE_ALWAYS and adif_file_path:            
             adif_monitor                    = AdifMonitor(adif_file_path, ADIF_WORKED_CALLSIGNS_FILE)
             adif_monitor.start()

@@ -173,8 +173,9 @@ class MainApp(QtWidgets.QMainWindow):
         """
             Store data from update_table_data
         """
-        self.table_raw_data      = []
-        self.combo_box_values    = {
+        self.table_raw_data         = deque()
+        self.table_max_size_bytes   = 2 * 1_024 * 1_024
+        self.combo_box_values       = {
             "band"      : set(),
             "continent" : set(),
             "cq_zone"   : set(),
@@ -1529,11 +1530,11 @@ class MainApp(QtWidgets.QMainWindow):
 
     def get_size_of_table_raw_data(self):
         size_of_table_raw_data = asizeof.asizeof(self.table_raw_data)
-        
+
         if size_of_table_raw_data < 100 * 1_024:
             return ""
         elif size_of_table_raw_data < 1 * 1_024 * 1_024:
-            display_size = f"{size_of_table_raw_data / 1_024:.2f} ko"
+            display_size = f"{size_of_table_raw_data / 1_024:.0f} ko"
         else:
             display_size = f"{size_of_table_raw_data / (1_024 ** 2):.2f} Mo"
 
@@ -1909,6 +1910,20 @@ class MainApp(QtWidgets.QMainWindow):
             self.update_var(self.wanted_callsigns_vars[band], callsign, "remove")
 
         self.clear_button.setEnabled(True)
+
+        self.enforce_table_size_limit()
+
+    def enforce_table_size_limit(self):
+        total_size = asizeof.asizeof(self.table_raw_data)
+        
+        while total_size > self.table_max_size_bytes:
+            for idx, raw_data in enumerate(self.table_raw_data):
+                if raw_data.get('row_color') is None:
+                    del self.table_raw_data[idx]
+                    break
+            else:
+                break
+            total_size = asizeof.asizeof(self.table_raw_data)
 
     def add_row_to_output_table(self, raw_data):
         row_id = self.output_table.rowCount()  
