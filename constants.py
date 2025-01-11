@@ -166,7 +166,7 @@ if platform.system() == 'Windows':
     CUSTOM_FONT.setPointSize(11)
     CUSTOM_FONT_SMALL.setPointSize(9)
 
-    CUSTOM_FONT_MONO            = QtGui.QFont("Consolas", 12)
+    CUSTOM_FONT_MONO            = QtGui.QFont("Consolas", 11)
     CUSTOM_FONT_MONO_LG         = QtGui.QFont("Consolas", 18)
     CUSTOM_FONT_BOLD            = QtGui.QFont("Consolas", 13, QtGui.QFont.Weight.Bold)
 

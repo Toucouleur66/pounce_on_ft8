@@ -35,7 +35,7 @@ qt_plugins_path = os.path.join(
 if platform.system() == 'Windows':
     pyinstaller_cmd = common_options + [
         "--onefile",
-        "--collect-all", "PIL",  
+        "--collect-submodules", "PIL",
         "--icon=pounce.ico",
         "--add-data=pounce.ico;.",
         "--add-data=pounce.png:.",
@@ -43,20 +43,10 @@ if platform.system() == 'Windows':
         "--add-data=cty.xml;.",
         "--add-data=cq-zones.geojson:.",
         f'--add-binary={qt_plugins_path};PyQt6/Qt6/plugins/multimedia',
-        '--hidden-import=PyQt6.QtWidgets',
         '--hidden-import=Foundation',
-        '--hidden-import=numpy._globals',
-        '--hidden-import=shapely', 
-        '--hidden-import=PIL._imaging',
         '--hidden-import=objc',
         '--noconfirm',
     ]
-
-    for folder in ['build', 'dist']:
-        if os.path.exists(folder):
-            import shutil
-            shutil.rmtree(folder)
-            
 elif platform.system() == 'Darwin':
     pyinstaller_cmd = common_options + [
         "--windowed",

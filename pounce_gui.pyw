@@ -21,6 +21,7 @@ import threading
 from datetime import datetime, timezone, timedelta
 from collections import deque
 from functools import partial
+from pympler import asizeof
 
 # Custom classes 
 from animated_toggle import AnimatedToggle
@@ -1526,6 +1527,18 @@ class MainApp(QtWidgets.QMainWindow):
         except Exception as e:
             print(f"Failed to play alert sound: {e}")            
 
+    def get_size_of_table_raw_data(self):
+        size_of_table_raw_data = asizeof.asizeof(self.table_raw_data)
+        
+        if size_of_table_raw_data < 100 * 1_024:
+            return ""
+        elif size_of_table_raw_data < 1 * 1_024 * 1_024:
+            display_size = f"{size_of_table_raw_data / 1_024:.2f} ko"
+        else:
+            display_size = f"{size_of_table_raw_data / (1_024 ** 2):.2f} Mo"
+
+        return f"({display_size})"
+
     def check_connection_status(
         self,
         decode_packet_count     = None,
@@ -1559,7 +1572,7 @@ class MainApp(QtWidgets.QMainWindow):
         if self.mode is not None:
             current_mode = f"({self.mode})"
 
-        status_text_array.append(f"DecodePacket #{self.decode_packet_count}")
+        status_text_array.append(f"DecodePacket #{self.decode_packet_count} {self.get_size_of_table_raw_data()}")
 
         HEARTBEAT_TIMEOUT_THRESHOLD     = 30  # secondes
         DECODE_PACKET_TIMEOUT_THRESHOLD = 60  # secondes
@@ -1676,21 +1689,6 @@ class MainApp(QtWidgets.QMainWindow):
         QtCore.QProcess.startDetached(sys.executable, sys.argv)
         QtWidgets.QApplication.quit()
     
-    def restart_application(self):
-        try:
-            self.save_window_position()
-            
-            executable = sys.executable
-            args = sys.argv
-            working_dir = os.path.dirname(executable)
-            
-            QtCore.QProcess.startDetached(executable, args, working_dir)
-            QtWidgets.QApplication.quit()
-        except Exception as e:
-            with open("restart_error.log", "w") as f:
-                f.write(str(e) + "\n")
-                f.write(traceback.format_exc())
-
     def check_theme_change(self):
         current_dark_mode = ThemeManager.is_dark_apperance()
         if current_dark_mode != self.dark_mode:
@@ -2225,11 +2223,12 @@ class MainApp(QtWidgets.QMainWindow):
         self.monitoring_action.setShortcut(QtGui.QKeySequence("Ctrl+M"))
         self.update_monitoring_action()
         main_menu.addAction(self.monitoring_action)
-
-        restart_action = QtGui.QAction(ACTION_RESTART, self)
-        restart_action.setShortcut(QtGui.QKeySequence("Ctrl+R"))
-        restart_action.triggered.connect(self.restart_application)
-        main_menu.addAction(restart_action)
+        
+        if sys.platform == 'darwin':
+            restart_action = QtGui.QAction(ACTION_RESTART, self)
+            restart_action.setShortcut(QtGui.QKeySequence("Ctrl+R"))
+            restart_action.triggered.connect(self.restart_application)
+            main_menu.addAction(restart_action)
 
         main_menu.addSeparator()
 
