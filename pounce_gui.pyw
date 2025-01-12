@@ -174,7 +174,7 @@ class MainApp(QtWidgets.QMainWindow):
             Store data from update_table_data
         """
         self.table_raw_data         = deque()
-        self.table_max_size_bytes   = 2 * 1_024 * 1_024
+        self.max_table_size_bytes   = 1_024
         self.combo_box_values       = {
             "band"      : set(),
             "continent" : set(),
@@ -1531,14 +1531,7 @@ class MainApp(QtWidgets.QMainWindow):
     def get_size_of_table_raw_data(self):
         size_of_table_raw_data = asizeof.asizeof(self.table_raw_data)
 
-        if size_of_table_raw_data < 100 * 1_024:
-            return ""
-        elif size_of_table_raw_data < 1 * 1_024 * 1_024:
-            display_size = f"{size_of_table_raw_data / 1_024:.0f} ko"
-        else:
-            display_size = f"{size_of_table_raw_data / (1_024 ** 2):.2f} Mo"
-
-        return f"({display_size})"
+        return f"~ {size_of_table_raw_data:.0f} bytes"
 
     def check_connection_status(
         self,
@@ -1916,7 +1909,7 @@ class MainApp(QtWidgets.QMainWindow):
     def enforce_table_size_limit(self):
         total_size = asizeof.asizeof(self.table_raw_data)
         
-        while total_size > self.table_max_size_bytes:
+        while total_size > self.max_table_size_bytes:
             for idx, raw_data in enumerate(self.table_raw_data):
                 if raw_data.get('row_color') is None:
                     del self.table_raw_data[idx]
