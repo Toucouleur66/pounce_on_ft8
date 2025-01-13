@@ -7,21 +7,25 @@ import platform
 from datetime import datetime
 from utils import get_app_data_dir
 
-CURRENT_VERSION_NUMBER          = "2.5.1"
+CURRENT_VERSION_NUMBER          = "2.5.2"
 EXPIRATION_DATE                 = datetime(2025, 2, 15)
 UPDATE_JSON_INFO_URL            = "https://storage.de.cloud.ovh.net/v1/AUTH_31163bb499dc49eb819aacdfd32ae82c/wait.and.pounce/public/update_info.json"
 
 EVEN                            = "EVEN"
 ODD                             = "ODD"
 
-EVEN_COLOR                       = "#9DFFFE"
+EVEN_COLOR                      = "#9DFFFE"
 ODD_COLOR                       = "#FFFE9F"
 
-BG_COLOR_FOCUS_MY_CALL          = "#CCDEAA"
+BG_COLOR_FOCUS_MY_CALL          = "#9DFFFE"
 FG_COLOR_FOCUS_MY_CALL          = "#FF0000"
 
 BG_COLOR_REGULAR_FOCUS          = "#000000"
 FG_COLOR_REGULAR_FOCUS          = "#01FFFF"
+
+BG_COLOR_FOCUS_MY_CALL          = "#CCDEAA"
+FG_COLOR_FOCUS_MY_CALL          = "#FF0000"
+
 
 BG_COLOR_BLACK_ON_YELLOW        = "#FFFF00"
 FG_COLOR_BLACK_ON_YELLOW        = "#000000"
@@ -50,7 +54,6 @@ PARAMS_FILE                     = os.path.join(get_app_data_dir(), "params.pkl")
 POSITION_FILE                   = os.path.join(get_app_data_dir(), "window_position.pkl")
 WORKED_CALLSIGNS_FILE           = os.path.join(get_app_data_dir(), "worked_callsigns.pkl")
 ADIF_WORKED_CALLSIGNS_FILE      = os.path.join(get_app_data_dir(), "wait_pounce_log.adif")
-
 
 GUI_LABEL_NAME                  = "Wait and Pounce"
 GUI_LABEL_VERSION               = f"{GUI_LABEL_NAME} v{CURRENT_VERSION_NUMBER}"
@@ -109,6 +112,13 @@ DEFAULT_DELAY_BETWEEN_SOUND     = 120
 
 DEFAULT_SELECTED_BAND           = "6m"
 DEFAULT_FILTER_VALUE            = "All"
+
+MESSAGE_TYPE_PRIORITY                  = {
+                                    'ready_to_log'                  : 5,
+                                    'directed_to_my_call'           : 4,                                    
+                                    'wanted_callsign_detected'      : 3,
+                                    'monitored_callsign_detected'   : 2,
+                                }
 
 SETTING_QSS                     = f"""
                 background-color: #9DFFFE; 
