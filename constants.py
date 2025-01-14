@@ -108,12 +108,12 @@ DEFAULT_LOG_PACKET_DATA         = False
 DEFAULT_SHOW_ALL_DECODED        = False
 DEFAULT_LOG_ALL_VALID_CONTACT   = True
 DEFAULT_DELAY_BETWEEN_SOUND     = 120
-DEFAULT_REPLY_COUNT_FOR_WANTED  = 10
+DEFAULT_REPLY_ATTEMPTS          = 10
 
 DEFAULT_SELECTED_BAND           = "6m"
 DEFAULT_FILTER_VALUE            = "All"
 
-MESSAGE_TYPE_PRIORITY                  = {
+MESSAGE_TYPE_PRIORITY           = {
                                     'ready_to_log'                  : 5,
                                     'directed_to_my_call'           : 4,                                    
                                     'wanted_callsign_detected'      : 3,

@@ -5,7 +5,6 @@ import subprocess
 import os
 
 from PyQt6 import QtWidgets, QtCore
-from PyQt6.QtCore import QDir
 from PyQt6.QtWidgets import QFileDialog
 
 from custom_button import CustomButton
@@ -42,11 +41,10 @@ from constants import (
     DEFAULT_DEBUG_OUTPUT,
     DEFAULT_POUNCE_LOG,
     DEFAULT_LOG_PACKET_DATA,
-    DEFAULT_SHOW_ALL_DECODED,
+    DEFAULT_REPLY_ATTEMPTS,
     DEFAULT_DELAY_BETWEEN_SOUND,
     # Fonts
     CUSTOM_FONT_SMALL,
-    CUSTOM_FONT_MONO,
     SETTING_QSS,
     # ADIF
     ADIF_WORKED_CALLSIGNS_FILE
@@ -106,6 +104,8 @@ class SettingsDialog(QtWidgets.QDialog):
         primary_layout.addWidget(self.primary_udp_server_address, 0, 1)
         primary_layout.addWidget(QtWidgets.QLabel("UDP Server port number:"), 1, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
         primary_layout.addWidget(self.primary_udp_server_port, 1, 1)
+        primary_layout.setColumnMinimumWidth(0, 200)
+        primary_layout.setColumnStretch(0, 0)
 
         primary_group.setLayout(primary_layout)
 
@@ -123,6 +123,8 @@ class SettingsDialog(QtWidgets.QDialog):
         secondary_layout.addWidget(QtWidgets.QLabel("UDP Server port number:"), 1, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
         secondary_layout.addWidget(self.secondary_udp_server_port, 1, 1)
         secondary_layout.addWidget(self.enable_secondary_udp_server, 2, 0, 1, 2)
+        secondary_layout.setColumnMinimumWidth(0, 200)
+        secondary_layout.setColumnStretch(0, 0)
 
         secondary_group.setLayout(secondary_layout)
 
@@ -134,7 +136,7 @@ class SettingsDialog(QtWidgets.QDialog):
         
         self.enable_sending_reply = QtWidgets.QCheckBox("Enable reply")
         self.enable_sending_reply.setChecked(DEFAULT_SENDING_REPLY)
-
+        
         self.enable_gap_finder = QtWidgets.QCheckBox("Enable frequencies offset updater")
         self.enable_gap_finder.setChecked(DEFAULT_GAP_FINDER)
 
@@ -148,6 +150,25 @@ class SettingsDialog(QtWidgets.QDialog):
         udp_settings_layout.addWidget(self.enable_gap_finder, 1, 0, 1, 2)
         udp_settings_layout.addWidget(self.enable_watchdog_bypass, 2, 0, 1, 2)
         udp_settings_layout.addWidget(self.enable_log_all_valid_contact, 3, 0, 1, 2)
+
+        self.max_reply_group = QtWidgets.QGroupBox("Maximum number of reply for a Wanted callsign (if several are set)")
+        max_reply_layout = QtWidgets.QHBoxLayout()
+
+        self.max_reply_attemps_combo = QtWidgets.QComboBox()
+        self.max_reply_attemps_combo.setEditable(False)  
+        self.max_reply_attemps_combo.setMinimumWidth(100)
+
+        self.max_reply_attemps_combo.addItems([str(i) for i in range(4, 31)])
+        self.max_reply_attemps_combo.setCurrentIndex(DEFAULT_REPLY_ATTEMPTS)
+
+        max_reply_label = QtWidgets.QLabel("Maximum number of reply:")
+        max_reply_label.setFixedWidth(200)
+        max_reply_layout.addWidget(max_reply_label)
+        max_reply_layout.addWidget(self.max_reply_attemps_combo)
+        
+        max_reply_layout.addStretch()
+
+        self.max_reply_group.setLayout(max_reply_layout)
 
         udp_settings_group.setLayout(QtWidgets.QVBoxLayout())
         udp_settings_group.layout().setContentsMargins(0, 0, 0, 0)
@@ -165,7 +186,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.freq_range_mode_var = QtWidgets.QButtonGroup()
         self.freq_range_mode_var.addButton(self.radio_normal)
         self.freq_range_mode_var.addButton(self.radio_foxhound)
-        self.freq_range_mode_var.addButton(self.radio_superfox)
+        self.freq_range_mode_var.addButton(self.radio_superfox)        
 
         modes = [
             (self.radio_normal, MODE_NORMAL, FREQ_MINIMUM, FREQ_MAXIMUM),
@@ -193,7 +214,6 @@ class SettingsDialog(QtWidgets.QDialog):
         self.mode_table_widget.setHorizontalHeaderLabels(headers)
         self.mode_table_widget.horizontalHeader().setVisible(True)
 
-        # Ajuster l'alignement des en-têtes si nécessaire
         self.mode_table_widget.horizontalHeader().setDefaultAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
 
         self.mode_table_widget.setSizePolicy(
@@ -262,6 +282,7 @@ class SettingsDialog(QtWidgets.QDialog):
         tab_1_layout.addWidget(primary_group)
         tab_1_layout.addWidget(secondary_group)
         tab_1_layout.addWidget(udp_settings_group)
+        tab_1_layout.addWidget(self.max_reply_group)        
         tab_1_layout.addWidget(self.udp_freq_range_type_group)
         tab_1_layout.addStretch() 
 
@@ -446,12 +467,15 @@ class SettingsDialog(QtWidgets.QDialog):
         self.button_box.addButton(self.ok_button, QtWidgets.QDialogButtonBox.ButtonRole.AcceptRole)
         self.button_box.addButton(self.cancel_button, QtWidgets.QDialogButtonBox.ButtonRole.RejectRole)
         
+        layout.addWidget(self.button_box)
+
         self.ok_button.clicked.connect(self.accept)
         self.cancel_button.clicked.connect(self.reject)
+        self.enable_sending_reply.stateChanged.connect(self.toggle_max_reply_group)
+        self.enable_gap_finder.stateChanged.connect(self.toggle_udp_freq_range_type_group)
 
-        layout.addWidget(self.button_box)
-        self.enable_gap_finder.stateChanged.connect(self.update_table_frequency_state)
-        self.update_table_frequency_state()
+        self.toggle_max_reply_group()
+        self.toggle_udp_freq_range_type_group()
 
         self.on_tab_changed(self.tab_widget.currentIndex())  
         self.tab_widget.currentChanged.connect(self.on_tab_changed)        
@@ -460,9 +484,17 @@ class SettingsDialog(QtWidgets.QDialog):
         button = self.mode_table_widget.cellWidget(row, 0)
         
         if isinstance(button, QtWidgets.QRadioButton):
-            button.setChecked(True)         
+            button.setChecked(True)        
 
-    def update_table_frequency_state(self):
+    def toggle_max_reply_group(self):
+        if self.enable_sending_reply.isChecked():
+            self.max_reply_group.show()  
+        else:
+            self.max_reply_group.hide()
+            
+        self.on_tab_changed(self.tab_widget.currentIndex())             
+
+    def toggle_udp_freq_range_type_group(self):
         if self.enable_gap_finder.isChecked():
             self.udp_freq_range_type_group.show()  
         else:
@@ -606,6 +638,16 @@ class SettingsDialog(QtWidgets.QDialog):
         else:
             self.adif_action_group.setVisible(False)
 
+        max_reply_attemps = self.params.get('max_reply_attemps_to_wanted', DEFAULT_REPLY_ATTEMPTS)
+        if 4 <= max_reply_attemps <= 30:
+            index = self.max_reply_attemps_combo.findText(str(max_reply_attemps))
+            if index != -1:
+                self.max_reply_attemps_combo.setCurrentIndex(index)
+            else:
+                self.max_reply_attemps_combo.setCurrentIndex(0)  
+        else:
+            self.max_reply_attemps_combo.setCurrentIndex(0)
+
     def get_result(self):
         freq_range_mode = MODE_NORMAL 
         if self.radio_foxhound.isChecked():
@@ -622,6 +664,12 @@ class SettingsDialog(QtWidgets.QDialog):
         else:
             worked_before_preference = WKB4_REPLY_MODE_ALWAYS            
 
+        max_reply_attemps_text = self.max_reply_attemps_combo.currentText()
+        try:
+            max_reply_attemps = int(max_reply_attemps_text)
+        except ValueError:
+            max_reply_attemps = DEFAULT_REPLY_ATTEMPTS 
+
         return {
             'primary_udp_server_address'                 : self.primary_udp_server_address.text(),
             'primary_udp_server_port'                    : self.primary_udp_server_port.text(),
@@ -629,6 +677,7 @@ class SettingsDialog(QtWidgets.QDialog):
             'secondary_udp_server_port'                  : self.secondary_udp_server_port.text(),
             'enable_secondary_udp_server'                : self.enable_secondary_udp_server.isChecked(),
             'enable_sending_reply'                       : self.enable_sending_reply.isChecked(),
+            'max_reply_attemps_to_wanted'                  : max_reply_attemps,
             'enable_gap_finder'                           : self.enable_gap_finder.isChecked(),
             'enable_watchdog_bypass'                     : self.enable_watchdog_bypass.isChecked(),
             'enable_debug_output'                        : self.enable_debug_output.isChecked(),
