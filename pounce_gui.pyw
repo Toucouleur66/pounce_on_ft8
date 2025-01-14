@@ -176,7 +176,7 @@ class MainApp(QtWidgets.QMainWindow):
             Store data from update_table_data
         """
         self.table_raw_data         = deque()
-        self.max_table_size_bytes   = 1_024
+        self.max_table_size_bytes   = 1_024 ** 2 # 1 Mo
         self.combo_box_values       = {
             "band"      : set(),
             "continent" : set(),
@@ -293,7 +293,14 @@ class MainApp(QtWidgets.QMainWindow):
         refresh_history_table_timer.timeout.connect(lambda: self.wait_pounce_history_table.viewport().update())
 
         self.worked_history_callsigns_label = QtWidgets.QLabel()
-        
+        self.worked_history_callsigns_label.setAlignment(
+            QtCore.Qt.AlignmentFlag.AlignBottom | QtCore.Qt.AlignmentFlag.AlignLeft
+        )
+        self.worked_history_callsigns_label.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Preferred,
+            QtWidgets.QSizePolicy.Policy.Maximum
+        )       
+        self.worked_history_callsigns_label.setMinimumHeight(25)
         """
             Top layout for focus_frame and timer_value_label
         """
@@ -308,12 +315,12 @@ class MainApp(QtWidgets.QMainWindow):
         self.focus_value_label.setFont(CUSTOM_FONT_MONO_LG)
         self.focus_value_label.setFixedHeight(50)
         self.focus_value_label.setStyleSheet("padding: 10px;")
-        self.focus_frame_layout.addWidget(self.focus_value_label)
+        self.focus_value_label.mousePressEvent = self.on_focus_value_label_clicked        
+        self.focus_frame_layout.addWidget(self.focus_value_label) 
         self.focus_frame.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
         
         top_layout.addWidget(self.focus_frame)
-
-        self.focus_value_label.mousePressEvent = self.on_focus_value_label_clicked
+        top_layout.addSpacing(15)
 
         """
             Timer label
@@ -528,6 +535,15 @@ class MainApp(QtWidgets.QMainWindow):
                 
         # Close event to save position
         self.closeEvent = self.on_close
+        # self.add_border_to_widgets(color="blue")
+
+    """
+        For debugging purpose only
+    """
+    def add_border_to_widgets(widget, color="red"):
+        for child in widget.findChildren(QtWidgets.QWidget):
+            current_style = child.styleSheet()
+            child.setStyleSheet(f"{current_style}; border: 1px solid {color};")
 
     @QtCore.pyqtSlot()
     def on_status_menu_clicked(self):
@@ -1570,9 +1586,15 @@ class MainApp(QtWidgets.QMainWindow):
             print(f"Failed to play alert sound: {e}")            
 
     def get_size_of_table_raw_data(self):
-        size_of_table_raw_data = asizeof.asizeof(self.table_raw_data)
+        size_bytes = asizeof.asizeof(self.table_raw_data)
 
-        return f"~ {size_of_table_raw_data:.0f} bytes"
+        if size_bytes > 2_000:
+            size_kb = size_bytes / 1024
+            formatted_size = f"~ {size_kb:.1f} Ko"
+        else:        
+            formatted_size = f"~ {size_bytes:,} bytes".replace(",", " ")
+        
+        return formatted_size
 
     def check_connection_status(
         self,
@@ -1953,7 +1975,7 @@ class MainApp(QtWidgets.QMainWindow):
 
     def enforce_table_size_limit(self):
         total_size = asizeof.asizeof(self.table_raw_data)
-        
+    
         while total_size > self.max_table_size_bytes:
             for idx, raw_data in enumerate(self.table_raw_data):
                 if raw_data.get('row_color') is None:
