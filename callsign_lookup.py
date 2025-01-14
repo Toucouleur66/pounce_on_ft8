@@ -418,7 +418,7 @@ class CallsignLookup:
                 date = datetime.datetime.now(datetime.timezone.utc)
 
             if callsign in self.cache:
-                print(f"Pulled from cache for {callsign}")
+                log.info(f"Data for [ {callsign} ] fetched from cache")
                 cached_info = self.cache[callsign]
                 if grid is not None:
                     lat, lon, new_zone = self.grid_to_cq_zone(grid)
