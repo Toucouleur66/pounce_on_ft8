@@ -26,6 +26,7 @@ class CustomTabWidget(QtWidgets.QWidget):
         self.scroll_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.scroll_area.setWidget(self.tab_container)
         self.scroll_area.setStyleSheet("background: transparent; border: none;")
+        self.scroll_area.setMaximumHeight(40)
 
         self.stacked_widget = QtWidgets.QStackedWidget()
 
@@ -109,6 +110,7 @@ class CustomTabWidget(QtWidgets.QWidget):
                     QToolButton {{
                         background-color: {STATUS_TRX_COLOR};
                         color: white;
+                        width: 30px;
                         border-radius: 8px;
                         font-size: 12px;
                         border: 1px solid transparent;
