@@ -328,7 +328,12 @@ class MainApp(QtWidgets.QMainWindow):
         """
         self.timer_value_label = QtWidgets.QLabel(DEFAULT_MODE_TIMER_VALUE)
         self.timer_value_label.setFont(CUSTOM_FONT_MONO_LG)
-        self.timer_value_label.setStyleSheet("background-color: #9dfffe; color: #555bc2; padding: 10px;")
+        self.timer_value_label.setStyleSheet("""
+            background-color: #9dfffe;
+            color: #555bc2;
+            padding: 10px;
+            border-radius: 8px;
+        """)
         self.timer_value_label.setMaximumWidth(150)
         self.timer_value_label.setFixedHeight(50)        
         self.timer_value_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
@@ -1561,7 +1566,12 @@ class MainApp(QtWidgets.QMainWindow):
             bg_color_hex = BG_COLOR_REGULAR_FOCUS
             fg_color_hex = FG_COLOR_REGULAR_FOCUS
                     
-        self.focus_value_label.setStyleSheet(f"background-color: {bg_color_hex}; color: {fg_color_hex}; padding: 10px;")
+        self.focus_value_label.setStyleSheet(f"""
+            background-color: {bg_color_hex};
+            color: {fg_color_hex};
+            padding: 10px;
+            border-radius: 8px;
+        """)
 
         self.update_status_menu_message(message.get('message', ''), bg_color_hex, fg_color_hex)
 
@@ -2228,7 +2238,12 @@ class MainApp(QtWidgets.QMainWindow):
             background_color = ODD_COLOR
 
         self.timer_value_label.setText(utc_time)
-        self.timer_value_label.setStyleSheet(f"background-color: {background_color}; color: #3d25fb; padding: 10px;")
+        self.timer_value_label.setStyleSheet(f"""
+            background-color: {background_color};
+            color: #3d25fb;
+            padding: 10px;
+            border-radius: 8px;
+        """)
 
     def update_status_button(
             self,        
