@@ -109,6 +109,7 @@ from constants import (
     DEFAULT_SELECTED_BAND,
     # Needed for filtering
     DEFAULT_FILTER_VALUE,
+    DEFAULT_REPLY_ATTEMPTS,
     # Working directory
     CURRENT_DIR,
     # UDP related
@@ -2563,6 +2564,7 @@ class MainApp(QtWidgets.QMainWindow):
         secondary_udp_server_port           = int(params.get('secondary_udp_server_port') or DEFAULT_UDP_PORT)
         enable_secondary_udp_server         = params.get('enable_secondary_udp_server', DEFAULT_SECONDARY_UDP_SERVER)
         enable_sending_reply                = params.get('enable_sending_reply', DEFAULT_SENDING_REPLY)
+        max_reply_attemps_to_wanted         = params.get('max_reply_attemps_to_wanted', DEFAULT_REPLY_ATTEMPTS)
         enable_gap_finder                    = params.get('enable_gap_finder', DEFAULT_GAP_FINDER)
         enable_watchdog_bypass              = params.get('enable_watchdog_bypass', DEFAULT_WATCHDOG_BYPASS)
         enable_debug_output                 = params.get('enable_debug_output', DEFAULT_DEBUG_OUTPUT)
@@ -2587,6 +2589,7 @@ class MainApp(QtWidgets.QMainWindow):
             secondary_udp_server_port,
             enable_secondary_udp_server,
             enable_sending_reply,
+            max_reply_attemps_to_wanted,
             enable_log_all_valid_contact,
             enable_gap_finder,
             enable_watchdog_bypass,

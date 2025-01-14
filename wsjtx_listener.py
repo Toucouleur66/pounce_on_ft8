@@ -1,13 +1,10 @@
 # wsjtx_listener.py
 
 import pywsjtx.extra.simple_server
-
-import time
 import threading
 import traceback
 import socket
 import re
-import os
 import bisect
 
 from wsjtx_packet_sender import WSJTXPacketSender
@@ -47,6 +44,7 @@ class Listener:
             secondary_udp_server_port,
             enable_secondary_udp_server,
             enable_sending_reply,
+            max_reply_attemps_to_wanted,
             enable_log_all_valid_contact,
             enable_gap_finder,
             enable_watchdog_bypass,
@@ -91,6 +89,8 @@ class Listener:
         self.rx_df                      = None
         self.tx_df                      = None
 
+        self.reply_attempts             = {}
+
         self.primary_udp_server_address     = primary_udp_server_address or get_local_ip_address()
         self.primary_udp_server_port        = primary_udp_server_port or 2237
 
@@ -106,6 +106,8 @@ class Listener:
         self.enable_debug_output            = enable_debug_output
         self.enable_pounce_log              = enable_pounce_log 
         self.enable_log_packet_data         = enable_log_packet_data
+
+        self.max_reply_attemps_to_wanted      = max_reply_attemps_to_wanted
         self.worked_before_preference       = worked_before_preference        
 
         self.monitoring_settings            = monitoring_settings
@@ -127,7 +129,6 @@ class Listener:
         """
             Check ADIF file to handle Worked B4 
         """
-        
         if worked_before_preference != WKB4_REPLY_MODE_ALWAYS and adif_file_path:            
             adif_monitor                    = AdifMonitor(adif_file_path, ADIF_WORKED_CALLSIGNS_FILE)
             adif_monitor.start()
@@ -136,7 +137,6 @@ class Listener:
         """
             Check what period to use
         """
-
         self.last_period_index              = None
         self.used_frequencies               = {
             EVEN                            : deque([set()], maxlen=2),
@@ -516,14 +516,20 @@ class Listener:
                 Reset values to focus on another wanted callsign
             """
             if (
-                self.targeted_call is not None and
-                self.qso_time_on.get(self.targeted_call) and
-                (time_now - self.qso_time_on.get(self.targeted_call)).total_seconds() > 120 and
-                callsign != self.targeted_call and            
-                wanted is True
+                wanted is True and
+                callsign != self.targeted_call and
+                self.targeted_call is not None
             ):
-                log.warning("Waiting [ {} ] but we are about to switch on [ {} ]".format(self.targeted_call, callsign))
-                self.reset_ongoing_contact()
+                if (
+                    self.qso_time_on.get(self.targeted_call) and
+                    (time_now - self.qso_time_on.get(self.targeted_call)).total_seconds() > 120                
+                ):
+                    log.warning(f"Waiting for [ {self.targeted_call} ] but we are about to switch on [ {callsign} ]")
+                    self.reset_ongoing_contact()
+                
+                if self.reply_attempts[self.targeted_call] > self.max_reply_attemps_to_wanted:
+                    log.warning(f"{self.reply_attempts[self.targeted_call]} attempts for [ {self.targeted_call} ] but we are about to switch on [ {callsign} ]")
+                    self.reset_ongoing_contact()
 
             """
                 How to handle the logic for the message 
@@ -568,7 +574,7 @@ class Listener:
                     log.warning(f"Focus on callsign [ {callsign} ]\t{focus_info}")
                     # We can't use self.the_packet.mode as it returns "~"
                     # self.mode             = self.the_packet.mode
-                    self.reply_to_packet()  
+                    self.reply_to_packet()    
 
                 message_type = 'directed_to_my_call'    
 
@@ -587,12 +593,10 @@ class Listener:
                     debug_message = "Found message directed to [ {} ] from callsign [ {} ]. Message: {}".format(directed, callsign, msg)
                 log.warning(debug_message)
 
-                if (
-                    self.enable_sending_reply and 
-                    self.targeted_call is None
-                ):
-                    self.targeted_call = callsign   
-                    self.reply_to_packet()                    
+                if self.enable_sending_reply:
+                    if self.targeted_call is None:
+                        self.targeted_call = callsign   
+                    self.reply_to_callsign(time_str)     
 
                 # Use message_callback to communicate with the GUI
                 if self.message_callback and self.enable_debug_output:
@@ -631,12 +635,24 @@ class Listener:
         except Exception as e:
             log.error("Caught an error parsing packet: {}; error {}\n{}".format(
                 self.the_packet.message, e, traceback.format_exc()))   
+            
+    def reply_to_callsign(self, time_str):
+        if self.targeted_call not in self.reply_attempts:
+            self.reply_attempts[self.targeted_call] = []
+
+        if time_str not in self.reply_attempts[self.targeted_call]:
+            self.reply_attempts[self.targeted_call].append(time_str)
+            count_attempts = len(self.reply_attempts[self.targeted_call])
+            if count_attempts >= (self.max_reply_attemps_to_wanted - 1):
+                log.error(f"{count_attempts} attempts for [ {self.targeted_call} ]") 
+
+            self.reply_to_packet()               
 
     def reply_to_packet(self):
-        try:
-            self.reply_to_packet_time   = datetime.now(timezone.utc)
-            self.targeted_call_period   = self.odd_or_even_period()
-            my_period                   = ODD if self.targeted_call_period == EVEN else EVEN
+        try:            
+            self.reply_to_packet_time    = datetime.now(timezone.utc)
+            self.targeted_call_period    = self.odd_or_even_period()
+            my_period                    = ODD if self.targeted_call_period == EVEN else EVEN
 
             if (
                 self.enable_gap_finder and
@@ -647,9 +663,8 @@ class Listener:
                     self.set_delta_f_packet(self.suggested_frequency)
 
             reply_pkt = pywsjtx.ReplyPacket.Builder(self.the_packet)
-            log.warning(f"Sending ReplyPacket: {reply_pkt}")
-            self.s.send_packet(self.addr_port, reply_pkt)
-            log.debug("ReplyPacket sent successfully.")                
+            self.s.send_packet(self.addr_port, reply_pkt)         
+            log.debug(f"Sent ReplyPacket: {reply_pkt}")            
         except Exception as e:
             log.error(f"Error sending packets: {e}\n{traceback.format_exc()}")
 
