@@ -19,7 +19,7 @@ class CallsignLookup:
             xml_file_path           = f"{CURRENT_DIR}/cty.xml",
             cq_zones_geojson_path  = f"{CURRENT_DIR}/cq-zones.geojson",
             cache_file              = f"{CURRENT_DIR}/lookup_cache.json",              
-            cache_size             = 3_00,
+            cache_size             = 4_00,
         ):
         self.callsign_exceptions = {}
         self.prefixes             = {}
@@ -77,7 +77,7 @@ class CallsignLookup:
         try:
             with open(self.cache_file, "w", encoding="utf-8") as f:
                 json.dump(data_to_save, f, indent=2)
-            log.info(f"Cache file {self.cache_file} saved with {len(self.cache)} entries.")
+            log.info(f"Cache file {self.cache_file} saved with {len(self.cache)} entries")
         except Exception as e:
             log.error(f"Failed to save cache to {self.cache_file}: {e}")
 
@@ -418,16 +418,20 @@ class CallsignLookup:
                 date = datetime.datetime.now(datetime.timezone.utc)
 
             if callsign in self.cache:
-                # Pull from cache
+                print(f"Pulled from cache for {callsign}")
                 cached_info = self.cache[callsign]
                 if grid is not None:
                     lat, lon, new_zone = self.grid_to_cq_zone(grid)
-                    if new_zone is not None:
+                    if (
+                        new_zone is not None and 
+                        cached_info['cqz'] != new_zone
+                    ):
                         cached_info['cqz'] = new_zone
-                # Move to end (LRU-ish), then return
-                self.cache.move_to_end(callsign)
-                if new_zone:
-                    self.save_cache()
+                        # Move to end (LRU-ish)
+                        self.cache.move_to_end(callsign)
+                        if new_zone:
+                            self.save_cache()
+
                 return cached_info
 
             lookup_result = None
@@ -459,15 +463,16 @@ class CallsignLookup:
 
             if grid is not None:
                 lat, lon, new_zone = self.grid_to_cq_zone(grid)
-                if new_zone is not None:
+                if (
+                    new_zone is not None and
+                    lookup_result['cqz'] != new_zone
+                ):
                     lookup_result['cqz'] = new_zone
-
-            self.cache[callsign] = lookup_result
-            if len(self.cache) > self.cache_size:
-                self.cache.popitem(last=False)
-
-            if new_zone is not None:
-                self.save_cache()                
+                    self.cache[callsign] = lookup_result
+                    if len(self.cache) > self.cache_size:
+                        self.cache.popitem(last=False)
+                    
+                    self.save_cache()                
 
             return lookup_result
 
