@@ -574,7 +574,8 @@ class Listener:
                     log.warning(f"Focus on callsign [ {callsign} ]\t{focus_info}")
                     # We can't use self.the_packet.mode as it returns "~"
                     # self.mode             = self.the_packet.mode
-                    self.reply_to_packet()    
+                    if self.enable_sending_reply:  
+                        self.reply_to_callsign(callsign, time_str) 
 
                 message_type = 'directed_to_my_call'    
 
@@ -583,20 +584,17 @@ class Listener:
                 if self.enable_gap_finder:
                     self.targeted_call_frequencies.add(delta_f)     
 
-                # Do not use callback message if wanted callsign already gave us a report
-                if self.rst_rcvd_from_being_called.get('callsign') is None:
-                    message_type = 'wanted_callsign_detected'                                  
+                if self.rst_rcvd_from_being_called.get(callsign) is None:
+                    message_type = 'wanted_callsign_detected'            
+                    # Do not reply if wanted callsign already gave us a report
+                    if self.enable_sending_reply:   
+                        self.reply_to_callsign(callsign, time_str)                          
 
                 if cqing is True:
                     debug_message = "Found CQ message from callsign [ {} ]".format(callsign)
                 else:
                     debug_message = "Found message directed to [ {} ] from callsign [ {} ]. Message: {}".format(directed, callsign, msg)
                 log.warning(debug_message)
-
-                if self.enable_sending_reply:
-                    if self.targeted_call is None:
-                        self.targeted_call = callsign   
-                    self.reply_to_callsign(time_str)     
 
                 # Use message_callback to communicate with the GUI
                 if self.message_callback and self.enable_debug_output:
@@ -636,7 +634,10 @@ class Listener:
             log.error("Caught an error parsing packet: {}; error {}\n{}".format(
                 self.the_packet.message, e, traceback.format_exc()))   
             
-    def reply_to_callsign(self, time_str):
+    def reply_to_callsign(self, callsign, time_str):
+        if self.targeted_call is None:
+            self.targeted_call = callsign
+
         if self.targeted_call not in self.reply_attempts:
             self.reply_attempts[self.targeted_call] = []
 

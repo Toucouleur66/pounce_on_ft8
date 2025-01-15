@@ -13,10 +13,14 @@ import pickle
 import os
 import threading
 import pyperclip
-import inspect
-import traceback
 import sys
 import threading
+
+"""
+    Not to be deleted because it allows for one-off debugging
+"""
+import inspect
+import traceback
 
 from datetime import datetime, timezone, timedelta
 from collections import deque
@@ -1441,10 +1445,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         if action == actions.get('copy_message'):
             if formatted_message:
-                pyperclip.copy(formatted_message)
-                print(f"Copied to clipboard: {formatted_message}")
-            else:
-                print("No formatted message to copy")
+                self.copy_message_to_clipboard(formatted_message)
         else:
             update_actions = {
                 'remove_callsign_from_worked_history' : lambda: self.remove_worked_callsign(callsign, history_band),
@@ -1927,8 +1928,11 @@ class MainApp(QtWidgets.QMainWindow):
     def on_focus_value_label_clicked(self, event= None):
         message = self.focus_value_label.text()
         if message:
-            pyperclip.copy(message)
-            print(f"Copied to clipboard: {message}")
+            self.copy_message_to_clipboard(message)
+
+    def copy_message_to_clipboard(self, message):
+        pyperclip.copy(message)
+        log.warning(f"Copied to clipboard: {message}")
 
     def update_table_data(
             self,
