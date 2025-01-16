@@ -2058,75 +2058,6 @@ class MainApp(QtWidgets.QMainWindow):
                 break
             total_size = asizeof.asizeof(self.table_raw_data)
 
-    def add_row_to_output_table(self, raw_data):
-        row_id = self.output_table.rowCount()  
-        self.output_table.insertRow(row_id)
-
-        band            = raw_data["band"]
-        row_color       = raw_data["row_color"]
-        
-        item_date = QTableWidgetItem(raw_data["date_str"])
-
-        item_date.setData(QtCore.Qt.ItemDataRole.UserRole, {
-            'datetime'          : raw_data["row_datetime"],
-            'callsign'          : raw_data["callsign"], 
-            'directed'          : raw_data["directed"],
-            'cq_zone'           : raw_data["cq_zone"],
-            'formatted_message' : raw_data["formatted_message"].strip()
-        })        
-        item_date.setData(QtCore.Qt.ItemDataRole.DisplayRole, raw_data["date_str"])
-        item_date.setFont(CUSTOM_FONT_SMALL)
-        self.output_table.setItem(row_id, 0, item_date)
-
-        item_band = QTableWidgetItem(band)
-        item_band.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
-        item_band.setFont(CUSTOM_FONT_SMALL)
-        self.output_table.setItem(row_id, 1, item_band)
-            
-        item_snr = QTableWidgetItem(f"{raw_data['snr']:+3d} dB")
-        item_snr.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
-        item_snr.setFont(CUSTOM_FONT_SMALL)
-        self.output_table.setItem(row_id, 2, item_snr)
-        
-        item_dt = QTableWidgetItem(f"{raw_data['delta_time']:+5.1f}s")
-        item_dt.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
-        item_dt.setFont(CUSTOM_FONT_SMALL)
-        self.output_table.setItem(row_id, 3, item_dt)
-        
-        item_freq = QTableWidgetItem(f"{raw_data['delta_freq']:+6d}Hz")
-        item_freq.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
-        item_freq.setFont(CUSTOM_FONT_SMALL)
-        self.output_table.setItem(row_id, 4, item_freq)
-        
-        item_msg = QTableWidgetItem(f" {raw_data['message']}")
-        item_msg.setFont(CUSTOM_FONT)
-        self.output_table.setItem(row_id, 5, item_msg)
-        
-        item_country = QTableWidgetItem(raw_data['entity'])
-        item_country.setFont(CUSTOM_FONT)
-        self.output_table.setItem(row_id, 6, item_country)
-
-        item_cq_zone = QTableWidgetItem(f"{raw_data['cq_zone']}")
-        item_cq_zone.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
-        item_cq_zone.setFont(CUSTOM_FONT_SMALL)
-        self.output_table.setItem(row_id, 7, item_cq_zone)
-
-        item_continent = QTableWidgetItem(raw_data['continent'])
-        item_continent.setFont(CUSTOM_FONT_SMALL)
-        item_continent.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
-        self.output_table.setItem(row_id, 8, item_continent)        
-        
-        wkb4_year = raw_data['wkb4_year'] or ""
-        item_wkb4_year = QTableWidgetItem(f"{wkb4_year}")
-        item_wkb4_year.setFont(CUSTOM_FONT_SMALL)
-        item_wkb4_year.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
-        self.output_table.setItem(row_id, 9, item_wkb4_year)   
-
-        if row_color:
-            self.apply_row_format(row_id, row_color)
-        
-        self.output_table.scrollToBottom()        
-
     def add_row_to_history_table(self, raw_data, add_to_history=True):
         row_id = self.wait_pounce_history_table.rowCount()
         self.wait_pounce_history_table.insertRow(row_id)
@@ -2162,100 +2093,6 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.wait_pounce_history_table.scrollToBottom()    
 
-    def apply_row_format(self, row, row_color):
-        if row_color == 'bright_for_my_call':
-            bg_color = QtGui.QColor(BG_COLOR_FOCUS_MY_CALL)
-            fg_color = QtGui.QColor(FG_COLOR_FOCUS_MY_CALL)
-        elif row_color == 'black_on_yellow':
-            bg_color = QtGui.QColor(BG_COLOR_BLACK_ON_YELLOW)
-            fg_color = QtGui.QColor(FG_COLOR_BLACK_ON_YELLOW)
-        elif row_color == 'black_on_purple':
-            bg_color = QtGui.QColor(BG_COLOR_BLACK_ON_PURPLE)
-            fg_color = QtGui.QColor(FG_COLOR_BLACK_ON_PURPLE)
-        elif row_color == 'white_on_blue':
-            bg_color = QtGui.QColor(BG_COLOR_WHITE_ON_BLUE)
-            fg_color = QtGui.QColor(FG_COLOR_WHITE_ON_BLUE)
-        elif row_color == 'black_on_cyan':
-            bg_color = QtGui.QColor(BG_COLOR_BLACK_ON_CYAN)
-            fg_color = QtGui.QColor(FG_COLOR_BLACK_ON_CYAN)
-        else:
-            bg_color = None
-            fg_color = None
-
-        if bg_color and fg_color:
-            for col in range(self.output_table.columnCount()):
-                item = self.output_table.item(row, col)
-                if item:
-                    item.setBackground(bg_color)
-                    item.setForeground(fg_color)
-
-    """
-    def is_valid_for_filters(self, raw_data):
-        if not self.enable_show_all_decoded:
-            if not raw_data.get('row_color'):
-                return False
-            
-        any_filter        = False
-
-        callsign_filter   = self.callsign_input.text().strip().upper()
-        country_filter    = self.country_input.text().strip().upper()
-        cq_filter         = self.cq_combo.currentText()
-        continent_filter  = self.continent_combo.currentText()
-        selected_color   = self.color_combo.currentData()
-        selected_band    = self.band_combo.currentText()
-
-        if callsign_filter:
-            any_filter = True
-            callsign = raw_data.get('callsign')
-            if callsign and callsign_filter in callsign.upper():
-                return True
-
-        if country_filter:
-            any_filter = True
-            entity = raw_data.get('entity')
-            if entity and country_filter in entity.upper():
-                return True
-
-        if cq_filter != DEFAULT_FILTER_VALUE:
-            any_filter = True
-            cq_zone = str(raw_data.get('cq_zone'))
-            if cq_zone == cq_filter:
-                return True
-
-        if continent_filter != DEFAULT_FILTER_VALUE:
-            any_filter = True
-            continent = raw_data.get('continent')
-            if continent == continent_filter:
-                return True
-
-        if selected_color:
-            any_filter = True
-            row_color = raw_data.get('row_color', None)
-            if row_color == selected_color:
-                return True
-
-        if selected_band != DEFAULT_FILTER_VALUE:
-            any_filter = True
-            band = raw_data.get('band')
-            if band == selected_band:
-                return True
-
-        if any_filter:
-            return False
-        else:
-            return True
-    """
-
-    """
-    def apply_filters(self):      
-        self.output_table.clearContents()
-        self.output_table.setRowCount(0)
-
-        for raw_data in self.table_raw_data:
-            if self.is_valid_for_filters(raw_data):
-                self.add_row_to_output_table(raw_data)
-    """
-
     def apply_filters(self):
         self.filter_proxy_model.clearFilters()
 
@@ -2279,12 +2116,12 @@ class MainApp(QtWidgets.QMainWindow):
         if cq_filter and cq_filter != DEFAULT_FILTER_VALUE:
             self.filter_proxy_model.setFilter('cq_zone', cq_filter)
         else:
-            self.filter_proxy_model.setFilter('cq_zone', "All")
+            self.filter_proxy_model.setFilter('cq_zone', DEFAULT_FILTER_VALUE)
 
         if continent_filter and continent_filter != DEFAULT_FILTER_VALUE:
             self.filter_proxy_model.setFilter('continent', continent_filter)
         else:
-            self.filter_proxy_model.setFilter('continent', "All")
+            self.filter_proxy_model.setFilter('continent', DEFAULT_FILTER_VALUE)
 
         if selected_color:
             self.filter_proxy_model.setFilter('row_color', selected_color)
@@ -2294,7 +2131,7 @@ class MainApp(QtWidgets.QMainWindow):
         if selected_band and selected_band != DEFAULT_FILTER_VALUE:
             self.filter_proxy_model.setFilter('band', selected_band)
         else:
-            self.filter_proxy_model.setFilter('band', "All")
+            self.filter_proxy_model.setFilter('band', DEFAULT_FILTER_VALUE)
 
     def clear_filters(self):
         self.callsign_input.clear()
