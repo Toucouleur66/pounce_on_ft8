@@ -16,26 +16,55 @@ from constants import (
     BG_COLOR_BLACK_ON_CYAN,
     FG_COLOR_BLACK_ON_CYAN,
     CUSTOM_FONT,
-    CUSTOM_FONT_SMALL
+    CUSTOM_FONT_SMALL,
+    DATE_COLUMN_AGE
 )
 class RawDataModel(QtCore.QAbstractTableModel):
     def __init__(self, data=None):
         super().__init__()
         self._data = data or []
-        self._headers = ["Date", "Band", "SNR", "Δ Time", "Δ Freq", "Message", "Country", "CQ Zone", "Continent", "WKB4 Year"]
+        self._headers = [
+            "Time",
+            "Band",
+            "Report",
+            "DT",
+            "Freq",
+            "Message",
+            "Country",
+            "CQ Zone",
+            "Continent",
+            "WKB4"
+        ]
+        self.datetime_column_setting = None
 
     def rowCount(self, parent=None):
         return len(self._data)
 
     def columnCount(self, parent=None):
         return len(self._headers)
-    
-    def headerData(self, section, orientation, role=QtCore.Qt.ItemDataRole.DisplayRole):
+
+    def setTimeMode(self, value: bool):
+        self.datetime_column_setting = value
+        self.headerDataChanged.emit(QtCore.Qt.Orientation.Horizontal, 0, 0)
+
+    def headerData(self, section, orientation, role=QtCore.Qt.ItemDataRole.DisplayRole):               
         if role == QtCore.Qt.ItemDataRole.DisplayRole:
             if orientation == QtCore.Qt.Orientation.Horizontal:
                 return self._headers[section]
             else:
-                return str(section + 1)
+                return str(section + 1)                
+        
+        if role == QtCore.Qt.ItemDataRole.TextAlignmentRole:
+            if orientation == QtCore.Qt.Orientation.Horizontal:
+                if section == 0 and self.datetime_column_setting == DATE_COLUMN_AGE:
+                    return QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter
+                elif section in [1, 2, 3, 4]:
+                    return QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter
+                elif section in [7, 8, 9]:
+                    return QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter
+                else:
+                    return QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter
+        
         return None
 
     def data(self, index, role=QtCore.Qt.ItemDataRole.DisplayRole):
@@ -45,11 +74,23 @@ class RawDataModel(QtCore.QAbstractTableModel):
         column = index.column()
         raw_data = self._data[row]
 
+        if raw_data.get("is_message_row", False):
+            if role == QtCore.Qt.ItemDataRole.DisplayRole:
+                return raw_data["message"]
+            elif role == QtCore.Qt.ItemDataRole.BackgroundRole:
+                return QColor(raw_data["bg_color"])
+            elif role == QtCore.Qt.ItemDataRole.ForegroundRole:
+                return QColor(raw_data["fg_color"])
+            elif role == QtCore.Qt.ItemDataRole.TextAlignmentRole:
+                return QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter
+
+            return None
+
         if role == QtCore.Qt.ItemDataRole.DisplayRole:
             if column == 0:
-                return raw_data["date_str"]
+                return raw_data['date_str']
             elif column == 1:
-                return raw_data["band"]
+                return raw_data['band']
             elif column == 2:
                 return f"{raw_data['snr']:+3d} dB"
             elif column == 3:
@@ -95,11 +136,27 @@ class RawDataModel(QtCore.QAbstractTableModel):
             return raw_data            
 
         return None
+    
+    def setHeaderData(self, section, orientation, value, role=QtCore.Qt.ItemDataRole.DisplayRole):
+        if orientation == QtCore.Qt.Orientation.Horizontal and role == QtCore.Qt.ItemDataRole.DisplayRole:
+            self._headers[section] = value
+            self.headerDataChanged.emit(orientation, section, section)
+            return True
+        return super().setHeaderData(section, orientation, value, role)    
 
     def add_raw_data(self, raw_data):
         self.beginInsertRows(QtCore.QModelIndex(), self.rowCount(), self.rowCount())
         self._data.append(raw_data)
         self.endInsertRows()
+
+    def add_message_row(self, message, fg_color, bg_color):    
+        raw_data = {
+            "is_message_row": True,
+            "message": message,
+            "fg_color": fg_color,
+            "bg_color": bg_color
+        }
+        self.add_raw_data(raw_data)        
 
     def remove_raw_data_at(self, index):
         self.beginRemoveRows(QtCore.QModelIndex(), index, index)

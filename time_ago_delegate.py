@@ -2,17 +2,13 @@ from PyQt6 import QtWidgets, QtCore
 
 from datetime import datetime, timezone
 
-from constants import (
-    CUSTOM_FONT_SMALL,
-)
-
 class TimeAgoDelegate(QtWidgets.QStyledItemDelegate):
     def initStyleOption(self, option, index):
         super().initStyleOption(option, index)
-        user_data = index.data(QtCore.Qt.ItemDataRole.UserRole)
+        row_data = index.data(QtCore.Qt.ItemDataRole.UserRole)
 
-        if isinstance(user_data, dict) and 'datetime' in user_data:
-            value = user_data['datetime']
+        if isinstance(row_data, dict) and 'row_datetime' in row_data:
+            value = row_data['row_datetime']
             if value.tzinfo is None:
                 value = value.replace(tzinfo=timezone.utc)
             now = datetime.now(timezone.utc)
