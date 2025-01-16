@@ -188,9 +188,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.table_raw_data         = deque()
         self.max_table_size_bytes   = 10 ** 7
 
-        self.model                  = RawDataModel(self.table_raw_data)
+        self.output_model           = RawDataModel(self.table_raw_data)
         self.filter_proxy_model      = RawDataFilterProxyModel()
-        self.filter_proxy_model.setSourceModel(self.model)
+        self.filter_proxy_model.setSourceModel(self.output_model)
 
         self.last_focus_value_message_uid = None
 
@@ -865,7 +865,7 @@ class MainApp(QtWidgets.QMainWindow):
         if checked:
             self.show_filter_layout()
         else:
-            self.hide_filter_layout()
+            self.hide_filter_layout()            
         
         if self.enable_filter_gui != checked:
             self.enable_filter_gui = checked
@@ -880,6 +880,7 @@ class MainApp(QtWidgets.QMainWindow):
 
     def hide_filter_layout(self):
         self.filter_widget_visible = False
+        self.callsign_input.clearFocus()
         self.animate_layout_height(self.filter_widget, target_height=0)
 
     def show_filter_layout(self):
@@ -956,8 +957,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.update_date_mode_param()
 
     def set_time_mode_header(self, value):
-        self.model.setTimeMode(value)
-        self.model.setHeaderData(0, QtCore.Qt.Orientation.Horizontal, value, QtCore.Qt.ItemDataRole.DisplayRole)
+        self.output_model.setTimeMode(value)
+        self.output_model.setHeaderData(0, QtCore.Qt.Orientation.Horizontal, value, QtCore.Qt.ItemDataRole.DisplayRole)
 
     def update_date_mode_param(self):
         self.datetime_column_action.setChecked(self.datetime_column_setting == DATE_COLUMN_DATETIME)
@@ -1134,7 +1135,7 @@ class MainApp(QtWidgets.QMainWindow):
     @QtCore.pyqtSlot(str)
     def add_message_to_table(self, message, fg_color='white', bg_color=STATUS_TRX_COLOR):        
         self.clear_button.setEnabled(True)
-        # self.model.add_message_row(message, fg_color, bg_color)
+        # self.output_model.add_message_row(message, fg_color, bg_color)
         # self.output_table.scrollToBottom()
         
     @QtCore.pyqtSlot(object)
@@ -1324,7 +1325,7 @@ class MainApp(QtWidgets.QMainWindow):
             data = item.data(QtCore.Qt.ItemDataRole.UserRole)
         elif table.objectName() == 'output_table':    
             source_index = self.filter_proxy_model.mapToSource(table.model().index(row, 0))
-            data = self.model.data(source_index, QtCore.Qt.ItemDataRole.UserRole)
+            data = self.output_model.data(source_index, QtCore.Qt.ItemDataRole.UserRole)
 
         if not data:
             return
@@ -1976,7 +1977,7 @@ class MainApp(QtWidgets.QMainWindow):
         """"
             Adding data to model then scroll to bottom
         """
-        self.model.add_raw_data(raw_data)
+        self.output_model.add_raw_data(raw_data)
         self.output_table.scrollToBottom()
 
         self.enforce_table_size_limit()
@@ -2003,11 +2004,11 @@ class MainApp(QtWidgets.QMainWindow):
             total_size = asizeof.asizeof(self.table_raw_data)
 
     def scroll_to_message_uid(self, uid, column=0, scroll_hint=QtWidgets.QAbstractItemView.ScrollHint.PositionAtCenter):
-        row = self.model.findRowByUid(uid)
+        row = self.output_model.findRowByUid(uid)
         if row == -1:
             return  
 
-        source_index = self.model.index(row, column)
+        source_index = self.output_model.index(row, column)
         if not source_index.isValid():
             return
         
