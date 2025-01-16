@@ -4,6 +4,7 @@ from PyQt6 import QtWidgets, QtCore, QtGui
 from PyQt6.QtWidgets import QTableWidget, QTableWidgetItem
 from PyQt6.QtCore import QPropertyAnimation
 from PyQt6.QtCore import QThread
+from PyQt6.QtWidgets import QHeaderView
 from PyQt6.QtMultimedia import QSoundEffect
 
 import platform
@@ -43,6 +44,9 @@ from updater import Updater
 from theme_manager import ThemeManager
 from clublog import ClubLogManager
 from setting_dialog import SettingsDialog
+
+from raw_data_model import RawDataModel
+from raw_data_filter_proxy_model import RawDataFilterProxyModel
 
 if sys.platform == 'darwin':
     from status_menu import StatusMenuAgent
@@ -181,7 +185,12 @@ class MainApp(QtWidgets.QMainWindow):
             Store data from update_table_data
         """
         self.table_raw_data         = deque()
-        self.max_table_size_bytes   = 1_024 ** 2 # 1 Mo
+        self.max_table_size_bytes   = 10 ** 7
+
+        self.model                  = RawDataModel(self.table_raw_data)
+        self.filter_proxy_model      = RawDataFilterProxyModel()
+        self.filter_proxy_model.setSourceModel(self.model)
+
         self.combo_box_values       = {
             "band"      : set(),
             "continent" : set(),
@@ -532,12 +541,12 @@ class MainApp(QtWidgets.QMainWindow):
         self.toggle_wkb4_column_visibility()        
 
         QtCore.QTimer.singleShot(100, lambda: self.wait_pounce_history_table.scrollToBottom())
-        
+        """
         if self.datetime_column_setting == DATE_COLUMN_AGE:
             self.enable_age_column()
         else:
             self.enable_datetime_column()
-
+        """
         QtCore.QTimer.singleShot(1_000, lambda: self.init_activity_bar())   
 
         self.process_timer = QtCore.QTimer(self)
@@ -729,7 +738,53 @@ class MainApp(QtWidgets.QMainWindow):
         return wait_pounce_history_table
 
     def init_output_table_ui(self):
-        output_table            = QTableWidget(self)
+        output_table = QtWidgets.QTableView(self)
+        output_table.setModel(self.filter_proxy_model)
+
+        output_table.setFont(CUSTOM_FONT)
+        output_table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.NoSelection)
+        output_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
+        output_table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
+        output_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.Interactive)
+        output_table.verticalHeader().setVisible(False)
+        output_table.verticalHeader().setDefaultSectionSize(24)
+        output_table.setAlternatingRowColors(True)
+        output_table.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+        column_widths = [160, 45, 60, 60, 80, 400, 50, 70, 60, 60]
+        for i, width in enumerate(column_widths):
+            if i < output_table.model().columnCount():
+                if i >= 0 and i <= 4:
+                    output_table.setColumnWidth(i, width)
+                elif i in [5, 6]:
+                    output_table.horizontalHeader().setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
+                    output_table.setColumnWidth(i, width)
+
+        output_table.horizontalHeader().sectionClicked.connect(self.on_header_clicked)
+
+        self.time_ago_delegate = TimeAgoDelegate(output_table)  
+        self.default_delegate = QtWidgets.QStyledItemDelegate(output_table)
+        self.current_delegate = None
+
+        self.refresh_table_timer = QtCore.QTimer(self)
+        self.refresh_table_timer.timeout.connect(lambda: self.output_table.viewport().update())
+
+        output_table.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
+        output_table.setObjectName("output_table")
+        output_table.customContextMenuRequested.connect(
+            lambda position: self.on_table_context_menu(self.output_table, position)
+        )
+        output_table.clicked.connect(
+            lambda index: self.on_table_row_clicked(self.output_table, index.row(), index.column())
+        )
+        output_table.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+
+        return output_table
+
+    """
+    def init_output_table_ui(self):
+        output_table            = QtWidgets.QTableView(self)
+        output_table.setModel(self.filter_proxy_model)
 
         header_labels = [DATE_COLUMN_DATETIME, 'Band', 'Report', 'DT', 'Freq', 'Message', 'Country', 'CQ', 'Continent', 'WkB4']
         output_table.setColumnCount(len(header_labels))
@@ -797,6 +852,7 @@ class MainApp(QtWidgets.QMainWindow):
         output_table.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
 
         return output_table
+    """
 
     def init_filter_ui(self):
         filter_widget = QtWidgets.QWidget()
@@ -869,7 +925,8 @@ class MainApp(QtWidgets.QMainWindow):
         if self.enable_show_all_decoded != checked:
             self.enable_show_all_decoded = checked
             self.show_all_decoded_toggle.setChecked(checked)
-            self.apply_filters()
+            self.filter_proxy_model.setEnableShowAllDecoded(checked)
+            self.filter_proxy_model.invalidateFilter()
             
             self.save_unique_param('enable_show_all_decoded', checked)   
 
@@ -952,7 +1009,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_table.setItemDelegateForColumn(0, self.current_delegate)
         self.output_table.viewport().update()
         self.output_table.setColumnWidth(0, 60)
-        self.output_table.setHorizontalHeaderItem(0, header_item)
+        #self.output_table.setHorizontalHeaderItem(0, header_item)
 
         self.refresh_table_timer.start(1_000)
         self.update_date_mode_param()
@@ -968,7 +1025,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_table.setItemDelegateForColumn(0, self.current_delegate)
         self.output_table.viewport().update()
         self.output_table.setColumnWidth(0, 130)
-        self.output_table.setHorizontalHeaderItem(0, header_item)
+        #self.output_table.setHorizontalHeaderItem(0, header_item)
 
         self.refresh_table_timer.stop()
         self.update_date_mode_param()
@@ -1147,6 +1204,8 @@ class MainApp(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot(str)
     def add_message_to_table(self, message, fg_color='white', bg_color=STATUS_TRX_COLOR):        
+        pass
+        """
         self.clear_button.setEnabled(True)
 
         row_id = self.output_table.rowCount()
@@ -1162,6 +1221,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_table.setSpan(row_id, 0, 1, self.output_table.columnCount())
         error_item.setFlags(QtCore.Qt.ItemFlag.ItemIsEnabled)
         self.output_table.scrollToBottom()
+        """
 
     @QtCore.pyqtSlot(object)
     def handle_message_received(self, message):        
@@ -1975,10 +2035,8 @@ class MainApp(QtWidgets.QMainWindow):
             "row_datetime"      : datetime.now(timezone.utc),
             "row_color"         : row_color,
         }
-        self.table_raw_data.append(raw_data)
+        self.model.add_raw_data(raw_data)
         self.update_combo_box_values(raw_data)
-        if self.is_valid_for_filters(raw_data):
-            self.add_row_to_output_table(raw_data)
 
         if message_type == 'ready_to_log':
             self.add_row_to_history_table(raw_data)
@@ -2131,6 +2189,7 @@ class MainApp(QtWidgets.QMainWindow):
                     item.setBackground(bg_color)
                     item.setForeground(fg_color)
 
+    """
     def is_valid_for_filters(self, raw_data):
         if not self.enable_show_all_decoded:
             if not raw_data.get('row_color'):
@@ -2185,7 +2244,9 @@ class MainApp(QtWidgets.QMainWindow):
             return False
         else:
             return True
+    """
 
+    """
     def apply_filters(self):      
         self.output_table.clearContents()
         self.output_table.setRowCount(0)
@@ -2193,6 +2254,47 @@ class MainApp(QtWidgets.QMainWindow):
         for raw_data in self.table_raw_data:
             if self.is_valid_for_filters(raw_data):
                 self.add_row_to_output_table(raw_data)
+    """
+
+    def apply_filters(self):
+        self.filter_proxy_model.clearFilters()
+
+        callsign_filter     = self.callsign_input.text().strip().upper()
+        country_filter      = self.country_input.text().strip().upper()
+        continent_filter    = self.continent_combo.currentText()
+        selected_color     = self.color_combo.currentData()
+        selected_band      = self.band_combo.currentText()
+        cq_filter           = self.cq_combo.currentText()        
+
+        if callsign_filter:
+            self.filter_proxy_model.setFilter('callsign', callsign_filter)
+        else:
+            self.filter_proxy_model.setFilter('callsign', "")
+
+        if country_filter:
+            self.filter_proxy_model.setFilter('country', country_filter)
+        else:
+            self.filter_proxy_model.setFilter('country', "")
+
+        if cq_filter and cq_filter != DEFAULT_FILTER_VALUE:
+            self.filter_proxy_model.setFilter('cq_zone', cq_filter)
+        else:
+            self.filter_proxy_model.setFilter('cq_zone', "All")
+
+        if continent_filter and continent_filter != DEFAULT_FILTER_VALUE:
+            self.filter_proxy_model.setFilter('continent', continent_filter)
+        else:
+            self.filter_proxy_model.setFilter('continent', "All")
+
+        if selected_color:
+            self.filter_proxy_model.setFilter('row_color', selected_color)
+        else:
+            self.filter_proxy_model.setFilter('row_color', None)
+
+        if selected_band and selected_band != DEFAULT_FILTER_VALUE:
+            self.filter_proxy_model.setFilter('band', selected_band)
+        else:
+            self.filter_proxy_model.setFilter('band', "All")
 
     def clear_filters(self):
         self.callsign_input.clear()
