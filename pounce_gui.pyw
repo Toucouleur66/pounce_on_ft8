@@ -16,6 +16,7 @@ import threading
 import pyperclip
 import sys
 import threading
+import uuid
 
 """
     Not to be deleted because it allows for one-off debugging
@@ -190,6 +191,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.model                  = RawDataModel(self.table_raw_data)
         self.filter_proxy_model      = RawDataFilterProxyModel()
         self.filter_proxy_model.setSourceModel(self.model)
+
+        self.last_focus_value_message_uid = None
 
         self.combo_box_values       = {
             "band"      : set(),
@@ -781,79 +784,6 @@ class MainApp(QtWidgets.QMainWindow):
 
         return output_table
 
-    """
-    def init_output_table_ui(self):
-        output_table            = QtWidgets.QTableView(self)
-        output_table.setModel(self.filter_proxy_model)
-
-        header_labels = [DATE_COLUMN_DATETIME, 'Band', 'Report', 'DT', 'Freq', 'Message', 'Country', 'CQ', 'Continent', 'WkB4']
-        output_table.setColumnCount(len(header_labels))
-        for i, label in enumerate(header_labels):
-            header_item = QTableWidgetItem(label)
-            if label in ['Band', 'Report', 'DT', 'Freq']:
-                header_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
-            elif label in ['CQ', 'Continent', 'WkB4']:
-                header_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)                
-            else:
-                header_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
-            output_table.setHorizontalHeaderItem(i, header_item)          
-        
-        output_table.setFont(CUSTOM_FONT)
-        output_table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.NoSelection)
-        output_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
-
-        output_table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
-        output_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.Interactive)                
-        output_table.verticalHeader().setVisible(False)
-        output_table.verticalHeader().setDefaultSectionSize(24)
-        output_table.setAlternatingRowColors(True)
-        output_table.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-
-        output_table.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.Fixed)
-        output_table.horizontalHeader().setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeMode.Fixed)
-        output_table.horizontalHeader().setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeMode.Fixed)
-        output_table.horizontalHeader().setSectionResizeMode(3, QtWidgets.QHeaderView.ResizeMode.Fixed)
-        output_table.horizontalHeader().setSectionResizeMode(4, QtWidgets.QHeaderView.ResizeMode.Fixed)
-        output_table.horizontalHeader().setSectionResizeMode(5, QtWidgets.QHeaderView.ResizeMode.Stretch)
-        output_table.horizontalHeader().setSectionResizeMode(6, QtWidgets.QHeaderView.ResizeMode.Stretch)
-        output_table.horizontalHeader().setSectionResizeMode(7, QtWidgets.QHeaderView.ResizeMode.Fixed)
-        output_table.horizontalHeader().setSectionResizeMode(8, QtWidgets.QHeaderView.ResizeMode.Fixed)
-        output_table.horizontalHeader().setSectionResizeMode(9, QtWidgets.QHeaderView.ResizeMode.Fixed)
-
-        output_table.horizontalHeader().setStretchLastSection(False)
-        
-        output_table.setColumnWidth(0, 160)
-        output_table.setColumnWidth(1, 45)
-        output_table.setColumnWidth(2, 60)
-        output_table.setColumnWidth(3, 60)
-        output_table.setColumnWidth(4, 80)
-        output_table.setColumnWidth(5, 400)
-        output_table.setColumnWidth(7, 50)
-        output_table.setColumnWidth(8, 70)
-        output_table.setColumnWidth(9, 60)
-
-        output_table.horizontalHeader().sectionClicked.connect(self.on_header_clicked)
-
-        self.time_ago_delegate   = TimeAgoDelegate(output_table)
-        self.default_delegate    = QtWidgets.QStyledItemDelegate(output_table)
-        self.current_delegate    = None
-
-        self.refresh_table_timer = QtCore.QTimer(self)
-        self.refresh_table_timer.timeout.connect(lambda: self.output_table.viewport().update())
-
-        output_table.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
-        output_table.setObjectName("output_table")
-        output_table.customContextMenuRequested.connect(
-            lambda position: self.on_table_context_menu(self.output_table, position)
-        )
-        output_table.cellClicked.connect(
-            lambda row, column: self.on_table_row_clicked(self.output_table, row, column)
-        )
-        output_table.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
-
-        return output_table
-    """
-
     def init_filter_ui(self):
         filter_widget = QtWidgets.QWidget()
         filter_widget.setObjectName("FilterWidget")
@@ -915,18 +845,19 @@ class MainApp(QtWidgets.QMainWindow):
             self.global_sound_toggle.setChecked(checked)
             self.save_unique_param('enable_global_sound', checked)       
 
-    def toggle_global_sound_preference(self, checked):
+    def toggle_global_sound_preference(self, checked):        
         if checked:
             QtCore.QTimer.singleShot(100, lambda: self.play_sound('enable_global_sound'))
 
         self.update_global_sound_preference(checked)
 
     def update_show_all_decoded_preference(self, checked):
+        self.filter_proxy_model.setEnableShowAllDecoded(checked)
+        self.filter_proxy_model.invalidateFilter()
+    
         if self.enable_show_all_decoded != checked:
             self.enable_show_all_decoded = checked
             self.show_all_decoded_toggle.setChecked(checked)
-            self.filter_proxy_model.setEnableShowAllDecoded(checked)
-            self.filter_proxy_model.invalidateFilter()
             
             self.save_unique_param('enable_show_all_decoded', checked)   
 
@@ -1281,7 +1212,11 @@ class MainApp(QtWidgets.QMainWindow):
                         Important to add timedelta according to MESSAGE_TYPE_PRIORITY
                         to ensure that we keep high priority messages in the buffer longer
                     """
-                    self.message_buffer.append((message, datetime.now() + timedelta(seconds=MESSAGE_TYPE_PRIORITY.get(message_type, float('inf')))))                
+                    message['uid']  = uuid.uuid4()
+                    self.message_buffer.append((
+                        message,
+                        datetime.now() + timedelta(seconds=MESSAGE_TYPE_PRIORITY.get(message_type, float('inf')))
+                    ))                
 
                 """
                     Handle GUI output
@@ -1327,7 +1262,8 @@ class MainApp(QtWidgets.QMainWindow):
                     cq_zone,
                     continent,
                     message_type,
-                    message_color                      
+                    message_color,
+                    message.get('uid'),                     
                 )            
 
         elif isinstance(message, str):         
@@ -1359,8 +1295,8 @@ class MainApp(QtWidgets.QMainWindow):
         if (
             selected_message and
             selected_message.get('message') != self.last_focus_value_message
-        ):
-            self.set_value_to_focus(selected_message, (selected_message.get('directed') == selected_message.get('my_call')))
+        ):            
+            self.set_value_to_focus(selected_message)
 
             """
                 Handle sound notification
@@ -1394,8 +1330,25 @@ class MainApp(QtWidgets.QMainWindow):
         self.on_table_context_menu(table, position)        
 
     def on_table_context_menu(self, table, position):
+        """
+            Fetch data to build menu
+        """
         index = table.indexAt(position)
+        row = index.row()
 
+        if table.objectName() == 'history_table':
+            item = table.item(row, 0)
+            data = item.data(QtCore.Qt.ItemDataRole.UserRole)
+        elif table.objectName() == 'output_table':    
+            source_index = self.filter_proxy_model.mapToSource(table.model().index(row, 0))
+            data = self.model.data(source_index, QtCore.Qt.ItemDataRole.UserRole)
+
+        if not data:
+            return
+
+        """
+            Menu builder
+        """
         menu = QtWidgets.QMenu()
         if sys.platform == 'darwin':
             menu.setStyleSheet(CONTEXT_MENU_DARWIN_QSS)
@@ -1411,15 +1364,7 @@ class MainApp(QtWidgets.QMainWindow):
             context_menu_band = self.gui_selected_band
         else:
             context_menu_band = self.operating_band
-
-        row = index.row()
-
-        item = table.item(row, 0)
-        data = item.data(QtCore.Qt.ItemDataRole.UserRole)
-
-        if not data:
-            return
-
+        
         formatted_message   = data.get('formatted_message')
         callsign            = data.get('callsign')
         directed            = data.get('directed')
@@ -1617,9 +1562,12 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.status_label.setStyleSheet(style)            
 
-    def set_value_to_focus(self, message, contains_my_call):        
+    def set_value_to_focus(self, message):        
         self.last_focus_value_message = message.get('message')
         self.focus_value_label.setText(message.get('formatted_message').strip())
+
+        contains_my_call = message.get('directed') == message.get('my_call')
+
         if contains_my_call:
             bg_color_hex = BG_COLOR_FOCUS_MY_CALL
             fg_color_hex = FG_COLOR_FOCUS_MY_CALL
@@ -1633,6 +1581,8 @@ class MainApp(QtWidgets.QMainWindow):
             padding: 10px;
             border-radius: 8px;
         """)
+
+        self.last_focus_value_message_uid = message.get('uid')
 
         self.update_status_menu_message(message.get('message', ''), bg_color_hex, fg_color_hex)
 
@@ -1987,7 +1937,9 @@ class MainApp(QtWidgets.QMainWindow):
 
     def on_focus_value_label_clicked(self, event= None):
         message = self.focus_value_label.text()
+
         if message:
+            self.scroll_to_message_uid(self.last_focus_value_message_uid)
             self.copy_message_to_clipboard(message)
 
     def copy_message_to_clipboard(self, message):
@@ -2011,7 +1963,8 @@ class MainApp(QtWidgets.QMainWindow):
             cq_zone,
             continent,
             message_type,
-            row_color         = None
+            row_color         = None,
+            message_uid       = None
         ):
 
         """
@@ -2034,8 +1987,27 @@ class MainApp(QtWidgets.QMainWindow):
             "continent"         : continent,
             "row_datetime"      : datetime.now(timezone.utc),
             "row_color"         : row_color,
+            "uid"               : message_uid,
         }
+
+        """"
+            Adding data to model then scroll to bottom
+        """
         self.model.add_raw_data(raw_data)
+        self.output_table.scrollToBottom()
+        """
+        last_row = self.model.rowCount() - 1
+        source_index = self.model.index(last_row, 0)
+        proxy_index  = self.filter_proxy_model.mapFromSource(source_index)
+
+        self.output_table.scrollTo(
+            proxy_index,
+            QtWidgets.QAbstractItemView.ScrollHint.PositionAtBottom
+        )
+        """
+        self.enforce_table_size_limit()
+
+        # Update values for filter
         self.update_combo_box_values(raw_data)
 
         if message_type == 'ready_to_log':
@@ -2043,8 +2015,6 @@ class MainApp(QtWidgets.QMainWindow):
             self.update_var(self.wanted_callsigns_vars[band], callsign, "remove")
 
         self.clear_button.setEnabled(True)
-
-        self.enforce_table_size_limit()
 
     def enforce_table_size_limit(self):
         total_size = asizeof.asizeof(self.table_raw_data)
@@ -2057,6 +2027,21 @@ class MainApp(QtWidgets.QMainWindow):
             else:
                 break
             total_size = asizeof.asizeof(self.table_raw_data)
+
+    def scroll_to_message_uid(self, uid, column=0, scroll_hint=QtWidgets.QAbstractItemView.ScrollHint.PositionAtCenter):
+        row = self.model.findRowByUid(uid)
+        if row == -1:
+            return  
+
+        source_index = self.model.index(row, column)
+        if not source_index.isValid():
+            return
+        
+        proxy_index = self.filter_proxy_model.mapFromSource(source_index)
+
+        self.output_table.scrollTo(proxy_index, scroll_hint)
+        
+        self.output_table.setCurrentIndex(proxy_index)
 
     def add_row_to_history_table(self, raw_data, add_to_history=True):
         row_id = self.wait_pounce_history_table.rowCount()

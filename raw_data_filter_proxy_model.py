@@ -1,3 +1,5 @@
+# raw_data_filter_proxy_model.py
+
 from PyQt6.QtCore import QSortFilterProxyModel
 
 from constants import (

@@ -1,7 +1,8 @@
-from PyQt6 import QtGui, QtCore
-from PyQt6.QtCore import Qt, QAbstractTableModel, QModelIndex
+# raw_data_model.py
+
+from PyQt6 import QtCore
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor
-from PyQt6.QtWidgets import QTableView
 
 from constants import (
     FG_COLOR_FOCUS_MY_CALL,
@@ -90,6 +91,8 @@ class RawDataModel(QtCore.QAbstractTableModel):
                 return CUSTOM_FONT
             else:
                 return CUSTOM_FONT_SMALL
+        elif role == QtCore.Qt.ItemDataRole.UserRole:
+            return raw_data            
 
         return None
 
@@ -107,6 +110,12 @@ class RawDataModel(QtCore.QAbstractTableModel):
         self.beginResetModel()
         self._data.clear()
         self.endResetModel()
+
+    def findRowByUid(self, uid):
+        for i, row_data in enumerate(self._data):
+            if row_data.get('uid') == uid:
+                return i
+        return -1
 
     def get_color(self, row_color):
         color_map = {
