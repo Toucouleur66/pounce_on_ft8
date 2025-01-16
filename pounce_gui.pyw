@@ -77,7 +77,7 @@ from constants import (
     BG_COLOR_BLACK_ON_YELLOW,
     FG_COLOR_BLACK_ON_YELLOW,
     BG_COLOR_WHITE_ON_BLUE,
-    FG_COLOR_WHITE_ON_BLUE,
+    FG_COLOR_BLACK_ON_WHITE,
     BG_COLOR_BLACK_ON_PURPLE,
     FG_COLOR_BLACK_ON_PURPLE,
     BG_COLOR_BLACK_ON_CYAN,
@@ -185,10 +185,9 @@ class MainApp(QtWidgets.QMainWindow):
         """
             Store data from update_table_data
         """
-        self.table_raw_data         = deque()
-        self.max_table_size_bytes   = 10 ** 7
+        self.max_size_output_model   = 10 ** 7
 
-        self.output_model           = RawDataModel(self.table_raw_data)
+        self.output_model           = RawDataModel()
         self.filter_proxy_model      = RawDataFilterProxyModel()
         self.filter_proxy_model.setSourceModel(self.output_model)
 
@@ -213,7 +212,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.setWindowIcon(QtGui.QIcon(icon_path))    
 
         self.stop_event = threading.Event()
-        self.error_occurred.connect(self.add_message_to_table)
+        self.error_occurred.connect(self.set_notice_to_focus_value_label)
         self.message_received.connect(self.handle_message_received)
         
         self._running = False
@@ -241,6 +240,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.last_sound_played_time             = datetime.min
         self.mode                               = None
         self.my_call                            = None
+        self.my_wsjtx_id                        = None
         self.transmitting                       = False
         self.band                               = None
         self.last_frequency                     = None
@@ -1131,12 +1131,6 @@ class MainApp(QtWidgets.QMainWindow):
             self.monitoring_settings.set_monitored_cq_zones(self.monitored_cq_zones_vars[self.operating_band].text())
             if self.worker is not None:
                 self.worker.update_settings_signal.emit()
-
-    @QtCore.pyqtSlot(str)
-    def add_message_to_table(self, message, fg_color='white', bg_color=STATUS_TRX_COLOR):        
-        self.clear_button.setEnabled(True)
-        # self.output_model.add_message_row(message, fg_color, bg_color)
-        # self.output_table.scrollToBottom()
         
     @QtCore.pyqtSlot(object)
     def handle_message_received(self, message):        
@@ -1147,7 +1141,8 @@ class MainApp(QtWidgets.QMainWindow):
                 message.get('wsjtx_id')
             ):
                 self.my_call = message.get('my_call')
-                self.update_window_title(message.get('wsjtx_id'))
+                self.my_wsjtx_id = message.get('wsjtx_id')
+                self.update_window_title(self.my_wsjtx_id)
 
             message_type = message.get('type', None)
 
@@ -1161,7 +1156,7 @@ class MainApp(QtWidgets.QMainWindow):
                     band      = get_amateur_band(self.frequency)
 
                     if band != 'Invalid':
-                        self.add_message_to_table(f"{frequency} ({band}) {self.mode}")                     
+                        self.set_notice_to_focus_value_label(f"{band} {self.mode} {frequency} {self.my_wsjtx_id or ''}")                     
                         self.tab_widget.set_selected_tab(band)   
             elif message_type == 'stop_monitoring':
                 self.stop_monitoring()     
@@ -1251,7 +1246,7 @@ class MainApp(QtWidgets.QMainWindow):
                 )            
 
         elif isinstance(message, str):         
-            self.add_message_to_table(message)
+            self.set_notice_to_focus_value_label(message)
         else:
             pass
     
@@ -1280,7 +1275,7 @@ class MainApp(QtWidgets.QMainWindow):
             selected_message and
             selected_message.get('message') != self.last_focus_value_message
         ):            
-            self.set_value_to_focus(selected_message)
+            self.set_message_to_focus_value_label(selected_message)
 
             """
                 Handle sound notification
@@ -1546,7 +1541,12 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.status_label.setStyleSheet(style)            
 
-    def set_value_to_focus(self, message):        
+    def set_notice_to_focus_value_label(self, notice_message, fg_color_hex=FG_COLOR_BLACK_ON_WHITE, bg_color_hex=STATUS_TRX_COLOR):                           
+        self.update_status_menu_message(notice_message, bg_color_hex, fg_color_hex)
+        self.output_table.scrollToBottom()
+        log.warning(notice_message)
+
+    def set_message_to_focus_value_label(self, message):        
         self.last_focus_value_message = message.get('message')
         self.focus_value_label.setText(message.get('formatted_message').strip())
 
@@ -1591,8 +1591,8 @@ class MainApp(QtWidgets.QMainWindow):
         except Exception as e:
             print(f"Failed to play alert sound: {e}")            
 
-    def get_size_of_table_raw_data(self):
-        size_bytes = asizeof.asizeof(self.table_raw_data)
+    def get_size_of_output_model(self):
+        size_bytes = asizeof.asizeof(self.output_model)
 
         if size_bytes > 2_000:
             size_kb = size_bytes / 1024
@@ -1635,7 +1635,7 @@ class MainApp(QtWidgets.QMainWindow):
         if self.mode is not None:
             current_mode = f"({self.mode})"
 
-        status_text_array.append(f"DecodePacket #{self.decode_packet_count} {self.get_size_of_table_raw_data()}")
+        status_text_array.append(f"DecodePacket #{self.decode_packet_count} {self.get_size_of_output_model()}")
 
         HEARTBEAT_TIMEOUT_THRESHOLD     = 30  # secondes
         DECODE_PACKET_TIMEOUT_THRESHOLD = 60  # secondes
@@ -1980,7 +1980,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_model.add_raw_data(raw_data)
         self.output_table.scrollToBottom()
 
-        self.enforce_table_size_limit()
+        # self.enforce_table_size_limit()
 
         # Update values for filter
         self.update_combo_box_values(raw_data)
@@ -1994,7 +1994,7 @@ class MainApp(QtWidgets.QMainWindow):
     def enforce_table_size_limit(self):
         total_size = asizeof.asizeof(self.table_raw_data)
     
-        while total_size > self.max_table_size_bytes:
+        while total_size > self.max_size_output_model:
             for idx, raw_data in enumerate(self.table_raw_data):
                 if raw_data.get('row_color') is None:
                     del self.table_raw_data[idx]
@@ -2519,7 +2519,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.thread.finished.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
 
-        self.worker.error.connect(self.add_message_to_table)
+        self.worker.error.connect(self.set_notice_to_focus_value_label)
         self.worker.error.connect(self.handle_worker_error)
 
         self.worker.message.connect(self.handle_message_received)
