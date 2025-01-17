@@ -4,6 +4,8 @@ from PyQt6 import QtCore
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor
 
+from pympler import asizeof
+
 from constants import (
     FG_COLOR_FOCUS_MY_CALL,
     BG_COLOR_FOCUS_MY_CALL,
@@ -20,7 +22,7 @@ from constants import (
     DATE_COLUMN_AGE
 )
 class RawDataModel(QtCore.QAbstractTableModel):
-    def __init__(self, data=None):
+    def __init__(self, data=None, max_size_bytes=10**6*2):
         super().__init__()
         self._data = data or []
         self._headers = [
@@ -36,6 +38,7 @@ class RawDataModel(QtCore.QAbstractTableModel):
             "WKB4"
         ]
         self.datetime_column_setting = None
+        self._max_size_bytes = max_size_bytes
 
     def rowCount(self, parent=None):
         return len(self._data)
@@ -148,6 +151,7 @@ class RawDataModel(QtCore.QAbstractTableModel):
         self.beginInsertRows(QtCore.QModelIndex(), self.rowCount(), self.rowCount())
         self._data.append(raw_data)
         self.endInsertRows()
+        self.enforce_size_limit()
 
     def add_message_row(self, message, fg_color, bg_color):    
         raw_data = {
@@ -156,7 +160,16 @@ class RawDataModel(QtCore.QAbstractTableModel):
             "fg_color": fg_color,
             "bg_color": bg_color
         }
-        self.add_raw_data(raw_data)        
+        self.add_raw_data(raw_data)  
+
+    def enforce_size_limit(self):
+        total_size = asizeof.asizeof(self._data)
+        
+        while total_size > self._max_size_bytes and len(self._data) > 0:
+            self.beginRemoveRows(QtCore.QModelIndex(), 0, 0)
+            del self._data[0]
+            self.endRemoveRows()
+            total_size = asizeof.asizeof(self._data)          
 
     def remove_raw_data_at(self, index):
         self.beginRemoveRows(QtCore.QModelIndex(), index, index)

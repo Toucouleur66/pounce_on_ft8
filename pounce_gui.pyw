@@ -191,8 +191,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.filter_proxy_model      = RawDataFilterProxyModel()
         self.filter_proxy_model.setSourceModel(self.output_model)
 
-        self.last_focus_value_message_uid = None
-
         self.combo_box_values       = {
             "band"      : set(),
             "continent" : set(),
@@ -248,8 +246,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.gui_selected_band                  = None
         self.operating_band                     = None
         self.enable_show_all_decoded            = None
-        self.last_focus_value_message           = None
         self.message_buffer                     = deque()
+        self.last_focus_value_message_uid       = None
                 
         self.menu_bar                           = self.menuBar() 
 
@@ -1092,7 +1090,8 @@ class MainApp(QtWidgets.QMainWindow):
         if self._running:
             # Make sure to reset last_sound_played_time if we switch band
             self.last_sound_played_time = datetime.min
-            self.hide_focus_value_label(visible=False)
+            if self.last_focus_value_message_uid:
+                self.hide_focus_value_label(visible=False)
             self.gui_selected_band = self.operating_band
             self.tab_widget.set_operating_tab(self.operating_band)
 
@@ -1142,7 +1141,7 @@ class MainApp(QtWidgets.QMainWindow):
             ):
                 self.my_call = message.get('my_call')
                 self.my_wsjtx_id = message.get('wsjtx_id')
-                self.update_window_title(self.my_wsjtx_id)
+                self.update_window_title()
 
             message_type = message.get('type', None)
 
@@ -1152,9 +1151,8 @@ class MainApp(QtWidgets.QMainWindow):
                 self.frequency = message.get('frequency')                
                 if self.frequency != self.last_frequency:
                     self.last_frequency = self.frequency
-                    frequency = str(self.last_frequency / 1_000) + 'Khz'
+                    frequency = f"{self.last_frequency / 1_000_000:,.3f}".rstrip('0').rstrip('.')
                     band      = get_amateur_band(self.frequency)
-
                     if band != 'Invalid':
                         self.set_notice_to_focus_value_label(f"{band} {self.mode} {frequency} {self.my_wsjtx_id or ''}")                     
                         self.tab_widget.set_selected_tab(band)   
@@ -1191,7 +1189,7 @@ class MainApp(QtWidgets.QMainWindow):
                         Important to add timedelta according to MESSAGE_TYPE_PRIORITY
                         to ensure that we keep high priority messages in the buffer longer
                     """
-                    message['uid']  = uuid.uuid4()
+                    message['message_uid']  = uuid.uuid4()
                     self.message_buffer.append((
                         message,
                         datetime.now() + timedelta(seconds=MESSAGE_TYPE_PRIORITY.get(message_type, float('inf')))
@@ -1242,7 +1240,7 @@ class MainApp(QtWidgets.QMainWindow):
                     continent,
                     message_type,
                     message_color,
-                    message.get('uid'),                     
+                    message.get('message_uid'),                     
                 )            
 
         elif isinstance(message, str):         
@@ -1273,7 +1271,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         if (
             selected_message and
-            selected_message.get('message') != self.last_focus_value_message
+            selected_message.get('message_uid') != self.last_focus_value_message_uid
         ):            
             self.set_message_to_focus_value_label(selected_message)
 
@@ -1476,8 +1474,8 @@ class MainApp(QtWidgets.QMainWindow):
         items.sort()
         var.setText(','.join(map(str, items)))
 
-    def update_window_title(self, wsjtx_id):
-            self.window_title = f"{self.base_title} - Connected to {wsjtx_id}"
+    def update_window_title(self):
+            self.window_title = f"{self.base_title} - Connected to {self.my_wsjtx_id}"
             self.setWindowTitle(self.window_title)
 
     def reset_window_title(self):
@@ -1544,10 +1542,10 @@ class MainApp(QtWidgets.QMainWindow):
     def set_notice_to_focus_value_label(self, notice_message, fg_color_hex=FG_COLOR_BLACK_ON_WHITE, bg_color_hex=STATUS_TRX_COLOR):                           
         self.update_status_menu_message(notice_message, bg_color_hex, fg_color_hex)
         self.output_table.scrollToBottom()
+        self.last_focus_value_message_uid = None
         log.warning(notice_message)
 
     def set_message_to_focus_value_label(self, message):        
-        self.last_focus_value_message = message.get('message')
         self.focus_value_label.setText(message.get('formatted_message').strip())
 
         contains_my_call = message.get('directed') == message.get('my_call')
@@ -1566,10 +1564,11 @@ class MainApp(QtWidgets.QMainWindow):
             border-radius: 8px;
         """)
 
-        self.last_focus_value_message_uid = message.get('uid')
+        self.last_focus_value_message_uid = message.get('message_uid')
 
         self.update_status_menu_message(message.get('message', ''), bg_color_hex, fg_color_hex)
 
+    @QtCore.pyqtSlot(object)
     def play_sound(self, sound_name):
         try:           
             if sound_name == 'wanted_callsign_detected':
@@ -1594,12 +1593,15 @@ class MainApp(QtWidgets.QMainWindow):
     def get_size_of_output_model(self):
         size_bytes = asizeof.asizeof(self.output_model)
 
-        if size_bytes > 2_000:
+        if size_bytes > 1_048_576:  
+            size_mo = size_bytes / (1024 * 1024)
+            formatted_size = f"~ {size_mo:.1f} Mo"
+        elif size_bytes > 2_000:   
             size_kb = size_bytes / 1024
             formatted_size = f"~ {size_kb:.1f} Ko"
-        else:        
+        else:
             formatted_size = f"~ {size_bytes:,} bytes".replace(",", " ")
-        
+
         return formatted_size
 
     def check_connection_status(
@@ -1635,7 +1637,7 @@ class MainApp(QtWidgets.QMainWindow):
         if self.mode is not None:
             current_mode = f"({self.mode})"
 
-        status_text_array.append(f"DecodePacket #{self.decode_packet_count} {self.get_size_of_output_model()}")
+        status_text_array.append(f"DecodePacket #{self.output_model.rowCount()} {self.get_size_of_output_model()}")
 
         HEARTBEAT_TIMEOUT_THRESHOLD     = 30  # secondes
         DECODE_PACKET_TIMEOUT_THRESHOLD = 60  # secondes
@@ -1980,8 +1982,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_model.add_raw_data(raw_data)
         self.output_table.scrollToBottom()
 
-        # self.enforce_table_size_limit()
-
         # Update values for filter
         self.update_combo_box_values(raw_data)
 
@@ -1990,18 +1990,6 @@ class MainApp(QtWidgets.QMainWindow):
             self.update_var(self.wanted_callsigns_vars[band], callsign, "remove")
 
         self.clear_button.setEnabled(True)
-
-    def enforce_table_size_limit(self):
-        total_size = asizeof.asizeof(self.table_raw_data)
-    
-        while total_size > self.max_size_output_model:
-            for idx, raw_data in enumerate(self.table_raw_data):
-                if raw_data.get('row_color') is None:
-                    del self.table_raw_data[idx]
-                    break
-            else:
-                break
-            total_size = asizeof.asizeof(self.table_raw_data)
 
     def scroll_to_message_uid(self, uid, column=0, scroll_hint=QtWidgets.QAbstractItemView.ScrollHint.PositionAtCenter):
         row = self.output_model.findRowByUid(uid)
@@ -2624,7 +2612,7 @@ def main():
     
     window          = MainApp()
     window.show()
-    window.update_status_menu_message((f'Welcome to {GUI_LABEL_VERSION}').upper(), BG_COLOR_REGULAR_FOCUS, FG_COLOR_REGULAR_FOCUS)   
+    window.update_status_menu_message((f'{GUI_LABEL_VERSION}').upper(), BG_COLOR_REGULAR_FOCUS, FG_COLOR_REGULAR_FOCUS)   
 
     if is_first_launch_or_new_version(CURRENT_VERSION_NUMBER):
         window.show_about_dialog() 

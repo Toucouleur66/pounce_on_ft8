@@ -64,7 +64,7 @@ class RawDataFilterProxyModel(QSortFilterProxyModel):
                 return False
     
         if self.filters['callsign']:
-            callsign = raw_data.get('callsign', None)
+            callsign = raw_data.get('callsign')
             if callsign and self.filters['callsign'].upper() not in callsign:
                 return False
         

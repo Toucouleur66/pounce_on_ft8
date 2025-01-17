@@ -83,7 +83,7 @@ def parse_wsjtx_message(
     # Handle <...> message
     match = re.match(r"^<\.\.\.>\s+([A-Z0-9/]*\d[A-Z0-9/]*)\s+(\w{2,3}|RR73|\d{2}[A-Z]{2})?", message)
     if match:
-        callsign = match.group(1)
+        # callsign = match.group(1)
         msg = match.group(2)
     else:      
         match = re.match(r"^CQ\s+(?:(\w{2,4})\s+)([A-Z0-9/]*\d[A-Z0-9/]*)(?:\s+([A-Z]{2}\d{2}))", message)        
