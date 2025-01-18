@@ -1090,8 +1090,7 @@ class MainApp(QtWidgets.QMainWindow):
         if self._running:
             # Make sure to reset last_sound_played_time if we switch band
             self.last_sound_played_time = datetime.min
-            if self.last_focus_value_message_uid:
-                self.hide_focus_value_label(visible=False)
+            self.hide_focus_value_label(visible=False)
             self.gui_selected_band = self.operating_band
             self.tab_widget.set_operating_tab(self.operating_band)
 
@@ -1101,8 +1100,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.focus_value_label.clear() 
         else:    
             self.focus_value_label.setStyleSheet("background-color: transparent; border: none;")
-            self.focus_value_label.clear()
-        self.hide_status_menu()
+            self.focus_value_label.clear()        
 
     """
         Used for MonitoringSetting
@@ -1297,8 +1295,8 @@ class MainApp(QtWidgets.QMainWindow):
                         play_sound = True
                         self.last_sound_played_time = current_time               
             
-            if play_sound:
-                self.play_sound(message_type)
+                if play_sound:
+                    self.play_sound(message_type)
 
             self.set_message_to_focus_value_label(selected_message)                
 
@@ -2075,6 +2073,7 @@ class MainApp(QtWidgets.QMainWindow):
 
     def clear_output_and_filters(self):
         self.hide_focus_value_label(visible=False)
+        self.hide_status_menu()
         self.clear_filters()
         self.filter_proxy_model.clearTableView()
         self.wait_pounce_history_table.scrollToBottom()  
