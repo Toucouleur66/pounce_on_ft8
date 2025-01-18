@@ -53,7 +53,7 @@ if sys.platform == 'darwin':
     from status_menu import StatusMenuAgent
 
 from utils import get_local_ip_address, get_log_filename, matches_any
-from utils import get_mode_interval, get_amateur_band
+from utils import get_mode_interval, get_amateur_band, display_frequency
 from utils import force_input, focus_out_event, text_to_array
 from utils import parse_adif
 
@@ -183,7 +183,7 @@ class MainApp(QtWidgets.QMainWindow):
         params                   = self.load_params()  
         
         """
-            Store data from update_table_data
+            Store data from update_model_data
         """
         self.max_size_output_model   = 10 ** 7
 
@@ -235,6 +235,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.decode_packet_count                = 0
         self.last_decode_packet_time            = None
         self.last_heartbeat_time                = None
+        self.last_focus_value_message_uid       = None        
         self.last_sound_played_time             = datetime.min
         self.mode                               = None
         self.my_call                            = None
@@ -246,8 +247,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.gui_selected_band                  = None
         self.operating_band                     = None
         self.enable_show_all_decoded            = None
-        self.message_buffer                     = deque()
-        self.last_focus_value_message_uid       = None
+        self.message_buffer                     = deque()        
                 
         self.menu_bar                           = self.menuBar() 
 
@@ -550,7 +550,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         QtCore.QTimer.singleShot(1_000, lambda: self.init_activity_bar())   
 
-        self.process_timer = QtCore.QTimer(self)
+        self.process_timer = QtCore.QTimer()
         self.process_timer.timeout.connect(self.process_message_buffer)
                 
         # Close event to save position
@@ -1151,10 +1151,9 @@ class MainApp(QtWidgets.QMainWindow):
                 self.frequency = message.get('frequency')                
                 if self.frequency != self.last_frequency:
                     self.last_frequency = self.frequency
-                    frequency = f"{self.last_frequency / 1_000_000:,.3f}".rstrip('0').rstrip('.')
                     band      = get_amateur_band(self.frequency)
                     if band != 'Invalid':
-                        self.set_notice_to_focus_value_label(f"{band} {self.mode} {frequency} {self.my_wsjtx_id or ''}")                     
+                        self.set_notice_to_focus_value_label(f"{band} {self.mode} {display_frequency(self.last_frequency)} {self.my_wsjtx_id or ''}")                     
                         self.tab_widget.set_selected_tab(band)   
             elif message_type == 'stop_monitoring':
                 self.stop_monitoring()     
@@ -1183,18 +1182,7 @@ class MainApp(QtWidgets.QMainWindow):
                 entity              = empty_str
                 cq_zone             = empty_str
                 continent           = empty_str
-                                
-                if message_type in MESSAGE_TYPE_PRIORITY:
-                    """
-                        Important to add timedelta according to MESSAGE_TYPE_PRIORITY
-                        to ensure that we keep high priority messages in the buffer longer
-                    """
-                    message['message_uid']  = uuid.uuid4()
-                    self.message_buffer.append((
-                        message,
-                        datetime.now() + timedelta(seconds=MESSAGE_TYPE_PRIORITY.get(message_type, float('inf')))
-                    ))                
-
+                                                
                 """
                     Handle GUI output
                 """
@@ -1223,7 +1211,7 @@ class MainApp(QtWidgets.QMainWindow):
                 elif callsign_info is None:
                     entity    = "Where?"
                  
-                self.update_table_data(
+                self.update_model_data(
                     wanted,
                     callsign,
                     wkb4_year,
@@ -1241,7 +1229,19 @@ class MainApp(QtWidgets.QMainWindow):
                     message_type,
                     message_color,
                     message.get('message_uid'),                     
-                )            
+                )   
+
+                if message_type in MESSAGE_TYPE_PRIORITY:
+                    """
+                        Important to add timedelta according to MESSAGE_TYPE_PRIORITY
+                        to ensure that we keep high priority messages in the buffer longer
+                    """
+                    message['message_uid']  = uuid.uuid4()
+                    self.message_buffer.append((
+                        message,
+                        datetime.now() + timedelta(seconds=MESSAGE_TYPE_PRIORITY.get(message_type, float('inf')))
+                    ))                
+         
 
         elif isinstance(message, str):         
             self.set_notice_to_focus_value_label(message)
@@ -1273,8 +1273,6 @@ class MainApp(QtWidgets.QMainWindow):
             selected_message and
             selected_message.get('message_uid') != self.last_focus_value_message_uid
         ):            
-            self.set_message_to_focus_value_label(selected_message)
-
             """
                 Handle sound notification
             """
@@ -1301,6 +1299,8 @@ class MainApp(QtWidgets.QMainWindow):
             
             if play_sound:
                 self.play_sound(message_type)
+
+            self.set_message_to_focus_value_label(selected_message)                
 
     def on_table_row_clicked(self, table, row, column):
         position = table.visualRect(table.model().index(row, column)).center()
@@ -1635,7 +1635,7 @@ class MainApp(QtWidgets.QMainWindow):
                 self.apply_band_change(operating_band)
            
         if self.mode is not None:
-            current_mode = f"({self.mode})"
+            current_mode = f"{self.mode}"
 
         status_text_array.append(f"DecodePacket #{self.output_model.rowCount()} {self.get_size_of_output_model()}")
 
@@ -1646,8 +1646,10 @@ class MainApp(QtWidgets.QMainWindow):
             time_since_last_decode = (now - self.last_decode_packet_time).total_seconds()
             network_check_status_interval = 5_000
 
+            status_mode_frequency = f"({current_mode} <u>{display_frequency(self.last_frequency)}</u>)"
+
             if time_since_last_decode > DECODE_PACKET_TIMEOUT_THRESHOLD:
-                status_text_array.append(f"No DecodePacket for more than {DECODE_PACKET_TIMEOUT_THRESHOLD} seconds.")
+                status_text_array.append(f"No DecodePacket for more than {DECODE_PACKET_TIMEOUT_THRESHOLD} seconds {status_mode_frequency}.")
                 self.process_timer.stop()
                 nothing_to_decode = True                
             else:      
@@ -1661,10 +1663,11 @@ class MainApp(QtWidgets.QMainWindow):
                     time_since_last_decode_text = f"{int(time_since_last_decode)}s"                  
                     self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR) 
 
-                status_text_array.append(f"Last DecodePacket {current_mode}: {time_since_last_decode_text} ago")  
+                status_text_array.append(f"Last DecodePacket {status_mode_frequency}: {time_since_last_decode_text} ago")  
 
                 if not self.process_timer.isActive():
-                    self.process_timer.start(100) 
+                    log.error("Start process_timer")
+                    self.process_timer.start(300) 
 
             # Update new interval if necessary
             if network_check_status_interval != self.network_check_status_interval:
@@ -1932,7 +1935,7 @@ class MainApp(QtWidgets.QMainWindow):
         pyperclip.copy(message)
         log.warning(f"Copied to clipboard: {message}")
 
-    def update_table_data(
+    def update_model_data(
             self,
             wanted,
             callsign,
@@ -2434,7 +2437,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.timer.timeout.connect(self.update_mode_timer)
         self.timer.start(200)
 
-        self.process_timer.start(100)
+        self.process_timer.start(300)
 
         self.is_status_button_label_visible = True
         self.is_status_button_label_blinking = False

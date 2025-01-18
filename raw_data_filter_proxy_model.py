@@ -15,8 +15,8 @@ class RawDataFilterProxyModel(QSortFilterProxyModel):
         self.current_clear_index        = 0
         self.filters                     = None
         self.default_filters             = {
-            'callsign'  : "",
-            'country'   : "",
+            'callsign'  : None,
+            'country'   : None,
             'cq_zone'   : DEFAULT_FILTER_VALUE,
             'continent' : DEFAULT_FILTER_VALUE,
             'row_color' : None,
@@ -65,12 +65,16 @@ class RawDataFilterProxyModel(QSortFilterProxyModel):
     
         if self.filters['callsign']:
             callsign = raw_data.get('callsign')
-            if callsign and self.filters['callsign'].upper() not in callsign:
+            if callsign and self.filters['callsign'].upper() not in callsign.upper():
+                return False
+            elif callsign is None:
                 return False
         
         if self.filters['country']:
-            entity = raw_data.get('entity', None)
+            entity = raw_data.get('entity')
             if entity and self.filters['country'].upper() not in entity.upper():
+                return False
+            elif entity is None:
                 return False
 
         if self.filters['cq_zone'] != DEFAULT_FILTER_VALUE:

@@ -174,7 +174,11 @@ def get_amateur_band(frequency):
         if lower_bound <= frequency <= upper_bound:
             return band
     
-    return 'Invalid'       
+    return 'Invalid'   
+
+def display_frequency(frequency):
+    if frequency:
+        return f"{frequency / 1_000_000:,.3f}".rstrip('0').rstrip('.')
 
 def force_input(widget, mode="uppercase"):
     try:

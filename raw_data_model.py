@@ -22,7 +22,7 @@ from constants import (
     DATE_COLUMN_AGE
 )
 class RawDataModel(QtCore.QAbstractTableModel):
-    def __init__(self, data=None, max_size_bytes=10**6*2):
+    def __init__(self, data=None, max_size_bytes=10**7):
         super().__init__()
         self._data = data or []
         self._headers = [
@@ -147,29 +147,40 @@ class RawDataModel(QtCore.QAbstractTableModel):
             return True
         return super().setHeaderData(section, orientation, value, role)    
 
+    def add_message_row(self, message, fg_color, bg_color):    
+        raw_data = {
+            'is_message_row': True,
+            'message'       : message,
+            'fg_color'      : fg_color,
+            'bg_color'      : bg_color
+        }
+        self.add_raw_data(raw_data)  
+
     def add_raw_data(self, raw_data):
         self.beginInsertRows(QtCore.QModelIndex(), self.rowCount(), self.rowCount())
         self._data.append(raw_data)
         self.endInsertRows()
         self.enforce_size_limit()
 
-    def add_message_row(self, message, fg_color, bg_color):    
-        raw_data = {
-            "is_message_row": True,
-            "message": message,
-            "fg_color": fg_color,
-            "bg_color": bg_color
-        }
-        self.add_raw_data(raw_data)  
-
     def enforce_size_limit(self):
         total_size = asizeof.asizeof(self._data)
         
         while total_size > self._max_size_bytes and len(self._data) > 0:
-            self.beginRemoveRows(QtCore.QModelIndex(), 0, 0)
-            del self._data[0]
+            index_to_remove = None
+            for i, row_data in enumerate(self._data):
+                
+                if row_data.get('row_color') is None:
+                    index_to_remove = i
+                    break
+
+            if index_to_remove is None:
+                index_to_remove = 0
+
+            self.beginRemoveRows(QtCore.QModelIndex(), index_to_remove, index_to_remove)
+            del self._data[index_to_remove]
             self.endRemoveRows()
-            total_size = asizeof.asizeof(self._data)          
+
+            total_size = asizeof.asizeof(self._data)
 
     def remove_raw_data_at(self, index):
         self.beginRemoveRows(QtCore.QModelIndex(), index, index)
