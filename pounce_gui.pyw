@@ -45,6 +45,7 @@ from updater import Updater
 from theme_manager import ThemeManager
 from clublog import ClubLogManager
 from setting_dialog import SettingsDialog
+from audio_worker import AudioWorker
 
 from raw_data_model import RawDataModel
 from raw_data_filter_proxy_model import RawDataFilterProxyModel
@@ -251,23 +252,11 @@ class MainApp(QtWidgets.QMainWindow):
                 
         self.menu_bar                           = self.menuBar() 
 
-        self.wanted_callsign_detected_sound     = QSoundEffect()
-        self.directed_to_my_call_sound          = QSoundEffect()
-        self.ready_to_log_sound                 = QSoundEffect()
-        self.error_occurred_sound               = QSoundEffect()
-        self.band_change_sound                  = QSoundEffect()
-        self.monitored_callsign_detected_sound  = QSoundEffect()
-        self.enabled_global_sound               = QSoundEffect()
+        self.audio_thread                       = QtCore.QThread(self)
+        self.audio_worker                       = AudioWorker()
+        self.audio_worker.moveToThread(self.audio_thread)
 
-        self.wanted_callsign_detected_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/495650__matrixxx__supershort-ping-or-short-notification.wav"))
-
-        #self.wanted_callsign_detected_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/716444__scottyd0es__tone12_alert_5.wav"))
-        self.directed_to_my_call_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/716445__scottyd0es__tone12_error.wav"))
-        self.ready_to_log_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/709072__scottyd0es__aeroce-dualtone-5.wav"))
-        self.error_occurred_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/142608__autistic-lucario__error.wav"))
-        self.monitored_callsign_detected_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/716442__scottyd0es__tone12_alert_3.wav"))
-        self.band_change_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/342759__rhodesmas__score-counter-01.wav"))
-        self.enabled_global_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/342754__rhodesmas__searching-01.wav"))
+        self.audio_thread.start()
         
         self.enable_pounce_log                  = params.get('enable_pounce_log', True)
         self.enable_filter_gui                   = params.get('enable_filter_gui', False)        
@@ -552,7 +541,8 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.process_timer = QtCore.QTimer()
         self.process_timer.timeout.connect(self.process_message_buffer)
-                
+           
+
         # Close event to save position
         self.closeEvent = self.on_close
         # self.add_border_to_widgets(color="blue")
@@ -564,6 +554,10 @@ class MainApp(QtWidgets.QMainWindow):
         for child in widget.findChildren(QtWidgets.QWidget):
             current_style = child.styleSheet()
             child.setStyleSheet(f"{current_style}; border: 1px solid {color};")
+
+    def cleanup_audio_thread(self):
+        self.audio_thread.quit()
+        self.audio_thread.wait()
 
     @QtCore.pyqtSlot()
     def on_status_menu_clicked(self):
@@ -1273,6 +1267,7 @@ class MainApp(QtWidgets.QMainWindow):
             selected_message and
             selected_message.get('message_uid') != self.last_focus_value_message_uid
         ):            
+            self.set_message_to_focus_value_label(selected_message)
             """
                 Handle sound notification
             """
@@ -1299,8 +1294,6 @@ class MainApp(QtWidgets.QMainWindow):
             
             if play_sound:
                 self.play_sound(message_type)
-
-            self.set_message_to_focus_value_label(selected_message)                
 
     def on_table_row_clicked(self, table, row, column):
         position = table.visualRect(table.model().index(row, column)).center()
@@ -1568,27 +1561,8 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.update_status_menu_message(message.get('message', ''), bg_color_hex, fg_color_hex)
 
-    @QtCore.pyqtSlot(object)
     def play_sound(self, sound_name):
-        try:           
-            if sound_name == 'wanted_callsign_detected':
-                self.wanted_callsign_detected_sound.play()
-            elif sound_name == 'directed_to_my_call':
-                self.directed_to_my_call_sound.play()
-            elif sound_name == 'monitored_callsign_detected':
-                self.monitored_callsign_detected_sound.play()                        
-            elif sound_name == 'ready_to_log':
-                self.ready_to_log_sound.play()
-            elif sound_name == 'band_change':
-                self.band_change_sound.play()                
-            elif sound_name == 'error_occurred':
-                self.error_occurred_sound.play()                
-            elif sound_name == 'enable_global_sound':
-                self.enabled_global_sound.play()               
-            else:
-                print(f"Unknown sound: {sound_name}")            
-        except Exception as e:
-            print(f"Failed to play alert sound: {e}")            
+        self.audio_worker.play_sound_signal.emit(sound_name)
 
     def get_size_of_output_model(self):
         size_bytes = asizeof.asizeof(self.output_model)
