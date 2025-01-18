@@ -37,8 +37,10 @@ class RawDataModel(QtCore.QAbstractTableModel):
             "Continent",
             "WKB4"
         ]
-        self.datetime_column_setting = None
-        self._max_size_bytes = max_size_bytes
+        self.datetime_column_setting    = None
+        self._max_size_bytes            = max_size_bytes
+        self.limit_check_interval       = 10_000
+        self._current_size_bytes        = None
 
     def rowCount(self, parent=None):
         return len(self._data)
@@ -160,12 +162,11 @@ class RawDataModel(QtCore.QAbstractTableModel):
         self.beginInsertRows(QtCore.QModelIndex(), self.rowCount(), self.rowCount())
         self._data.append(raw_data)
         self.endInsertRows()
-        self.enforce_size_limit()
 
     def enforce_size_limit(self):
-        total_size = asizeof.asizeof(self._data)
+        self._current_size_bytes = asizeof.asizeof(self._data)
         
-        while total_size > self._max_size_bytes and len(self._data) > 0:
+        while len(self._data) > self.limit_check_interval:
             index_to_remove = None
             for i, row_data in enumerate(self._data):
                 
@@ -179,8 +180,6 @@ class RawDataModel(QtCore.QAbstractTableModel):
             self.beginRemoveRows(QtCore.QModelIndex(), index_to_remove, index_to_remove)
             del self._data[index_to_remove]
             self.endRemoveRows()
-
-            total_size = asizeof.asizeof(self._data)
 
     def remove_raw_data_at(self, index):
         self.beginRemoveRows(QtCore.QModelIndex(), index, index)

@@ -552,6 +552,10 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.process_timer = QtCore.QTimer()
         self.process_timer.timeout.connect(self.process_message_buffer)
+
+        self.enforce_size_limit_timer = QtCore.QTimer()
+        self.enforce_size_limit_timer.timeout.connect(self.output_model.enforce_size_limit)
+        self.enforce_size_limit_timer.start(60_000) 
                 
         # Close event to save position
         self.closeEvent = self.on_close
@@ -1589,18 +1593,21 @@ class MainApp(QtWidgets.QMainWindow):
             print(f"Failed to play alert sound: {e}")            
 
     def get_size_of_output_model(self):
-        size_bytes = asizeof.asizeof(self.output_model)
+        size_bytes = self.output_model._current_size_bytes
 
-        if size_bytes > 1_048_576:  
-            size_mo = size_bytes / (1024 * 1024)
-            formatted_size = f"~ {size_mo:.1f} Mo"
-        elif size_bytes > 2_000:   
-            size_kb = size_bytes / 1024
-            formatted_size = f"~ {size_kb:.1f} Ko"
+        if size_bytes:
+            if size_bytes > 1_048_576:  
+                size_mo = size_bytes / (1024 * 1024)
+                formatted_size = f"~ {size_mo:.1f} Mo"
+            elif size_bytes > 2_000:   
+                size_kb = size_bytes / 1024
+                formatted_size = f"~ {size_kb:.1f} Ko"
+            else:
+                formatted_size = f"~ {size_bytes:,} bytes".replace(",", " ")
+
+            return formatted_size
         else:
-            formatted_size = f"~ {size_bytes:,} bytes".replace(",", " ")
-
-        return formatted_size
+            return ''
 
     def check_connection_status(
         self,
@@ -1664,8 +1671,7 @@ class MainApp(QtWidgets.QMainWindow):
                 status_text_array.append(f"Last DecodePacket {status_mode_frequency}: {time_since_last_decode_text} ago")  
 
                 if not self.process_timer.isActive():
-                    log.error("Start process_timer")
-                    self.process_timer.start(300) 
+                    self.process_timer.start(100) 
 
             # Update new interval if necessary
             if network_check_status_interval != self.network_check_status_interval:
@@ -2257,6 +2263,11 @@ class MainApp(QtWidgets.QMainWindow):
         clear_filters_action.setShortcut(QtGui.QKeySequence("Ctrl+W")) 
         clear_filters_action.triggered.connect(self.clear_filters)  
         self.window_menu.addAction(clear_filters_action)
+
+        clear_output_action = QtGui.QAction("Clear rows from Table", self)
+        clear_output_action.setShortcut(QtGui.QKeySequence("Ctrl+K")) 
+        clear_output_action.triggered.connect(self.clear_output_and_filters)  
+        self.window_menu.addAction(clear_output_action)
         
         format_time_menu = self.window_menu.addMenu("Format Time")
 
@@ -2596,7 +2607,6 @@ class MainApp(QtWidgets.QMainWindow):
     
     @QtCore.pyqtSlot()
     def status_menu_agent_cleaner(self):
-        log.error("status_menu_agent_cleaner")
         if sys.platform == 'darwin':
             self.status_menu_agent.hide_status_bar()
             self.status_menu_agent.deleteLater()            
