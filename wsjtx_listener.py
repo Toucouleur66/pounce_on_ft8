@@ -263,13 +263,14 @@ class Listener:
                     })                    
             
             if self.targeted_call is not None:
+                """
                 if self.enable_gap_finder:
                     log.warning('Used frequencies: {}\n\tSuggested frequency ({}): {}Hz'.format(
                         self.used_frequencies,
                         self.targeted_call_period,
                         self.get_frequency_suggestion(self.targeted_call_period)
                     ))
-
+                """
                 status_had_time_to_update = (datetime.now(timezone.utc) - self.reply_to_packet_time).total_seconds() > 30
 
                 if (
@@ -527,8 +528,8 @@ class Listener:
                     log.warning(f"Waiting for [ {self.targeted_call} ] but we are about to switch on [ {callsign} ]")
                     self.reset_ongoing_contact()
                 
-                if self.reply_attempts[self.targeted_call] > self.max_reply_attemps_to_wanted:
-                    log.warning(f"{self.reply_attempts[self.targeted_call]} attempts for [ {self.targeted_call} ] but we are about to switch on [ {callsign} ]")
+                if len(self.reply_attempts[self.targeted_call]) > self.max_reply_attemps_to_wanted:
+                    log.warning(f"{len(self.reply_attempts[self.targeted_call])} attempts for [ {self.targeted_call} ] but we are about to switch on [ {callsign} ]")
                     self.reset_ongoing_contact()
 
             """

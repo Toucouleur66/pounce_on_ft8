@@ -22,7 +22,7 @@ from constants import (
     DATE_COLUMN_AGE
 )
 class RawDataModel(QtCore.QAbstractTableModel):
-    def __init__(self, data=None, max_size_bytes=10**7):
+    def __init__(self, data=None, max_size_bytes=10**7, max_num_rows=10_000):
         super().__init__()
         self._data = data or []
         self._headers = [
@@ -39,7 +39,7 @@ class RawDataModel(QtCore.QAbstractTableModel):
         ]
         self.datetime_column_setting    = None
         self._max_size_bytes            = max_size_bytes
-        self.limit_check_interval       = 10_000
+        self._max_num_rows              = max_num_rows
         self._current_size_bytes        = None
 
     def rowCount(self, parent=None):
@@ -164,12 +164,15 @@ class RawDataModel(QtCore.QAbstractTableModel):
         self.endInsertRows()
 
     def enforce_size_limit(self):
-        self._current_size_bytes = asizeof.asizeof(self._data)
+        """
+            No need to check the size unless we are close to 70%
+        """
+        if len(self._data) / self._max_num_rows > 0.7:
+            self._current_size_bytes = asizeof.asizeof(self._data)
         
-        while len(self._data) > self.limit_check_interval:
+        while len(self._data) > self._max_num_rows:
             index_to_remove = None
-            for i, row_data in enumerate(self._data):
-                
+            for i, row_data in enumerate(self._data):                
                 if row_data.get('row_color') is None:
                     index_to_remove = i
                     break

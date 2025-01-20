@@ -27,7 +27,6 @@ import traceback
 from datetime import datetime, timezone, timedelta
 from collections import deque
 from functools import partial
-from pympler import asizeof
 
 # Custom classes 
 from animated_toggle import AnimatedToggle
@@ -185,8 +184,6 @@ class MainApp(QtWidgets.QMainWindow):
         """
             Store data from update_model_data
         """
-        self.max_size_output_model   = 10 ** 7
-
         self.output_model           = RawDataModel()
         self.filter_proxy_model      = RawDataFilterProxyModel()
         self.filter_proxy_model.setSourceModel(self.output_model)
@@ -1593,17 +1590,14 @@ class MainApp(QtWidgets.QMainWindow):
             print(f"Failed to play alert sound: {e}")            
 
     def get_size_of_output_model(self):
-        size_bytes = self.output_model._current_size_bytes
+        output_model_size_bytes = self.output_model._current_size_bytes
 
-        if size_bytes:
-            if size_bytes > 1_048_576:  
-                size_mo = size_bytes / (1024 * 1024)
+        if output_model_size_bytes:
+            if output_model_size_bytes > 1_048_576:  
+                size_mo = output_model_size_bytes / (1024 * 1024)
                 formatted_size = f"~ {size_mo:.1f} Mo"
-            elif size_bytes > 2_000:   
-                size_kb = size_bytes / 1024
-                formatted_size = f"~ {size_kb:.1f} Ko"
             else:
-                formatted_size = f"~ {size_bytes:,} bytes".replace(",", " ")
+                formatted_size = f"~ {output_model_size_bytes:.1f} Ko"
 
             return formatted_size
         else:
@@ -2382,6 +2376,12 @@ class MainApp(QtWidgets.QMainWindow):
 
         layout.addStretch()
 
+        current_year = datetime.now().year
+        copyright_label = QtWidgets.QLabel(f'Copyright {current_year} Cédric Morelle <a href="https://qrz.com/db/f5ukw">F5UKW</a>')
+        copyright_label.setOpenExternalLinks(True)
+        copyright_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(copyright_label)
+
         thanks_label = QtWidgets.QLabel("With special thanks to:")
         thanks_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(thanks_label)
@@ -2389,12 +2389,6 @@ class MainApp(QtWidgets.QMainWindow):
         thanks_names = QtWidgets.QLabel("Rick, DU6/PE1NSQ, Vincent F4BKV, Juan TG9AJR")
         thanks_names.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(thanks_names)
-
-        current_year = datetime.now().year
-        copyright_label = QtWidgets.QLabel(f'Copyright {current_year} Cédric Morelle <a href="https://qrz.com/db/f5ukw">F5UKW</a>')
-        copyright_label.setOpenExternalLinks(True)
-        copyright_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(copyright_label)
 
         layout.addStretch()
 
