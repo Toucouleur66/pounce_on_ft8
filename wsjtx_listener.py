@@ -636,7 +636,6 @@ class Listener:
                 self.the_packet.message, e, traceback.format_exc()))   
             
     def reply_to_callsign(self, callsign, time_str):
-        log.error(f"{count_attempts} attempts for [ {self.targeted_call} ]") 
         if self.targeted_call is None:
             self.targeted_call = callsign
 
