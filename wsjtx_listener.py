@@ -636,6 +636,7 @@ class Listener:
                 self.the_packet.message, e, traceback.format_exc()))   
             
     def reply_to_callsign(self, callsign, time_str):
+        log.error(f"{count_attempts} attempts for [ {self.targeted_call} ]") 
         if self.targeted_call is None:
             self.targeted_call = callsign
 
@@ -648,7 +649,7 @@ class Listener:
             if count_attempts >= (self.max_reply_attemps_to_wanted - 1):
                 log.error(f"{count_attempts} attempts for [ {self.targeted_call} ]") 
 
-            self.reply_to_packet()               
+        self.reply_to_packet()               
 
     def reply_to_packet(self):
         try:            
