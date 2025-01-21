@@ -157,6 +157,7 @@ class MainApp(QtWidgets.QMainWindow):
 
     def __init__(self):
         super(MainApp, self).__init__()
+        self.updater             = Updater()
 
         self.base_title          = GUI_LABEL_VERSION
         self.window_title        = None
@@ -1544,8 +1545,14 @@ class MainApp(QtWidgets.QMainWindow):
         self.last_focus_value_message_uid = None
         log.warning(notice_message)
 
-    def set_message_to_focus_value_label(self, message):        
-        self.focus_value_label.setText(message.get('formatted_message').strip())
+    def set_message_to_focus_value_label(self, message):   
+        message_type      = message.get('message_type')
+        formatted_message = message.get('formatted_message').strip()
+
+        if message_type == 'wanted_callsign_detected' and 'CQ 'in formatted_message:
+            self.focus_value_label.setText(f"{message.get('snr')}: {formatted_message}")
+        else:
+            self.focus_value_label.setText(formatted_message)
 
         contains_my_call = message.get('directed') == message.get('my_call')
 
@@ -1801,7 +1808,7 @@ class MainApp(QtWidgets.QMainWindow):
         background_color    = '#FFFFFF' if not dark_mode else '#353535'
 
         table_qss           = f"""
-            QTableWidget {{ 
+            QTableView {{ 
                 background-color: {background_color};
                 gridline-color: {gridline_color}; 
             }}
@@ -2190,8 +2197,7 @@ class MainApp(QtWidgets.QMainWindow):
         about_action = QtGui.QAction(f"About {GUI_LABEL_NAME}", self)
         about_action.triggered.connect(self.show_about_dialog)
         main_menu.addAction(about_action)
-
-        # Add separator
+        
         main_menu.addSeparator()
 
         self.monitoring_action = QtGui.QAction(self.get_monitoring_action_text(), self)
@@ -2214,11 +2220,15 @@ class MainApp(QtWidgets.QMainWindow):
         enable_sound_action.setChecked(self.enable_global_sound)  
         main_menu.addAction(enable_sound_action)
 
-        # Settings...
         settings_action = QtGui.QAction("Settings...", self)
         settings_action.setShortcut("Ctrl+,")  # Default shortcut for macOS
         settings_action.triggered.connect(self.open_settings)
         main_menu.addAction(settings_action)
+
+        check_update_action = QtGui.QAction("Check for Updates...", self)
+        check_update_action.setShortcut("Ctrl+I")  
+        check_update_action.triggered.connect(lambda: self.updater.check_expiration_or_update(True))
+        main_menu.addAction(check_update_action)
 
         # Add Online menu
         self.online_menu = self.menu_bar.addMenu("Online")
@@ -2578,7 +2588,7 @@ class MainApp(QtWidgets.QMainWindow):
             
             self.stop_tray_icon()
 
-            self.update_status_button(STATUS_BUTTON_LABEL_START, STATUS_COLOR_LABEL_OFF)
+            self.update_status_button(STATUS_BUTTON_LABEL_START)
             self.status_button.resetStyle()
             self.status_button.setEnabled(True)
             self.stop_button.setEnabled(False)
@@ -2606,19 +2616,18 @@ class MainApp(QtWidgets.QMainWindow):
             self.status_menu_agent.deleteLater()            
 
 def main():
-    app             = QtWidgets.QApplication(sys.argv)
-    updater         = Updater()
+    app             = QtWidgets.QApplication(sys.argv)    
+    window          = MainApp()
     update_timer    = QtCore.QTimer()
 
-    update_timer.timeout.connect(updater.check_for_expiration_or_update)
+    window.show()
+    window.update_status_menu_message((f'{GUI_LABEL_VERSION}').upper(), BG_COLOR_REGULAR_FOCUS, FG_COLOR_REGULAR_FOCUS)   
+
+    update_timer.timeout.connect(window.updater.check_expiration_or_update)
 
     update_timer.setInterval(60 * 60 * 1_000)  
     update_timer.start()
     update_timer.timeout.emit()
-    
-    window          = MainApp()
-    window.show()
-    window.update_status_menu_message((f'{GUI_LABEL_VERSION}').upper(), BG_COLOR_REGULAR_FOCUS, FG_COLOR_REGULAR_FOCUS)   
 
     if is_first_launch_or_new_version(CURRENT_VERSION_NUMBER):
         window.show_about_dialog() 
