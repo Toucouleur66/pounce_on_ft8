@@ -237,6 +237,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.last_sound_played_time             = datetime.min
         self.mode                               = None
         self.my_call                            = None
+        self.targeted_call                      = None
         self.my_wsjtx_id                        = None
         self.transmitting                       = False
         self.band                               = None
@@ -1240,8 +1241,7 @@ class MainApp(QtWidgets.QMainWindow):
                     self.message_buffer.append((
                         message,
                         datetime.now() + timedelta(seconds=MESSAGE_TYPE_PRIORITY.get(message_type, float('inf')))
-                    ))                
-         
+                    ))                         
 
         elif isinstance(message, str):         
             self.set_notice_to_focus_value_label(message)
@@ -1301,6 +1301,11 @@ class MainApp(QtWidgets.QMainWindow):
             
                 if play_sound:
                     self.play_sound(message_type)
+
+                if message_type == 'wanted_callsign_being_called':
+                    self.targeted_call = selected_message.get('callsign')
+                elif message_type == 'ready_to_log':
+                    self.targeted_call = None    
 
             self.set_message_to_focus_value_label(selected_message)                
 
@@ -1647,7 +1652,11 @@ class MainApp(QtWidgets.QMainWindow):
         if self.mode is not None:
             current_mode = f"{self.mode}"
 
-        status_text_array.append(f"DecodePacket #{self.output_model.rowCount()} {self.get_size_of_output_model()}")
+        decoded_packet_text = f"DecodePacket #{self.output_model.rowCount()} {self.get_size_of_output_model()}"
+        if self.targeted_call:
+            decoded_packet_text += f" ~ Focus on <u>{self.targeted_call}</u>"
+ 
+        status_text_array.append(decoded_packet_text)
 
         HEARTBEAT_TIMEOUT_THRESHOLD     = 30  # secondes
         DECODE_PACKET_TIMEOUT_THRESHOLD = 60  # secondes
