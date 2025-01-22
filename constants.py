@@ -121,6 +121,7 @@ MESSAGE_TYPE_PRIORITY           = {
                                     'directed_to_my_call'           : 4,                                    
                                     'wanted_callsign_detected'      : 3,
                                     'monitored_callsign_detected'   : 2,
+                                    'lost_focus_on_targeted_call'   : 1,
                                 }
 
 SETTING_QSS                     = f"""

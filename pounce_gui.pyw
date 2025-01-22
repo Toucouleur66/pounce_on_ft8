@@ -237,7 +237,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.last_sound_played_time             = datetime.min
         self.mode                               = None
         self.my_call                            = None
-        self.targeted_call                      = None
+        self.last_targeted_call                 = None
         self.my_wsjtx_id                        = None
         self.transmitting                       = False
         self.band                               = None
@@ -251,6 +251,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.menu_bar                           = self.menuBar() 
 
         self.wanted_callsign_detected_sound     = QSoundEffect()
+        self.wanted_callsign_being_called_sound = QSoundEffect()
         self.directed_to_my_call_sound          = QSoundEffect()
         self.ready_to_log_sound                 = QSoundEffect()
         self.error_occurred_sound               = QSoundEffect()
@@ -259,8 +260,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.enabled_global_sound               = QSoundEffect()
 
         self.wanted_callsign_detected_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/495650__matrixxx__supershort-ping-or-short-notification.wav"))
-
-        #self.wanted_callsign_detected_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/716444__scottyd0es__tone12_alert_5.wav"))
+        self.wanted_callsign_being_called_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/716444__scottyd0es__tone12_alert_5.wav"))
         self.directed_to_my_call_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/716445__scottyd0es__tone12_error.wav"))
         self.ready_to_log_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/709072__scottyd0es__aeroce-dualtone-5.wav"))
         self.error_occurred_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/142608__autistic-lucario__error.wav"))
@@ -1093,6 +1093,7 @@ class MainApp(QtWidgets.QMainWindow):
         if self._running:
             # Make sure to reset last_sound_played_time if we switch band
             self.last_sound_played_time = datetime.min
+            self.last_targeted_call = None
             self.hide_focus_value_label(visible=False)
             self.gui_selected_band = self.operating_band
             self.tab_widget.set_operating_tab(self.operating_band)
@@ -1282,7 +1283,7 @@ class MainApp(QtWidgets.QMainWindow):
             if self.global_sound_toggle.isChecked():      
                 if message_type == 'wanted_callsign_detected' and self.enable_sound_wanted_callsigns:
                     play_sound = True
-                elif message_type == 'wanted_callsign_being_called' and self.enable_sound_directed_my_callsign:
+                elif message_type == 'wanted_callsign_being_called' and self.enable_sound_wanted_callsigns:
                     play_sound = True                    
                 elif message_type == 'directed_to_my_call' and self.enable_sound_directed_my_callsign:
                     play_sound = True
@@ -1303,9 +1304,12 @@ class MainApp(QtWidgets.QMainWindow):
                     self.play_sound(message_type)
 
                 if message_type == 'wanted_callsign_being_called':
-                    self.targeted_call = selected_message.get('callsign')
-                elif message_type == 'ready_to_log':
-                    self.targeted_call = None    
+                    self.last_targeted_call = selected_message.get('callsign')
+                elif (
+                    message_type == 'ready_to_log' or 
+                    message_type == 'lost_focus_on_targeted_callsign'
+                ):
+                    self.last_targeted_call = None    
 
             self.set_message_to_focus_value_label(selected_message)                
 
@@ -1587,7 +1591,7 @@ class MainApp(QtWidgets.QMainWindow):
             if sound_name == 'wanted_callsign_detected':
                 self.wanted_callsign_detected_sound.play()
             if sound_name == 'wanted_callsign_being_called':
-                self.wanted_callsign_detected_sound.play()                
+                self.wanted_callsign_being_called_sound.play()                
             elif sound_name == 'directed_to_my_call':
                 self.directed_to_my_call_sound.play()
             elif sound_name == 'monitored_callsign_detected':
@@ -1653,8 +1657,8 @@ class MainApp(QtWidgets.QMainWindow):
             current_mode = f"{self.mode}"
 
         decoded_packet_text = f"DecodePacket #{self.output_model.rowCount()} {self.get_size_of_output_model()}"
-        if self.targeted_call:
-            decoded_packet_text += f" ~ Focus on <u>{self.targeted_call}</u>"
+        if self.last_targeted_call:
+            decoded_packet_text += f" ~ Focus on <u>{self.last_targeted_call}</u>"
  
         status_text_array.append(decoded_packet_text)
 
@@ -2097,6 +2101,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.clear_filters()
         self.filter_proxy_model.clearTableView()
         self.wait_pounce_history_table.scrollToBottom()  
+        self.output_table.scrollToBottom() 
 
     def clear_filters(self):
         self.filter_proxy_model.hideErasedData()

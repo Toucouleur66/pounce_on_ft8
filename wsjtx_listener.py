@@ -531,7 +531,7 @@ class Listener:
                     log.warning(f"Waiting for [ {self.targeted_call} ] but we are about to switch on [ {callsign} ]")
                     self.reset_ongoing_contact()
                 
-                if len(self.reply_attempts[self.targeted_call]) > self.max_reply_attemps_to_wanted:
+                if len(self.reply_attempts[self.targeted_call]) >= self.max_reply_attemps_to_wanted:
                     log.warning(f"{len(self.reply_attempts[self.targeted_call])} attempts for [ {self.targeted_call} ] but we are about to switch on [ {callsign} ]")
                     self.reset_ongoing_contact()
 
@@ -618,7 +618,14 @@ class Listener:
                     self.message_callback(debug_message)
 
             elif monitored or monitored_cq_zone:
-                message_type = 'monitored_callsign_detected'                    
+                message_type = 'monitored_callsign_detected'   
+            elif self.targeted_call is not None:
+                if (
+                    self.qso_time_on.get(self.targeted_call) and
+                    (time_now - self.qso_time_on.get(self.targeted_call)).total_seconds() >= 120            
+                ):
+                    message_type = 'lost_focus_on_targeted_callsign'
+                    log.warning(f"Lost focus for callsign [ {self.targeted_call} ]")          
             
             """
                 Handle message to send to GUI
@@ -703,8 +710,8 @@ class Listener:
         callsign        = self.call_ready_to_log
         grid            = self.grid_being_called.get(self.call_ready_to_log) or ''
         mode            = self.mode
-        rst_sent        = self.get_clean_rst(self.rst_sent[self.call_ready_to_log])
-        rst_rcvd        = self.get_clean_rst(self.rst_rcvd_from_being_called[self.call_ready_to_log])
+        rst_sent        = self.get_clean_rst(self.rst_sent[self.call_ready_to_log]) or ''
+        rst_rcvd        = self.get_clean_rst(self.rst_rcvd_from_being_called[self.call_ready_to_log]) or ''
         freq_rx         = f"{round((self.frequency + self.rx_df) / 1_000_000, 6):.6f}"
         freq            = f"{round((self.frequency + self.tx_df) / 1_000_000, 6):.6f}"
         band            = get_amateur_band(self.frequency)
