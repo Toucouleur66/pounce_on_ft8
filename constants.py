@@ -116,7 +116,8 @@ DEFAULT_SELECTED_BAND           = "6m"
 DEFAULT_FILTER_VALUE            = "All"
 
 MESSAGE_TYPE_PRIORITY           = {
-                                    'ready_to_log'                  : 5,
+                                    'ready_to_log'                  : 6,
+                                    'wanted_callsign_being_called'  : 5,
                                     'directed_to_my_call'           : 4,                                    
                                     'wanted_callsign_detected'      : 3,
                                     'monitored_callsign_detected'   : 2,

@@ -590,8 +590,7 @@ class Listener:
                 if self.enable_gap_finder:
                     self.targeted_call_frequencies.add(delta_f)     
 
-                if self.rst_rcvd_from_being_called.get(callsign) is None:
-                    message_type = 'wanted_callsign_detected'            
+                if self.rst_rcvd_from_being_called.get(callsign) is None:                                
                     """
                         Do not reply if wanted callsign already gave us a report
                         neither we should reply to wanted callsign if we just logged a QSO
@@ -603,7 +602,10 @@ class Listener:
                             self.targeted_call == callsign
                         )
                     ):   
-                        self.reply_to_callsign(callsign, time_str)                          
+                        self.reply_to_callsign(callsign, time_str)     
+                        message_type = 'wanted_callsign_being_called'
+                    else:
+                        message_type = 'wanted_callsign_detected'                     
 
                 if cqing is True:
                     debug_message = "Found CQ message from callsign [ {} ]".format(callsign)

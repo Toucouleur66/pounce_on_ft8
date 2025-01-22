@@ -1282,6 +1282,8 @@ class MainApp(QtWidgets.QMainWindow):
             if self.global_sound_toggle.isChecked():      
                 if message_type == 'wanted_callsign_detected' and self.enable_sound_wanted_callsigns:
                     play_sound = True
+                elif message_type == 'wanted_callsign_being_called' and self.enable_sound_directed_my_callsign:
+                    play_sound = True                    
                 elif message_type == 'directed_to_my_call' and self.enable_sound_directed_my_callsign:
                     play_sound = True
                 elif message_type == 'ready_to_log' and self.enable_sound_directed_my_callsign:
@@ -1579,6 +1581,8 @@ class MainApp(QtWidgets.QMainWindow):
         try:           
             if sound_name == 'wanted_callsign_detected':
                 self.wanted_callsign_detected_sound.play()
+            if sound_name == 'wanted_callsign_being_called':
+                self.wanted_callsign_detected_sound.play()                
             elif sound_name == 'directed_to_my_call':
                 self.directed_to_my_call_sound.play()
             elif sound_name == 'monitored_callsign_detected':
@@ -2396,7 +2400,7 @@ class MainApp(QtWidgets.QMainWindow):
         thanks_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(thanks_label)
 
-        thanks_names = QtWidgets.QLabel("Rick, DU6/PE1NSQ, Vincent F4BKV, Juan TG9AJR")
+        thanks_names = QtWidgets.QLabel("Rick, DU6/PE1NSQ, Vincent F4BKV, Juan TG9AJR, Neil G0JHC")
         thanks_names.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(thanks_names)
 
