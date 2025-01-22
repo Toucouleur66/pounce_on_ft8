@@ -72,6 +72,7 @@ class Listener:
         self.reply_to_packet_time       = None
         
         self.call_ready_to_log          = None
+        self.last_logged_call           = None
         self.targeted_call              = None
         self.targeted_call_frequencies  = set()
         self.targeted_call_period       = None
@@ -359,7 +360,7 @@ class Listener:
     def reset_ongoing_contact(self):
         self.grid_being_called          .pop(self.targeted_call, None)
         self.qso_time_on                .pop(self.targeted_call, None)
-        self.qso_time_off               .pop(self.targeted_call, None)
+        # self.qso_time_off             .pop(self.targeted_call, None)
         self.rst_rcvd_from_being_called .pop(self.targeted_call, None)
         self.rst_sent                   .pop(self.targeted_call, None)
 
@@ -454,7 +455,7 @@ class Listener:
             packet_id                    = self.packet_counter
             self.packet_store[packet_id] = self.the_packet
 
-            max_packets = 1_000
+            max_packets                  = 1_000
             if len(self.packet_store) > max_packets:
                 oldest_packet_id = min(self.packet_store.keys())
                 del self.packet_store[oldest_packet_id]
@@ -469,6 +470,7 @@ class Listener:
 
             time_str        = decode_time.strftime('%H%M%S')
             time_now        = datetime.now(timezone.utc).replace(tzinfo=None)
+            
 
             formatted_message = f"{time_str} {snr:+d} {delta_t:+.1f} {delta_f} ~ {message}"
 
@@ -547,7 +549,9 @@ class Listener:
                     self.call_ready_to_log = callsign 
                     log.warning("Found message to log [ {} ]".format(self.call_ready_to_log))
                     self.qso_time_off[self.call_ready_to_log] = decode_time
-                    self.log_qso_to_adif()
+                    # Keep this callsign to ensure we are not breaking auto-sequence 
+                    self.last_logged_call = callsign
+                    self.qso_time_off[self.call_ready_to_log] = decode_time
                     if self.enable_secondary_udp_server:
                         self.log_qso_to_udp()
                     self.reset_ongoing_contact()
@@ -588,11 +592,15 @@ class Listener:
 
                 if self.rst_rcvd_from_being_called.get(callsign) is None:
                     message_type = 'wanted_callsign_detected'            
-                    # Do not reply if wanted callsign already gave us a report
+                    """
+                        Do not reply if wanted callsign already gave us a report
+                        neither we should reply to wanted callsign if we just logged a QSO
+                    """
                     if (
-                        self.enable_sending_reply and (
-                        self.targeted_call is None or 
-                        self.targeted_call == callsign
+                        self.enable_sending_reply and 
+                        self.qso_time_off.get(self.last_logged_call) != decode_time and (
+                            self.targeted_call is None or 
+                            self.targeted_call == callsign
                         )
                     ):   
                         self.reply_to_callsign(callsign, time_str)                          
@@ -691,7 +699,7 @@ class Listener:
 
     def log_qso_to_adif(self):
         callsign        = self.call_ready_to_log
-        grid            = self.grid_being_called[self.call_ready_to_log]
+        grid            = self.grid_being_called.get(self.call_ready_to_log) or ''
         mode            = self.mode
         rst_sent        = self.get_clean_rst(self.rst_sent[self.call_ready_to_log])
         rst_rcvd        = self.get_clean_rst(self.rst_rcvd_from_being_called[self.call_ready_to_log])
