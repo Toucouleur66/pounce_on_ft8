@@ -7,7 +7,7 @@ import platform
 from datetime import datetime
 from utils import get_app_data_dir
 
-CURRENT_VERSION_NUMBER          = "2.6.4"
+CURRENT_VERSION_NUMBER          = "2.6.5"
 EXPIRATION_DATE                 = datetime(2025, 4, 15)
 UPDATE_JSON_INFO_URL            = "https://storage.de.cloud.ovh.net/v1/AUTH_31163bb499dc49eb819aacdfd32ae82c/wait.and.pounce/public/update_info.json"
 

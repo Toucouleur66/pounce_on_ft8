@@ -177,8 +177,13 @@ def get_amateur_band(frequency):
     return 'Invalid'   
 
 def display_frequency(frequency):
-    if frequency:
-        return f"{frequency / 1_000_000:,.3f}".rstrip('0').rstrip('.')
+    if not frequency:
+        return ''
+    
+    integer, decimal = f"{(frequency / 1_000_000):,.5f}".replace('.', ',').split(',')
+
+    decimal = decimal[:3] + decimal[3:].rstrip('0')
+    return f"{integer},{decimal}"
 
 def force_input(widget, mode="uppercase"):
     try:
