@@ -588,7 +588,12 @@ class Listener:
                 if self.rst_rcvd_from_being_called.get(callsign) is None:
                     message_type = 'wanted_callsign_detected'            
                     # Do not reply if wanted callsign already gave us a report
-                    if self.enable_sending_reply:   
+                    if (
+                        self.enable_sending_reply and (
+                        self.targeted_call is None or 
+                        self.targeted_call == callsign
+                        )
+                    ):   
                         self.reply_to_callsign(callsign, time_str)                          
 
                 if cqing is True:
