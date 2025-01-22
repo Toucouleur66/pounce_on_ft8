@@ -22,6 +22,7 @@ log     = get_logger(__name__)
 lookup  = CallsignLookup()
 
 from constants import (
+    CURRENT_VERSION_NUMBER,
     EVEN,
     ODD,
     MODE_FOX_HOUND,
@@ -176,7 +177,7 @@ class Listener:
         self.monitored_callsigns    = self.monitoring_settings.get_monitored_callsigns()
         self.monitored_cq_zones     = self.monitoring_settings.get_monitored_cq_zones()
 
-        log.warning(f"Updated settings:\n\tWanted={self.wanted_callsigns}\n\tExcluded={self.excluded_callsigns}\n\tMonitored={self.monitored_callsigns}\n\tZones={self.monitored_cq_zones}")
+        log.warning(f"Updated settings (~{CURRENT_VERSION_NUMBER}):\n\tWanted={self.wanted_callsigns}\n\tExcluded={self.excluded_callsigns}\n\tMonitored={self.monitored_callsigns}\n\tZones={self.monitored_cq_zones}")
         
     def stop(self):
         self._running = False
@@ -523,7 +524,7 @@ class Listener:
             ):
                 if (
                     self.qso_time_on.get(self.targeted_call) and
-                    (time_now - self.qso_time_on.get(self.targeted_call)).total_seconds() > 120                
+                    (time_now - self.qso_time_on.get(self.targeted_call)).total_seconds() >= 120            
                 ):
                     log.warning(f"Waiting for [ {self.targeted_call} ] but we are about to switch on [ {callsign} ]")
                     self.reset_ongoing_contact()

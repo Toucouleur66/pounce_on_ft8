@@ -2,7 +2,12 @@
 
 import logging
 import sys
+
 from colorama import init, Back, Fore, Style
+
+from constants import (
+    GUI_LABEL_VERSION
+)
 
 # Init colorama for Windows
 init()
@@ -41,6 +46,7 @@ def configure_root_logger():
     console_formatter = ColoredFormatter(LOG_FORMAT, datefmt=date_format)
     console_handler.setFormatter(console_formatter)
     root_logger.addHandler(console_handler)
+    root_logger.warning(GUI_LABEL_VERSION)
 
 def add_file_handler(filename):
     root_logger = logging.getLogger()
