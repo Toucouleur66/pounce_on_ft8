@@ -1605,9 +1605,9 @@ class MainApp(QtWidgets.QMainWindow):
             elif sound_name == 'enable_global_sound':
                 self.enabled_global_sound.play()               
             else:
-                print(f"Unknown sound: {sound_name}")            
+                log.error(f"Unknown sound: [{sound_name}]")            
         except Exception as e:
-            print(f"Failed to play alert sound: {e}")            
+            log.error(f"Failed to play alert sound: {e}")            
 
     def get_size_of_output_model(self):
         output_model_size_bytes = self.output_model._current_size_bytes
@@ -1689,7 +1689,7 @@ class MainApp(QtWidgets.QMainWindow):
                 status_text_array.append(f"Last DecodePacket {status_mode_frequency}: {time_since_last_decode_text} ago")  
 
                 if not self.process_timer.isActive():
-                    self.process_timer.start(100) 
+                    self.process_timer.start(300) 
 
             # Update new interval if necessary
             if network_check_status_interval != self.network_check_status_interval:

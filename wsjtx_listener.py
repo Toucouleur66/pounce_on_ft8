@@ -581,9 +581,10 @@ class Listener:
                     # We can't use self.the_packet.mode as it returns "~"
                     # self.mode             = self.the_packet.mode
                     if self.enable_sending_reply:  
-                        self.reply_to_callsign(callsign, time_str) 
-
-                message_type = 'directed_to_my_call'    
+                        self.reply_to_callsign(callsign) 
+                        message_type = 'wanted_callsign_being_called'
+                    else:
+                        message_type = 'directed_to_my_call'    
 
             elif wanted is True:
                 log.debug("Listener wanted_callsign {}".format(callsign))  
@@ -602,7 +603,7 @@ class Listener:
                             self.targeted_call == callsign
                         )
                     ):   
-                        self.reply_to_callsign(callsign, time_str)     
+                        self.reply_to_callsign(callsign)     
                         message_type = 'wanted_callsign_being_called'
                     else:
                         message_type = 'wanted_callsign_detected'                     
@@ -621,15 +622,16 @@ class Listener:
                 message_type = 'monitored_callsign_detected'   
             elif self.targeted_call is not None:
                 if (
-                    self.qso_time_on.get(self.targeted_call) and
-                    (time_now - self.qso_time_on.get(self.targeted_call)).total_seconds() >= 120            
+                    self.reply_attempts.get(self.targeted_call) and
+                    (decode_time - self.reply_attempts[self.targeted_call][-1]).total_seconds() >= 120            
                 ):
                     message_type = 'lost_targeted_callsign'
-                    log.warning(f"Lost focus for callsign [ {self.targeted_call} ]")          
+                    log.warning(f"Lost focus for callsign [ {self.targeted_call} ]")        
+                    self.targeted_call = None  
             
             """
                 Handle message to send to GUI
-            """                         
+            """                      
             if self.message_callback:
                 self.message_callback({           
                 'wsjtx_id'          : self.the_packet.wsjtx_id,
@@ -658,15 +660,15 @@ class Listener:
             log.error("Caught an error parsing packet: {}; error {}\n{}".format(
                 self.the_packet.message, e, traceback.format_exc()))   
             
-    def reply_to_callsign(self, callsign, time_str):
+    def reply_to_callsign(self, callsign):
         if self.targeted_call is None:
             self.targeted_call = callsign
 
         if self.targeted_call not in self.reply_attempts:
             self.reply_attempts[self.targeted_call] = []
 
-        if time_str not in self.reply_attempts[self.targeted_call]:
-            self.reply_attempts[self.targeted_call].append(time_str)
+        if self.the_packet.time not in self.reply_attempts[self.targeted_call]:
+            self.reply_attempts[self.targeted_call].append(self.the_packet.time)
             count_attempts = len(self.reply_attempts[self.targeted_call])
             if count_attempts >= (self.max_reply_attemps_to_wanted - 1):
                 log.error(f"{count_attempts} attempts for [ {self.targeted_call} ]") 
@@ -720,7 +722,6 @@ class Listener:
         qso_time_on     = self.qso_time_on[self.call_ready_to_log].strftime('%H%M%S')
         qso_time_off    = self.qso_time_off[self.call_ready_to_log].strftime('%H%M%S')
 
-        # Création de l'entrée ADIF avec une ligne par élément
         adif_entry = " ".join([
             f"<call:{len(callsign)}>{callsign}",
             f"<gridsquare:{len(grid)}>{grid}",
