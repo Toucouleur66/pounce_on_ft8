@@ -24,11 +24,10 @@ from constants import (
     EXPIRATION_DATE,
     CURRENT_VERSION_NUMBER,
     UPDATE_JSON_INFO_URL,
-    GUI_LABEL_NAME,
     GUI_LABEL_VERSION,
     README_URL,
-    CUSTOM_FONT_MONO,
     CUSTOM_FONT,
+    CUSTOM_FONT_README
 )
 
 class Updater:
@@ -67,7 +66,7 @@ class Updater:
         dialog.setWindowTitle(f"Latest known version: {self.latest_version}")
 
         dialog.setModal(True)
-        dialog.resize(600, 400)
+        dialog.resize(750, 400)
 
         layout = QtWidgets.QVBoxLayout(dialog)
 
@@ -78,7 +77,7 @@ class Updater:
         readme_layout = QtWidgets.QVBoxLayout(readme_widget)
 
         readme_label = QtWidgets.QLabel(readme_content)
-        readme_label.setFont(CUSTOM_FONT_MONO)
+        readme_label.setFont(CUSTOM_FONT_README)
         readme_label.setTextFormat(QtCore.Qt.TextFormat.PlainText)
         readme_label.setWordWrap(True)
 
