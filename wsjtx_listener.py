@@ -624,7 +624,7 @@ class Listener:
                     self.qso_time_on.get(self.targeted_call) and
                     (time_now - self.qso_time_on.get(self.targeted_call)).total_seconds() >= 120            
                 ):
-                    message_type = 'lost_focus_on_targeted_callsign'
+                    message_type = 'lost_targeted_callsign'
                     log.warning(f"Lost focus for callsign [ {self.targeted_call} ]")          
             
             """

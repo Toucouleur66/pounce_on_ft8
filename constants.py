@@ -7,7 +7,7 @@ import platform
 from datetime import datetime
 from utils import get_app_data_dir
 
-CURRENT_VERSION_NUMBER          = "2.6.5"
+CURRENT_VERSION_NUMBER          = "2.6.5.1"
 EXPIRATION_DATE                 = datetime(2025, 4, 15)
 UPDATE_JSON_INFO_URL            = "https://storage.de.cloud.ovh.net/v1/AUTH_31163bb499dc49eb819aacdfd32ae82c/wait.and.pounce/public/update_info.json"
 
@@ -116,12 +116,12 @@ DEFAULT_SELECTED_BAND           = "6m"
 DEFAULT_FILTER_VALUE            = "All"
 
 MESSAGE_TYPE_PRIORITY           = {
-                                    'ready_to_log'                  : 6,
-                                    'wanted_callsign_being_called'  : 5,
-                                    'directed_to_my_call'           : 4,                                    
-                                    'wanted_callsign_detected'      : 3,
-                                    'monitored_callsign_detected'   : 2,
-                                    'lost_focus_on_targeted_call'   : 1,
+                                    'ready_to_log'                    : 6,
+                                    'wanted_callsign_being_called'    : 5,
+                                    'directed_to_my_call'             : 4,                                    
+                                    'wanted_callsign_detected'        : 3,
+                                    'monitored_callsign_detected'     : 2,
+                                    'lost_targeted_callsign'          : 1,
                                 }
 
 SETTING_QSS                     = f"""

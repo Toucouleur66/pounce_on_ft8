@@ -1307,7 +1307,7 @@ class MainApp(QtWidgets.QMainWindow):
                     self.last_targeted_call = selected_message.get('callsign')
                 elif (
                     message_type == 'ready_to_log' or 
-                    message_type == 'lost_focus_on_targeted_callsign'
+                    message_type == 'lost_targeted_callsign'
                 ):
                     self.last_targeted_call = None    
 
