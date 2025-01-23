@@ -110,6 +110,7 @@ DEFAULT_LOG_PACKET_DATA         = False
 DEFAULT_SHOW_ALL_DECODED        = False
 DEFAULT_LOG_ALL_VALID_CONTACT   = True
 DEFAULT_DELAY_BETWEEN_SOUND     = 120
+DEFAULT_MAX_WAITING_DELAY       = 2 # minutes
 DEFAULT_REPLY_ATTEMPTS          = 10
 
 DEFAULT_SELECTED_BAND           = "6m"
@@ -184,7 +185,7 @@ if platform.system() == 'Windows':
     CUSTOM_FONT_MONO_LG         = QtGui.QFont("Consolas", 18)
     CUSTOM_FONT_BOLD            = QtGui.QFont("Consolas", 13, QtGui.QFont.Weight.Bold)
 
-    CUSTOM_FONT_README          = QtGui.QFont("Menlo", 12)
+    CUSTOM_FONT_README          = QtGui.QFont("Consolas", 12)
 
     MENU_FONT                   = QtGui.QFont("Segoe UI")
 elif platform.system() == 'Darwin':

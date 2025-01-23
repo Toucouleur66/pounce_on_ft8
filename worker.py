@@ -25,7 +25,8 @@ class Worker(QObject):
             secondary_udp_server_port,
             enable_secondary_udp_server,
             enable_sending_reply,
-            max_reply_attemps_to_wanted,
+            max_reply_attemps_to_callsign,
+            max_working_delay,
             enable_log_all_valid_contact,
             enable_gap_finder,
             enable_watchdog_bypass,
@@ -53,7 +54,8 @@ class Worker(QObject):
 
         self.enable_secondary_udp_server        = enable_secondary_udp_server                            
         self.enable_sending_reply               = enable_sending_reply
-        self.max_reply_attemps_to_wanted        = max_reply_attemps_to_wanted
+        self.max_reply_attemps_to_callsign      = max_reply_attemps_to_callsign
+        self.max_working_delay                  = max_working_delay
         self.enable_log_all_valid_contact       = enable_log_all_valid_contact
         self.enable_gap_finder                   = enable_gap_finder
         self.enable_watchdog_bypass             = enable_watchdog_bypass
@@ -72,7 +74,8 @@ class Worker(QObject):
                 secondary_udp_server_port       = self.secondary_udp_server_port,
                 enable_secondary_udp_server     = self.enable_secondary_udp_server,
                 enable_sending_reply            = self.enable_sending_reply,
-                max_reply_attemps_to_wanted     = self.max_reply_attemps_to_wanted,
+                max_reply_attemps_to_callsign   = self.max_reply_attemps_to_callsign,
+                max_working_delay               = self.max_working_delay,
                 enable_log_all_valid_contact    = self.enable_log_all_valid_contact,
                 enable_gap_finder                = self.enable_gap_finder,
                 enable_watchdog_bypass          = self.enable_watchdog_bypass,

@@ -45,7 +45,8 @@ class Listener:
             secondary_udp_server_port,
             enable_secondary_udp_server,
             enable_sending_reply,
-            max_reply_attemps_to_wanted,
+            max_reply_attemps_to_callsign,
+            max_working_delay,
             enable_log_all_valid_contact,
             enable_gap_finder,
             enable_watchdog_bypass,
@@ -109,7 +110,9 @@ class Listener:
         self.enable_pounce_log              = enable_pounce_log 
         self.enable_log_packet_data         = enable_log_packet_data
 
-        self.max_reply_attemps_to_wanted      = max_reply_attemps_to_wanted
+        self.max_reply_attemps_to_callsign  = max_reply_attemps_to_callsign
+        # Convert minutes to seconds from max_working_delay
+        self.max_working_delay_seconds      = max_working_delay * 60
         self.worked_before_preference       = worked_before_preference        
 
         self.monitoring_settings            = monitoring_settings
@@ -526,12 +529,12 @@ class Listener:
             ):
                 if (
                     self.qso_time_on.get(self.targeted_call) and
-                    (time_now - self.qso_time_on.get(self.targeted_call)).total_seconds() >= 120            
+                    (time_now - self.qso_time_on.get(self.targeted_call)).total_seconds() >= self.max_working_delay_seconds            
                 ):
                     log.warning(f"Waiting for [ {self.targeted_call} ] but we are about to switch on [ {callsign} ]")
                     self.reset_ongoing_contact()
                 
-                if len(self.reply_attempts[self.targeted_call]) >= self.max_reply_attemps_to_wanted:
+                if len(self.reply_attempts[self.targeted_call]) >= self.max_reply_attemps_to_callsign:
                     log.warning(f"{len(self.reply_attempts[self.targeted_call])} attempts for [ {self.targeted_call} ] but we are about to switch on [ {callsign} ]")
                     self.reset_ongoing_contact()
 
@@ -549,6 +552,7 @@ class Listener:
                     self.call_ready_to_log = callsign 
                     log.warning("Found message to log [ {} ]".format(self.call_ready_to_log))
                     self.qso_time_off[self.call_ready_to_log] = decode_time
+                    self.log_qso_to_adif()
                     # Keep this callsign to ensure we are not breaking auto-sequence 
                     self.last_logged_call = callsign
                     self.qso_time_off[self.call_ready_to_log] = decode_time
@@ -623,7 +627,7 @@ class Listener:
             elif self.targeted_call is not None:
                 if (
                     self.reply_attempts.get(self.targeted_call) and
-                    (decode_time - self.reply_attempts[self.targeted_call][-1]).total_seconds() >= 120            
+                    (decode_time - self.reply_attempts[self.targeted_call][-1]).total_seconds() >= self.max_working_delay_seconds            
                 ):
                     message_type = 'lost_targeted_callsign'
                     log.warning(f"Lost focus for callsign [ {self.targeted_call} ]")        
@@ -670,7 +674,7 @@ class Listener:
         if self.the_packet.time not in self.reply_attempts[self.targeted_call]:
             self.reply_attempts[self.targeted_call].append(self.the_packet.time)
             count_attempts = len(self.reply_attempts[self.targeted_call])
-            if count_attempts >= (self.max_reply_attemps_to_wanted - 1):
+            if count_attempts >= (self.max_reply_attemps_to_callsign - 1):
                 log.error(f"{count_attempts} attempts for [ {self.targeted_call} ]") 
 
         self.reply_to_packet()               

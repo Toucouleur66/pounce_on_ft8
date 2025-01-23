@@ -43,6 +43,7 @@ from constants import (
     DEFAULT_LOG_PACKET_DATA,
     DEFAULT_REPLY_ATTEMPTS,
     DEFAULT_DELAY_BETWEEN_SOUND,
+    DEFAULT_MAX_WAITING_DELAY,
     # Fonts
     CUSTOM_FONT_SMALL,
     SETTING_QSS,
@@ -128,7 +129,7 @@ class SettingsDialog(QtWidgets.QDialog):
 
         secondary_group.setLayout(secondary_layout)
 
-        udp_settings_group = QtWidgets.QGroupBox(f"{GUI_LABEL_NAME} Main settings")
+        udp_settings_group = QtWidgets.QGroupBox(f"{GUI_LABEL_NAME} Main Settings")
         
         udp_settings_widget = QtWidgets.QWidget()
         udp_settings_widget.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_PURPLE}; color: {FG_COLOR_BLACK_ON_PURPLE}; ")
@@ -151,8 +152,12 @@ class SettingsDialog(QtWidgets.QDialog):
         udp_settings_layout.addWidget(self.enable_watchdog_bypass, 2, 0, 1, 2)
         udp_settings_layout.addWidget(self.enable_log_all_valid_contact, 3, 0, 1, 2)
 
-        self.max_reply_group = QtWidgets.QGroupBox("Maximum number of reply for a Wanted callsign (if several are set)")
-        max_reply_layout = QtWidgets.QHBoxLayout()
+        self.max_reply_group = QtWidgets.QGroupBox(f"{GUI_LABEL_NAME} Additional Settings")
+
+        max_reply_layout = QtWidgets.QVBoxLayout()
+
+        max_reply_label = QtWidgets.QLabel("Maximum number of replies for a Wanted callsign:")
+        max_reply_label.setFixedWidth(400)
 
         self.max_reply_attemps_combo = QtWidgets.QComboBox()
         self.max_reply_attemps_combo.setEditable(False)  
@@ -161,14 +166,38 @@ class SettingsDialog(QtWidgets.QDialog):
         self.max_reply_attemps_combo.addItems([str(i) for i in range(4, 31)])
         self.max_reply_attemps_combo.setCurrentIndex(DEFAULT_REPLY_ATTEMPTS)
 
-        max_reply_label = QtWidgets.QLabel("Maximum number of reply:")
-        max_reply_label.setFixedWidth(200)
-        max_reply_layout.addWidget(max_reply_label)
-        max_reply_layout.addWidget(self.max_reply_attemps_combo)
+        reply_attempts_layout = QtWidgets.QHBoxLayout()
+        reply_attempts_layout.addWidget(max_reply_label)
+        reply_attempts_layout.addWidget(self.max_reply_attemps_combo)
+
+        max_reply_layout.addLayout(reply_attempts_layout)
+
+        max_waiting_delay_label = QtWidgets.QLabel("Maximum Waiting delay (minutes):")
+        max_waiting_delay_label.setFixedWidth(400)
         
+        self.max_waiting_delay_combo = QtWidgets.QComboBox()
+        self.max_waiting_delay_combo.setEditable(False)  
+        self.max_waiting_delay_combo.setMinimumWidth(100)
+
+        waiting_delay_values = list(range(1, 11, 1)) 
+        self.max_waiting_delay_combo.addItems([str(value) for value in waiting_delay_values])
+
+        default_waiting_delay = str(DEFAULT_MAX_WAITING_DELAY)
+        if default_waiting_delay in [str(v) for v in waiting_delay_values]:
+            self.max_waiting_delay_combo.setCurrentText(default_waiting_delay)
+        else:
+            self.max_waiting_delay_combo.setCurrentText(str(waiting_delay_values[0])) 
+
+        waiting_delay_layout = QtWidgets.QHBoxLayout()
+        waiting_delay_layout.addWidget(max_waiting_delay_label)
+        waiting_delay_layout.addWidget(self.max_waiting_delay_combo)
+
+        max_reply_layout.addLayout(waiting_delay_layout)
+
         max_reply_layout.addStretch()
 
         self.max_reply_group.setLayout(max_reply_layout)
+        self.max_reply_group.layout().setSpacing(0)
 
         udp_settings_group.setLayout(QtWidgets.QVBoxLayout())
         udp_settings_group.layout().setContentsMargins(0, 0, 0, 0)
@@ -638,16 +667,22 @@ class SettingsDialog(QtWidgets.QDialog):
         else:
             self.adif_action_group.setVisible(False)
 
-        max_reply_attemps = self.params.get('max_reply_attemps_to_wanted', DEFAULT_REPLY_ATTEMPTS)
-        if 4 <= max_reply_attemps <= 30:
-            index = self.max_reply_attemps_combo.findText(str(max_reply_attemps))
-            if index != -1:
-                self.max_reply_attemps_combo.setCurrentIndex(index)
-            else:
-                self.max_reply_attemps_combo.setCurrentIndex(0)  
+        max_reply_attemps = self.params.get('max_reply_attemps_to_callsign', DEFAULT_REPLY_ATTEMPTS)
+       
+        index = self.max_reply_attemps_combo.findText(str(max_reply_attemps))
+        if index != -1:
+            self.max_reply_attemps_combo.setCurrentIndex(index)
         else:
-            self.max_reply_attemps_combo.setCurrentIndex(0)
+            self.max_reply_attemps_combo.setCurrentIndex(0)  
 
+        max_waiting_delay = self.params.get('max_waiting_delay', DEFAULT_MAX_WAITING_DELAY)
+        if isinstance(max_waiting_delay, int):
+            max_waiting_delay = str(max_waiting_delay)
+        if max_waiting_delay in [self.max_waiting_delay_combo.itemText(i) for i in range(self.max_waiting_delay_combo.count())]:
+            self.max_waiting_delay_combo.setCurrentText(max_waiting_delay)
+        else:
+            self.max_waiting_delay_combo.setCurrentText(str(DEFAULT_MAX_WAITING_DELAY))    
+    
     def get_result(self):
         freq_range_mode = MODE_NORMAL 
         if self.radio_foxhound.isChecked():
@@ -664,11 +699,8 @@ class SettingsDialog(QtWidgets.QDialog):
         else:
             worked_before_preference = WKB4_REPLY_MODE_ALWAYS            
 
-        max_reply_attemps_text = self.max_reply_attemps_combo.currentText()
-        try:
-            max_reply_attemps = int(max_reply_attemps_text)
-        except ValueError:
-            max_reply_attemps = DEFAULT_REPLY_ATTEMPTS 
+        max_reply_attemps = int(self.max_reply_attemps_combo.currentText())
+        max_waiting_delay = int(self.max_waiting_delay_combo.currentText())
 
         return {
             'primary_udp_server_address'                 : self.primary_udp_server_address.text(),
@@ -677,7 +709,8 @@ class SettingsDialog(QtWidgets.QDialog):
             'secondary_udp_server_port'                  : self.secondary_udp_server_port.text(),
             'enable_secondary_udp_server'                : self.enable_secondary_udp_server.isChecked(),
             'enable_sending_reply'                       : self.enable_sending_reply.isChecked(),
-            'max_reply_attemps_to_wanted'                  : max_reply_attemps,
+            'max_reply_attemps_to_callsign'              : max_reply_attemps,
+            'max_waiting_delay'                          : max_waiting_delay,
             'enable_gap_finder'                           : self.enable_gap_finder.isChecked(),
             'enable_watchdog_bypass'                     : self.enable_watchdog_bypass.isChecked(),
             'enable_debug_output'                        : self.enable_debug_output.isChecked(),
