@@ -156,7 +156,7 @@ class SettingsDialog(QtWidgets.QDialog):
 
         max_reply_layout = QtWidgets.QVBoxLayout()
 
-        max_reply_label = QtWidgets.QLabel("Maximum number of replies for a Wanted callsign:")
+        max_reply_label = QtWidgets.QLabel("Maximum number of replies for a Wanted Callsign:")
         max_reply_label.setFixedWidth(400)
 
         self.max_reply_attemps_combo = QtWidgets.QComboBox()
@@ -172,7 +172,7 @@ class SettingsDialog(QtWidgets.QDialog):
 
         max_reply_layout.addLayout(reply_attempts_layout)
 
-        max_waiting_delay_label = QtWidgets.QLabel("Maximum Waiting delay (minutes):")
+        max_waiting_delay_label = QtWidgets.QLabel("Maximum waiting delay (minutes):")
         max_waiting_delay_label.setFixedWidth(400)
         
         self.max_waiting_delay_combo = QtWidgets.QComboBox()

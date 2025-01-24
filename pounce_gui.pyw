@@ -1739,6 +1739,11 @@ class MainApp(QtWidgets.QMainWindow):
         event.accept()
 
     def open_settings(self):
+        log.warning("Settings opened")
+
+        self.last_targeted_call = None
+        self.hide_focus_value_label(visible=False)
+        
         params = self.load_params()
 
         dialog = SettingsDialog(self, params)
