@@ -361,12 +361,13 @@ class Listener:
             })
 
     def reset_ongoing_contact(self):
+        """
         self.grid_being_called          .pop(self.targeted_call, None)
         self.qso_time_on                .pop(self.targeted_call, None)
-        # self.qso_time_off             .pop(self.targeted_call, None)
+        self.qso_time_off               .pop(self.targeted_call, None)
         self.rst_rcvd_from_being_called .pop(self.targeted_call, None)
         self.rst_sent                   .pop(self.targeted_call, None)
-
+        """
         self.targeted_call              = None
         self.targeted_call_period       = None
         self.targeted_call_frequencies  = set()
@@ -553,9 +554,6 @@ class Listener:
                     log.warning("Found message to log [ {} ]".format(self.call_ready_to_log))
                     self.qso_time_off[self.call_ready_to_log] = decode_time
                     self.log_qso_to_adif()
-                    # Keep this callsign to ensure we are not breaking auto-sequence 
-                    self.last_logged_call = callsign
-                    self.qso_time_off[self.call_ready_to_log] = decode_time
                     if self.enable_secondary_udp_server:
                         self.log_qso_to_udp()
                     self.reset_ongoing_contact()
@@ -675,7 +673,7 @@ class Listener:
             self.reply_attempts[self.targeted_call].append(self.the_packet.time)
             count_attempts = len(self.reply_attempts[self.targeted_call])
             if count_attempts >= (self.max_reply_attemps_to_callsign - 1):
-                log.error(f"{count_attempts} attempts for [ {self.targeted_call} ]") 
+                log.warning(f"{count_attempts} attempts for [ {self.targeted_call} ]") 
 
         self.reply_to_packet()               
 
@@ -713,6 +711,9 @@ class Listener:
         self.s.send_packet(self.addr_port, configure_paquet)        
 
     def log_qso_to_adif(self):
+        if self.last_logged_call == self.call_ready_to_log
+            return 
+        
         callsign        = self.call_ready_to_log
         grid            = self.grid_being_called.get(self.call_ready_to_log) or ''
         mode            = self.mode
@@ -750,16 +751,11 @@ class Listener:
         except Exception as e:
             log.error(f"Can't write ADIF file {e}")
 
+        # Keep this callsign to ensure we are not breaking auto-sequence 
+        self.last_logged_call = callsign            
+
     def log_qso_to_udp(self):
         try:
-            # Todo remove Debug
-            log.warning(f"""
-                rst_sent: {self.rst_sent[self.call_ready_to_log]}
-                rst_rcvd_from_being_called: {self.rst_rcvd_from_being_called[self.call_ready_to_log]}
-                awaited_rst_sent: {self.get_clean_rst(self.rst_sent[self.call_ready_to_log])}
-                awaited_rst_rcvd: {self.get_clean_rst(self.rst_rcvd_from_being_called[self.call_ready_to_log])}
-            """)
-
             awaited_rst_sent = self.get_clean_rst(self.rst_sent[self.call_ready_to_log])
             awaited_rst_rcvd = self.get_clean_rst(self.rst_rcvd_from_being_called[self.call_ready_to_log])
 
