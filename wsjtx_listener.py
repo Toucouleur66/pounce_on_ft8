@@ -711,7 +711,7 @@ class Listener:
         self.s.send_packet(self.addr_port, configure_paquet)        
 
     def log_qso_to_adif(self):
-        if self.last_logged_call == self.call_ready_to_log
+        if self.last_logged_call == self.call_ready_to_log:
             return 
         
         callsign        = self.call_ready_to_log
