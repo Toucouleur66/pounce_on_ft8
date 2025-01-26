@@ -1158,15 +1158,18 @@ class MainApp(QtWidgets.QMainWindow):
                         self.set_notice_to_focus_value_label(f"{band} {self.mode} {display_frequency(self.last_frequency)} {self.my_wsjtx_id or ''}")                     
                         self.tab_widget.set_selected_tab(band)   
             elif message_type == 'stop_monitoring':
+                log.warning("Received Stop monitoring request")
+                self.play_sound("error_occurred")
                 self.stop_monitoring()     
             elif message_type == 'update_status':
-                self.check_connection_status(
-                    message.get('decode_packet_count', 0),
-                    message.get('last_decode_packet_time'),
-                    message.get('last_heartbeat_time'),
-                    message.get('frequency'),
-                    message.get('transmitting')
-                )                               
+                if self._running:
+                    self.check_connection_status(
+                        message.get('decode_packet_count', 0),
+                        message.get('last_decode_packet_time'),
+                        message.get('last_heartbeat_time'),
+                        message.get('frequency'),
+                        message.get('transmitting')
+                    )                               
             elif 'decode_time_str' in message:
                 formatted_message   = message.get('formatted_message')
                 message_type        = message.get('message_type')
@@ -1508,23 +1511,25 @@ class MainApp(QtWidgets.QMainWindow):
         self.activity_bar.setValue(len(self.message_times))                                     
 
     def start_blinking_status_button(self):
+        # log.error("Start blinking status button")
         if self.is_status_button_label_blinking is False:
             self.is_status_button_label_blinking = True
             self.blink_timer.start(500)
 
     def stop_blinking_status_button(self):    
-        if self.is_status_button_label_blinking is True:
-            self.is_status_button_label_blinking = False
-            self.blink_timer.stop()
-            self.status_button.setVisibleState(True)        
+        # log.error("Stop blinking status button")
+        self.is_status_button_label_blinking = False
+        self.blink_timer.stop()
+        self.status_button.setVisibleState(True)        
 
+    @QtCore.pyqtSlot()
     def toggle_label_visibility(self):
         if self.is_status_button_label_visible:
-            self.is_status_button_label_visible = False
             self.status_button.setVisibleState(False)                    
-        else:        
-            self.is_status_button_label_visible = True
+            self.is_status_button_label_visible = False
+        else:                    
             self.status_button.setVisibleState(True)        
+            self.is_status_button_label_visible = True
 
     def update_current_callsign_highlight(self):
         if self._running:
@@ -1677,7 +1682,7 @@ class MainApp(QtWidgets.QMainWindow):
                 nothing_to_decode = True                
             else:      
                 if time_since_last_decode < 3:
-                    network_check_status_interval = 100
+                    network_check_status_interval = 500
                     time_since_last_decode_text = f"{time_since_last_decode:.1f}s" 
                     self.update_status_button(STATUS_BUTTON_LABEL_DECODING, STATUS_DECODING_COLOR)                                  
                 else:
@@ -1702,10 +1707,12 @@ class MainApp(QtWidgets.QMainWindow):
 
         if self.transmitting:
             self.update_status_button(STATUS_BUTTON_LABEL_TRX, STATUS_TRX_COLOR)
-            self.start_blinking_status_button()
+            if self.is_status_button_label_blinking is False:
+                self.start_blinking_status_button()
             network_check_status_interval = 100
         else:
-            self.stop_blinking_status_button()        
+            if self.is_status_button_label_blinking is True:
+                self.stop_blinking_status_button()        
             
         if self.last_heartbeat_time:
             time_since_last_heartbeat = (now - self.last_heartbeat_time).total_seconds()
@@ -2165,6 +2172,7 @@ class MainApp(QtWidgets.QMainWindow):
             bg_color = "black",
             fg_color = "white",
         ):
+            # log.error(f"Update status button to : [ {text} ]")
             if (
                 self.status_button.current_text     != text     or
                 self.status_button.current_bg_color != bg_color or
@@ -2595,6 +2603,31 @@ class MainApp(QtWidgets.QMainWindow):
         if self._running:
             self.stop_event.set()
 
+            self.worker             = None
+            self._running           = False
+            self.operating_band     = None
+            self.transmitting       = False
+            
+            self.stop_tray_icon()
+            self.stop_blinking_status_button()            
+
+            self.tab_widget.set_selected_tab(self.band_indices.get(self.operating_band))
+            self.tab_widget.set_operating_tab(None)
+
+            self.update_status_label_style(STATUS_COLOR_LABEL_SELECTED, "white")
+            self.update_status_button(STATUS_BUTTON_LABEL_START, STATUS_TRX_COLOR)
+
+            self.status_button.resetStyle()
+            self.status_button.setEnabled(True)
+            self.stop_button.setEnabled(False)
+
+            self.update_tab_widget_labels_style()
+            # Update Windows menu            
+            self.update_monitoring_action()   
+            self.reset_window_title()
+
+            log.warning(f"Running: {self._running}")
+
             if hasattr(self, 'thread') and self.thread is not None:
                 try:
                     if self.thread.isRunning():
@@ -2606,35 +2639,11 @@ class MainApp(QtWidgets.QMainWindow):
                 finally:
                     self.thread = None                        
 
-            self.worker             = None
-            self._running           = False
-            self.operating_band     = None
-            self.transmitting       = False
-            
-            self.stop_tray_icon()
-
-            self.update_status_button(STATUS_BUTTON_LABEL_START)
-            self.status_button.resetStyle()
-            self.status_button.setEnabled(True)
-            self.stop_button.setEnabled(False)
-
-            self.stop_blinking_status_button()
-            self.update_tab_widget_labels_style()
-            self.update_monitoring_action()
-
-            self.tab_widget.set_selected_tab(self.band_indices.get(self.operating_band))
-            self.tab_widget.set_operating_tab(None)
-
-            self.update_status_label_style(STATUS_COLOR_LABEL_SELECTED, "white")
-            
-            self.reset_window_title()
-
     def log_exception_to_file(self, filename, message):
         timestamp = datetime.now(timezone.utc).strftime("%y%m%d_%H%M%S")
         with open(filename, "a") as log_file:
             log_file.write(f"{timestamp} {message}\n")
     
-    @QtCore.pyqtSlot()
     def status_menu_agent_cleaner(self):
         if sys.platform == 'darwin':
             self.status_menu_agent.hide_status_bar()

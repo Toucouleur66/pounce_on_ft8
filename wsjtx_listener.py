@@ -332,7 +332,6 @@ class Listener:
         elif isinstance(self.the_packet, pywsjtx.ClearPacket):
             log.debug("Received ClearPacket method")
         elif isinstance(self.the_packet, pywsjtx.ClosePacket):
-            log.debug("Received ClosePacket method")
             self.send_stop_monitoring_request()
         else:
             status_update = False
@@ -353,6 +352,7 @@ class Listener:
             })
 
     def send_stop_monitoring_request(self):
+        log.debug("Received ClosePacket method")
         if self.message_callback:
             self.message_callback({
                 'type'                      : 'stop_monitoring',
@@ -630,6 +630,7 @@ class Listener:
                     message_type = 'lost_targeted_callsign'
                     log.warning(f"Lost focus for callsign [ {self.targeted_call} ]")        
                     self.targeted_call = None  
+                    self.halt_packet()
             
             """
                 Handle message to send to GUI
@@ -675,7 +676,15 @@ class Listener:
             if count_attempts >= (self.max_reply_attemps_to_callsign - 1):
                 log.warning(f"{count_attempts} attempts for [ {self.targeted_call} ]") 
 
-        self.reply_to_packet()               
+        self.reply_to_packet() 
+
+    def halt_packet(self):
+        try:
+            halt_pkt = pywsjtx.HaltTxPacket.Builder(self.the_packet)             
+            self.s.send_packet(self.addr_port, halt_pkt)         
+            log.debug(f"Sent HaltPacket: {halt_pkt}")         
+        except Exception as e:
+            log.error(f"Error sending packets: {e}\n{traceback.format_exc()}")
 
     def reply_to_packet(self):
         try:            
