@@ -6,7 +6,7 @@ import os
 import sys
 
 from PyQt6 import QtWidgets, QtCore
-from PyQt6.QtWidgets import QFileDialog
+from PyQt6.QtWidgets import QFileDialog, QTableWidgetItem
 
 from custom_button import CustomButton
 from adif_summary_dialog import AdifSummaryDialog
@@ -254,7 +254,7 @@ class SettingsDialog(QtWidgets.QDialog):
 
         self.mode_table_widget.setColumnWidth(0, 40)
         self.mode_table_widget.setColumnWidth(1, 95)
-        self.mode_table_widget.setColumnWidth(2, 95)
+        self.mode_table_widget.setColumnWidth(2, 195)
 
         self.mode_table_widget.horizontalHeader().setStretchLastSection(True)
         self.mode_table_widget.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
@@ -280,25 +280,23 @@ class SettingsDialog(QtWidgets.QDialog):
         row_height = 22
         for row, (button, label, freq_min, freq_max) in enumerate(modes):
             self.mode_table_widget.setRowHeight(row, row_height)
+
             self.mode_table_widget.setCellWidget(row, 0, button)
 
-            freq_min_widget = QtWidgets.QLabel(f"{freq_min}Hz")
-            freq_min_widget.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
-            freq_min_widget.setFont(CUSTOM_FONT_SMALL)
+            freq_min_item = QTableWidgetItem(f"{freq_min}Hz")
+            freq_min_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
+            freq_min_item.setFont(CUSTOM_FONT_SMALL)
+            self.mode_table_widget.setItem(row, 1, freq_min_item)
 
-            self.mode_table_widget.setCellWidget(row, 1, freq_min_widget)
+            freq_max_item = QTableWidgetItem(f"{freq_max}Hz")
+            freq_max_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
+            freq_max_item.setFont(CUSTOM_FONT_SMALL)
+            self.mode_table_widget.setItem(row, 2, freq_max_item)
 
-            freq_max_widget = QtWidgets.QLabel(f"{freq_max}Hz")
-            freq_max_widget.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
-            freq_max_widget.setFont(CUSTOM_FONT_SMALL)
-            
-            self.mode_table_widget.setCellWidget(row, 2, freq_max_widget)
-
-            label_widget = QtWidgets.QLabel(f"{label}")
-            label_widget.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
-            label_widget.setFont(CUSTOM_FONT_SMALL)
-
-            self.mode_table_widget.setCellWidget(row, 3, label_widget)
+            label_item = QTableWidgetItem(f"{label}")
+            label_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
+            label_item.setFont(CUSTOM_FONT_SMALL)
+            self.mode_table_widget.setItem(row, 3, label_item)
 
         total_height = row_height * len(modes) + 2
         self.mode_table_widget.setMaximumHeight(total_height + row_height + 10)
