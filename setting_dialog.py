@@ -233,7 +233,7 @@ class SettingsDialog(QtWidgets.QDialog):
         udp_freq_range_type_widget = QtWidgets.QWidget()
         udp_freq_range_type_layout = QtWidgets.QVBoxLayout(udp_freq_range_type_widget)
 
-        self.radio_normal = QtWidgets.QRadioButton()
+        self.radio_normal   = QtWidgets.QRadioButton()
         self.radio_foxhound = QtWidgets.QRadioButton()
         self.radio_superfox = QtWidgets.QRadioButton()
 
@@ -597,7 +597,7 @@ class SettingsDialog(QtWidgets.QDialog):
 
         if freq_range_mode == "Normal":
             self.radio_normal.setChecked(True)
-        elif freq_range_mode == "Fox/Hound":
+        elif freq_range_mode == "Hound":
             self.radio_foxhound.setChecked(True)
         elif freq_range_mode == "SuperFox":
             self.radio_superfox.setChecked(True)
