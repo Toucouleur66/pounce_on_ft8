@@ -69,25 +69,28 @@ class SettingsDialog(QtWidgets.QDialog):
         tab_3 = QtWidgets.QWidget()
         tab_4 = QtWidgets.QWidget()
         tab_5 = QtWidgets.QWidget()
+        tab_6 = QtWidgets.QWidget()
 
-        self.tab_widget.addTab(tab_1, "General")
-        self.tab_widget.addTab(tab_2, "Sounds")
-        self.tab_widget.addTab(tab_3, "Worked B4")
-        self.tab_widget.addTab(tab_4, "Backup")
-        self.tab_widget.addTab(tab_5, "Debugging")
+        self.tab_widget.addTab(tab_1, "Server")
+        self.tab_widget.addTab(tab_2, "General")
+        self.tab_widget.addTab(tab_3, "Sound Alerts")
+        self.tab_widget.addTab(tab_4, "Worked B4")
+        self.tab_widget.addTab(tab_5, "Backup")
+        self.tab_widget.addTab(tab_6, "Debugging")
 
         tab_1_layout = QtWidgets.QVBoxLayout(tab_1)
         tab_2_layout = QtWidgets.QVBoxLayout(tab_2)
         tab_3_layout = QtWidgets.QVBoxLayout(tab_3)
         tab_4_layout = QtWidgets.QVBoxLayout(tab_4)
         tab_5_layout = QtWidgets.QVBoxLayout(tab_5)
+        tab_6_layout = QtWidgets.QVBoxLayout(tab_6)
         
         """
-            Main Settings
+            Server Settings
         """
 
         jtdx_notice_text = (
-            "For JTDX users, you have to disable automatic logging of QSO (Make sure <u>Settings > Reporting > Logging > Enable automatic logging of QSO</u> is unchecked)<br /><br />You might also need to accept UDP Reply messages from any messages (<u>Misc Menu > Accept UDP Reply Messages > any messages</u>)."
+            "<p>For JTDX users, you have to disable automatic logging of QSO (Make sure <u>Settings > Reporting > Logging > Enable automatic logging of QSO</u> is unchecked).</p><p>You might also need to accept UDP Reply messages from any messages (<u>Misc Menu > Accept UDP Reply Messages > any messages</u>).</p>"
         )
         jtdx_notice_label = QtWidgets.QLabel(jtdx_notice_text)
         jtdx_notice_label.setWordWrap(True)
@@ -130,11 +133,20 @@ class SettingsDialog(QtWidgets.QDialog):
 
         secondary_group.setLayout(secondary_layout)
 
-        udp_settings_group = QtWidgets.QGroupBox(f"{GUI_LABEL_NAME} Main Settings")
+        tab_1_layout.addWidget(jtdx_notice_label)
+        tab_1_layout.addWidget(primary_group)
+        tab_1_layout.addWidget(secondary_group)
+        tab_1_layout.addStretch() 
+
+        """
+            Main Settings
+        """
+
+        general_settings_group = QtWidgets.QGroupBox(f"General {GUI_LABEL_NAME} Settings")
         
-        udp_settings_widget = QtWidgets.QWidget()
-        udp_settings_widget.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_PURPLE}; color: {FG_COLOR_BLACK_ON_PURPLE}; ")
-        udp_settings_layout = QtWidgets.QGridLayout(udp_settings_widget)
+        general_settings_widget = QtWidgets.QWidget()
+        general_settings_widget.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_PURPLE}; color: {FG_COLOR_BLACK_ON_PURPLE}; ")
+        general_settings_layout = QtWidgets.QGridLayout(general_settings_widget)
         
         self.enable_sending_reply = QtWidgets.QCheckBox("Enable reply")
         self.enable_sending_reply.setChecked(DEFAULT_SENDING_REPLY)
@@ -148,16 +160,26 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_log_all_valid_contact = QtWidgets.QCheckBox("Log all valid contacts (not only from Wanted)")
         self.enable_log_all_valid_contact.setChecked(True)
 
-        udp_settings_layout.addWidget(self.enable_sending_reply, 0, 0, 1, 2)
-        udp_settings_layout.addWidget(self.enable_gap_finder, 1, 0, 1, 2)
-        udp_settings_layout.addWidget(self.enable_watchdog_bypass, 2, 0, 1, 2)
-        udp_settings_layout.addWidget(self.enable_log_all_valid_contact, 3, 0, 1, 2)
+        general_settings_layout.addWidget(self.enable_sending_reply, 0, 0, 1, 2)
+        general_settings_layout.addWidget(self.enable_gap_finder, 1, 0, 1, 2)
+        general_settings_layout.addWidget(self.enable_watchdog_bypass, 2, 0, 1, 2)
+        general_settings_layout.addWidget(self.enable_log_all_valid_contact, 3, 0, 1, 2)
 
-        self.max_reply_group = QtWidgets.QGroupBox(f"{GUI_LABEL_NAME} Additional Settings")
+        max_reply_text = (
+            "<p>When several Wanted callsigns are detected during the same sequence and if program starts to reply to one specific callsign, it has a limited <u>number of attempts</u> before moving on to the next detected callsign.</p><p>The maximum <u>waiting delay</u> is used to halt TX and stop calling a station that the program has started to call but is no longer decoded. However, if another Wanted callsign is detected, this setting has no effect.</p>"
+        )
+        max_reply_notice_label = QtWidgets.QLabel(max_reply_text)
+        max_reply_notice_label.setWordWrap(True)
+        max_reply_notice_label.setFont(CUSTOM_FONT_SMALL)
+        max_reply_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
+        max_reply_notice_label.setStyleSheet(SETTING_QSS)
+        max_reply_notice_label.setAutoFillBackground(True)
+
+        self.max_reply_group = QtWidgets.QGroupBox(f"Sequencing")
 
         max_reply_layout = QtWidgets.QVBoxLayout()
 
-        max_reply_label = QtWidgets.QLabel("Maximum number of replies for a Wanted Callsign:")
+        max_reply_label = QtWidgets.QLabel("Maximum number of attempts for a Wanted Callsign")
         max_reply_label.setFixedWidth(400)
 
         self.max_reply_attemps_combo = QtWidgets.QComboBox()
@@ -170,10 +192,11 @@ class SettingsDialog(QtWidgets.QDialog):
         reply_attempts_layout = QtWidgets.QHBoxLayout()
         reply_attempts_layout.addWidget(max_reply_label)
         reply_attempts_layout.addWidget(self.max_reply_attemps_combo)
+        reply_attempts_layout.addWidget(QtWidgets.QLabel("times"))
 
         max_reply_layout.addLayout(reply_attempts_layout)
 
-        max_waiting_delay_label = QtWidgets.QLabel("Maximum waiting delay (minutes):")
+        max_waiting_delay_label = QtWidgets.QLabel("Maximum waiting delay")
         max_waiting_delay_label.setFixedWidth(400)
         
         self.max_waiting_delay_combo = QtWidgets.QComboBox()
@@ -192,19 +215,20 @@ class SettingsDialog(QtWidgets.QDialog):
         waiting_delay_layout = QtWidgets.QHBoxLayout()
         waiting_delay_layout.addWidget(max_waiting_delay_label)
         waiting_delay_layout.addWidget(self.max_waiting_delay_combo)
+        waiting_delay_layout.addWidget(QtWidgets.QLabel("minutes"))
 
         max_reply_layout.addLayout(waiting_delay_layout)
 
         max_reply_layout.addStretch()
 
         self.max_reply_group.setLayout(max_reply_layout)
-        self.max_reply_group.layout().setSpacing(0)
+        self.max_reply_group.layout().setSpacing(5)
 
-        udp_settings_group.setLayout(QtWidgets.QVBoxLayout())
-        udp_settings_group.layout().setContentsMargins(0, 0, 0, 0)
-        udp_settings_group.layout().addWidget(udp_settings_widget)
+        general_settings_group.setLayout(QtWidgets.QVBoxLayout())
+        general_settings_group.layout().setContentsMargins(0, 0, 0, 0)
+        general_settings_group.layout().addWidget(general_settings_widget)
 
-        self.udp_freq_range_type_group = QtWidgets.QGroupBox("Select range of frequency being used for offset updater")
+        self.freq_range_type_group = QtWidgets.QGroupBox("Select range of frequency being used for offset updater")
 
         udp_freq_range_type_widget = QtWidgets.QWidget()
         udp_freq_range_type_layout = QtWidgets.QVBoxLayout(udp_freq_range_type_widget)
@@ -304,24 +328,23 @@ class SettingsDialog(QtWidgets.QDialog):
 
         udp_freq_range_type_layout.addWidget(self.mode_table_widget)
 
-        self.udp_freq_range_type_group.setLayout(QtWidgets.QVBoxLayout())
-        self.udp_freq_range_type_group.layout().setContentsMargins(0, 0, 0, 0)
-        self.udp_freq_range_type_group.layout().addWidget(udp_freq_range_type_widget)
+        self.freq_range_type_group.setLayout(QtWidgets.QVBoxLayout())
+        self.freq_range_type_group.layout().setContentsMargins(0, 0, 0, 0)
+        self.freq_range_type_group.layout().addWidget(udp_freq_range_type_widget)
 
-        tab_1_layout.addWidget(jtdx_notice_label)
-        tab_1_layout.addWidget(primary_group)
-        tab_1_layout.addWidget(secondary_group)
-        tab_1_layout.addWidget(udp_settings_group)
-        tab_1_layout.addWidget(self.max_reply_group)        
-        tab_1_layout.addWidget(self.udp_freq_range_type_group)
-        tab_1_layout.addStretch() 
+        tab_2_layout.addWidget(max_reply_notice_label)
+        tab_2_layout.addWidget(self.max_reply_group)        
+        tab_2_layout.addWidget(general_settings_group)
+        tab_2_layout.addWidget(self.freq_range_type_group)
+
+        tab_2_layout.addStretch() 
 
         """
             Sound Settings
         """
 
         sound_notice_text = (
-            "You can enable or disable the sounds as per your requirement. You can even set a delay between each sound triggered by a message where a monitored callsign has been found. This mainly helps you to be notified when the band opens or when you have a callsign on the air that you want to monitor.<br /><br />Monitored callsigns will never get reply from this program. Only <u>Wanted callsigns will get a reply</u>."
+            "<p>You can enable or disable the sounds as per your requirement. You can even set a delay between each sound triggered by a message where a monitored callsign has been found. This mainly helps you to be notified when the band opens or when you have a callsign on the air that you want to monitor.</p><p>Monitored callsigns will never get reply from this program. Only <u>Wanted callsigns will get a reply</u>.</p>"
         )
 
         sound_notice_label = QtWidgets.QLabel(sound_notice_text)
@@ -329,7 +352,7 @@ class SettingsDialog(QtWidgets.QDialog):
         sound_notice_label.setWordWrap(True)
         sound_notice_label.setFont(CUSTOM_FONT_SMALL)
 
-        sound_settings_group = QtWidgets.QGroupBox("Sounds Settings")
+        sound_settings_group = QtWidgets.QGroupBox("Sound Alerts Settings")
         sound_settings_layout = QtWidgets.QGridLayout()
 
         play_sound_notice_label = QtWidgets.QLabel("Play Sounds when:")
@@ -364,16 +387,16 @@ class SettingsDialog(QtWidgets.QDialog):
         sound_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
         sound_settings_group.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
-        tab_2_layout.addWidget(sound_notice_label)
-        tab_2_layout.addWidget(sound_settings_group)
-        tab_2_layout.addStretch()  
+        tab_3_layout.addWidget(sound_notice_label)
+        tab_3_layout.addWidget(sound_settings_group)
+        tab_3_layout.addStretch()  
 
         """
             Worked B4 Settings
         """
 
         worked_b4_notice_text = (
-            f"While using {GUI_LABEL_NAME}, you can <u>set your working ADIF file from WSJT-x or JTDX</u>. {GUI_LABEL_NAME} won't update your main ADIF file. Still, it can read and parse it.<br><br>Then it will check which station was worked before (WkedB4)."
+            f"<p>While using {GUI_LABEL_NAME}, you can <u>set your working ADIF file from WSJT-x or JTDX</u>. {GUI_LABEL_NAME} won't update your main ADIF file. Still, it can read and parse it.<br><br>Then it will check which station was worked before (WkedB4).</p>"
         )
 
         worked_b4_notice_label = QtWidgets.QLabel(worked_b4_notice_text)
@@ -418,10 +441,10 @@ class SettingsDialog(QtWidgets.QDialog):
         self.adif_action_group.setLayout(adif_action_layout)
         self.adif_action_group.setVisible(False)
 
-        tab_3_layout.addWidget(worked_b4_notice_label)
-        tab_3_layout.addWidget(file_selection_group)
-        tab_3_layout.addWidget(self.adif_action_group)
-        tab_3_layout.addStretch()  
+        tab_4_layout.addWidget(worked_b4_notice_label)
+        tab_4_layout.addWidget(file_selection_group)
+        tab_4_layout.addWidget(self.adif_action_group)
+        tab_4_layout.addStretch()  
 
         """
             Backup Settings
@@ -457,9 +480,9 @@ class SettingsDialog(QtWidgets.QDialog):
         adif_backup_selection_group.layout().setContentsMargins(0, 0, 0, 0)
         adif_backup_selection_group.layout().addWidget(adif_backup_widget)
 
-        tab_4_layout.addWidget(working_log_notice_label)
-        tab_4_layout.addWidget(adif_backup_selection_group)
-        tab_4_layout.addStretch()  
+        tab_5_layout.addWidget(working_log_notice_label)
+        tab_5_layout.addWidget(adif_backup_selection_group)
+        tab_5_layout.addStretch()  
         
         """
             Debug Settings
@@ -485,8 +508,8 @@ class SettingsDialog(QtWidgets.QDialog):
 
         log_settings_group.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
-        tab_5_layout.addWidget(log_settings_group)
-        tab_5_layout.addStretch()  
+        tab_6_layout.addWidget(log_settings_group)
+        tab_6_layout.addStretch()  
 
         self.load_params()
 
@@ -501,11 +524,6 @@ class SettingsDialog(QtWidgets.QDialog):
 
         self.ok_button.clicked.connect(self.accept)
         self.cancel_button.clicked.connect(self.reject)
-        self.enable_sending_reply.stateChanged.connect(self.toggle_max_reply_group)
-        self.enable_gap_finder.stateChanged.connect(self.toggle_udp_freq_range_type_group)
-
-        self.toggle_max_reply_group()
-        self.toggle_udp_freq_range_type_group()
 
         self.on_tab_changed(self.tab_widget.currentIndex())  
         self.tab_widget.currentChanged.connect(self.on_tab_changed)        
@@ -515,22 +533,6 @@ class SettingsDialog(QtWidgets.QDialog):
         
         if isinstance(button, QtWidgets.QRadioButton):
             button.setChecked(True)        
-
-    def toggle_max_reply_group(self):
-        if self.enable_sending_reply.isChecked():
-            self.max_reply_group.show()  
-        else:
-            self.max_reply_group.hide()
-            
-        self.on_tab_changed(self.tab_widget.currentIndex())             
-
-    def toggle_udp_freq_range_type_group(self):
-        if self.enable_gap_finder.isChecked():
-            self.udp_freq_range_type_group.show()  
-        else:
-            self.udp_freq_range_type_group.hide()
-
-        self.on_tab_changed(self.tab_widget.currentIndex()) 
 
     def on_tab_changed(self, index):
         if sys.platform == 'darwin':

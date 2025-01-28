@@ -128,8 +128,8 @@ MESSAGE_TYPE_PRIORITY           = {
 SETTING_QSS                     = f"""
                 background-color: #9DFFFE; 
                 color: #555BC2;
-                padding: 5px;
-                margin-bottom: 15px;
+                padding: 6px;
+                margin-bottom: 5px;
                 font-size: 12px;
                 border-radius: 6px;
         """
