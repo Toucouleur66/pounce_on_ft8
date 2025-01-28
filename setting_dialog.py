@@ -3,6 +3,7 @@
 import platform
 import subprocess
 import os
+import sys
 
 from PyQt6 import QtWidgets, QtCore
 from PyQt6.QtWidgets import QFileDialog
@@ -532,16 +533,17 @@ class SettingsDialog(QtWidgets.QDialog):
         self.on_tab_changed(self.tab_widget.currentIndex()) 
 
     def on_tab_changed(self, index):
-        current_tab = self.tab_widget.widget(index)
-        current_tab.adjustSize()  
+        if sys.platform == 'darwin':
+            current_tab = self.tab_widget.widget(index)
+            current_tab.adjustSize()  
 
-        tab_size            = current_tab.sizeHint()
-        tab_bar_height      = self.tab_widget.tabBar().sizeHint().height()
-        button_box_height   = self.button_box.sizeHint().height()
-        margins             = self.layout().contentsMargins()
-        total_height        = tab_size.height() + tab_bar_height + button_box_height + margins.top() + margins.bottom()
+            tab_size            = current_tab.sizeHint()
+            tab_bar_height      = self.tab_widget.tabBar().sizeHint().height()
+            button_box_height   = self.button_box.sizeHint().height()
+            margins             = self.layout().contentsMargins()
+            total_height        = tab_size.height() + tab_bar_height + button_box_height + margins.top() + margins.bottom()
 
-        self.setFixedHeight(total_height)
+            self.setFixedHeight(total_height)
 
     def open_adif_file_dialog(self):
         dialog = QFileDialog(self, "Select ADIF File")
