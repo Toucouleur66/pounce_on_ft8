@@ -233,7 +233,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.decode_packet_count                = 0
         self.last_decode_packet_time            = None
         self.last_heartbeat_time                = None
-        self.last_focus_value_message_uid       = None        
+        self.last_focus_value_message_uid       = None 
+        self.last_transmit_time                 = False               
         self.last_sound_played_time             = datetime.min
         self.mode                               = None
         self.my_call                            = None
@@ -1518,9 +1519,10 @@ class MainApp(QtWidgets.QMainWindow):
 
     def stop_blinking_status_button(self):    
         # log.error("Stop blinking status button")
-        self.is_status_button_label_blinking = False
-        self.blink_timer.stop()
-        self.status_button.setVisibleState(True)        
+        if self.is_status_button_label_blinking is True:
+            self.is_status_button_label_blinking = False
+            self.blink_timer.stop()
+            self.status_button.setVisibleState(True)        
 
     @QtCore.pyqtSlot()
     def toggle_label_visibility(self):
@@ -1555,7 +1557,8 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.status_label.setStyleSheet(style)            
 
-    def set_notice_to_focus_value_label(self, notice_message, fg_color_hex=FG_COLOR_BLACK_ON_WHITE, bg_color_hex=STATUS_TRX_COLOR):                           
+    def set_notice_to_focus_value_label(self, notice_message, fg_color_hex=FG_COLOR_BLACK_ON_WHITE, bg_color_hex=STATUS_TRX_COLOR):           
+        self.message_buffer = deque()                 
         self.update_status_menu_message(notice_message, bg_color_hex, fg_color_hex)
         self.output_table.scrollToBottom()
         self.last_focus_value_message_uid = None
@@ -1705,14 +1708,14 @@ class MainApp(QtWidgets.QMainWindow):
             if self._running:
                 self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR) 
 
-        if self.transmitting:
+        if self.transmitting:            
             self.update_status_button(STATUS_BUTTON_LABEL_TRX, STATUS_TRX_COLOR)
-            if self.is_status_button_label_blinking is False:
-                self.start_blinking_status_button()
+            self.last_transmit_time = datetime.now(timezone.utc)
+            self.start_blinking_status_button()
             network_check_status_interval = 100
-        else:
-            if self.is_status_button_label_blinking is True:
-                self.stop_blinking_status_button()        
+        elif self.last_transmit_time:
+            self.last_transmit_time = None
+            self.stop_blinking_status_button()        
             
         if self.last_heartbeat_time:
             time_since_last_heartbeat = (now - self.last_heartbeat_time).total_seconds()

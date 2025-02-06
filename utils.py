@@ -7,6 +7,7 @@ import re
 import os
 import sys
 import fnmatch
+import locale
 
 from PyQt6.QtWidgets import QTextEdit, QLineEdit
 from PyQt6.QtCore import QCoreApplication, QStandardPaths
@@ -180,21 +181,38 @@ def display_frequency(frequency):
     if not frequency:
         return ''
     
-    integer, decimal = f"{(frequency / 1_000_000):,.5f}".replace('.', ',').split(',')
-
-    decimal = decimal[:3] + decimal[3:].rstrip('0')
-    return f"{integer},{decimal}"
+    try:
+        locale.setlocale(locale.LC_ALL, '')
+    except locale.Error:
+        locale.setlocale(locale.LC_ALL, 'C')
+      
+    formatted       = locale.format_string("%.5f", frequency / 1_000_000, grouping=True)
+    conv            = locale.localeconv()
+    decimal_point   = conv['decimal_point']
+    
+    try:
+        integer_part, decimal_part = formatted.split(decimal_point)
+    except ValueError:
+        integer_part, decimal_part = formatted, ''
+    
+    if len(decimal_part) > 3:
+        decimal_part = decimal_part[:3] + decimal_part[3:].rstrip('0')
+    else:
+        decimal_part = decimal_part.rstrip('0')
+    
+    if decimal_part:
+        return f"{integer_part}{decimal_point}{decimal_part}"
+    else:
+        return integer_part
 
 def force_input(widget, mode="uppercase"):
     try:
         allowed_pattern = None
-        max_number = None
 
         if mode == "uppercase":
             allowed_pattern = re.compile(r'[A-Z0-9,/*]')
         elif mode == "numbers":
             allowed_pattern = re.compile(r'[0-9,]')
-            max_number = 40
 
         old_cursor_pos = widget.cursorPosition()
 
