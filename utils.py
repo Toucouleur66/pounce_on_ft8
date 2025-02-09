@@ -84,7 +84,7 @@ def parse_wsjtx_message(
     # Handle <...> message
     match = re.match(r"^<\.\.\.>\s+([A-Z0-9/]*\d[A-Z0-9/]*)\s+(\w{2,3}|RR73|\d{2}[A-Z]{2})?", message)
     if match:
-        # callsign = match.group(1)
+        callsign = match.group(1)
         msg = match.group(2)
     else:      
         match = re.match(r"^CQ\s+(?:(\w{2,4})\s+)([A-Z0-9/]*\d[A-Z0-9/]*)(?:\s+([A-Z]{2}\d{2}))", message)        
@@ -95,15 +95,31 @@ def parse_wsjtx_message(
             callsign = match.group(2)
             grid     = match.group(3)
         else:
-            match = re.match(r"^CQ\s+([A-Z0-9/]*\d[A-Z0-9/]*)(?:\s+([A-Z]{2}\d{2}))?", message)
+            # 4) # Handle partial <...>
+            match = re.match(
+                r"^([A-Z0-9/]*\d[A-Z0-9/]*)\s+<([A-Z0-9/]*\d[A-Z0-9/]*)>\s*(\S+)?",
+                message
+            )
             if match:
-                # Handle CQ messages with Grid only      
-                cqing    = True
-                callsign = match.group(1)
-                grid     = match.group(2)
+                directed = match.group(1)
+                callsign = match.group(2)
+                msg      = match.group(3) 
+
+                if msg:
+                    if re.match(r"^(RRR|RR73|73)$", msg):
+                        pass
+                    elif re.match(r"^[A-Z]{2}\d{2}$", msg):
+                        grid = msg
+                    elif re.match(r"^(?:R[+\-]|[+\-])\d{2}$", msg):
+                        report = msg
+                    else:
+                        pass
             else:
-                # Handle directed calls and standard messages
-                match = re.match(r"^([A-Z0-9/]*\d[A-Z0-9/]*)\s+([A-Z0-9/]*\d[A-Z0-9/]*)\s+([A-Z0-9+-]+)", message)
+                # 5) Handle directed calls and standard messages
+                match = re.match(
+                    r"^([A-Z0-9/]*\d[A-Z0-9/]*)\s+([A-Z0-9/]*\d[A-Z0-9/]*)\s+([A-Z0-9+\-]+)",
+                    message
+                )
                 if match:
                     directed = match.group(1)
                     callsign = match.group(2)
@@ -115,6 +131,8 @@ def parse_wsjtx_message(
                         grid = msg
                     elif re.match(r"^(?:R[+\-]|[+\-])\d{2}$", msg):
                         report = msg
+                else:
+                    pass
 
     if callsign and lookup:         
         callsign_info = lookup.lookup_callsign(callsign, grid)    
