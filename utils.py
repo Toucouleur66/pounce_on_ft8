@@ -81,58 +81,112 @@ def parse_wsjtx_message(
     monitored               = False
     monitored_cq_zone       = False
 
-    # Handle <...> message
-    match = re.match(r"^<\.\.\.>\s+([A-Z0-9/]*\d[A-Z0-9/]*)\s+(\w{2,3}|RR73|\d{2}[A-Z]{2})?", message)
+    
+    # 1) Handle <...> message
+    match = re.match(
+        r"^<\.\.\.>\s+([A-Z0-9/]*\d[A-Z0-9/]*)\s+(\w{2,3}|RR73|\d{2}[A-Z]{2})?",
+        message
+    )
     if match:
         callsign = match.group(1)
-        msg = match.group(2)
-    else:      
-        match = re.match(r"^CQ\s+(?:(\w{2,4})\s+)([A-Z0-9/]*\d[A-Z0-9/]*)(?:\s+([A-Z]{2}\d{2}))", message)        
+        msg      = match.group(2)
+
+    else:
+        # 2) Handle CQ + directed CQ
+        #
+        #    Example : "CQ SEAS F4XXX JN12"
+        #    - directed = F8ABC
+        #    - callsign = F4XXX
+        #    - grid     = JN12
+        #
+        match = re.match(
+            r"^CQ\s+(?:(\w{2,4})\s+)([A-Z0-9/]*\d[A-Z0-9/]*)(?:\s+([A-Z]{2}\d{2}))",
+            message
+        )
         if match:
-            # Handle CQ messages with directed CQ   
             cqing    = True
             directed = match.group(1)
             callsign = match.group(2)
             grid     = match.group(3)
+
         else:
-            # 4) # Handle partial <...>
+            # 3) Handle CQ + callsign (+ optional grid)
+            #
+            #    Example : "CQ F4XXX JN12"
+            #    - callsign = F4XXX
+            #    - grid     = JN12 (optional)
+            #
             match = re.match(
-                r"^([A-Z0-9/]*\d[A-Z0-9/]*)\s+<([A-Z0-9/]*\d[A-Z0-9/]*)>\s*(\S+)?",
+                r"^CQ\s+([A-Z0-9/]*\d[A-Z0-9/]*)(?:\s+([A-Z]{2}\d{2}))?",
                 message
             )
             if match:
-                directed = match.group(1)
-                callsign = match.group(2)
-                msg      = match.group(3) 
+                cqing    = True
+                callsign = match.group(1)
+                grid     = match.group(2)
 
-                if msg:
-                    if re.match(r"^(RRR|RR73|73)$", msg):
-                        pass
-                    elif re.match(r"^[A-Z]{2}\d{2}$", msg):
-                        grid = msg
-                    elif re.match(r"^(?:R[+\-]|[+\-])\d{2}$", msg):
-                        report = msg
-                    else:
-                        pass
             else:
-                # 5) Handle directed calls and standard messages
+                # 4) Handle "directed" <callsign> 
+                #
+                #    Example : "F5UKW <VP2V/F4BKV> RR73"
+                #      - directed = "F5UKW"
+                #      - callsign = "VP2V/F4BKV"
+                #      - msg      = "RR73"
+                #
+                #    Example : "F5UKW <VP2V/F4BKV>"
+                #      - directed = "F5UKW"
+                #      - callsign = "VP2V/F4BKV"
+                #      - msg      = None
+                #
                 match = re.match(
-                    r"^([A-Z0-9/]*\d[A-Z0-9/]*)\s+([A-Z0-9/]*\d[A-Z0-9/]*)\s+([A-Z0-9+\-]+)",
+                    r"^([A-Z0-9/]*\d[A-Z0-9/]*)\s+<([A-Z0-9/]*\d[A-Z0-9/]*)>\s*(\S+)?",
                     message
                 )
                 if match:
                     directed = match.group(1)
                     callsign = match.group(2)
-                    msg      = match.group(3)
+                    msg      = match.group(3)  
 
-                    if re.match(r"^(RRR|RR73|73)$", msg):
-                        pass
-                    elif re.match(r"^[A-Z]{2}\d{2}$", msg):
-                        grid = msg
-                    elif re.match(r"^(?:R[+\-]|[+\-])\d{2}$", msg):
-                        report = msg
+                    if msg:
+                        # RRR / RR73 / 73
+                        if re.match(r"^(RRR|RR73|73)$", msg):
+                            pass
+
+                        # Grids 2 letters + 2 numbers (ex: JN12)
+                        elif re.match(r"^[A-Z]{2}\d{2}$", msg):
+                            grid = msg
+
+                        # Report : R+NN, +NN, R-NN, -NN
+                        elif re.match(r"^(?:R[+\-]|[+\-])\d{2}$", msg):
+                            report = msg
+
+                        else:
+                            pass
                 else:
-                    pass
+                    # 5) Handle directed calls and standard messages
+                    #
+                    #    Example : "F5UKW F4XXX RR73"
+                    #      - directed = "F5UKW"
+                    #      - callsign = "F4XXX"
+                    #      - msg      = "RR73"
+                    #
+                    match = re.match(
+                        r"^([A-Z0-9/]*\d[A-Z0-9/]*)\s+([A-Z0-9/]*\d[A-Z0-9/]*)\s+([A-Z0-9+\-]+)",
+                        message
+                    )
+                    if match:
+                        directed = match.group(1)
+                        callsign = match.group(2)
+                        msg      = match.group(3)
+
+                        if re.match(r"^(RRR|RR73|73)$", msg):
+                            pass
+                        elif re.match(r"^[A-Z]{2}\d{2}$", msg):
+                            grid = msg
+                        elif re.match(r"^(?:R[+\-]|[+\-])\d{2}$", msg):
+                            report = msg
+                    else:
+                        pass
 
     if callsign and lookup:         
         callsign_info = lookup.lookup_callsign(callsign, grid)    
