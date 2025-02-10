@@ -84,13 +84,12 @@ def parse_wsjtx_message(
     
     # 1) Handle <...> message
     match = re.match(
-        r"^<\.\.\.>\s+([A-Z0-9/]*\d[A-Z0-9/]*)\s+(\w{2,3}|RR73|\d{2}[A-Z]{2})?",
+        r"^<\.\.\.>\s+([A-Z0-9/]*\d[A-Z0-9/]*)\s+([A-Z0-9+\-]+)?",
         message
     )
     if match:
         callsign = match.group(1)
         msg      = match.group(2)
-
     else:
         # 2) Handle CQ + directed CQ
         #
@@ -146,22 +145,6 @@ def parse_wsjtx_message(
                     directed = match.group(1)
                     callsign = match.group(2)
                     msg      = match.group(3)  
-
-                    if msg:
-                        # RRR / RR73 / 73
-                        if re.match(r"^(RRR|RR73|73)$", msg):
-                            pass
-
-                        # Grids 2 letters + 2 numbers (ex: JN12)
-                        elif re.match(r"^[A-Z]{2}\d{2}$", msg):
-                            grid = msg
-
-                        # Report : R+NN, +NN, R-NN, -NN
-                        elif re.match(r"^(?:R[+\-]|[+\-])\d{2}$", msg):
-                            report = msg
-
-                        else:
-                            pass
                 else:
                     # 5) Handle directed calls and standard messages
                     #
@@ -177,16 +160,22 @@ def parse_wsjtx_message(
                     if match:
                         directed = match.group(1)
                         callsign = match.group(2)
-                        msg      = match.group(3)
-
-                        if re.match(r"^(RRR|RR73|73)$", msg):
-                            pass
-                        elif re.match(r"^[A-Z]{2}\d{2}$", msg):
-                            grid = msg
-                        elif re.match(r"^(?:R[+\-]|[+\-])\d{2}$", msg):
-                            report = msg
+                        msg      = match.group(3)                        
                     else:
                         pass
+
+    if msg:
+        # RRR / RR73 / 73
+        if re.match(r"^(RRR|RR73|73)$", msg):
+            pass
+        # Grids 2 letters + 2 numbers (ex: JN12)
+        elif re.match(r"^[A-Z]{2}\d{2}$", msg):
+            grid = msg
+        # Report : R+NN, +NN, R-NN, -NN
+        elif re.match(r"^(?:R[+\-]|[+\-])\d{2}$", msg):
+            report = msg
+        else:
+            pass
 
     if callsign and lookup:         
         callsign_info = lookup.lookup_callsign(callsign, grid)    
