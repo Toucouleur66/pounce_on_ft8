@@ -138,13 +138,19 @@ def parse_wsjtx_message(
                 #      - msg      = None
                 #
                 match = re.match(
-                    r"^([A-Z0-9/]*\d[A-Z0-9/]*)\s+<([A-Z0-9/]*\d[A-Z0-9/]*)>\s*(\S+)?",
+                    r"^(?:([A-Z0-9/]*\d[A-Z0-9/]*)\s+<([A-Z0-9/]*\d[A-Z0-9/]*)>|<([A-Z0-9/]*\d[A-Z0-9/]*)>\s+([A-Z0-9/]*\d[A-Z0-9/]*))\s*(\S+)?$",
                     message
                 )
                 if match:
-                    directed = match.group(1)
-                    callsign = match.group(2)
-                    msg      = match.group(3)  
+                    if match.group(1):
+                        directed = match.group(1)
+                        callsign = match.group(2)
+                        msg      = match.group(5)
+                    else:
+                        # Branche B
+                        directed = match.group(3)
+                        callsign = match.group(4)
+                        msg      = match.group(5)
                 else:
                     # 5) Handle directed calls and standard messages
                     #
