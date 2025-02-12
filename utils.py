@@ -341,7 +341,7 @@ def focus_out_event(widget, mode):
 
     widget.focusOutEvent = custom_focus_out
 
-def parse_adif_record(record):
+def parse_adif_record(record, lookup = None):
     call_match = re.search(r"<CALL:\d+>([^ <]+)", record, re.IGNORECASE)
     band_match = re.search(r"<BAND:\d+>([^ <]+)", record, re.IGNORECASE)
     date_match = re.search(r"<QSO_DATE:\d+>(\d{4})", record, re.IGNORECASE)
@@ -349,8 +349,12 @@ def parse_adif_record(record):
     call = call_match.group(1).upper() if call_match else None
     band = band_match.group(1).lower() if band_match else None
     year = date_match.group(1) if date_match else None
+    info = None
 
-    return year, band, call
+    if call and lookup:
+        info = lookup.lookup_callsign(call)    
+
+    return year, band, call, info
 
 def parse_adif(file_path):
     start_time = time.time()
@@ -368,6 +372,29 @@ def parse_adif(file_path):
                     year, band, call = parse_adif_record(record)
                     if year and band and call:
                         parsed_data[year][band].add(call)
+                    current_record_lines = []
+
+    end_time = time.time()
+    processing_time = end_time - start_time
+
+    return parsed_data, processing_time
+
+def parse_dxcc_adif(file_path, lookup):
+    start_time = time.time()
+
+    parsed_data = defaultdict(lambda: defaultdict(set))
+
+    current_record_lines = []
+    with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                current_record_lines.append(line)
+                if "<EOR>" in line.upper():
+                    record = " ".join(current_record_lines)
+                    year, band, call, info = parse_adif_record(record, lookup)
+                    if year and band and info.get('entity'):
+                        parsed_data[year][band].add(info.get('entity'))
                     current_record_lines = []
 
     end_time = time.time()

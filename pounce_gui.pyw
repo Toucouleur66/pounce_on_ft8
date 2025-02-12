@@ -2352,6 +2352,7 @@ class MainApp(QtWidgets.QMainWindow):
                 return
             
             try:
+                log.warning(f"Read File {self.adif_file_path}")
                 parsed_data, processing_time = parse_adif(self.adif_file_path)
                 summary_dialog = AdifSummaryDialog(parsed_data, processing_time, self)
                 summary_dialog.exec()
