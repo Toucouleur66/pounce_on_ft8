@@ -1489,6 +1489,8 @@ class MainApp(QtWidgets.QMainWindow):
         items.sort()
         var.setText(','.join(map(str, items)))
 
+        self.message_buffer = deque()
+
     def update_window_title(self):
             self.window_title = f"{self.base_title} - Connected to {self.my_wsjtx_id}"
             self.setWindowTitle(self.window_title)

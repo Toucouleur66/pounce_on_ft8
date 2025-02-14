@@ -539,6 +539,13 @@ class Listener:
                     log.warning(f"{len(self.reply_attempts[self.targeted_call])} attempts for [ {self.targeted_call} ] but we are about to switch on [ {callsign} ]")
                     self.reset_ongoing_contact()
 
+                if (
+                    directed == self.my_call and
+                    self.qso_time_on.get(self.targeted_call) is None
+                ):
+                    log.warning(f"No answer yet for [ {self.targeted_call} ] but we are about to switch on [ {callsign} ]")
+                    self.reset_ongoing_contact()
+
             """
                 How to handle the logic for the message 
             """
