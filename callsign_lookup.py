@@ -166,7 +166,9 @@ class CallsignLookup:
                     'start': start,
                     'end': end,
                 }
-                self.callsign_exceptions[call] = exception_data
+                if call not in self.callsign_exceptions:
+                    self.callsign_exceptions[call] = []
+                self.callsign_exceptions[call].append(exception_data)
 
             invalid_elem = root.find('invalid_operations')
             for invalid_op in invalid_elem.findall('invalid'):
@@ -174,7 +176,14 @@ class CallsignLookup:
                 if call_elem is None:
                     continue
                 call = call_elem.text.upper()
-                self.invalid_operations[call] = True
+                start_elem = invalid_op.find('start')
+                end_elem = invalid_op.find('end')
+                start = self.parse_date(start_elem.text) if start_elem is not None else None
+                end = self.parse_date(end_elem.text) if end_elem is not None else None
+                data = {'start': start, 'end': end}
+                if call not in self.invalid_operations:
+                    self.invalid_operations[call] = []
+                self.invalid_operations[call].append(data)
 
             zone_exceptions_elem = root.find('zone_exceptions')
             for zone_exception in zone_exceptions_elem.findall('zone_exception'):
@@ -409,48 +418,53 @@ class CallsignLookup:
         zone = self.lat_lon_to_cq_zone(lat, lon)
         return (lat, lon, zone)
 
-    def lookup_callsign(self, callsign, grid=None, date=None):
+    def lookup_callsign(
+            self,
+            callsign,
+            grid = None,
+            date = None,
+            enable_cache = True
+        ):
         try:
-            new_zone = None
-
             callsign = callsign.strip().upper()
-            if date is None:
-                date = datetime.datetime.now(datetime.timezone.utc)
 
-            if callsign in self.cache:
-                log.info(f"Data for [ {callsign} ] fetched from cache")
+            if callsign in self.cache and date is None:
                 cached_info = self.cache[callsign]
                 if grid is not None:
                     lat, lon, new_zone = self.grid_to_cq_zone(grid)
-                    if (
-                        new_zone is not None and 
-                        cached_info['cqz'] != new_zone
-                    ):
+                    if new_zone is not None and cached_info.get('cqz') != new_zone:
                         cached_info['cqz'] = new_zone
-                        # Move to end (LRU-ish)
                         self.cache.move_to_end(callsign)
                         if new_zone:
                             self.save_cache()
-
                 return cached_info
-
+            
+            if date is None:
+                date = datetime.datetime.now(datetime.timezone.utc)
+            
             lookup_result = None
 
+            if callsign in self.invalid_operations:
+                invalid_data_list = self.invalid_operations[callsign]
+                if isinstance(invalid_data_list, bool):
+                    log.error(f"{callsign} is invalid for date {date}")
+                    return {}
+                for inv_data in (invalid_data_list if isinstance(invalid_data_list, list) else [invalid_data_list]):
+                    if self.is_valid_for_date(inv_data, date):
+                        log.error(f"{callsign} is invalid for date {date}")
+                        return {}
+                    
             if callsign in self.callsign_exceptions:
-                exception = self.callsign_exceptions[callsign]
-                if self.is_valid_for_date(exception, date):
-                    lookup_result = exception
+                for exception_data in self.callsign_exceptions[callsign]:
+                    if self.is_valid_for_date(exception_data, date):
+                        lookup_result = exception_data
+                        break
 
-            elif callsign in self.invalid_operations:
-                log.error(f"{callsign} set as invalid.")
-                lookup_result = None
-
-            else:
+            if lookup_result is None:
                 sorted_prefixes = sorted(self.prefixes.keys(), key=lambda x: -len(x))
                 for prefix in sorted_prefixes:
                     if callsign.startswith(prefix):
-                        prefix_entries = self.prefixes[prefix]
-                        for entry in prefix_entries:
+                        for entry in self.prefixes[prefix]:
                             if self.is_valid_for_date(entry, date):
                                 lookup_result = entry
                                 break
@@ -461,21 +475,23 @@ class CallsignLookup:
                 log.error(f"No information found for {callsign}.")
                 lookup_result = {}
 
-            if grid is not None:
+            if grid is not None and lookup_result:
                 lat, lon, new_zone = self.grid_to_cq_zone(grid)
-                if (
-                    new_zone is not None and
-                    lookup_result['cqz'] != new_zone
-                ):
+                if new_zone is not None and lookup_result.get('cqz') != new_zone:
                     lookup_result['cqz'] = new_zone
                     self.cache[callsign] = lookup_result
                     if len(self.cache) > self.cache_size:
                         self.cache.popitem(last=False)
-                    
-                    self.save_cache()                
+                    self.save_cache()
+
+            if lookup_result and enable_cache:
+                self.cache[callsign] = lookup_result
+                if len(self.cache) > self.cache_size:
+                    self.cache.popitem(last=False)
+                self.save_cache()
 
             return lookup_result
-
+        
         except Exception as e:
             log.error(f"Fail to extract '{callsign}': {e}")
             return None

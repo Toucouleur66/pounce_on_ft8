@@ -2,6 +2,8 @@ __pycache__/
 /dist/
 /build*
 
+cty_sample.xml
+
 *.log
 *.cer*
 *.csr

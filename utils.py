@@ -341,45 +341,55 @@ def focus_out_event(widget, mode):
 
     widget.focusOutEvent = custom_focus_out
 
-def parse_adif_record(record, lookup = None):
+def parse_adif_record(record, lookup):
     call_match = re.search(r"<CALL:\d+>([^ <]+)", record, re.IGNORECASE)
     band_match = re.search(r"<BAND:\d+>([^ <]+)", record, re.IGNORECASE)
-    date_match = re.search(r"<QSO_DATE:\d+>(\d{4})", record, re.IGNORECASE)
+    date_match = re.search(r"<QSO_DATE:\d+>(\d{8})", record, re.IGNORECASE)
+    year_match = re.search(r"<QSO_DATE:\d+>(\d{4})", record, re.IGNORECASE)
+    time_match = re.search(r"<TIME_ON:\d+>(\d{6})", record, re.IGNORECASE)
+
+    time_str = time_match.group(1) if time_match else None
+    date_str = date_match.group(1) if date_match else None
+
+    qso_datetime = None
+
+    if date_str:
+        # Exemple : date_str = "19941224"
+        year  = date_str[0:4]   # "1994"
+        month = date_str[4:6]   # "12"
+        day   = date_str[6:8]   # "24"
+
+        hour   = "00"
+        minute = "00"
+        second = "00"
+        if time_str:
+            # time_str = "083500"
+            hour   = time_str[0:2]  # "08"
+            minute = time_str[2:4]  # "35"
+            second = time_str[4:6]  # "00"
+
+        full_dt_str = f"{year}-{month}-{day} {hour}:{minute}:{second}"
+
+        qso_datetime = datetime.datetime.strptime(full_dt_str, "%Y-%m-%d %H:%M:%S")
+        qso_datetime = qso_datetime.replace(tzinfo=datetime.timezone.utc)
     
     call = call_match.group(1).upper() if call_match else None
     band = band_match.group(1).lower() if band_match else None
-    year = date_match.group(1) if date_match else None
-    info = None
+    year = year_match.group(1) if year_match else None
+    info = {}
 
-    if call and lookup:
-        info = lookup.lookup_callsign(call)    
+    if lookup:
+        if qso_datetime:
+            info = lookup.lookup_callsign(call, date=qso_datetime, enable_cache=False)
+        else:
+            info = lookup.lookup_callsign(call)  
 
     return year, band, call, info
 
-def parse_adif(file_path):
-    start_time = time.time()
-
-    parsed_data = defaultdict(lambda: defaultdict(set))
-
-    current_record_lines = []
-    with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                current_record_lines.append(line)
-                if "<EOR>" in line.upper():
-                    record = " ".join(current_record_lines)
-                    year, band, call = parse_adif_record(record)
-                    if year and band and call:
-                        parsed_data[year][band].add(call)
-                    current_record_lines = []
-
-    end_time = time.time()
-    processing_time = end_time - start_time
-
-    return parsed_data, processing_time
-
-def parse_dxcc_adif(file_path, lookup):
+def parse_adif(
+        file_path,
+        lookup = None
+    ):
     start_time = time.time()
 
     parsed_data = defaultdict(lambda: defaultdict(set))
@@ -393,8 +403,11 @@ def parse_dxcc_adif(file_path, lookup):
                 if "<EOR>" in line.upper():
                     record = " ".join(current_record_lines)
                     year, band, call, info = parse_adif_record(record, lookup)
-                    if year and band and info.get('entity'):
-                        parsed_data[year][band].add(info.get('entity'))
+                    if lookup and year and band and info.get('entity'):
+                        parsed_data[year][band].add(info.get('entity'))    
+                    elif year and band and call:
+                        parsed_data[year][band].add(call)
+                                              
                     current_record_lines = []
 
     end_time = time.time()
