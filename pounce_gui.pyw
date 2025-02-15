@@ -1707,8 +1707,6 @@ class MainApp(QtWidgets.QMainWindow):
                 self.network_check_status.setInterval(self.network_check_status_interval)                               
         else:
             status_text_array.append("No DecodePacket received yet.")
-            if self._running:
-                self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR) 
 
         if self.transmitting:            
             self.update_status_button(STATUS_BUTTON_LABEL_TRX, STATUS_TRX_COLOR)
@@ -1716,6 +1714,8 @@ class MainApp(QtWidgets.QMainWindow):
             self.start_blinking_status_button()
             network_check_status_interval = 100
         elif self.last_transmit_time:
+            if self._running:
+                self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR) 
             self.last_transmit_time = None
             self.stop_blinking_status_button()        
             
