@@ -138,8 +138,8 @@ class Listener:
             adif_monitor                    = AdifMonitor(adif_file_path, ADIF_WORKED_CALLSIGNS_FILE)
             adif_monitor.start()
 
-            if adif_file_path and lookup:
-                adif_monitor.register_lookup(lookup)
+            #if adif_file_path and lookup:
+            #    adif_monitor.register_lookup(lookup)
             adif_monitor.register_callback(self.update_adif_data)
 
         """
