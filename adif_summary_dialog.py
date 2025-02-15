@@ -20,7 +20,7 @@ from constants import (
 )
 
 class AdifSummaryDialog(QDialog):
-    def __init__(self, parsed_data, processing_time, parent=None):
+    def __init__(self, processing_time, parsed_data, parent=None):
         super().__init__(parent)
         self.setWindowTitle("ADIF File Analyzer")
         self.setModal(True)
@@ -43,7 +43,6 @@ class AdifSummaryDialog(QDialog):
 
         main_layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed))
 
-        # Section Détails : Temps de traitement
         processing_label = QLabel(f"Unique callsigns per Year and per Band:")
         processing_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
         main_layout.addWidget(processing_label)

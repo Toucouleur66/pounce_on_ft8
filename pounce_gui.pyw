@@ -2355,8 +2355,9 @@ class MainApp(QtWidgets.QMainWindow):
             
             try:
                 log.warning(f"Read File {self.adif_file_path}")
-                parsed_data, processing_time = parse_adif(self.adif_file_path)
-                summary_dialog = AdifSummaryDialog(parsed_data, processing_time, self)
+                processing_time, parsed_data = parse_adif(self.adif_file_path)
+
+                summary_dialog = AdifSummaryDialog(processing_time, parsed_data['wkb4'], self)
                 summary_dialog.exec()
             except Exception as e:
                 QtWidgets.QMessageBox.critical(self, "Error", f"Failed to process the ADIF file.\n\n{str(e)}")

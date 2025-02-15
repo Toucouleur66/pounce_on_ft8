@@ -81,7 +81,6 @@ def parse_wsjtx_message(
     monitored               = False
     monitored_cq_zone       = False
 
-    
     # 1) Handle <...> message
     match = re.match(
         r"^<\.\.\.>\s+([A-Z0-9/]*\d[A-Z0-9/]*)\s+([A-Z0-9+\-]+)?",
@@ -392,7 +391,12 @@ def parse_adif(
     ):
     start_time = time.time()
 
-    parsed_data = defaultdict(lambda: defaultdict(set))
+    parsed_wkb4_data = defaultdict(lambda: defaultdict(set))
+
+    if lookup:
+        parsed_entity_data = defaultdict(lambda: defaultdict(set))
+    else:
+        parsed_entity_data = None
 
     current_record_lines = []
     with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
@@ -404,16 +408,18 @@ def parse_adif(
                     record = " ".join(current_record_lines)
                     year, band, call, info = parse_adif_record(record, lookup)
                     if lookup and year and band and info.get('entity'):
-                        parsed_data[year][band].add(info.get('entity'))    
-                    elif year and band and call:
-                        parsed_data[year][band].add(call)
+                        parsed_entity_data[year][band].add(info.get('entity'))    
+                    if year and band and call:
+                        parsed_wkb4_data[year][band].add(call)
                                               
                     current_record_lines = []
 
-    end_time = time.time()
-    processing_time = end_time - start_time
+    processing_time = time.time() - start_time
 
-    return parsed_data, processing_time
+    return processing_time, {
+        'wkb4'  : parsed_wkb4_data,
+        'entity': parsed_entity_data
+    }
 
 def is_worked_b4_year_band(data, callsign, year, band):
     if callsign in data.get(year, {}).get(band, set()):

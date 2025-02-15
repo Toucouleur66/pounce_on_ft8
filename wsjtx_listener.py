@@ -125,7 +125,8 @@ class Listener:
         self.freq_range_mode                = freq_range_mode
         self.message_callback               = message_callback
 
-        self.adif_data                      = {}
+        self.adif_wkb4_data                 = {}
+        self.adif_entity_data               = {}
         
         self.update_settings()
 
@@ -138,6 +139,9 @@ class Listener:
             adif_monitor                    = AdifMonitor(adif_file_path, ADIF_WORKED_CALLSIGNS_FILE)
             adif_monitor.start()
             adif_monitor.register_callback(self.update_adif_data)
+
+        #if adif_file_path and lookup:
+        #    adif_monitor.register_lookup(lookup)
 
         """
             Check what period to use
@@ -234,7 +238,7 @@ class Listener:
 
     def handle_status_packet(self):
         if self.enable_log_packet_data:
-            log.debug('WSJT-X {}'.format(self.the_packet))
+            log.debug(self.the_packet)
         try:
             self.my_call                = self.the_packet.de_call
             self.my_grid                = self.the_packet.de_grid
@@ -473,14 +477,13 @@ class Listener:
             decode_time_str = decode_time.strftime('%Y-%m-%d %H:%M:%S')            
 
             time_str        = decode_time.strftime('%H%M%S')
-            time_now        = datetime.now(timezone.utc).replace(tzinfo=None)
-            
+            time_now        = datetime.now(timezone.utc).replace(tzinfo=None)            
 
             formatted_message = f"{time_str} {snr:+d} {delta_t:+.1f} {delta_f} ~ {message}"
 
             log.debug("DecodePacket: {}".format(formatted_message))
 
-            # Pase message
+            # Parse message
             parsed_data = parse_wsjtx_message(
                 message,
                 lookup,
@@ -505,8 +508,8 @@ class Listener:
             """
                 Check if wanted and is Worked b4
             """
-            if self.adif_data:
-                wkb4_year = get_wkb4_year(self.adif_data, callsign, get_amateur_band(self.frequency))
+            if self.adif_wkb4_data:
+                wkb4_year = get_wkb4_year(self.adif_wkb4_data, callsign, get_amateur_band(self.frequency))
                 if wanted:
                     if (
                         (
@@ -519,7 +522,24 @@ class Listener:
                         )
                     ):
                         wanted = False
-                
+
+            
+            entity_code = None
+            """
+            if self.adif_entity_data:
+                entity_code = callsign_info.get("adif")
+            
+                if entity_code and entity_code not in self.adif_entity_data:
+                    self.adif_entity_data[entity_code] = []
+
+                if callsign not in self.adif_entity_data[entity_code]:
+                    wanted = True
+                    if callsign not in self.wanted_callsigns:
+                        self.wanted_callsigns.add(callsign)
+                    self.adif_entity_data[entity_code].append(callsign) 
+
+            """
+
             """
                 Reset values to focus on another wanted callsign
             """
@@ -561,6 +581,8 @@ class Listener:
                     log.warning("Found message to log [ {} ]".format(self.call_ready_to_log))
                     self.qso_time_off[self.call_ready_to_log] = decode_time
                     self.log_qso_to_adif()
+                    if self.adif_entity_data:
+                        self.clear_wanted_callsigns(entity_code)
                     if self.enable_secondary_udp_server:
                         self.log_qso_to_udp()
                     self.reset_ongoing_contact()
@@ -726,6 +748,11 @@ class Listener:
         log.warning(f"Sending ConfigurePacket: {configure_paquet}")
         self.s.send_packet(self.addr_port, configure_paquet)        
 
+    def clear_wanted_callsigns(self, entity_code):
+        for entity_callsign in self.adif_entity_data[entity_code]:
+            self.wanted_callsigns.remove(entity_callsign)
+        self.adif_entity_data.pop(entity_code, None)
+
     def log_qso_to_adif(self):
         if self.last_logged_call == self.call_ready_to_log:
             return 
@@ -809,5 +836,6 @@ class Listener:
         cleaned_rst = re.sub(pattern, repl, rst)
         return cleaned_rst    
     
-    def update_adif_data(self, new_data):
-        self.adif_data = new_data
+    def update_adif_data(self, parsed_data):
+        self.adif_wkb4_data     = parsed_data['wkb4']
+        self.adif_entity_data   = parsed_data['entity']

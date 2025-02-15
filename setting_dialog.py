@@ -557,13 +557,13 @@ class SettingsDialog(QtWidgets.QDialog):
             selected_files = dialog.selectedFiles()
             if selected_files:
                 file_path = selected_files[0]
-                parsed_data, processing_time = parse_adif(file_path)
+                processing_time, parsed_data = parse_adif(file_path)
                 if parsed_data:
                     self.adif_file_path.setText(file_path)
                     self.adif_action_group.setVisible(True)
                     self.on_tab_changed(self.tab_widget.currentIndex())
 
-                    summary_dialog = AdifSummaryDialog(parsed_data, processing_time, self)
+                    summary_dialog = AdifSummaryDialog(processing_time, parsed_data['wkb4'], self)
                     summary_dialog.exec()
                 else:
                     QtWidgets.QMessageBox.warning(
