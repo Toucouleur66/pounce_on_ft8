@@ -1,6 +1,8 @@
 import os
-import time
 import threading
+
+import inspect
+import traceback
 
 from collections import defaultdict
 from threading import Event
@@ -21,8 +23,10 @@ class AdifMonitor:
             adif_worked_callsigns_file: None
         }
 
-        self.adif_wkb4_data   = defaultdict(lambda: defaultdict(set))
-        self.adif_entity_data = defaultdict(lambda: defaultdict(set))
+        self.adif_data = {
+            'wkb4'  : defaultdict(lambda: defaultdict(set)),
+            'entity': defaultdict(lambda: defaultdict(set)),
+        }
 
         self._lookup  = False
         self._running = False
@@ -52,7 +56,7 @@ class AdifMonitor:
             try:
                 callback(self.adif_data)
             except Exception as e:
-                log.error(f"Error in callback {callback}: {e}")  
+                log.error(f"Error in callback {callback}: {e}\n{traceback.format_exc()}")  
 
     def monitor_adif_files(self):
         while self._running:    
@@ -65,30 +69,30 @@ class AdifMonitor:
                         current_mtime = os.path.getmtime(file_path)
                         if self.adif_last_mtime[file_path] is None or current_mtime != self.adif_last_mtime[file_path]:
                             self.adif_last_mtime[file_path] = current_mtime
-                            processing_time, parsed_wkb4_data, parsed_entity_data = parse_adif(file_path, self._lookup)
-                            self.merge_adif_data(parsed_wkb4_data, parsed_entity_data)
+                            processing_time, parsed_data = parse_adif(file_path, self._lookup)
+                            self.merge_adif_data(parsed_data)
                             
                             log.info(f"Processed ({processing_time:.4f}s):{file_path}")                            
                             
                     except Exception as e:
-                        log.error(f"Error processing {file_path}: {e}")
+                        log.error(f"Error processing {file_path}: {e}\n{traceback.format_exc()}")
 
             self.stop_event.wait(7.5)
 
-    def merge_adif_data(self, parsed_wkb4_data, parsed_entity_data = None):
-        for year, bands in parsed_wkb4_data.items():
+    def merge_adif_data(self, parsed_data):
+        for year, bands in parsed_data['wkb4'].items():
             for band, calls in bands.items():
-                self.adif_wkb4_data[year][band].update(calls)
+                self.adif_data['wkb4'][year][band].update(calls)
 
-        if parsed_entity_data:
-            for year, bands in parsed_entity_data.items():
+        if parsed_data['entity']:
+            for year, bands in parsed_data['entity'].items():
                 for band, entities in bands.items():
-                    self.adif_entity_data[year][band].update(entities)
+                    self.adif_data['entity'][year][band].update(entities)
 
         self.notify_callbacks()                
 
     def get_adif_data(self):
         return {
-            'wkb4': self.adif_wkb4_data,
-            'entity': self.adif_entity_data
+            'wkb4'  : self.adif_data['wkb4'],
+            'entity': self.adif_data['entity']
         }

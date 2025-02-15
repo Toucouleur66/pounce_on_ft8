@@ -125,8 +125,7 @@ class Listener:
         self.freq_range_mode                = freq_range_mode
         self.message_callback               = message_callback
 
-        self.adif_wkb4_data                 = {}
-        self.adif_entity_data               = {}
+        self.adif_data                      = {}
         
         self.update_settings()
 
@@ -138,10 +137,10 @@ class Listener:
         if worked_before_preference != WKB4_REPLY_MODE_ALWAYS and adif_file_path:            
             adif_monitor                    = AdifMonitor(adif_file_path, ADIF_WORKED_CALLSIGNS_FILE)
             adif_monitor.start()
-            adif_monitor.register_callback(self.update_adif_data)
 
-        #if adif_file_path and lookup:
-        #    adif_monitor.register_lookup(lookup)
+            if adif_file_path and lookup:
+                adif_monitor.register_lookup(lookup)
+            adif_monitor.register_callback(self.update_adif_data)
 
         """
             Check what period to use
@@ -508,8 +507,8 @@ class Listener:
             """
                 Check if wanted and is Worked b4
             """
-            if self.adif_wkb4_data:
-                wkb4_year = get_wkb4_year(self.adif_wkb4_data, callsign, get_amateur_band(self.frequency))
+            if self.adif_data['wkb4']:
+                wkb4_year = get_wkb4_year(self.adif_data['wkb4'], callsign, get_amateur_band(self.frequency))
                 if wanted:
                     if (
                         (
@@ -526,17 +525,17 @@ class Listener:
             
             entity_code = None
             """
-            if self.adif_entity_data:
+            if self.adif_data['entity']:
                 entity_code = callsign_info.get("adif")
             
-                if entity_code and entity_code not in self.adif_entity_data:
-                    self.adif_entity_data[entity_code] = []
+                if entity_code and entity_code not in self.adif_data['entity']:
+                    self.adif_data['entity'][entity_code] = []
 
-                if callsign not in self.adif_entity_data[entity_code]:
+                if callsign not in self.adif_data['entity'][entity_code]:
                     wanted = True
                     if callsign not in self.wanted_callsigns:
                         self.wanted_callsigns.add(callsign)
-                    self.adif_entity_data[entity_code].append(callsign) 
+                    self.adif_data['entity'][entity_code].append(callsign) 
 
             """
 
@@ -581,7 +580,7 @@ class Listener:
                     log.warning("Found message to log [ {} ]".format(self.call_ready_to_log))
                     self.qso_time_off[self.call_ready_to_log] = decode_time
                     self.log_qso_to_adif()
-                    if self.adif_entity_data:
+                    if self.adif_data['entity']:
                         self.clear_wanted_callsigns(entity_code)
                     if self.enable_secondary_udp_server:
                         self.log_qso_to_udp()
@@ -749,9 +748,9 @@ class Listener:
         self.s.send_packet(self.addr_port, configure_paquet)        
 
     def clear_wanted_callsigns(self, entity_code):
-        for entity_callsign in self.adif_entity_data[entity_code]:
+        for entity_callsign in self.adif_data['entity'][entity_code]:
             self.wanted_callsigns.remove(entity_callsign)
-        self.adif_entity_data.pop(entity_code, None)
+        self.adif_data['entity'].pop(entity_code, None)
 
     def log_qso_to_adif(self):
         if self.last_logged_call == self.call_ready_to_log:
@@ -837,5 +836,4 @@ class Listener:
         return cleaned_rst    
     
     def update_adif_data(self, parsed_data):
-        self.adif_wkb4_data     = parsed_data['wkb4']
-        self.adif_entity_data   = parsed_data['entity']
+        self.adif_data = parsed_data
