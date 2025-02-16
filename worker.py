@@ -34,7 +34,8 @@ class Worker(QObject):
             enable_pounce_log,
             enable_log_packet_data,
             adif_file_path,
-            worked_before_preference                          
+            worked_before_preference,
+            marathon_preference                          
         ):
         super(Worker, self).__init__()
 
@@ -64,6 +65,7 @@ class Worker(QObject):
         self.enable_log_packet_data             = enable_log_packet_data
         self.adif_file_path                      = adif_file_path
         self.worked_before_preference           = worked_before_preference
+        self.marathon_preference                = marathon_preference
 
     def run(self):
         try:
@@ -84,6 +86,7 @@ class Worker(QObject):
                 enable_log_packet_data          = self.enable_log_packet_data,
                 monitoring_settings             = self.monitoring_settings,
                 freq_range_mode                 = self.mode,
+                marathon_preference             = self.marathon_preference,
                 adif_file_path                   = self.adif_file_path,
                 worked_before_preference        = self.worked_before_preference,
                 message_callback                = self.message.emit

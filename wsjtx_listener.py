@@ -55,6 +55,7 @@ class Listener:
             enable_log_packet_data, 
             monitoring_settings,
             freq_range_mode,
+            marathon_preference,
             adif_file_path,
             worked_before_preference,
             message_callback=None
@@ -113,7 +114,8 @@ class Listener:
         self.max_reply_attemps_to_callsign  = max_reply_attemps_to_callsign
         # Convert minutes to seconds from max_working_delay
         self.max_working_delay_seconds      = max_working_delay * 60
-        self.worked_before_preference       = worked_before_preference        
+        self.worked_before_preference       = worked_before_preference      
+        self.marathon_preference            = marathon_preference
 
         self.monitoring_settings            = monitoring_settings
 
@@ -136,10 +138,16 @@ class Listener:
         """
         if worked_before_preference != WKB4_REPLY_MODE_ALWAYS and adif_file_path:            
             adif_monitor                    = AdifMonitor(adif_file_path, ADIF_WORKED_CALLSIGNS_FILE)
+            """
+                register_lookup allow us to get adif data per band, year and entity
+            """
+            if (
+                self.marathon_preference and 
+                adif_file_path and 
+                lookup
+            ):
+                adif_monitor.register_lookup(lookup)
             adif_monitor.start()
-
-            #if adif_file_path and lookup:
-            #    adif_monitor.register_lookup(lookup)
             adif_monitor.register_callback(self.update_adif_data)
 
         """

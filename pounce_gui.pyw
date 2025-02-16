@@ -1270,7 +1270,7 @@ class MainApp(QtWidgets.QMainWindow):
         for message, timestamp in self.message_buffer:
             message_type = message.get('message_type')
             priority = MESSAGE_TYPE_PRIORITY.get(message_type, float('inf'))
-            if priority >= lowest_priority:
+            if priority > lowest_priority:
                 lowest_priority = priority                                
                 selected_message = message
 
@@ -2527,6 +2527,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.adif_file_path                  = params.get('adif_file_path', None)
         self.worked_before_preference       = params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS)
+        self.marathon_preference            = params.get('marathon_preference', None)
         
         self.save_unique_param('freq_range_mode', freq_range_mode )        
 
@@ -2551,7 +2552,8 @@ class MainApp(QtWidgets.QMainWindow):
             enable_pounce_log,
             enable_log_packet_data,
             self.adif_file_path,
-            self.worked_before_preference           
+            self.worked_before_preference,
+            self.marathon_preference           
         )
         self.worker.moveToThread(self.thread)
 

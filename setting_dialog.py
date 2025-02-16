@@ -74,7 +74,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.tab_widget.addTab(tab_1, "Server")
         self.tab_widget.addTab(tab_2, "General")
         self.tab_widget.addTab(tab_3, "Sound Alerts")
-        self.tab_widget.addTab(tab_4, "Worked B4")
+        self.tab_widget.addTab(tab_4, "Log Analysis")
         self.tab_widget.addTab(tab_5, "Backup")
         self.tab_widget.addTab(tab_6, "Debugging")
 
@@ -394,7 +394,7 @@ class SettingsDialog(QtWidgets.QDialog):
         """
 
         worked_b4_notice_text = (
-            f"<p>While using {GUI_LABEL_NAME}, you can <u>set your working ADIF file from WSJT-x or JTDX</u>. {GUI_LABEL_NAME} won't update your main ADIF file. Still, it can read and parse it.<br><br>Then it will check which station was worked before (WkedB4).</p>"
+            f"<p>While using {GUI_LABEL_NAME}, you can let this program <u>analyze your working ADIF file from WSJT-x or JTDX</u>. {GUI_LABEL_NAME} won't update your main ADIF file. Still, it can read and parse it.</p>"
         )
 
         worked_b4_notice_label = QtWidgets.QLabel(worked_b4_notice_text)
