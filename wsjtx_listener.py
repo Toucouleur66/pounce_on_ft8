@@ -515,7 +515,7 @@ class Listener:
             """
                 Check if wanted and is Worked b4
             """
-            if self.adif_data['wkb4']:
+            if self.adif_data.get('wkb4'):
                 wkb4_year = get_wkb4_year(self.adif_data['wkb4'], callsign, get_amateur_band(self.frequency))
                 if wanted:
                     if (
@@ -533,7 +533,7 @@ class Listener:
             
             entity_code = None
             """
-            if self.adif_data['entity']:
+            if self.adif_data.get('entity'):
                 entity_code = callsign_info.get("adif")
             
                 if entity_code and entity_code not in self.adif_data['entity']:
