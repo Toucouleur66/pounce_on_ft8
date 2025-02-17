@@ -89,6 +89,7 @@ class Listener:
         self.transmitting               = None        
         self.last_frequency             = None
         self.frequency                  = None
+        self.band                       = None
         self.suggested_frequency        = None
         self.rx_df                      = None
         self.tx_df                      = None
@@ -141,11 +142,13 @@ class Listener:
             """
                 register_lookup allow us to get adif data per band, year and entity
             """
+
             if (
                 self.marathon_preference and 
                 adif_file_path and 
                 lookup
             ):
+                log.warning("Marathon: enabled")
                 adif_monitor.register_lookup(lookup)
             adif_monitor.start()
             adif_monitor.register_callback(self.update_adif_data)
@@ -253,7 +256,8 @@ class Listener:
             self.tx_df                  = self.the_packet.tx_df       
             self.rx_df                  = self.the_packet.rx_df  
             self.mode                   = self.the_packet.mode            
-            self.frequency              = self.the_packet.dial_frequency         
+            self.frequency              = self.the_packet.dial_frequency     
+            self.band                   = get_amateur_band(self.frequency)    
             self.transmitting           = int(self.the_packet.transmitting)  
             
             self.rst_sent[self.dx_call] = self.the_packet.report               
@@ -516,7 +520,7 @@ class Listener:
                 Check if wanted and is Worked b4
             """
             if self.adif_data.get('wkb4'):
-                wkb4_year = get_wkb4_year(self.adif_data['wkb4'], callsign, get_amateur_band(self.frequency))
+                wkb4_year = get_wkb4_year(self.adif_data['wkb4'], callsign, self.band)
                 if wanted:
                     if (
                         (
@@ -529,23 +533,31 @@ class Listener:
                         )
                     ):
                         wanted = False
-
             
-            entity_code = None
+            """
+                Check entity
             """
             if self.adif_data.get('entity'):
                 entity_code = callsign_info.get("adif")
-            
-                if entity_code and entity_code not in self.adif_data['entity']:
-                    self.adif_data['entity'][entity_code] = []
 
-                if callsign not in self.adif_data['entity'][entity_code]:
-                    wanted = True
-                    if callsign not in self.wanted_callsigns:
-                        self.wanted_callsigns.add(callsign)
-                    self.adif_data['entity'][entity_code].append(callsign) 
+                if entity_code:
+                    current_year = datetime.now().year
 
-            """
+                    if not self.adif_data['entity'].get(current_year):
+                        self.adif_data['entity'][current_year] = {}
+
+                    if not self.adif_data['entity'][current_year].get(self.band):
+                        self.adif_data['entity'][current_year][self.band] = []                    
+
+                    if entity_code not in self.adif_data['entity'][current_year][self.band]:
+                        self.adif_data['entity'][current_year][self.band].append(entity_code) 
+
+                        wanted = True
+                        if callsign not in self.wanted_callsigns:
+                            self.wanted_callsigns.add(callsign)
+            else:
+                entity_code = None
+    
 
             """
                 Reset values to focus on another wanted callsign
@@ -588,7 +600,7 @@ class Listener:
                     log.warning("Found message to log [ {} ]".format(self.call_ready_to_log))
                     self.qso_time_off[self.call_ready_to_log] = decode_time
                     self.log_qso_to_adif()
-                    if self.adif_data['entity']:
+                    if self.adif_data.get('entity') and entity_code:
                         self.clear_wanted_callsigns(entity_code)
                     if self.enable_secondary_udp_server:
                         self.log_qso_to_udp()
@@ -756,9 +768,11 @@ class Listener:
         self.s.send_packet(self.addr_port, configure_paquet)        
 
     def clear_wanted_callsigns(self, entity_code):
+        """
         for entity_callsign in self.adif_data['entity'][entity_code]:
             self.wanted_callsigns.remove(entity_callsign)
         self.adif_data['entity'].pop(entity_code, None)
+        """
 
     def log_qso_to_adif(self):
         if self.last_logged_call == self.call_ready_to_log:
@@ -771,7 +785,7 @@ class Listener:
         rst_rcvd        = self.get_clean_rst(self.rst_rcvd_from_being_called[self.call_ready_to_log]) or ''
         freq_rx         = f"{round((self.frequency + self.rx_df) / 1_000_000, 6):.6f}"
         freq            = f"{round((self.frequency + self.tx_df) / 1_000_000, 6):.6f}"
-        band            = get_amateur_band(self.frequency)
+        band            = self.band
         my_call         = self.my_call
         qso_date        = self.qso_time_on[self.call_ready_to_log].strftime('%Y%m%d')        
         qso_time_on     = self.qso_time_on[self.call_ready_to_log].strftime('%H%M%S')

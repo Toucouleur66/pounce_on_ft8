@@ -423,25 +423,25 @@ class SettingsDialog(QtWidgets.QDialog):
         file_selection_group.layout().setContentsMargins(0, 0, 0, 0)
         file_selection_group.layout().addWidget(file_selection_widget)
                
-        self.adif_action_group = QtWidgets.QGroupBox("What should we do with Worked B4?")
-        adif_action_layout = QtWidgets.QVBoxLayout()
-        adif_action_layout.setSpacing(10)
+        self.adif_wkb4_group = QtWidgets.QGroupBox("What should we do with Worked B4?")
+        adif_wkb4_layout = QtWidgets.QVBoxLayout()
+        adif_wkb4_layout.setSpacing(10)
 
         self.radio_reply_always = QtWidgets.QRadioButton("Reply to any Wanted Callsign even if Worked B4")
         self.radio_reply_current_year = QtWidgets.QRadioButton("Reply to Wanted Callsign if not Worked B4 in current year ({})".format(datetime.now().year))
         self.radio_reply_never = QtWidgets.QRadioButton("Do not reply to any Callsign Worked B4")
         self.radio_reply_never.setChecked(True)
         
-        adif_action_layout.addWidget(self.radio_reply_always)
-        adif_action_layout.addWidget(self.radio_reply_current_year)
-        adif_action_layout.addWidget(self.radio_reply_never)
+        adif_wkb4_layout.addWidget(self.radio_reply_always)
+        adif_wkb4_layout.addWidget(self.radio_reply_current_year)
+        adif_wkb4_layout.addWidget(self.radio_reply_never)
 
-        self.adif_action_group.setLayout(adif_action_layout)
-        self.adif_action_group.setVisible(False)
+        self.adif_wkb4_group.setLayout(adif_wkb4_layout)
+        self.adif_wkb4_group.setVisible(False)
 
         tab_4_layout.addWidget(worked_b4_notice_label)
         tab_4_layout.addWidget(file_selection_group)
-        tab_4_layout.addWidget(self.adif_action_group)
+        tab_4_layout.addWidget(self.adif_wkb4_group)
         tab_4_layout.addStretch()  
 
         """
@@ -560,7 +560,7 @@ class SettingsDialog(QtWidgets.QDialog):
                 processing_time, parsed_data = parse_adif(file_path)
                 if parsed_data:
                     self.adif_file_path.setText(file_path)
-                    self.adif_action_group.setVisible(True)
+                    self.adif_wkb4_group.setVisible(True)
                     self.on_tab_changed(self.tab_widget.currentIndex())
 
                     summary_dialog = AdifSummaryDialog(processing_time, parsed_data['wkb4'], self)
@@ -656,7 +656,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.adif_file_path.setText(selected_file)
 
         if selected_file:
-            self.adif_action_group.setVisible(True)
+            self.adif_wkb4_group.setVisible(True)
             reply_mode = self.params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS)  
             if reply_mode == WKB4_REPLY_MODE_ALWAYS:
                 self.radio_reply_always.setChecked(True)
@@ -667,7 +667,7 @@ class SettingsDialog(QtWidgets.QDialog):
             else:
                 self.radio_reply_always.setChecked(True)  
         else:
-            self.adif_action_group.setVisible(False)
+            self.adif_wkb4_group.setVisible(False)
 
         max_reply_attemps = self.params.get('max_reply_attemps_to_callsign', DEFAULT_REPLY_ATTEMPTS)
        

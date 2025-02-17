@@ -276,6 +276,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.adif_file_path                      = params.get('adif_file_path', None)
         self.worked_before_preference           = params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS)
         self.enable_show_all_decoded            = params.get('enable_show_all_decoded', DEFAULT_SHOW_ALL_DECODED)
+        self.marathon_preference                = params.get('marathon_preference', False)
         
         # Get sound configuration
         self.enable_sound_wanted_callsigns      = params.get('enable_sound_wanted_callsigns', True)
@@ -839,15 +840,24 @@ class MainApp(QtWidgets.QMainWindow):
 
         return filter_widget
 
+    def update_marathon_preference(self, checked):  
+        if self.marathon_preference != checked:
+            self.marathon_preference = checked
+            self.save_unique_param('marathon_preference', checked)   
+
+            if self._running:
+                self.stop_monitoring()
+                self.start_monitoring()    
+
     def update_global_sound_preference(self, checked):  
         if self.enable_global_sound != checked:
             self.enable_global_sound = checked
             self.global_sound_toggle.setChecked(checked)
-            self.save_unique_param('enable_global_sound', checked)       
+            self.save_unique_param('enable_global_sound', checked)      
 
     def toggle_global_sound_preference(self, checked):        
         if checked:
-            QtCore.QTimer.singleShot(100, lambda: self.play_sound('enable_global_sound'))
+            QtCore.QTimer.singleShot(500, lambda: self.play_sound('enable_global_sound'))
 
         self.update_global_sound_preference(checked)
 
@@ -2256,6 +2266,14 @@ class MainApp(QtWidgets.QMainWindow):
         enable_sound_action.setChecked(self.enable_global_sound)  
         main_menu.addAction(enable_sound_action)
 
+        if tuple(map(int, CURRENT_VERSION_NUMBER.split('.'))) >= (2, 7):
+            enable_marathon_action = QtGui.QAction("Enable Marathon (β use with caution)", self)
+            enable_marathon_action.setShortcut(QtGui.QKeySequence("Ctrl+H"))
+            enable_marathon_action.triggered.connect(self.update_marathon_preference)
+            enable_marathon_action.setCheckable(True)  
+            enable_marathon_action.setChecked(self.marathon_preference)  
+            main_menu.addAction(enable_marathon_action)
+
         settings_action = QtGui.QAction("Settings...", self)
         settings_action.setShortcut("Ctrl+,")  # Default shortcut for macOS
         settings_action.triggered.connect(self.open_settings)
@@ -2527,7 +2545,6 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.adif_file_path                  = params.get('adif_file_path', None)
         self.worked_before_preference       = params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS)
-        self.marathon_preference            = params.get('marathon_preference', None)
         
         self.save_unique_param('freq_range_mode', freq_range_mode )        
 
