@@ -329,7 +329,6 @@ class StatusPacket(GenericWSJTXPacket):
         )
         return str
 
-
 class DecodePacket(GenericWSJTXPacket):
     TYPE_VALUE = 2
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):

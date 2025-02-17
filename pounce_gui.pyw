@@ -1172,6 +1172,9 @@ class MainApp(QtWidgets.QMainWindow):
                 log.warning("Received Stop monitoring request")
                 self.play_sound("error_occurred")
                 self.stop_monitoring()     
+            elif message_type == 'update_wanted_callsign':
+                log.error("Received request to update Wanted Callsigns")
+                self.update_var(self.wanted_callsigns_vars[self.operating_band], message.get('callsign'), message.get('action'))             
             elif message_type == 'update_status':
                 if self._running:
                     self.check_connection_status(
@@ -1608,6 +1611,7 @@ class MainApp(QtWidgets.QMainWindow):
     @QtCore.pyqtSlot(object)
     def play_sound(self, sound_name):
         try:           
+            log.debug(f"Play sound: [{sound_name}] (type: {type(sound_name)})")
             if sound_name == 'wanted_callsign_detected':
                 self.wanted_callsign_detected_sound.play()
             if sound_name == 'wanted_callsign_being_called':
@@ -1625,7 +1629,7 @@ class MainApp(QtWidgets.QMainWindow):
             elif sound_name == 'enable_global_sound':
                 self.enabled_global_sound.play()               
             else:
-                log.error(f"Unknown sound: [{sound_name}]")            
+                log.error(f"Unknown sound: [{sound_name}] (type: {type(sound_name)})")         
         except Exception as e:
             log.error(f"Failed to play alert sound: {e}")            
 

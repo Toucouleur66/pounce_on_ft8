@@ -129,6 +129,7 @@ class Listener:
         self.message_callback               = message_callback
 
         self.adif_data                      = {}
+        self.wanted_callsigns_per_entity    = {}
         
         self.update_settings()
 
@@ -148,7 +149,6 @@ class Listener:
                 adif_file_path and 
                 lookup
             ):
-                log.warning("Marathon: enabled")
                 adif_monitor.register_lookup(lookup)
             adif_monitor.start()
             adif_monitor.register_callback(self.update_adif_data)
@@ -195,7 +195,7 @@ class Listener:
         self.monitored_callsigns    = self.monitoring_settings.get_monitored_callsigns()
         self.monitored_cq_zones     = self.monitoring_settings.get_monitored_cq_zones()
 
-        log.warning(f"Updated settings (~{CURRENT_VERSION_NUMBER}):\n\tWanted={self.wanted_callsigns}\n\tExcluded={self.excluded_callsigns}\n\tMonitored={self.monitored_callsigns}\n\tZones={self.monitored_cq_zones}")
+        log.warning(f"Updated settings (~{CURRENT_VERSION_NUMBER}):\n\tWanted={self.wanted_callsigns}\n\tExcluded={self.excluded_callsigns}\n\tMonitored={self.monitored_callsigns}\n\tZones={self.monitored_cq_zones}\n\tMarathon={self.marathon_preference}")
         
     def stop(self):
         self._running = False
@@ -269,8 +269,8 @@ class Listener:
                 self.last_mode = self.mode
                 if self.message_callback:
                     self.message_callback({
-                        'type': 'update_mode',
-                        'mode': self.mode
+                        'type'      : 'update_mode',
+                        'mode'      : self.mode
                     })
 
             # Updating frequency
@@ -339,9 +339,11 @@ class Listener:
             self.decode_packet_count += 1
             if self.enable_gap_finder:
                 self.collect_used_frequencies()     
-
+            """
+                We need a StatusPacket before handling the DecodePacket
+            """
             if self.my_call:
-                self.decode_parse_packet()
+                self.handle_decode_packet()
             else:
                 log.error('No StatusPacket received yet, can\'t handle DecodePacket for now.')    
         elif isinstance(self.the_packet, pywsjtx.ClearPacket):
@@ -464,7 +466,7 @@ class Listener:
 
         return int(suggested_freq)
 
-    def decode_parse_packet(self):
+    def handle_decode_packet(self):
         if self.enable_log_packet_data:
             log.debug('{}'.format(self.the_packet))
 
@@ -494,7 +496,9 @@ class Listener:
 
             log.debug("DecodePacket: {}".format(formatted_message))
 
-            # Parse message
+            """
+                Parse message, might need "lookup" to parse message
+            """
             parsed_data = parse_wsjtx_message(
                 message,
                 lookup,
@@ -535,13 +539,13 @@ class Listener:
                         wanted = False
             
             """
-                Check entity
+                Check if entity code is needed
             """
             if self.adif_data.get('entity'):
-                entity_code = callsign_info.get("adif")
+                entity_code = callsign_info.get('entity')
 
                 if entity_code:
-                    current_year = datetime.now().year
+                    current_year = datetime.now().year                    
 
                     if not self.adif_data['entity'].get(current_year):
                         self.adif_data['entity'][current_year] = {}
@@ -550,17 +554,35 @@ class Listener:
                         self.adif_data['entity'][current_year][self.band] = []                    
 
                     if entity_code not in self.adif_data['entity'][current_year][self.band]:
+                        log.warning(f"Entity Code Wanted={entity_code} ({self.band}/{current_year})\n\tAdding Wanted Callsign={callsign}")
                         self.adif_data['entity'][current_year][self.band].append(entity_code) 
+                        if not self.wanted_callsigns_per_entity.get(self.band):
+                            self.wanted_callsigns_per_entity[self.band] = {}
 
-                        wanted = True
+                        if not self.wanted_callsigns_per_entity[self.band].get(entity_code):
+                            self.wanted_callsigns_per_entity[self.band][entity_code] = []
+
+                        if callsign not in self.wanted_callsigns_per_entity[self.band][entity_code]:
+                            self.wanted_callsigns_per_entity[self.band][entity_code].append(callsign)
+
+                        """
+                            We need to set this DecodePacket as wanted one
+                        """
+                        # wanted = True
                         if callsign not in self.wanted_callsigns:
-                            self.wanted_callsigns.add(callsign)
+                            if self.message_callback:
+                                self.message_callback({    
+                                'type'          : 'update_wanted_callsign',
+                                'callsign'      : callsign,
+                                'action'        : 'add'
+                            })        
+                    else:
+                        log.warning(f"Entity Code not Wanted={entity_code} ({self.band}/{current_year}={len(self.adif_data['entity'][current_year][self.band])} entities worked)")
             else:
                 entity_code = None
-    
 
             """
-                Reset values to focus on another wanted callsign
+                Might reset values to focus on another wanted callsign
             """
             if (
                 wanted is True and
@@ -768,12 +790,14 @@ class Listener:
         self.s.send_packet(self.addr_port, configure_paquet)        
 
     def clear_wanted_callsigns(self, entity_code):
-        """
-        for entity_callsign in self.adif_data['entity'][entity_code]:
-            self.wanted_callsigns.remove(entity_callsign)
-        self.adif_data['entity'].pop(entity_code, None)
-        """
-
+        for callsign in self.wanted_callsigns_per_entity[self.band][entity_code]:
+            if self.message_callback:
+                self.message_callback({        
+                'type'              : 'update_wanted_callsign',
+                'callsign'          : callsign,
+                'action'            : 'remove'
+            })        
+                                
     def log_qso_to_adif(self):
         if self.last_logged_call == self.call_ready_to_log:
             return 
