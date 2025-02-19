@@ -112,6 +112,7 @@ from constants import (
     DEFAULT_MODE_TIMER_VALUE,
     # Priority
     MESSAGE_TYPE_PRIORITY,
+    PROCESS_MESSAGE_BUFFER_TIME,
     # Band,
     DEFAULT_SELECTED_BAND,
     # Needed for filtering
@@ -273,10 +274,12 @@ class MainApp(QtWidgets.QMainWindow):
         self.enable_filter_gui                   = params.get('enable_filter_gui', False)        
         self.enable_global_sound                = params.get('enable_global_sound', True)
         self.datetime_column_setting            = params.get('datetime_column_setting', DATE_COLUMN_DATETIME)
+        self.enable_show_all_decoded            = params.get('enable_show_all_decoded', DEFAULT_SHOW_ALL_DECODED)
+
         self.adif_file_path                      = params.get('adif_file_path', None)
         self.worked_before_preference           = params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS)
-        self.enable_show_all_decoded            = params.get('enable_show_all_decoded', DEFAULT_SHOW_ALL_DECODED)
-        self.marathon_preference                = params.get('marathon_preference', False)
+        self.enable_marathon                    = params.get('enable_marathon', False)
+        self.marathon_preference                = params.get('marathon_preference', {})
         
         # Get sound configuration
         self.enable_sound_wanted_callsigns      = params.get('enable_sound_wanted_callsigns', True)
@@ -602,10 +605,12 @@ class MainApp(QtWidgets.QMainWindow):
         self.monitored_callsigns_vars           = {}
         self.excluded_callsigns_vars            = {}
         self.monitored_cq_zones_vars            = {}
+        self.excluded_cq_zones_vars             = {}        
 
         self.tooltip_wanted_vars                = {}
         self.tooltip_monitored_vars             = {}
-        self.tooltip_excluded_vars              = {}
+        self.tooltip_excluded_callsigns_vars    = {}
+        self.tooltip_excluded_cd_zones_vars      = {}
         self.tooltip_monitored_cq_zones_vars    = {}
 
         self.band_indices                       = {}
@@ -616,13 +621,15 @@ class MainApp(QtWidgets.QMainWindow):
             'monitored_callsigns'   : self.monitored_callsigns_vars,            
             'monitored_cq_zones'    : self.monitored_cq_zones_vars,
             'excluded_callsigns'    : self.excluded_callsigns_vars,            
+            'excluded_cq_zones'     : self.excluded_cq_zones_vars,
         }
 
         tooltip_wanted_dict = {
             'wanted_callsigns'      : self.tooltip_wanted_vars,
             'monitored_callsigns'   : self.tooltip_monitored_vars,
             'monitored_cq_zones'    : self.tooltip_monitored_cq_zones_vars,
-            'excluded_callsigns'    : self.tooltip_excluded_vars,
+            'excluded_callsigns'    : self.tooltip_excluded_callsigns_vars,
+            'excluded_cq_zones'     : self.tooltip_excluded_cd_zones_vars,
         }
 
         sought_variables = [
@@ -653,6 +660,13 @@ class MainApp(QtWidgets.QMainWindow):
                 'function'         : partial(force_input, mode="uppercase"),
                 'placeholder'      : CQ_ZONE_NOTICE_LABEL,                
                 'on_changed_method': self.on_excluded_callsigns_changed,
+            },
+            {
+                'name'             : 'excluded_cq_zones',
+                'label'            : 'Excluded CQ Zone(s):',
+                'function'         : partial(force_input, mode="numbers"),
+                'placeholder'      : CQ_ZONE_NOTICE_LABEL,                
+                'on_changed_method': self.on_excluded_cq_zones_changed,
             }
         ]
 
@@ -841,9 +855,9 @@ class MainApp(QtWidgets.QMainWindow):
         return filter_widget
 
     def update_marathon_preference(self, checked):  
-        if self.marathon_preference != checked:
-            self.marathon_preference = checked
-            self.save_unique_param('marathon_preference', checked)   
+        if self.enable_marathon != checked:
+            self.enable_marathon = checked
+            self.save_unique_param('enable_marathon', checked)   
 
             if self._running:
                 self.stop_monitoring()
@@ -1092,6 +1106,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.monitoring_settings.set_monitored_callsigns(self.monitored_callsigns_vars[self.operating_band].text())
             self.monitoring_settings.set_excluded_callsigns(self.excluded_callsigns_vars[self.operating_band].text())
             self.monitoring_settings.set_monitored_cq_zones(self.monitored_cq_zones_vars[self.operating_band].text())
+            self.monitoring_settings.set_excluded_cq_zones(self.excluded_cq_zones_vars[self.operating_band].text())
             
             self.update_tab_widget_labels_style()
             
@@ -1138,6 +1153,12 @@ class MainApp(QtWidgets.QMainWindow):
             if self.worker is not None:
                 self.worker.update_settings_signal.emit()
 
+    def on_excluded_cq_zones_changed(self):
+        if self.operating_band:
+            self.monitoring_settings.set_excluded_cq_zones(self.excluded_cq_zones_vars[self.operating_band].text())
+            if self.worker is not None:
+                self.worker.update_settings_signal.emit()                
+
     def on_monitored_cq_zones_changed(self):
         if self.operating_band:
             self.monitoring_settings.set_monitored_cq_zones(self.monitored_cq_zones_vars[self.operating_band].text())
@@ -1173,7 +1194,7 @@ class MainApp(QtWidgets.QMainWindow):
                 self.play_sound("error_occurred")
                 self.stop_monitoring()     
             elif message_type == 'update_wanted_callsign':
-                log.error("Received request to update Wanted Callsigns")
+                log.debug("Received request to update Wanted Callsigns")
                 self.update_var(self.wanted_callsigns_vars[self.operating_band], message.get('callsign'), message.get('action'))             
             elif message_type == 'update_status':
                 if self._running:
@@ -1260,9 +1281,6 @@ class MainApp(QtWidgets.QMainWindow):
                         message,
                         datetime.now() + timedelta(seconds=MESSAGE_TYPE_PRIORITY.get(message_type, float('inf')))
                     ))                         
-
-        elif isinstance(message, str):         
-            self.set_notice_to_focus_value_label(message)
         else:
             pass
     
@@ -1299,6 +1317,12 @@ class MainApp(QtWidgets.QMainWindow):
 
             if self.global_sound_toggle.isChecked():      
                 if message_type == 'wanted_callsign_detected' and self.enable_sound_wanted_callsigns:
+
+                    """
+                        Remove this manual play
+                    """
+                    self.wanted_callsign_detected_sound.play()
+
                     play_sound = True
                 elif message_type == 'wanted_callsign_being_called' and self.enable_sound_wanted_callsigns:
                     play_sound = True                    
@@ -1567,9 +1591,6 @@ class MainApp(QtWidgets.QMainWindow):
             padding: 5px;
         """
 
-        #if self.dark_mode:
-            #style+= "border: 1px solid grey;"
-
         self.status_label.setStyleSheet(style)            
 
     def set_notice_to_focus_value_label(self, notice_message, fg_color_hex=FG_COLOR_BLACK_ON_WHITE, bg_color_hex=STATUS_TRX_COLOR):           
@@ -1577,7 +1598,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.update_status_menu_message(notice_message, bg_color_hex, fg_color_hex)
         self.output_table.scrollToBottom()
         self.last_focus_value_message_uid = None
-        log.warning(notice_message)
 
     def set_message_to_focus_value_label(self, message):   
         message_type      = message.get('message_type')
@@ -1713,7 +1733,7 @@ class MainApp(QtWidgets.QMainWindow):
                 status_text_array.append(f"Last DecodePacket {status_mode_frequency}: {time_since_last_decode_text} ago")  
 
                 if not self.process_timer.isActive():
-                    self.process_timer.start(300) 
+                    self.process_timer.start(PROCESS_MESSAGE_BUFFER_TIME) 
 
             # Update new interval if necessary
             if network_check_status_interval != self.network_check_status_interval:
@@ -1810,6 +1830,10 @@ class MainApp(QtWidgets.QMainWindow):
 
     def restart_application(self):
         self.save_window_position()
+
+        self.status_menu_agent_cleaner()
+        self.save_band_settings()
+        self.save_worked_callsigns()
 
         QtCore.QProcess.startDetached(sys.executable, sys.argv)
         QtWidgets.QApplication.quit()
@@ -2275,7 +2299,7 @@ class MainApp(QtWidgets.QMainWindow):
             enable_marathon_action.setShortcut(QtGui.QKeySequence("Ctrl+H"))
             enable_marathon_action.triggered.connect(self.update_marathon_preference)
             enable_marathon_action.setCheckable(True)  
-            enable_marathon_action.setChecked(self.marathon_preference)  
+            enable_marathon_action.setChecked(self.enable_marathon)  
             main_menu.addAction(enable_marathon_action)
 
         settings_action = QtGui.QAction("Settings...", self)
@@ -2492,11 +2516,13 @@ class MainApp(QtWidgets.QMainWindow):
             monitored_callsigns                 = self.monitored_callsigns_vars[band].text()
             monitored_cq_zones                  = self.monitored_cq_zones_vars[band].text()
             excluded_callsigns                  = self.excluded_callsigns_vars[band].text()
+            excluded_cq_zones                   = self.excluded_cq_zones_vars[band].text()
             
             params.setdefault(band, {}).update({
                 "monitored_callsigns"           : monitored_callsigns,
                 "monitored_cq_zones"            : monitored_cq_zones,
                 "excluded_callsigns"            : excluded_callsigns,
+                "excluded_cq_zones"             : excluded_cq_zones,
                 "wanted_callsigns"              : wanted_callsigns
             })
         self.save_params(params)               
@@ -2511,7 +2537,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.timer.timeout.connect(self.update_mode_timer)
         self.timer.start(200)
 
-        self.process_timer.start(300)
+        self.process_timer.start(PROCESS_MESSAGE_BUFFER_TIME)
 
         self.is_status_button_label_visible = True
         self.is_status_button_label_blinking = False
@@ -2574,6 +2600,7 @@ class MainApp(QtWidgets.QMainWindow):
             enable_log_packet_data,
             self.adif_file_path,
             self.worked_before_preference,
+            self.enable_marathon,
             self.marathon_preference           
         )
         self.worker.moveToThread(self.thread)

@@ -10,6 +10,7 @@ class MonitoringSettings:
         self._wanted_callsigns      = set()
         self._excluded_callsigns    = set()
         self._monitored_cq_zones    = set()
+        self._excluded_cq_zones     = set()
 
     def get_monitored_callsigns(self):
         with self.lock:
@@ -30,6 +31,10 @@ class MonitoringSettings:
     def get_excluded_callsigns(self):
         with self.lock:
             return set(self._excluded_callsigns)
+        
+    def get_excluded_cq_zones(self):
+        with self.lock:
+            return set(self._excluded_cq_zones)        
 
     def set_excluded_callsigns(self, callsigns):
         with self.lock:
@@ -43,3 +48,6 @@ class MonitoringSettings:
         with self.lock:
             self._monitored_cq_zones = text_to_array(cq_zones)
 
+    def set_excluded_cq_zones(self, cq_zones):
+        with self.lock:
+            self._excluded_cq_zones = text_to_array(cq_zones)

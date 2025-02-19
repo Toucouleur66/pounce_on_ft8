@@ -67,7 +67,8 @@ def parse_wsjtx_message(
         worked_callsigns    = set(),
         excluded_callsigns  = set(),
         monitored_callsigns = set(),
-        monitored_cq_zones  = set()
+        monitored_cq_zones  = set(),
+        excluded_cq_zones   = set(),
     ):
     directed                = None
     callsign                = None
@@ -76,8 +77,10 @@ def parse_wsjtx_message(
     cq_zone                 = None
     msg                     = None
     report                  = None
+
     cqing                   = False
     wanted                  = False
+    excluded                = False
     monitored               = False
     monitored_cq_zone       = False
 
@@ -202,9 +205,13 @@ def parse_wsjtx_message(
         if cq_zone and cq_zone in monitored_cq_zones:
             is_monitored_cq_zone = True
 
+        if cq_zone and cq_zone in excluded_cq_zones:
+            is_excluded = True            
+
         wanted            = is_wanted and not is_excluded and not is_worked
         monitored         = is_monitored and not is_excluded
         monitored_cq_zone = is_monitored_cq_zone and not is_excluded
+        excluded          = is_excluded
 
     return {
         'directed'           : directed,
@@ -215,6 +222,7 @@ def parse_wsjtx_message(
         'msg'                : msg,
         'cqing'              : cqing,
         'wanted'             : wanted,
+        'excluded'           : excluded,
         'monitored'          : monitored,
         'monitored_cq_zone'  : monitored_cq_zone
     }

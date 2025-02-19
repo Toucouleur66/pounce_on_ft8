@@ -15,6 +15,7 @@ from datetime import datetime
 
 from utils import get_local_ip_address, get_log_filename
 from utils import parse_adif
+from utils import AMATEUR_BANDS
 
 from constants import (
     # Colors
@@ -340,7 +341,6 @@ class SettingsDialog(QtWidgets.QDialog):
         """
             Sound Settings
         """
-
         sound_notice_text = (
             "<p>You can enable or disable the sounds as per your requirement. You can even set a delay between each sound triggered by a message where a monitored callsign has been found. This mainly helps you to be notified when the band opens or when you have a callsign on the air that you want to monitor.</p><p>Monitored callsigns will never get reply from this program. Only <u>Wanted callsigns will get a reply</u>.</p>"
         )
@@ -439,9 +439,36 @@ class SettingsDialog(QtWidgets.QDialog):
         self.adif_wkb4_group.setLayout(adif_wkb4_layout)
         self.adif_wkb4_group.setVisible(False)
 
+        """
+            Marathon Settings
+        """
+        marathon_notice_text = (
+            f"<p>Marathon feature has to be used with caution.</p><p>{GUI_LABEL_NAME} will analyze your log and check for any missing entities you haven't worked on selected band. If a missing entity is decoded, <u>it will automatically add the callsign to your Wanted Callsigns</u>. Once entity is worked, {GUI_LABEL_NAME} will remove all entries automatically added to your Wanted Callsigns which refer to this entity.</p><p>Note that rules set for Worked B4 will remain in effect.</p>"
+        )
+        marathon_notice_label = QtWidgets.QLabel(marathon_notice_text)
+        marathon_notice_label.setStyleSheet(SETTING_QSS)
+        marathon_notice_label.setWordWrap(True)
+        marathon_notice_label.setFont(CUSTOM_FONT_SMALL)
+        marathon_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
+
+        self.marathon_group = QtWidgets.QGroupBox("Enable Marathon for selected bands")
+        marathon_layout = QtWidgets.QVBoxLayout()
+
+        self.band_checkboxes = {}
+
+        for band_name in AMATEUR_BANDS.keys():
+            cb = QtWidgets.QCheckBox(band_name)
+            cb.setChecked(False)
+            self.band_checkboxes[band_name] = cb
+            marathon_layout.addWidget(cb)
+
+        self.marathon_group.setLayout(marathon_layout)
+
         tab_4_layout.addWidget(worked_b4_notice_label)
         tab_4_layout.addWidget(file_selection_group)
         tab_4_layout.addWidget(self.adif_wkb4_group)
+        tab_4_layout.addWidget(marathon_notice_label)
+        tab_4_layout.addWidget(self.marathon_group)
         tab_4_layout.addStretch()  
 
         """
@@ -684,6 +711,16 @@ class SettingsDialog(QtWidgets.QDialog):
             self.max_waiting_delay_combo.setCurrentText(max_waiting_delay)
         else:
             self.max_waiting_delay_combo.setCurrentText(str(DEFAULT_MAX_WAITING_DELAY))    
+
+        self.marathon_preference = self.params.get('marathon_preference', {})
+
+        if isinstance(self.marathon_preference, bool):
+            self.marathon_preference = {}
+        for band_name in AMATEUR_BANDS.keys():
+            if band_name in self.marathon_preference:
+                self.band_checkboxes[band_name].setChecked(self.marathon_preference[band_name])
+            else:
+                self.band_checkboxes[band_name].setChecked(False)    
     
     def get_result(self):
         freq_range_mode = MODE_NORMAL 
@@ -703,6 +740,10 @@ class SettingsDialog(QtWidgets.QDialog):
 
         max_reply_attemps = int(self.max_reply_attemps_combo.currentText())
         max_waiting_delay = int(self.max_waiting_delay_combo.currentText())
+
+        marathon_preference = {}
+        for band_name, checkbox in self.band_checkboxes.items():
+            marathon_preference[band_name] = checkbox.isChecked()
 
         return {
             'primary_udp_server_address'                 : self.primary_udp_server_address.text(),
@@ -724,5 +765,6 @@ class SettingsDialog(QtWidgets.QDialog):
             'delay_between_sound_for_monitored'          : self.delay_between_sound_for_monitored.text(),
             'adif_file_path'                              : self.adif_file_path.text(),            
             'freq_range_mode'                            : freq_range_mode,
-            'worked_before_preference'                   : worked_before_preference            
+            'worked_before_preference'                   : worked_before_preference,
+            'marathon_preference'                        : marathon_preference            
         }

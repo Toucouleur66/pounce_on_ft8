@@ -55,6 +55,7 @@ class Listener:
             enable_log_packet_data, 
             monitoring_settings,
             freq_range_mode,
+            enable_marathon,
             marathon_preference,
             adif_file_path,
             worked_before_preference,
@@ -88,6 +89,7 @@ class Listener:
         self.last_mode                  = None
         self.transmitting               = None        
         self.last_frequency             = None
+        self.last_frequency_time_change = datetime.now()
         self.frequency                  = None
         self.band                       = None
         self.suggested_frequency        = None
@@ -111,10 +113,15 @@ class Listener:
         self.enable_debug_output            = enable_debug_output
         self.enable_pounce_log              = enable_pounce_log 
         self.enable_log_packet_data         = enable_log_packet_data
+        self.enable_marathon                = enable_marathon
 
         self.max_reply_attemps_to_callsign  = max_reply_attemps_to_callsign
-        # Convert minutes to seconds from max_working_delay
+
+        """
+            Convert minutes to seconds from max_working_delay
+        """
         self.max_working_delay_seconds      = max_working_delay * 60
+
         self.worked_before_preference       = worked_before_preference      
         self.marathon_preference            = marathon_preference
 
@@ -143,9 +150,8 @@ class Listener:
             """
                 register_lookup allow us to get adif data per band, year and entity
             """
-
             if (
-                self.marathon_preference and 
+                self.enable_marathon and 
                 adif_file_path and 
                 lookup
             ):
@@ -194,8 +200,21 @@ class Listener:
         self.excluded_callsigns     = self.monitoring_settings.get_excluded_callsigns()
         self.monitored_callsigns    = self.monitoring_settings.get_monitored_callsigns()
         self.monitored_cq_zones     = self.monitoring_settings.get_monitored_cq_zones()
+        self.excluded_cq_zones      = self.monitoring_settings.get_excluded_cq_zones()
 
-        log.warning(f"Updated settings (~{CURRENT_VERSION_NUMBER}):\n\tWanted={self.wanted_callsigns}\n\tExcluded={self.excluded_callsigns}\n\tMonitored={self.monitored_callsigns}\n\tZones={self.monitored_cq_zones}\n\tMarathon={self.marathon_preference}")
+        log_output = []
+        log_output.append(f"Updated settings (~{CURRENT_VERSION_NUMBER}):")
+        log_output.append(f"Band={self.band}")
+        log_output.append(f"WantedCallsigns={self.wanted_callsigns}")
+        log_output.append(f"MonitoredCallsigns={self.monitored_callsigns}")
+        log_output.append(f"ExcludedCallsigns={self.excluded_callsigns}")
+        log_output.append(f"MonitoredZones={self.monitored_cq_zones}")
+        log_output.append(f"ExcludedZones={self.excluded_cq_zones}")
+        
+        if self.enable_marathon:
+            log_output.append(f"Marathon={self.marathon_preference.get(self.band)}")
+
+        log.warning(f"\n\t".join(log_output))
         
     def stop(self):
         self._running = False
@@ -276,6 +295,7 @@ class Listener:
             # Updating frequency
             if self.last_frequency != self.frequency:
                 self.last_frequency = self.frequency
+                self.last_frequency_time_change = datetime.now()
                 if self.message_callback:
                     self.message_callback({
                         'type'      : 'update_frequency',
@@ -292,7 +312,6 @@ class Listener:
                     ))
                 """
                 status_had_time_to_update = (datetime.now(timezone.utc) - self.reply_to_packet_time).total_seconds() > 30
-
                 if (
                     status_had_time_to_update and
                     self.the_packet.tx_enabled == 0 and 
@@ -506,16 +525,19 @@ class Listener:
                 self.worked_callsigns,
                 self.excluded_callsigns,
                 self.monitored_callsigns,
-                self.monitored_cq_zones
+                self.monitored_cq_zones,
+                self.excluded_cq_zones
             )
             directed          = parsed_data['directed']
             callsign          = parsed_data['callsign']
             callsign_info     = parsed_data['callsign_info']
+            callsign_wkb4     = False
             grid              = parsed_data['grid']
             report            = parsed_data['report']
             msg               = parsed_data['msg']
             cqing             = parsed_data['cqing']
             wanted            = parsed_data['wanted']
+            excluded          = parsed_data['excluded']
             monitored         = parsed_data['monitored']
             monitored_cq_zone = parsed_data['monitored_cq_zone']
             wkb4_year         = None
@@ -537,14 +559,25 @@ class Listener:
                         )
                     ):
                         wanted = False
+                        callsign_wkb4 = True
             
             """
                 Check if entity code is needed
             """
-            if self.adif_data.get('entity'):
+            if (
+                not excluded and
+                not callsign_wkb4 and
+                callsign_info and
+                self.enable_marathon and 
+                self.adif_data.get('entity') and
+                self.marathon_preference.get(self.band)
+            ):
                 entity_code = callsign_info.get('entity')
 
-                if entity_code:
+                if (
+                    entity_code and 
+                    (datetime.now() - self.last_frequency_time_change).total_seconds() > 15
+                ):
                     current_year = datetime.now().year                    
 
                     if not self.adif_data['entity'].get(current_year):
@@ -568,16 +601,15 @@ class Listener:
                         """
                             We need to set this DecodePacket as wanted one
                         """
-                        # wanted = True
+                        wanted = True
+
                         if callsign not in self.wanted_callsigns:
                             if self.message_callback:
                                 self.message_callback({    
                                 'type'          : 'update_wanted_callsign',
                                 'callsign'      : callsign,
                                 'action'        : 'add'
-                            })        
-                    else:
-                        log.warning(f"Entity Code not Wanted={entity_code} ({self.band}/{current_year}={len(self.adif_data['entity'][current_year][self.band])} entities worked)")
+                            })                            
             else:
                 entity_code = None
 
@@ -658,8 +690,7 @@ class Listener:
                     else:
                         message_type = 'directed_to_my_call'    
 
-            elif wanted is True:
-                log.debug("Listener wanted_callsign {}".format(callsign))  
+            elif wanted is True: 
                 if self.enable_gap_finder:
                     self.targeted_call_frequencies.add(delta_f)     
 
