@@ -447,11 +447,11 @@ class CallsignLookup:
             if callsign in self.invalid_operations:
                 invalid_data_list = self.invalid_operations[callsign]
                 if isinstance(invalid_data_list, bool):
-                    log.error(f"{callsign} is invalid for date {date}")
+                    log.debug(f"{callsign} is invalid for date {date}")
                     return {}
                 for inv_data in (invalid_data_list if isinstance(invalid_data_list, list) else [invalid_data_list]):
                     if self.is_valid_for_date(inv_data, date):
-                        log.error(f"{callsign} is invalid for date {date}")
+                        log.debug(f"{callsign} is invalid for date {date}")
                         return {}
                     
             if callsign in self.callsign_exceptions:
@@ -472,7 +472,7 @@ class CallsignLookup:
                             break
 
             if lookup_result is None:
-                log.error(f"No information found for {callsign}.")
+                log.debug(f"No information found for {callsign}.")
                 lookup_result = {}
 
             if grid is not None and lookup_result:

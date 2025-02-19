@@ -178,7 +178,7 @@ class RawDataModel(QtCore.QAbstractTableModel):
                     break
 
             if index_to_remove is None:
-                index_to_remove = 0
+                break
 
             self.beginRemoveRows(QtCore.QModelIndex(), index_to_remove, index_to_remove)
             del self._data[index_to_remove]
