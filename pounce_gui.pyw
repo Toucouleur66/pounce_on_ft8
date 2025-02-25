@@ -25,7 +25,7 @@ import inspect
 import traceback
 
 from datetime import datetime, timezone, timedelta
-from collections import deque
+from collections import deque, defaultdict
 from functools import partial
 
 # Custom classes 
@@ -1100,7 +1100,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.save_unique_param('last_band_used', self.gui_selected_band)  
         
     def apply_band_change(self, band):
-        if band != self.operating_band and band != 'Invalid':            
+        if band != 'Invalid' and band != self.operating_band:        
             self.operating_band = band
             self.monitoring_settings.set_wanted_callsigns(self.wanted_callsigns_vars[self.operating_band].text())
             self.monitoring_settings.set_monitored_callsigns(self.monitored_callsigns_vars[self.operating_band].text())
@@ -1194,7 +1194,7 @@ class MainApp(QtWidgets.QMainWindow):
                 self.play_sound("error_occurred")
                 self.stop_monitoring()     
             elif message_type == 'update_wanted_callsign':
-                log.debug("Received request to update Wanted Callsigns")
+                log.debug(f"Received request to update ({message.get('action')}) Wanted Callsigns with [ {message.get('callsign')} ]")
                 self.update_var(self.wanted_callsigns_vars[self.operating_band], message.get('callsign'), message.get('action'))             
             elif message_type == 'update_status':
                 if self._running:
@@ -1406,7 +1406,13 @@ class MainApp(QtWidgets.QMainWindow):
         actions = {}        
 
         if table.objectName() == 'history_table':
-            actions['remove_callsign_from_worked_history'] = menu.addAction(f"Remove {callsign} on {history_band} from Worked History")
+            actions['remove_entry_from_worked_history'] = menu.addAction(f"Remove {callsign} on {history_band} from Worked History")            
+            callsign_bands = defaultdict(set)
+            for entry in self.worked_callsigns_history:
+                callsign_bands[entry['callsign']].add(entry['band'])
+
+            if len(callsign_bands[callsign]) > 1:
+                actions['remove_callsign_from_worked_history'] = menu.addAction(f"Remove {callsign} on all bands from Worked History ({", ".join(sorted(callsign_bands[callsign]))})")
             menu.addSeparator()
 
         header_action = QtGui.QAction(f"Apply to {context_menu_band}")
@@ -1477,12 +1483,16 @@ class MainApp(QtWidgets.QMainWindow):
         if action is None:
             return
 
+        """
+            Context menu actions
+        """
         if action == actions.get('copy_message'):
             if formatted_message:
                 self.copy_message_to_clipboard(formatted_message)
         else:
             update_actions = {
-                'remove_callsign_from_worked_history' : lambda: self.remove_worked_callsign(callsign, history_band),
+                'remove_entry_from_worked_history'    : lambda: self.remove_worked_callsign(callsign, history_band),
+                'remove_callsign_from_worked_history' : lambda: self.remove_worked_callsign(callsign),
                 'add_callsign_to_wanted'              : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], callsign),
                 'remove_callsign_from_wanted'         : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], callsign, "remove"),
                 'replace_wanted_with_callsign'        : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], callsign, "replace"),
@@ -1631,7 +1641,7 @@ class MainApp(QtWidgets.QMainWindow):
     @QtCore.pyqtSlot(object)
     def play_sound(self, sound_name):
         try:           
-            log.debug(f"Play sound: [{sound_name}] (type: {type(sound_name)})")
+            log.debug(f"Play sound: [{sound_name}]")
             if sound_name == 'wanted_callsign_detected':
                 self.wanted_callsign_detected_sound.play()
             if sound_name == 'wanted_callsign_being_called':
@@ -1649,7 +1659,7 @@ class MainApp(QtWidgets.QMainWindow):
             elif sound_name == 'enable_global_sound':
                 self.enabled_global_sound.play()               
             else:
-                log.error(f"Unknown sound: [{sound_name}] (type: {type(sound_name)})")         
+                log.error(f"Unknown sound: [{sound_name}]")         
         except Exception as e:
             log.error(f"Failed to play alert sound: {e}")            
 
@@ -1831,7 +1841,6 @@ class MainApp(QtWidgets.QMainWindow):
     def restart_application(self):
         self.save_window_position()
 
-        self.status_menu_agent_cleaner()
         self.save_band_settings()
         self.save_worked_callsigns()
 
@@ -1946,10 +1955,10 @@ class MainApp(QtWidgets.QMainWindow):
         self.wait_pounce_history_table.setRowCount(0)            
         self.clear_worked_history_action.setEnabled(False)
 
-    def remove_worked_callsign(self, callsign, band):
+    def remove_worked_callsign(self, callsign, band = None):
         updated_history = [
             entry for entry in self.worked_callsigns_history
-            if not (entry.get("callsign") == callsign and entry.get("band") == band)
+            if not (entry.get("callsign") == callsign and (band is None or entry.get("band") == band))
         ]
 
         if len(updated_history) < len(self.worked_callsigns_history):
@@ -1983,23 +1992,6 @@ class MainApp(QtWidgets.QMainWindow):
 
     def update_worked_callsigns_history_counter(self):
         self.worked_history_callsigns_label.setText(WORKED_CALLSIGNS_HISTORY_LABEL % len(self.worked_callsigns_history))
-
-    def on_right_click(self, position):
-        menu = QtWidgets.QMenu()
-        if sys.platform == 'darwin':
-            menu.setStyleSheet(CONTEXT_MENU_DARWIN_QSS)
-            menu.setFont(MENU_FONT)
-        
-        remove_action = menu.addAction("Remove entry")
-
-        menu.addSeparator()
-        edit_action = menu.addAction("Edit entry")
-
-        action = menu.exec(self.listbox.mapToGlobal(position))
-        if action == remove_action:
-            self.remove_callsign_from_history()
-        elif action == edit_action:
-            self.edit_callsigns()
 
     def on_focus_value_label_clicked(self, event= None):
         message = self.focus_value_label.text()
@@ -2552,7 +2544,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.stop_event.clear()
         self.hide_focus_value_label(visible=False)  
 
-        self.apply_band_change(self.gui_selected_band)
+        # self.apply_band_change(self.gui_selected_band)
         
         params                              = self.load_params()
         local_ip_address                    = get_local_ip_address()

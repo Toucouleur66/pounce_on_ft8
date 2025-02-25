@@ -51,6 +51,7 @@ STATUS_COLOR_LABEL_OFF          = "#E5E5E5"
 STATUS_COLOR_LABEL_SELECTED     = "#808080"
 
 SAVED_VERSION_FILE              = os.path.join(get_app_data_dir(), "app_version.json")
+MARATHON_FILE                   = os.path.join(get_app_data_dir(), "marathon.json")
 PARAMS_FILE                     = os.path.join(get_app_data_dir(), "params.pkl")
 POSITION_FILE                   = os.path.join(get_app_data_dir(), "window_position.pkl")
 WORKED_CALLSIGNS_FILE           = os.path.join(get_app_data_dir(), "worked_callsigns.pkl")
@@ -114,6 +115,7 @@ DEFAULT_LOG_ALL_VALID_CONTACT   = True
 DEFAULT_DELAY_BETWEEN_SOUND     = 120
 DEFAULT_MAX_WAITING_DELAY       = 2 # minutes
 DEFAULT_REPLY_ATTEMPTS          = 10
+BAND_CHANGE_WAITING_DELAY       = 15
 
 DEFAULT_SELECTED_BAND           = "6m"
 DEFAULT_FILTER_VALUE            = "All"

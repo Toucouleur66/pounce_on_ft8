@@ -13,7 +13,8 @@ from collections import deque
 
 from logger import get_logger
 from utils import get_local_ip_address, get_mode_interval, get_amateur_band, parse_wsjtx_message
-from utils import get_wkb4_year
+from utils import get_wkb4_year, get_clean_rst
+from utils import load_marathon_wanted_data, save_marathon_wanted_data
 
 from callsign_lookup import CallsignLookup
 from adif_monitor import AdifMonitor
@@ -23,6 +24,7 @@ lookup  = CallsignLookup()
 
 from constants import (
     CURRENT_VERSION_NUMBER,
+    BAND_CHANGE_WAITING_DELAY,
     EVEN,
     ODD,
     MODE_FOX_HOUND,
@@ -33,7 +35,8 @@ from constants import (
     FREQ_MINIMUM,
     FREQ_MAXIMUM,
     FREQ_MINIMUM_FOX_HOUND,
-    ADIF_WORKED_CALLSIGNS_FILE
+    ADIF_WORKED_CALLSIGNS_FILE,
+    MARATHON_FILE
 )
 
 class Listener:
@@ -71,8 +74,10 @@ class Listener:
         self.last_heartbeat_time        = None
               
         self.packet_store               = {}
-        self.packet_counter             = 0
+        self.packet_counter             = 0        
+        self.reply_message_buffer       = deque()
         self.reply_to_packet_time       = None
+        self.last_message_replied       = None
         
         self.call_ready_to_log          = None
         self.last_logged_call           = None
@@ -87,11 +92,16 @@ class Listener:
         self.rst_sent                   = {}
         self.mode                       = None
         self.last_mode                  = None
-        self.transmitting               = None        
-        self.last_frequency             = None
-        self.last_frequency_time_change = datetime.now()
+        self.transmitting               = None
+
         self.frequency                  = None
+        self.last_frequency             = None        
+        
         self.band                       = None
+        self.last_band                  = None
+        self.last_band_time_change      = datetime.now()   
+        self.wait_before_decoding       = None   
+        
         self.suggested_frequency        = None
         self.rx_df                      = None
         self.tx_df                      = None
@@ -122,9 +132,6 @@ class Listener:
         """
         self.max_working_delay_seconds      = max_working_delay * 60
 
-        self.worked_before_preference       = worked_before_preference      
-        self.marathon_preference            = marathon_preference
-
         self.monitoring_settings            = monitoring_settings
 
         self.wanted_callsigns               = None
@@ -135,8 +142,10 @@ class Listener:
         self.freq_range_mode                = freq_range_mode
         self.message_callback               = message_callback
 
-        self.adif_data                      = {}
-        self.wanted_callsigns_per_entity    = {}
+        self.worked_before_preference       = worked_before_preference      
+        self.marathon_preference            = marathon_preference
+
+        self.adif_data                      = {}        
         
         self.update_settings()
 
@@ -146,18 +155,17 @@ class Listener:
             Check ADIF file to handle Worked B4 
         """
         if worked_before_preference != WKB4_REPLY_MODE_ALWAYS and adif_file_path:            
-            adif_monitor                    = AdifMonitor(adif_file_path, ADIF_WORKED_CALLSIGNS_FILE)
-            """
-                register_lookup allow us to get adif data per band, year and entity
-            """
+            self.adif_monitor               = AdifMonitor(adif_file_path, ADIF_WORKED_CALLSIGNS_FILE)
+            # register_lookup allow us to get adif data per band, year and entity
             if (
                 self.enable_marathon and 
                 adif_file_path and 
                 lookup
             ):
-                adif_monitor.register_lookup(lookup)
-            adif_monitor.start()
-            adif_monitor.register_callback(self.update_adif_data)
+                self.wanted_callsigns_per_entity = load_marathon_wanted_data(MARATHON_FILE)
+                self.adif_monitor.register_lookup(lookup)
+            self.adif_monitor.start()
+            self.adif_monitor.register_callback(self.update_adif_data)
 
         """
             Check what period to use
@@ -295,7 +303,12 @@ class Listener:
             # Updating frequency
             if self.last_frequency != self.frequency:
                 self.last_frequency = self.frequency
-                self.last_frequency_time_change = datetime.now()
+
+                if self.last_band != self.band:
+                    self.last_band = self.band
+                    self.last_band_time_change = datetime.now()
+                    self.reset_targeted_call()
+
                 if self.message_callback:
                     self.message_callback({
                         'type'      : 'update_frequency',
@@ -320,12 +333,12 @@ class Listener:
                 ):
                     error_found = True
                     log.error('Tx disabled')   
-                    self.reset_ongoing_contact()
+                    self.reset_targeted_call()
                 elif self.the_packet.tx_watchdog == 1:
                     error_found = True
                     log.error('Watchdog enabled')
                     if self.enable_watchdog_bypass :
-                        self.reset_ongoing_contact()            
+                        self.reset_targeted_call()            
                 elif self.targeted_call == self.dx_call:  
                     self.time_off   = datetime.now(timezone.utc)
                 elif (
@@ -356,15 +369,26 @@ class Listener:
         elif isinstance(self.the_packet, pywsjtx.DecodePacket):
             self.last_decode_packet_time = datetime.now(timezone.utc)
             self.decode_packet_count += 1
-            if self.enable_gap_finder:
-                self.collect_used_frequencies()     
             """
                 We need a StatusPacket before handling the DecodePacket
+                and we have to check last_band_time_change            
             """
-            if self.my_call:
-                self.handle_decode_packet()
+            seconds_since_band_change = round(
+                (datetime.now() - self.last_band_time_change).total_seconds()
+            )
+
+            if not self.my_call:
+                log.error("No StatusPacket received yet, can\'t handle DecodePacket for now.") 
+            elif seconds_since_band_change < BAND_CHANGE_WAITING_DELAY:
+                wait_before_decoding = BAND_CHANGE_WAITING_DELAY - seconds_since_band_change
+                if wait_before_decoding != self.wait_before_decoding:
+                    self.wait_before_decoding = wait_before_decoding
+                    log.error(f"Can't handle DecodePacket yet. {wait_before_decoding} seconds to wait.")    
             else:
-                log.error('No StatusPacket received yet, can\'t handle DecodePacket for now.')    
+                self.handle_decode_packet()
+            
+            if self.enable_gap_finder:
+                self.collect_used_frequencies()                     
         elif isinstance(self.the_packet, pywsjtx.ClearPacket):
             log.debug("Received ClearPacket method")
         elif isinstance(self.the_packet, pywsjtx.ClosePacket):
@@ -396,14 +420,13 @@ class Listener:
                 'last_decode_packet_time'   : self.last_decode_packet_time
             })
 
-    def reset_ongoing_contact(self):
-        """
+    def reset_targeted_call(self):
         self.grid_being_called          .pop(self.targeted_call, None)
         self.qso_time_on                .pop(self.targeted_call, None)
         self.qso_time_off               .pop(self.targeted_call, None)
         self.rst_rcvd_from_being_called .pop(self.targeted_call, None)
         self.rst_sent                   .pop(self.targeted_call, None)
-        """
+        
         self.targeted_call              = None
         self.targeted_call_period       = None
         self.targeted_call_frequencies  = set()
@@ -491,6 +514,7 @@ class Listener:
 
         try:
             message_type                 = None 
+            reply_to_message             = False
             self.packet_counter         += 1
             packet_id                    = self.packet_counter
             self.packet_store[packet_id] = self.the_packet
@@ -540,8 +564,12 @@ class Listener:
             excluded          = parsed_data['excluded']
             monitored         = parsed_data['monitored']
             monitored_cq_zone = parsed_data['monitored_cq_zone']
-            wkb4_year         = None
 
+            current_year      = str(datetime.now().year)
+
+            wkb4_year         = None
+            entity_code       = callsign_info.get('entity') if callsign_info else None
+            
             """
                 Check if wanted and is Worked b4
             """
@@ -562,89 +590,82 @@ class Listener:
                         callsign_wkb4 = True
             
             """
-                Check if entity code is needed
+                Check if entity code is needed for marathon
             """
             if (
-                not excluded and
+                wanted is False and
+                not excluded and                
                 not callsign_wkb4 and
-                callsign_info and
+                entity_code and
                 self.enable_marathon and 
+                self.marathon_preference.get(self.band) and
                 self.adif_data.get('entity') and
-                self.marathon_preference.get(self.band)
+                current_year in self.adif_data['entity'] and
+                self.band in self.adif_data['entity'][current_year] and
+                entity_code not in self.adif_data['entity'][current_year][self.band]
             ):
-                entity_code = callsign_info.get('entity')
+                if not self.wanted_callsigns_per_entity.get(self.band):
+                    self.wanted_callsigns_per_entity[self.band] = {}
 
-                if (
-                    entity_code and 
-                    (datetime.now() - self.last_frequency_time_change).total_seconds() > 15
-                ):
-                    current_year = datetime.now().year                    
+                if not self.wanted_callsigns_per_entity[self.band].get(entity_code):
+                    self.wanted_callsigns_per_entity[self.band][entity_code] = []
 
-                    if not self.adif_data['entity'].get(current_year):
-                        self.adif_data['entity'][current_year] = {}
+                if callsign not in self.wanted_callsigns_per_entity[self.band][entity_code]:
+                    self.wanted_callsigns_per_entity[self.band][entity_code].append(callsign)
+                    save_marathon_wanted_data(MARATHON_FILE, self.wanted_callsigns_per_entity)
 
-                    if not self.adif_data['entity'][current_year].get(self.band):
-                        self.adif_data['entity'][current_year][self.band] = []                    
+                    log.info(f"Entity Code Wanted={entity_code} ({self.band}/{current_year})\n\tAdding Wanted Callsign={callsign}\n\tWorked ({self.band}/{current_year}):{self.adif_data['entity'][current_year][self.band]}")
 
-                    if entity_code not in self.adif_data['entity'][current_year][self.band]:
-                        log.warning(f"Entity Code Wanted={entity_code} ({self.band}/{current_year})\n\tAdding Wanted Callsign={callsign}")
-                        self.adif_data['entity'][current_year][self.band].append(entity_code) 
-                        if not self.wanted_callsigns_per_entity.get(self.band):
-                            self.wanted_callsigns_per_entity[self.band] = {}
+                wanted = True
 
-                        if not self.wanted_callsigns_per_entity[self.band].get(entity_code):
-                            self.wanted_callsigns_per_entity[self.band][entity_code] = []
+                if callsign not in self.wanted_callsigns:
+                    if self.message_callback:
+                        self.message_callback({    
+                        'type'          : 'update_wanted_callsign',
+                        'callsign'      : callsign,
+                        'action'        : 'add'
+                    })                                        
 
-                        if callsign not in self.wanted_callsigns_per_entity[self.band][entity_code]:
-                            self.wanted_callsigns_per_entity[self.band][entity_code].append(callsign)
-
-                        """
-                            We need to set this DecodePacket as wanted one
-                        """
-                        wanted = True
-
-                        if callsign not in self.wanted_callsigns:
-                            if self.message_callback:
-                                self.message_callback({    
-                                'type'          : 'update_wanted_callsign',
-                                'callsign'      : callsign,
-                                'action'        : 'add'
-                            })                            
-            else:
-                entity_code = None
-
+            
+            """
+                Callsign already logged, we can move over new Wanted callsign
+            """
+            if (callsign == self.targeted_call and
+                directed != self.my_call and
+                callsign in self.worked_callsigns
+            ):
+                self.reset_targeted_call()
+            
             """
                 Might reset values to focus on another wanted callsign
             """
             if (
                 wanted is True and
-                callsign != self.targeted_call and
-                self.targeted_call is not None
+                self.targeted_call is not None and
+                callsign != self.targeted_call            
             ):
                 if (
                     self.qso_time_on.get(self.targeted_call) and
                     (time_now - self.qso_time_on.get(self.targeted_call)).total_seconds() >= self.max_working_delay_seconds            
                 ):
                     log.warning(f"Waiting for [ {self.targeted_call} ] but we are about to switch on [ {callsign} ]")
-                    self.reset_ongoing_contact()
+                    self.reset_targeted_call()
                 
-                if len(self.reply_attempts[self.targeted_call]) >= self.max_reply_attemps_to_callsign:
+                if len(self.reply_attempts.get('self.targeted_call') or []) >= self.max_reply_attemps_to_callsign:
                     log.warning(f"{len(self.reply_attempts[self.targeted_call])} attempts for [ {self.targeted_call} ] but we are about to switch on [ {callsign} ]")
-                    self.reset_ongoing_contact()
+                    self.reset_targeted_call()
 
                 if (
                     directed == self.my_call and
                     self.qso_time_on.get(self.targeted_call) is None
                 ):
                     log.warning(f"No answer yet for [ {self.targeted_call} ] but we are about to switch on [ {callsign} ]")
-                    self.reset_ongoing_contact()
+                    self.reset_targeted_call()
 
             """
                 How to handle the logic for the message 
             """
             if directed == self.my_call and msg in {'RR73', '73', 'RRR'}:
-                log.warning("Found message [ {} ] we should log a QSO for [ {} ]".format(msg, callsign))
-
                 if self.targeted_call is not None and callsign != self.targeted_call:
                     log.error(f"Received |{msg}| from [ {callsign} ] but ongoing callsign is [ {self.targeted_call} ]")
                     message_type = 'error_occurred'
@@ -654,16 +675,33 @@ class Listener:
                     log.warning("Found message to log [ {} ]".format(self.call_ready_to_log))
                     self.qso_time_off[self.call_ready_to_log] = decode_time
                     self.log_qso_to_adif()
-                    if self.adif_data.get('entity') and entity_code:
-                        self.clear_wanted_callsigns(entity_code)
+
                     if self.enable_secondary_udp_server:
                         self.log_qso_to_udp()
-                    self.reset_ongoing_contact()
-                    # Make sure to remove this callsign once QSO done
+
+                    """
+                        Update marathon data and clear all related Wanted callsigns
+                    """
+                    if (
+                        entity_code and
+                        self.enable_marathon and 
+                        self.adif_data.get('entity') and
+                        self.marathon_preference.get(self.band)
+                    ):
+                        self.adif_monitor.process_adif_file()
+                        self.clear_wanted_callsigns(entity_code)  
+                        
                     if callsign in self.wanted_callsigns:
-                        self.wanted_callsigns.remove(callsign)
+                        self.wanted_callsigns.remove(callsign)   
+
+                    # Make sure to remove this callsign once QSO done                    
                     self.worked_callsigns.add(callsign)
                     self.call_ready_to_log = None
+
+                    if msg in {'RR73', 'RRR'}:
+                        reply_to_message = True
+                    elif msg == '73':
+                        self.reset_targeted_call()
      
                 elif self.targeted_call is not None:
                     log.error(f"Received |{msg}| from [ {callsign} ] but ongoing callsign is [ {self.targeted_call} ]")
@@ -680,12 +718,12 @@ class Listener:
                 self.qso_time_on[callsign]                  = decode_time
 
                 if wanted is True:    
-                    focus_info = f"Report: {report}" if report else f"Grid: {grid}"
+                    focus_info = f"Report [ {report} ]" if report else f"Grid [ {grid} ]"
                     log.warning(f"Focus on callsign [ {callsign} ]\t{focus_info}")
                     # We can't use self.the_packet.mode as it returns "~"
                     # self.mode             = self.the_packet.mode
                     if self.enable_sending_reply:  
-                        self.reply_to_callsign(callsign) 
+                        reply_to_message = True
                         message_type = 'wanted_callsign_being_called'
                     else:
                         message_type = 'directed_to_my_call'    
@@ -705,14 +743,13 @@ class Listener:
                             self.targeted_call is None or 
                             self.targeted_call == callsign
                         )
-                    ):   
-                        self.reply_to_callsign(callsign)     
+                    ):                        
                         message_type = 'wanted_callsign_being_called'
                     else:
-                        message_type = 'wanted_callsign_detected'                     
+                        message_type = 'wanted_callsign_detected'
 
                 if cqing is True:
-                    debug_message = "Found CQ message from callsign [ {} ]".format(callsign)
+                    debug_message = "Found CQ message from callsign [ {} ]. Targeted callsign: [ {} ]".format(callsign, self.targeted_call)
                 else:
                     debug_message = "Found message directed to [ {} ] from callsign [ {} ]. Message: {}".format(directed, callsign, msg)
                 log.warning(debug_message)
@@ -733,8 +770,19 @@ class Listener:
                     self.targeted_call = None  
                     self.halt_packet()
             
+            if reply_to_message:
+                self.process_reply_to_message({           
+                    'packet_id'         : packet_id,                   
+                    'decode_time'       : decode_time,
+                    'callsign'          : callsign,
+                    'directed'          : directed,
+                    'grid'              : grid,
+                    'cqing'             : cqing,
+                    'report'            : report
+                })
+        
             """
-                Handle message to send to GUI
+                Send message to GUI
             """                      
             if self.message_callback:
                 self.message_callback({           
@@ -763,21 +811,103 @@ class Listener:
         except Exception as e:
             log.error("Caught an error parsing packet: {}; error {}\n{}".format(
                 self.the_packet.message, e, traceback.format_exc()))   
+
+    def process_reply_to_message(self, message):
+        """
+            Handle priority
+        """
+        if message['directed'] == self.my_call:
+            if message['callsign'] == self.targeted_call:
+                message['priority'] = 4
+            else:
+                message['priority'] = 3
+        elif message.get('cqing'):
+            message['priority'] = 2
+        else:
+            message['priority'] = 1
             
-    def reply_to_callsign(self, callsign):
+        """
+            Add this message to buffer
+        """    
+        self.reply_message_buffer.append(message)
+
+        filtered_messages = [
+            message_buffered for message_buffered in self.reply_message_buffer if message_buffered['decode_time'] == message['decode_time']
+        ]
+
+        selected_message = max(
+            filtered_messages,
+            key=lambda message: message['priority'],
+            default=None
+        )
+
+        if len(filtered_messages) > 0:
+            filtered_log_output = []
+            for filtred_message in filtered_messages:
+                filtered_log_output.append(self.log_format_message(filtred_message, 'FiltredMessage'))
+            log.info(f"\n\t".join(filtered_log_output))                
+            log.error(self.log_format_message(selected_message, 'SelectedMessage'))
+
+        if selected_message and (
+            self.last_message_replied is None or
+            selected_message['priority'] > self.last_message_replied['priority'] or
+            selected_message['packet_id'] != self.last_message_replied['packet_id']
+        ):
+            self.last_message_replied = selected_message
+            """
+                Process to reply
+            """
+            self.handle_reply_to_callsign(
+                selected_message['callsign'],
+                selected_message['packet_id']
+            )
+
+        """
+            Clear buffer
+        """
+        self.reply_message_buffer = deque(
+            [same_time_message for same_time_message in self.reply_message_buffer
+                if abs((same_time_message['decode_time'] - message['decode_time']).total_seconds()) <= 120]
+        )         
+
+    def log_format_message(self, message, title):
+        decoede_time = message.get('decode_time')
+        if hasattr(decoede_time, 'strftime'):
+            decode_time_str = decoede_time.strftime("%H:%M:%S")
+        else:
+            decode_time_str = str(decoede_time)
+
+        if message.get('directed') is not None:
+            directed_or_grid = f"directed:{message.get('directed')}"
+        else:
+            directed_or_grid = f"grid:{message.get('grid')}" if message.get('grid') is not None else ''           
+
+        return (            
+            f"{title}: from packet_id #{message.get('packet_id'):<10}"
+            f"\n\tpriority:{message.get('priority'):<10}"
+            f"\tcallsign:{message.get('callsign'):<13}"
+            f"\t{directed_or_grid}"                        
+            f"\n\tdecode_time:{decode_time_str:<10}"                        
+            f"\tcqing:{message.get('cqing'):<13}"
+            f"\treport:{message.get('report', None)}"
+        )        
+
+    def handle_reply_to_callsign(self, callsign, packet_id):
+        callsign_packet = self.packet_store[packet_id]
+
         if self.targeted_call is None:
             self.targeted_call = callsign
 
         if self.targeted_call not in self.reply_attempts:
             self.reply_attempts[self.targeted_call] = []
 
-        if self.the_packet.time not in self.reply_attempts[self.targeted_call]:
-            self.reply_attempts[self.targeted_call].append(self.the_packet.time)
+        if callsign_packet.time not in self.reply_attempts[self.targeted_call]:
+            self.reply_attempts[self.targeted_call].append(callsign_packet.time)
             count_attempts = len(self.reply_attempts[self.targeted_call])
             if count_attempts >= (self.max_reply_attemps_to_callsign - 1):
                 log.warning(f"{count_attempts} attempts for [ {self.targeted_call} ]") 
 
-        self.reply_to_packet() 
+        self.reply_to_packet(callsign_packet) 
 
     def halt_packet(self):
         try:
@@ -787,7 +917,7 @@ class Listener:
         except Exception as e:
             log.error(f"Error sending packets: {e}\n{traceback.format_exc()}")
 
-    def reply_to_packet(self):
+    def reply_to_packet(self, callsign_packet):
         try:            
             self.reply_to_packet_time    = datetime.now(timezone.utc)
             self.targeted_call_period    = self.odd_or_even_period()
@@ -801,7 +931,7 @@ class Listener:
                 if self.suggested_frequency is not None:
                     self.set_delta_f_packet(self.suggested_frequency)
 
-            reply_pkt = pywsjtx.ReplyPacket.Builder(self.the_packet)
+            reply_pkt = pywsjtx.ReplyPacket.Builder(callsign_packet)
             self.s.send_packet(self.addr_port, reply_pkt)         
             log.debug(f"Sent ReplyPacket: {reply_pkt}")            
         except Exception as e:
@@ -821,13 +951,20 @@ class Listener:
         self.s.send_packet(self.addr_port, configure_paquet)        
 
     def clear_wanted_callsigns(self, entity_code):
-        for callsign in self.wanted_callsigns_per_entity[self.band][entity_code]:
+        entity_callsigns = self.wanted_callsigns_per_entity.get(self.band, {}).get(entity_code, [])
+
+        for callsign in entity_callsigns:
             if self.message_callback:
                 self.message_callback({        
                 'type'              : 'update_wanted_callsign',
                 'callsign'          : callsign,
                 'action'            : 'remove'
-            })        
+            })       
+        
+        if entity_code in self.wanted_callsigns_per_entity.get(self.band, {}):
+            del self.wanted_callsigns_per_entity[self.band][entity_code]     
+            save_marathon_wanted_data(MARATHON_FILE, self.wanted_callsigns_per_entity)           
+            log.info(f"Wanted Callsigns per entity cleared ({self.band})={self.wanted_callsigns_per_entity}")         
                                 
     def log_qso_to_adif(self):
         if self.last_logged_call == self.call_ready_to_log:
@@ -836,8 +973,8 @@ class Listener:
         callsign        = self.call_ready_to_log
         grid            = self.grid_being_called.get(self.call_ready_to_log) or ''
         mode            = self.mode
-        rst_sent        = self.get_clean_rst(self.rst_sent[self.call_ready_to_log]) or ''
-        rst_rcvd        = self.get_clean_rst(self.rst_rcvd_from_being_called[self.call_ready_to_log]) or ''
+        rst_sent        = get_clean_rst(self.rst_sent.get(self.call_ready_to_log, '?')) 
+        rst_rcvd        = get_clean_rst(self.rst_rcvd_from_being_called.get(self.call_ready_to_log, '?')) 
         freq_rx         = f"{round((self.frequency + self.rx_df) / 1_000_000, 6):.6f}"
         freq            = f"{round((self.frequency + self.tx_df) / 1_000_000, 6):.6f}"
         band            = self.band
@@ -875,8 +1012,8 @@ class Listener:
 
     def log_qso_to_udp(self):
         try:
-            awaited_rst_sent = self.get_clean_rst(self.rst_sent[self.call_ready_to_log])
-            awaited_rst_rcvd = self.get_clean_rst(self.rst_rcvd_from_being_called[self.call_ready_to_log])
+            awaited_rst_sent = get_clean_rst(self.rst_sent.get(self.call_ready_to_log, '?')) 
+            awaited_rst_rcvd = get_clean_rst(self.rst_rcvd_from_being_called.get(self.call_ready_to_log, '?')) 
 
             self.packet_sender.send_qso_logged_packet(
                 wsjtx_id        = self.the_packet.wsjtx_id,
@@ -897,20 +1034,15 @@ class Listener:
                 exchange_sent   = awaited_rst_sent,
                 exchange_recv   = awaited_rst_rcvd
             )
-            log.warning("QSOLoggedPacket sent via UDP for [ {} ]".format(self.call_ready_to_log))
+            log.debug("QSOLoggedPacket sent via UDP for [ {} ]".format(self.call_ready_to_log))
         except Exception as e:
             log.error(f"Error sending QSOLoggedPacket via UDP: {e}")
             log.error("Caught an error while trying to send QSOLoggedPacket packet: error {}\n{}".format(e, traceback.format_exc()))
-
-    def get_clean_rst(self, rst):
-        def repl(match):
-            sign = match.group(1)       
-            number = match.group(2).zfill(2)
-            return f"{sign}{number}"
-        
-        pattern = r'^R?([+-]?)(\d+)$'
-        cleaned_rst = re.sub(pattern, repl, rst)
-        return cleaned_rst    
     
     def update_adif_data(self, parsed_data):
         self.adif_data = parsed_data
+
+    """
+        if self.adif_data.get('entity') and self.band:
+            log.info(sorted(self.adif_data.get('entity').get(str(datetime.now().year)).get(self.band)))
+    """

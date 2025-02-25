@@ -3,6 +3,7 @@ import datetime
 import math
 import socket
 import argparse
+import time
 
 class PacketUtil:
     @classmethod
@@ -247,10 +248,40 @@ def send_decode_packet(
         sock.sendto(packet_data, (UDP_IP, UDP_PORT))
         print(f"Packet sent to {UDP_IP}:{UDP_PORT}")
 
+def simulate(ip_address="127.0.0.1", udp_port=2237):    
+    messages_series = [[
+        {"message": "CQ DL2EA JN12", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
+        {"message": "CQ VK9DX RJ11", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
+        {"message": "F5BZB V88CB RR73", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
+        {"message": "F5UKW VR2AZC +15", "snr": "+12", "delta_t": "+0.3", "delta_f": "450"},
+        {"message": "F5UKW FK8CP +12", "snr": "+12", "delta_t": "+0.3", "delta_f": "550"},
+        {"message": "CQ VR2KW AA00", "snr": "+13", "delta_t": "+0.2", "delta_f": "1100"},
+    ]
+    
+    ]
+    
+    for i, message_series in enumerate(messages_series):
+        print(f"📡 Sending series {i + 1}...\n")
+
+        for msg in message_series:
+            print(f"📨 Sending: {msg['message']} (SNR: {msg['snr']}, ΔT: {msg['delta_t']}, ΔF: {msg['delta_f']})")
+            
+            send_decode_packet(
+                message=msg["message"],
+                snr=int(msg["snr"]),              
+                delta_t=float(msg["delta_t"]),    
+                delta_f=int(msg["delta_f"]),      
+                ip_address=ip_address,
+                udp_port=udp_port
+            )
+        
+        print(f"⏳ Waiting 15 seconds before next series...\n")
+        time.sleep(15)
+
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Try to send to UDP server sample Packet for DecodePacket.")
     
-    parser.add_argument('--message', type=str, required=True, help='Message to handle')
+    parser.add_argument('--message', type=str, help='Message to handle')
     parser.add_argument('--wsjtx_id', type=str, default="WSJT-X", help='ID for WSJT-X (default: WSJT-X).')
     parser.add_argument('--snr', type=int, default=0, help='Signal-to-noise ratio (SNR).')
     parser.add_argument('--delta_t', type=float, default=0.1, help='Delta T.')
@@ -258,17 +289,27 @@ def parse_arguments():
     parser.add_argument('--mode', type=str, default="FT8", help='Transmission Mode (default: FT8).')
     parser.add_argument('--ip_address', type=str, default="127.0.0.1", help='IP adress for UDP server (default: 127.0.0.1).')
     parser.add_argument('--udp_port', type=int, default=2237, help='UDP Server Port (default: 2237).')
+    parser.add_argument('--simulate', action='store_true', help='Run in simulation mode, sending predefined messages.')
+
     return parser.parse_args()
 
 if __name__ == "__main__":
     args = parse_arguments()
-    send_decode_packet(
-        wsjtx_id=args.wsjtx_id,
-        snr=args.snr,
-        delta_t=args.delta_t,
-        delta_f=args.delta_f,
-        mode=args.mode,
-        message=args.message,
-        ip_address=args.ip_address,
-        udp_port=args.udp_port
-    )
+
+    if args.simulate:
+        simulate(ip_address=args.ip_address, udp_port=args.udp_port)
+    else:
+        if not args.message:
+            print("Error: You must provide a message with --message unless using --simulate")
+            exit(1)
+
+        send_decode_packet(
+            wsjtx_id=args.wsjtx_id,
+            snr=args.snr,
+            delta_t=args.delta_t,
+            delta_f=args.delta_f,
+            mode=args.mode,
+            message=args.message,
+            ip_address=args.ip_address,
+            udp_port=args.udp_port
+        )

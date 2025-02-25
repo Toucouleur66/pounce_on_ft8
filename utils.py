@@ -4,6 +4,7 @@ import socket
 import datetime
 import time
 import re
+import json
 import os
 import sys
 import fnmatch
@@ -32,6 +33,8 @@ AMATEUR_BANDS = {
         '2m'    : (144_000_000, 148_000_000),
         '70cm'  : (430_000_000, 440_000_000)
 }
+
+ADIF_FIELD_RE = re.compile(r"<(\w+):\d+(?::\w+)?>([^<]+)", re.IGNORECASE)
 
 def get_local_ip_address():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -348,79 +351,68 @@ def focus_out_event(widget, mode):
 
     widget.focusOutEvent = custom_focus_out
 
-def parse_adif_record(record, lookup):
-    call_match = re.search(r"<CALL:\d+>([^ <]+)", record, re.IGNORECASE)
-    band_match = re.search(r"<BAND:\d+>([^ <]+)", record, re.IGNORECASE)
-    date_match = re.search(r"<QSO_DATE:\d+>(\d{8})", record, re.IGNORECASE)
-    year_match = re.search(r"<QSO_DATE:\d+>(\d{4})", record, re.IGNORECASE)
-    time_match = re.search(r"<TIME_ON:\d+>(\d{6})", record, re.IGNORECASE)
-
-    time_str = time_match.group(1) if time_match else None
-    date_str = date_match.group(1) if date_match else None
-
-    qso_datetime = None
-
-    if date_str:
-        # Exemple : date_str = "19941224"
-        year  = date_str[0:4]   # "1994"
-        month = date_str[4:6]   # "12"
-        day   = date_str[6:8]   # "24"
-
-        hour   = "00"
-        minute = "00"
-        second = "00"
-        if time_str:
-            # time_str = "083500"
-            hour   = time_str[0:2]  # "08"
-            minute = time_str[2:4]  # "35"
-            second = time_str[4:6]  # "00"
-
-        full_dt_str = f"{year}-{month}-{day} {hour}:{minute}:{second}"
-
-        qso_datetime = datetime.datetime.strptime(full_dt_str, "%Y-%m-%d %H:%M:%S")
-        qso_datetime = qso_datetime.replace(tzinfo=datetime.timezone.utc)
+def parse_adif_record(record, lookup):    
+    fields = {field.upper(): value.strip() for field, value in ADIF_FIELD_RE.findall(record)}
     
-    call = call_match.group(1).upper() if call_match else None
-    band = band_match.group(1).lower() if band_match else None
-    year = year_match.group(1) if year_match else None
-    info = {}
+    call        = fields.get('CALL')
+    band        = fields.get('BAND')
+    qso_date    = fields.get('QSO_DATE')
+    time_on     = fields.get('TIME_ON')
+    
+    qso_datetime = None
+    if qso_date and len(qso_date) >= 8:
+        year_str = qso_date[0:4]
+        month    = qso_date[4:6]
+        day      = qso_date[6:8]
+        hour     = "00"
+        minute   = "00"
+        second   = "00"
 
-    if lookup:
+        if time_on and len(time_on) >= 6:
+            hour = time_on[0:2]
+            minute = time_on[2:4]
+            second = time_on[4:6]
+        full_dt_str = f"{year_str}-{month}-{day} {hour}:{minute}:{second}"
+        try:
+            qso_datetime = datetime.datetime.strptime(full_dt_str, "%Y-%m-%d %H:%M:%S")
+            qso_datetime = qso_datetime.replace(tzinfo=datetime.timezone.utc)
+        except Exception as e:
+            qso_datetime = None
+
+    call = call.upper() if call else None
+    band = band.lower() if band else None
+    year = qso_date[0:4] if qso_date and len(qso_date) >= 4 else None
+
+    info = {}
+    if lookup and call:
         if qso_datetime:
             info = lookup.lookup_callsign(call, date=qso_datetime, enable_cache=False)
         else:
-            info = lookup.lookup_callsign(call)  
+            info = lookup.lookup_callsign(call)
 
     return year, band, call, info
 
-def parse_adif(
-        file_path,
-        lookup = None
-    ):
+def parse_adif(file_path, lookup=None):
     start_time = time.time()
 
-    parsed_wkb4_data = defaultdict(lambda: defaultdict(set))
+    parsed_wkb4_data    = defaultdict(lambda: defaultdict(set))
+    parsed_entity_data  = defaultdict(lambda: defaultdict(set)) if lookup else None
 
-    if lookup:
-        parsed_entity_data = defaultdict(lambda: defaultdict(set))
-    else:
-        parsed_entity_data = None
-
-    current_record_lines = []
     with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                current_record_lines.append(line)
-                if "<EOR>" in line.upper():
-                    record = " ".join(current_record_lines)
-                    year, band, call, info = parse_adif_record(record, lookup)
-                    if lookup and year and band and info.get('entity'):
-                        parsed_entity_data[year][band].add(info.get('entity'))    
-                    if year and band and call:
-                        parsed_wkb4_data[year][band].add(call)
-                                              
-                    current_record_lines = []
+        content = f.read()
+
+    records = re.split(r"<EOR>", content, flags=re.IGNORECASE)
+
+    for record in records:
+        record = record.strip()
+        if record:
+            record = " ".join(record.split())
+            year, band, call, info = parse_adif_record(record, lookup)
+
+            if lookup and year and band and info and info.get('entity'):
+                parsed_entity_data[year][band].add(info.get('entity'))
+            if year and band and call:
+                parsed_wkb4_data[year][band].add(call)
 
     processing_time = time.time() - start_time
 
@@ -444,3 +436,37 @@ def get_wkb4_year(data, callsign, band):
     if worked_years:
         return int(max(worked_years))
     return None
+
+def get_clean_rst(rst):
+    try:
+        def repl(match):
+            sign = match.group(1)       
+            number = match.group(2).zfill(2)
+            return f"{sign}{number}"
+        
+        pattern = r'^R?([+-]?)(\d+)$'
+        cleaned_rst = re.sub(pattern, repl, rst)
+        return cleaned_rst    
+    except Exception as e:
+        return None
+        
+"""
+    Save marathon cache file
+"""
+
+def load_marathon_wanted_data(file):
+    if os.path.exists(file):
+        try:
+            with open(file, "r") as f:
+                marathon_data = json.load(f)
+                return marathon_data
+        except Exception as e:
+            pass
+    return {}
+
+def save_marathon_wanted_data(file, marathon_data):
+    try:
+        with open(file, "w") as f:
+            json.dump(marathon_data, f, indent=4)
+    except Exception as e:
+        pass

@@ -19,7 +19,7 @@ class CallsignLookup:
             xml_file_path           = f"{CURRENT_DIR}/cty.xml",
             cq_zones_geojson_path  = f"{CURRENT_DIR}/cq-zones.geojson",
             cache_file              = f"{CURRENT_DIR}/lookup_cache.json",              
-            cache_size             = 4_00,
+            cache_size             = 1_0_00,
         ):
         self.callsign_exceptions = {}
         self.prefixes             = {}
@@ -77,7 +77,7 @@ class CallsignLookup:
         try:
             with open(self.cache_file, "w", encoding="utf-8") as f:
                 json.dump(data_to_save, f, indent=2)
-            log.info(f"Cache file {self.cache_file} saved with {len(self.cache)} entries")
+            # log.info(f"Cache file {self.cache_file} saved with {len(self.cache)} entries")
         except Exception as e:
             log.error(f"Failed to save cache to {self.cache_file}: {e}")
 

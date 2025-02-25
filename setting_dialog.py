@@ -588,7 +588,6 @@ class SettingsDialog(QtWidgets.QDialog):
                 if parsed_data:
                     self.adif_file_path.setText(file_path)
                     self.adif_wkb4_group.setVisible(True)
-                    self.on_tab_changed(self.tab_widget.currentIndex())
 
                     summary_dialog = AdifSummaryDialog(processing_time, parsed_data['wkb4'], self)
                     summary_dialog.exec()
