@@ -97,8 +97,6 @@ DEFAULT_UDP_PORT                = 2237
 
 ACTIVITY_BAR_MAX_VALUE          = 50
 
-PROCESS_MESSAGE_BUFFER_TIME     = 1_000
-
 CURRENT_DIR                     = os.path.dirname(os.path.realpath(__file__))
 CTY_XML                         = 'cty.xml'
 CTY_XML_URL                     = 'https://cdn.clublog.org/cty.php?api=efc2af7050308f03a22275cf51f3fd7749582d66'
@@ -115,19 +113,10 @@ DEFAULT_LOG_ALL_VALID_CONTACT   = True
 DEFAULT_DELAY_BETWEEN_SOUND     = 120
 DEFAULT_MAX_WAITING_DELAY       = 2 # minutes
 DEFAULT_REPLY_ATTEMPTS          = 10
-BAND_CHANGE_WAITING_DELAY       = 15
+BAND_CHANGE_WAITING_DELAY       = 10
 
 DEFAULT_SELECTED_BAND           = "6m"
 DEFAULT_FILTER_VALUE            = "All"
-
-MESSAGE_TYPE_PRIORITY           = {
-                                    'ready_to_log'                    : 6,
-                                    'wanted_callsign_being_called'    : 5,
-                                    'directed_to_my_call'             : 4,                                    
-                                    'wanted_callsign_detected'        : 3,
-                                    'monitored_callsign_detected'     : 2,
-                                    'lost_targeted_callsign'          : 1,
-                                }
 
 SETTING_QSS                     = f"""
                 background-color: #9DFFFE; 

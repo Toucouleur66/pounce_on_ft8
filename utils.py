@@ -188,8 +188,11 @@ def parse_wsjtx_message(
         else:
             pass
 
-    if callsign and lookup:         
-        callsign_info = lookup.lookup_callsign(callsign, grid)    
+    if callsign and lookup:    
+        if cqing and not grid:
+            pass
+        else:     
+            callsign_info = lookup.lookup_callsign(callsign, grid)    
 
         if callsign_info:            
             cq_zone = callsign_info["cqz"]
@@ -470,3 +473,29 @@ def save_marathon_wanted_data(file, marathon_data):
             json.dump(marathon_data, f, indent=4)
     except Exception as e:
         pass
+
+def log_format_message(message):
+    decode_time = message.get('decode_time')
+    if hasattr(decode_time, 'strftime'):
+        decode_time_str = decode_time.strftime("%H:%M:%S")
+    else:
+        decode_time_str = str(decode_time)
+
+    if message.get('directed') is not None:
+        directed_or_grid = f"directed:{message.get('directed')}"
+    else:
+        directed_or_grid = f"grid:{message.get('grid')}" if message.get('grid') is not None else ''           
+
+    msg = message.get('msg', None)
+    if not msg and message.get('cqing'):
+        msg = "CQ"
+
+    return (            
+        f"Message from packet_id #{message.get('packet_id'):<10}"
+        f"\n\tpriority:{message.get('priority'):<10}"
+        f"\tcallsign:{message.get('callsign'):<13}"
+        f"\t{directed_or_grid}"                        
+        f"\n\tdecode_time:{decode_time_str:<10}"                        
+        f"\tcqing:{message.get('cqing'):<13}"
+        f"\tmsg:{msg}"
+    )        

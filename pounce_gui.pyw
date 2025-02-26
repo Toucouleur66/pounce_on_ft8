@@ -110,9 +110,6 @@ from constants import (
     DATE_COLUMN_AGE,
     # Timer
     DEFAULT_MODE_TIMER_VALUE,
-    # Priority
-    MESSAGE_TYPE_PRIORITY,
-    PROCESS_MESSAGE_BUFFER_TIME,
     # Band,
     DEFAULT_SELECTED_BAND,
     # Needed for filtering
@@ -554,8 +551,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         QtCore.QTimer.singleShot(1_000, lambda: self.init_activity_bar())   
 
-        self.process_timer = QtCore.QTimer()
-        self.process_timer.timeout.connect(self.process_message_buffer)
+        self.process_timer = False
 
         self.enforce_size_limit_timer = QtCore.QTimer()
         self.enforce_size_limit_timer.timeout.connect(self.output_model.enforce_size_limit)
@@ -1271,44 +1267,30 @@ class MainApp(QtWidgets.QMainWindow):
                     message.get('message_uid'),                     
                 )   
 
-                if message_type in MESSAGE_TYPE_PRIORITY:
-                    """
-                        Important to add timedelta according to MESSAGE_TYPE_PRIORITY
-                        to ensure that we keep high priority messages in the buffer longer
-                    """
-                    message['message_uid']  = uuid.uuid4()
-                    self.message_buffer.append((
-                        message,
-                        datetime.now() + timedelta(seconds=MESSAGE_TYPE_PRIORITY.get(message_type, float('inf')))
-                    ))                         
+                message['message_uid']  = uuid.uuid4()
+                self.message_buffer.append(message)         
+
+                if not self.process_timer:
+                    self.process_timer = True
+                    QtCore.QTimer.singleShot(300, lambda: self.process_message_buffer())            
         else:
             pass
     
-    def process_message_buffer(self):
-        current_time = datetime.now()
-        while (
-            self.message_buffer and 
-            (current_time - self.message_buffer[0][1]).total_seconds() > get_mode_interval(self.mode)
-        ):
-            self.message_buffer.popleft()
-
+    def process_message_buffer(self):     
         if not self.message_buffer:
-            return
+            return None
+        else:
+            max_decode_time_str = max(message['decode_time_str'] for message in self.message_buffer)            
+            latest_messages = [message for message in self.message_buffer if message['decode_time_str'] == max_decode_time_str]
+            selected_message = max(latest_messages, key=lambda message: message['priority'], default=None)
 
-        selected_message = None
-        lowest_priority = 0
-
-        for message, timestamp in self.message_buffer:
-            message_type = message.get('message_type')
-            priority = MESSAGE_TYPE_PRIORITY.get(message_type, float('inf'))
-            if priority > lowest_priority:
-                lowest_priority = priority                                
-                selected_message = message
+        # log.error(selected_message)
 
         if (
             selected_message and
             selected_message.get('message_uid') != self.last_focus_value_message_uid
         ):            
+            current_time = datetime.now()
             """
                 Handle sound notification
             """
@@ -1317,12 +1299,6 @@ class MainApp(QtWidgets.QMainWindow):
 
             if self.global_sound_toggle.isChecked():      
                 if message_type == 'wanted_callsign_detected' and self.enable_sound_wanted_callsigns:
-
-                    """
-                        Remove this manual play
-                    """
-                    self.wanted_callsign_detected_sound.play()
-
                     play_sound = True
                 elif message_type == 'wanted_callsign_being_called' and self.enable_sound_wanted_callsigns:
                     play_sound = True                    
@@ -1335,7 +1311,6 @@ class MainApp(QtWidgets.QMainWindow):
                 elif (
                     message_type == 'monitored_callsign_detected' 
                 ) and self.enable_sound_monitored_callsigns:
-                    current_time = datetime.now()
                     delay = int(self.delay_between_sound_for_monitored)                   
                     if (current_time - self.last_sound_played_time).total_seconds() > delay:                                                 
                         play_sound = True
@@ -1352,7 +1327,22 @@ class MainApp(QtWidgets.QMainWindow):
                 ):
                     self.last_targeted_call = None    
 
-            self.set_message_to_focus_value_label(selected_message)                
+            if message_type:
+                self.set_message_to_focus_value_label(selected_message)          
+
+        """
+            Clear buffer
+        """
+        if selected_message:
+            self.message_buffer = deque(
+                [same_time_message for same_time_message in self.message_buffer
+                    if abs((same_time_message['decode_time'] - selected_message['decode_time']).total_seconds()) <= 120]
+            )  
+
+        """
+            Reset timer
+        """
+        self.process_timer = False       
 
     def on_table_row_clicked(self, table, row, column):
         position = table.visualRect(table.model().index(row, column)).center()
@@ -1642,26 +1632,26 @@ class MainApp(QtWidgets.QMainWindow):
     def play_sound(self, sound_name):
         try:           
             log.debug(f"Play sound: [{sound_name}]")
-            if sound_name == 'wanted_callsign_detected':
-                self.wanted_callsign_detected_sound.play()
-            if sound_name == 'wanted_callsign_being_called':
-                self.wanted_callsign_being_called_sound.play()                
-            elif sound_name == 'directed_to_my_call':
-                self.directed_to_my_call_sound.play()
-            elif sound_name == 'monitored_callsign_detected':
-                self.monitored_callsign_detected_sound.play()                        
-            elif sound_name == 'ready_to_log':
-                self.ready_to_log_sound.play()
-            elif sound_name == 'band_change':
-                self.band_change_sound.play()                
-            elif sound_name == 'error_occurred':
-                self.error_occurred_sound.play()                
-            elif sound_name == 'enable_global_sound':
-                self.enabled_global_sound.play()               
+
+            sound_mapping = {
+                'wanted_callsign_detected'      : self.wanted_callsign_detected_sound,
+                'wanted_callsign_being_called'  : self.wanted_callsign_being_called_sound,
+                'directed_to_my_call'           : self.directed_to_my_call_sound,
+                'monitored_callsign_detected'   : self.monitored_callsign_detected_sound,
+                'ready_to_log'                  : self.ready_to_log_sound,
+                'band_change'                   : self.band_change_sound,
+                'error_occurred'                : self.error_occurred_sound,
+                'enable_global_sound'           : self.enabled_global_sound
+            }
+
+            sound = sound_mapping.get(sound_name)
+            if sound:
+                sound.play()
             else:
-                log.error(f"Unknown sound: [{sound_name}]")         
+                log.error(f"Unknown sound: [{sound_name}]") 
+
         except Exception as e:
-            log.error(f"Failed to play alert sound: {e}")            
+            log.error(f"Failed to play alert sound: {e}")
 
     def get_size_of_output_model(self):
         output_model_size_bytes = self.output_model._current_size_bytes
@@ -1727,7 +1717,6 @@ class MainApp(QtWidgets.QMainWindow):
 
             if time_since_last_decode > DECODE_PACKET_TIMEOUT_THRESHOLD:
                 status_text_array.append(f"No DecodePacket for more than {DECODE_PACKET_TIMEOUT_THRESHOLD} seconds {status_mode_frequency}.")
-                self.process_timer.stop()
                 nothing_to_decode = True                
             else:      
                 if time_since_last_decode < 3:
@@ -1741,9 +1730,6 @@ class MainApp(QtWidgets.QMainWindow):
                     self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR) 
 
                 status_text_array.append(f"Last DecodePacket {status_mode_frequency}: {time_since_last_decode_text} ago")  
-
-                if not self.process_timer.isActive():
-                    self.process_timer.start(PROCESS_MESSAGE_BUFFER_TIME) 
 
             # Update new interval if necessary
             if network_check_status_interval != self.network_check_status_interval:
@@ -2529,8 +2515,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.timer.timeout.connect(self.update_mode_timer)
         self.timer.start(200)
 
-        self.process_timer.start(PROCESS_MESSAGE_BUFFER_TIME)
-
         self.is_status_button_label_visible = True
         self.is_status_button_label_blinking = False
 
@@ -2643,7 +2627,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.network_check_status.stop()
         self.activity_bar.setValue(0) 
         self.hide_status_menu()
-        self.process_timer.stop()
         
         if self.timer: 
             self.timer.stop()

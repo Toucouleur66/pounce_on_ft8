@@ -248,7 +248,8 @@ def send_decode_packet(
         sock.sendto(packet_data, (UDP_IP, UDP_PORT))
         print(f"Packet sent to {UDP_IP}:{UDP_PORT}")
 
-def simulate(ip_address="127.0.0.1", udp_port=2237):    
+def simulate(ip_address="127.0.0.1", udp_port=2237):  
+    """
     messages_series = [[
         {"message": "CQ DL2EA JN12", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
         {"message": "CQ VK9DX RJ11", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
@@ -256,9 +257,48 @@ def simulate(ip_address="127.0.0.1", udp_port=2237):
         {"message": "F5UKW VR2AZC +15", "snr": "+12", "delta_t": "+0.3", "delta_f": "450"},
         {"message": "F5UKW FK8CP +12", "snr": "+12", "delta_t": "+0.3", "delta_f": "550"},
         {"message": "CQ VR2KW AA00", "snr": "+13", "delta_t": "+0.2", "delta_f": "1100"},
+    ],
+    [
+        {"message": "CQ SV1GA KN12", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
+        {"message": "CQ VK9DX RJ11", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
+        {"message": "F5UKW V88CB -20", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
+        {"message": "F5UKW VR2AZC RR73", "snr": "+12", "delta_t": "+0.3", "delta_f": "450"},
+        {"message": "F5UKW FK8CP -02", "snr": "+12", "delta_t": "+0.3", "delta_f": "550"},
+        {"message": "CQ VR2KW AA00", "snr": "+13", "delta_t": "+0.2", "delta_f": "1100"},
+    ],
+    [
+        {"message": "CQ DL2EA JN12", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
+        {"message": "CQ VK9DX RJ11", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
+        {"message": "F4BKV V88CB -12", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
+        {"message": "F5BZB VR2AZC -13", "snr": "+12", "delta_t": "+0.3", "delta_f": "450"},
+        {"message": "F5UKW FK8CP -02", "snr": "+12", "delta_t": "+0.3", "delta_f": "550"},
+        {"message": "CQ VR2KW AA00", "snr": "+13", "delta_t": "+0.2", "delta_f": "1100"},
+    ],[
+        {"message": "CQ DL2EA JN12", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
+        {"message": "CQ VK9DX RJ11", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
+        {"message": "F4BKB V88CB 73", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
+        {"message": "F5BZB VR2AZC -13", "snr": "+12", "delta_t": "+0.3", "delta_f": "450"},
+        {"message": "F5UKW FK8CP RRR", "snr": "+12", "delta_t": "+0.3", "delta_f": "550"},
+        {"message": "CQ VR2KW AA00", "snr": "+13", "delta_t": "+0.2", "delta_f": "1100"},
+    ],[
+        {"message": "CQ DL2EA JN12", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
+        {"message": "CQ VK9DX RJ11", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
+        {"message": "F4BKB V88CB 73", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
+        {"message": "F5BZB VR2AZC -13", "snr": "+12", "delta_t": "+0.3", "delta_f": "450"},
+        {"message": "CQ FK8CP RG37", "snr": "+12", "delta_t": "+0.3", "delta_f": "550"},
+        {"message": "CQ VR2KW AA00", "snr": "+13", "delta_t": "+0.2", "delta_f": "1100"},
     ]
     
     ]
+    """ 
+    
+    messages_series = [[
+        {"message": "CQ FR4NB LG79", "snr": "+13", "delta_t": "+0.2", "delta_f": "1100"},
+        {"message": "CQ V63CB AA00", "snr": "+13", "delta_t": "+0.2", "delta_f": "1300"},
+        {"message": "CQ VK9DX RJ11", "snr": "+13", "delta_t": "+0.2", "delta_f": "1400"},
+    ]
+    
+    ] 
     
     for i, message_series in enumerate(messages_series):
         print(f"📡 Sending series {i + 1}...\n")
