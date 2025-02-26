@@ -600,41 +600,47 @@ class Listener:
                 Check if entity code is needed for marathon
             """
             if (
+                self.enable_marathon and 
+                self.marathon_preference.get(self.band) and
+                self.adif_data.get('entity') and 
                 wanted is False and
                 not excluded and                
                 not worked_b4 and
-                entity_code and
-                self.enable_marathon and 
-                self.marathon_preference.get(self.band) and
-                self.adif_data.get('entity') and
-                current_year in self.adif_data['entity'] and
-                self.band in self.adif_data['entity'][current_year] and
-                entity_code not in self.adif_data['entity'][current_year][self.band]
+                entity_code
             ):
-                if not self.wanted_callsigns_per_entity.get(self.band):
-                    self.wanted_callsigns_per_entity[self.band] = {}
+                if (
+                    callsign in self.wanted_callsigns_per_entity.get(self.band, {}).get(entity_code, {})
+                ):                                    
+                    marathon = True
+                elif (                
+                    current_year in self.adif_data['entity'] and
+                    self.band in self.adif_data['entity'][current_year] and
+                    entity_code not in self.adif_data['entity'][current_year][self.band]
+                ):
+                    marathon = True
 
-                if not self.wanted_callsigns_per_entity[self.band].get(entity_code):
-                    self.wanted_callsigns_per_entity[self.band][entity_code] = []
+                    if not self.wanted_callsigns_per_entity.get(self.band):
+                        self.wanted_callsigns_per_entity[self.band] = {}
 
-                if callsign not in self.wanted_callsigns_per_entity[self.band][entity_code]:
-                    self.wanted_callsigns_per_entity[self.band][entity_code].append(callsign)
-                    save_marathon_wanted_data(MARATHON_FILE, self.wanted_callsigns_per_entity)
+                    if not self.wanted_callsigns_per_entity[self.band].get(entity_code):
+                        self.wanted_callsigns_per_entity[self.band][entity_code] = []
 
-                    log.info(f"Entity Code Wanted={entity_code} ({self.band}/{current_year})\n\tAdding Wanted Callsign={callsign}\n\tWorked ({self.band}/{current_year}):{self.adif_data['entity'][current_year][self.band]}")
+                    if callsign not in self.wanted_callsigns_per_entity[self.band][entity_code]:
+                        self.wanted_callsigns_per_entity[self.band][entity_code].append(callsign)
+                        save_marathon_wanted_data(MARATHON_FILE, self.wanted_callsigns_per_entity)
 
-                wanted   = True
-                marathon = True
+                        log.info(f"Entity Code Wanted={entity_code} ({self.band}/{current_year})\n\tAdding Wanted Callsign={callsign}\n\tWorked ({self.band}/{current_year}):{self.adif_data['entity'][current_year][self.band]}")
 
-                if callsign not in self.wanted_callsigns:
-                    if self.message_callback:
-                        self.message_callback({    
-                        'type'          : 'update_wanted_callsign',
-                        'callsign'      : callsign,
-                        'action'        : 'add'
-                    })    
-            elif callsign in self.wanted_callsigns_per_entity.get(self.band, {}).get(entity_code, {}):                                    
-                marathon = True
+                    if callsign not in self.wanted_callsigns:
+                        if self.message_callback:
+                            self.message_callback({    
+                            'type'          : 'update_wanted_callsign',
+                            'callsign'      : callsign,
+                            'action'        : 'add'
+                        })    
+                            
+                if marathon:
+                    wanted = True
 
             """
                 Callsign already logged, we can move over new Wanted callsign
