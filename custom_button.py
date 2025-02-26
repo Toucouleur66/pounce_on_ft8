@@ -1,24 +1,29 @@
 from PyQt6 import QtWidgets
 
+from constants import (
+    CUSTOM_FONT,
+)
+
 class CustomButton(QtWidgets.QPushButton):
     def __init__(self, text="", parent=None):
         super().__init__(text, parent)
-        self.default_style = """
-            QPushButton {
+        self.default_style = f"""
+            QPushButton {{
                 background-color: #E0E0E0;
                 color: #000000;
+                font: {CUSTOM_FONT.pointSize()}pt '{CUSTOM_FONT.family() }';
                 border: 2px solid #E0E0E0;
                 border-radius: 8px;
                 padding: 5px 10px;
-            }
-            QPushButton:hover {
+            }}
+            QPushButton:hover {{
                 background-color: #FFD700;
                 border: 2px solid #FFA500;
-            }
-            QPushButton:pressed {
+            }}
+            QPushButton:pressed {{
                 background-color: #FFFFFF;
                 border: 2px solid #FFFFFF;
-            }
+            }}
         """
         self.setStyleSheet(self.default_style)
 

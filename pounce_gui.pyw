@@ -1,7 +1,7 @@
 # pounce_gui.pyw
 
 from PyQt6 import QtWidgets, QtCore, QtGui
-from PyQt6.QtWidgets import QTableWidget, QTableWidgetItem
+from PyQt6.QtWidgets import QTableWidgetItem
 from PyQt6.QtCore import QPropertyAnimation
 from PyQt6.QtCore import QThread
 from PyQt6.QtWidgets import QHeaderView
@@ -32,6 +32,7 @@ from functools import partial
 from animated_toggle import AnimatedToggle
 from custom_tab_widget import CustomTabWidget
 from custom_button import CustomButton
+from custom_qlabel import CustomQLabel
 from adif_summary_dialog import AdifSummaryDialog
 from time_ago_delegate import TimeAgoDelegate
 from search_field_input import SearchFilterInput
@@ -312,10 +313,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.worked_history_callsigns_label.setAlignment(
             QtCore.Qt.AlignmentFlag.AlignBottom | QtCore.Qt.AlignmentFlag.AlignLeft
         )
-        self.worked_history_callsigns_label.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.Preferred,
-            QtWidgets.QSizePolicy.Policy.Maximum
-        )       
+        self.worked_history_callsigns_label.setFont(CUSTOM_FONT)
         self.worked_history_callsigns_label.setMinimumHeight(25)
         """
             Top layout for focus_frame and timer_value_label
@@ -366,7 +364,7 @@ class MainApp(QtWidgets.QMainWindow):
         """
         status_layout = QtWidgets.QGridLayout()
 
-        status_static_label = QtWidgets.QLabel("Status:")
+        status_static_label = CustomQLabel("Status:")
         status_static_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
         status_static_label.setStyleSheet("padding-right: 30px;")
         status_static_label.setMinimumWidth(150)
@@ -440,14 +438,14 @@ class MainApp(QtWidgets.QMainWindow):
         horizontal_layout.setContentsMargins(0, 0, 0, 0)
         horizontal_layout.setSpacing(0)  
 
-        horizontal_layout.addWidget(QtWidgets.QLabel("Enable Sounds"))
+        horizontal_layout.addWidget(CustomQLabel("Enable Sounds"))
         
         horizontal_layout.addWidget(self.global_sound_toggle)
         horizontal_layout.addSpacing(20)
-        horizontal_layout.addWidget(QtWidgets.QLabel("Show All Messages"))  
+        horizontal_layout.addWidget(CustomQLabel("Show All Messages"))  
         horizontal_layout.addWidget(self.show_all_decoded_toggle)
         horizontal_layout.addSpacing(20)
-        horizontal_layout.addWidget(QtWidgets.QLabel("Show Filters"))  
+        horizontal_layout.addWidget(CustomQLabel("Show Filters"))  
         horizontal_layout.addWidget(self.filter_gui_toggle)
 
         # Apply layout to the widget
@@ -683,7 +681,7 @@ class MainApp(QtWidgets.QMainWindow):
 
                 line_edit.setText(band_params.get(variable_info['name'], ""))
 
-                line_label = QtWidgets.QLabel(variable_info['label'])
+                line_label = CustomQLabel(variable_info['label'])
                 line_label.setStyleSheet("border-radius: 6px; padding: 3px;")
                 line_label.setMinimumWidth(100)
 
@@ -838,7 +836,7 @@ class MainApp(QtWidgets.QMainWindow):
         ]
 
         for idx, (label_text, widget) in enumerate(fields):
-            label = QtWidgets.QLabel(label_text)
+            label = CustomQLabel(label_text)
             label.setFont(CUSTOM_FONT_SMALL)
             label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
             inner_layout.addWidget(widget, 0, idx)
@@ -1882,6 +1880,7 @@ class MainApp(QtWidgets.QMainWindow):
             QHeaderView::section {{
                 font-weight: normal;
                 border: none;
+                font: {CUSTOM_FONT_SMALL.pointSize()}pt '{CUSTOM_FONT_SMALL.family() }';
                 padding: 0 3px 0 3px;
                 border-right: 1px solid {gridline_color};
             }}
@@ -2412,7 +2411,7 @@ class MainApp(QtWidgets.QMainWindow):
         layout = QtWidgets.QVBoxLayout(dialog)
 
         icon_path = os.path.join(CURRENT_DIR, "pounce.png")
-        icon_label = QtWidgets.QLabel()
+        icon_label = CustomQLabel()
         icon_pixmap = QtGui.QPixmap(icon_path)
         if not icon_pixmap.isNull(): 
             icon_pixmap = icon_pixmap.scaled(
@@ -2426,12 +2425,12 @@ class MainApp(QtWidgets.QMainWindow):
         icon_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(icon_label)
 
-        program_name = QtWidgets.QLabel(f"<b>{GUI_LABEL_NAME}</b>")
+        program_name = CustomQLabel(f"<b>{GUI_LABEL_NAME}</b>")
         program_name.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         program_name.setStyleSheet("font-size: 14px;")
         layout.addWidget(program_name)
 
-        version_label = QtWidgets.QLabel(f"Version: {CURRENT_VERSION_NUMBER}")
+        version_label = CustomQLabel(f"Version: {CURRENT_VERSION_NUMBER}")
         version_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         version_label.setStyleSheet("font-size: 11px;")
         layout.addWidget(version_label)
@@ -2441,7 +2440,7 @@ class MainApp(QtWidgets.QMainWindow):
         first_separator.setFrameShadow(QtWidgets.QFrame.Shadow.Sunken)
         layout.addWidget(first_separator)
 
-        discord_section = QtWidgets.QLabel(DISCORD_SECTION)
+        discord_section = CustomQLabel(DISCORD_SECTION)
         discord_section.setOpenExternalLinks(True)
         discord_section.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(discord_section)
@@ -2449,16 +2448,16 @@ class MainApp(QtWidgets.QMainWindow):
         layout.addStretch()
 
         current_year = datetime.now().year
-        copyright_label = QtWidgets.QLabel(f'Copyright {current_year} Cédric Morelle <a href="https://qrz.com/db/f5ukw">F5UKW</a>')
+        copyright_label = CustomQLabel(f'Copyright {current_year} Cédric Morelle <a href="https://qrz.com/db/f5ukw">F5UKW</a>')
         copyright_label.setOpenExternalLinks(True)
         copyright_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(copyright_label)
 
-        thanks_label = QtWidgets.QLabel("With special thanks to:")
+        thanks_label = CustomQLabel("With special thanks to:")
         thanks_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(thanks_label)
 
-        thanks_names = QtWidgets.QLabel("Rick, DU6/PE1NSQ, Vincent F4BKV, Juan TG9AJR, Neil G0JHC")
+        thanks_names = CustomQLabel("Rick, DU6/PE1NSQ, Vincent F4BKV, Juan TG9AJR, Neil G0JHC")
         thanks_names.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(thanks_names)
 
@@ -2469,7 +2468,7 @@ class MainApp(QtWidgets.QMainWindow):
         second_separator.setFrameShadow(QtWidgets.QFrame.Shadow.Sunken)
         layout.addWidget(second_separator)
 
-        donation_link = QtWidgets.QLabel(DONATION_SECTION)
+        donation_link = CustomQLabel(DONATION_SECTION)
         donation_link.setOpenExternalLinks(True)
         donation_link.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(donation_link)
