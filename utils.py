@@ -354,24 +354,22 @@ def focus_out_event(widget, mode):
 
     widget.focusOutEvent = custom_focus_out
 
-def parse_adif_record(record, lookup):
-    fields = {
-        field.upper(): value.strip() for field, value in ADIF_FIELD_RE.findall(record)
-    }
-
-    call = fields.get("CALL")
-    band = fields.get("BAND")
-    qso_date = fields.get("QSO_DATE")
-    time_on = fields.get("TIME_ON")
-
+def parse_adif_record(record, lookup):    
+    fields = {field.upper(): value.strip() for field, value in ADIF_FIELD_RE.findall(record)}
+    
+    call        = fields.get('CALL')
+    band        = fields.get('BAND')
+    qso_date    = fields.get('QSO_DATE')
+    time_on     = fields.get('TIME_ON')
+    
     qso_datetime = None
     if qso_date and len(qso_date) >= 8:
         year_str = qso_date[0:4]
-        month = qso_date[4:6]
-        day = qso_date[6:8]
-        hour = "00"
-        minute = "00"
-        second = "00"
+        month    = qso_date[4:6]
+        day      = qso_date[6:8]
+        hour     = "00"
+        minute   = "00"
+        second   = "00"
 
         if time_on and len(time_on) >= 6:
             hour = time_on[0:2]
