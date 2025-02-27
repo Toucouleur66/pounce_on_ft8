@@ -75,15 +75,27 @@ class AdifMonitor:
 
     def get_adif_data(self):
         merged_data = {
-            'wkb4'  : defaultdict(lambda: defaultdict(set)),
+            'wkb4': defaultdict(lambda: defaultdict(set)),
             'entity': defaultdict(lambda: defaultdict(set)),
         }
         for data in self.adif_data_by_file.values():
-            for year, bands in data.get('wkb4', {}).items():
-                for band, calls in bands.items():
-                    merged_data['wkb4'][year][band].update(calls)
-            for year, bands in data.get('entity', {}).items():
-                for band, entities in bands.items():
-                    merged_data['entity'][year][band].update(entities)
+            if data is None:
+                continue  
 
+            wkb4_data = data.get('wkb4')
+            if wkb4_data:
+                for year, bands in wkb4_data.items():
+                    if bands is None:
+                        continue
+                    for band, calls in bands.items():
+                        merged_data['wkb4'][year][band].update(calls)
+            
+            entity_data = data.get('entity')
+            if entity_data:
+                for year, bands in entity_data.items():
+                    if bands is None:
+                        continue
+                    for band, entities in bands.items():
+                        merged_data['entity'][year][band].update(entities)
+        
         return merged_data
