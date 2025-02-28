@@ -167,15 +167,22 @@ DISCORD_SECTION                 = '<a href="https://discord.gg/fqCu24naCM">Suppo
 DONATION_SECTION                = '<a href="https://www.paypal.com/donate/?cmd=_s-xclick&hosted_button_id=R4HK9ZTUPYHSL&ssrt=1732865689562">Donations are welcome</a>'
 
 if platform.system() == 'Windows':
-    system_default_font          = QtWidgets.QApplication.font()
-    CUSTOM_FONT                  = system_default_font
-    CUSTOM_FONT_SMALL            = QtGui.QFont(CUSTOM_FONT)
-    
-    CUSTOM_FONT.setPointSize(11)
-    CUSTOM_FONT_SMALL.setPointSize(9)
+    app = QtWidgets.QApplication([])
 
-    CUSTOM_FONT_MONO            = QtGui.QFont("Consolas", 11)
-    CUSTOM_FONT_MONO_LG         = QtGui.QFont("Consolas", 18)
+    screen                      = app.primaryScreen()
+    dpi_scaling                 = screen.logicalDotsPerInch() / 96
+    base_size                   = int(9 * dpi_scaling)
+    small_size                  = int(8 * dpi_scaling)
+
+    system_default_font         = QtWidgets.QApplication.font()
+    CUSTOM_FONT                 = system_default_font
+    CUSTOM_FONT_SMALL           = QtGui.QFont(CUSTOM_FONT)
+    
+    CUSTOM_FONT.setPointSize(base_size)
+    CUSTOM_FONT_SMALL.setPointSize(small_size)
+
+    CUSTOM_FONT_MONO            = QtGui.QFont("Consolas", 9)
+    CUSTOM_FONT_MONO_LG         = QtGui.QFont("Consolas", 15)
     CUSTOM_FONT_BOLD            = QtGui.QFont("Consolas", 13, QtGui.QFont.Weight.Bold)
 
     CUSTOM_FONT_README          = QtGui.QFont("Consolas", 12)

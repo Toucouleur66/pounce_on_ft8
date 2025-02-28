@@ -183,6 +183,70 @@ class QDateTime(object):
     def __repr__(self):
         return "date {}\n\ttime {}\n\tspec {}\n\toffset {}".format(self.date, self.time, self.spec, self.offset)
 
+
+class StatusPacket(GenericWSJTXPacket):
+    TYPE_VALUE = 1
+    def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
+        GenericWSJTXPacket.__init__(self, addr_port, magic, schema, pkt_type, id, pkt)
+        ps = PacketReader(pkt)
+        
+        the_type = ps.QInt32()
+        self.wsjtx_id = ps.QString()
+        self.dial_frequency = ps.QInt64()
+
+        self.mode = ps.QString()
+        self.dx_call = ps.QString()
+
+        self.report = ps.QString()
+        self.tx_mode = ps.QString()
+
+        self.tx_enabled = ps.QInt8()
+        self.transmitting = ps.QInt8()
+        self.decoding = ps.QInt8()
+        self.rx_df = ps.QInt32()
+        self.tx_df = ps.QInt32()
+
+        self.de_call = ps.QString()
+        self.de_grid = ps.QString()
+        self.dx_grid = ps.QString()
+
+        self.tx_watchdog = ps.QInt8()
+        self.sub_mode = ps.QString()
+        self.fast_mode = ps.QInt8()
+
+        # new in wsjtx-2.0.0
+        self.special_op_mode = ps.QInt8()
+
+    def __repr__(self):
+        str =  'StatusPacket: from {}:{}\n\twsjtx id:{}\t\tde_call:{}\tde_grid:{}\tfrequency:{}\n'.format(
+            self.addr_port[0],
+            self.addr_port[1],
+            self.wsjtx_id,
+            self.de_call,
+            self.de_grid,
+            self.dial_frequency / 1_000            
+        )
+
+        str += "\trx_df:{}\ttx_df:{}\tdx_call:{}\tdx_grid:{}\treport:{}\n".format(
+            self.rx_df,
+            self.tx_df,
+            self.dx_call,
+            self.dx_grid,
+            self.report
+        )
+        str += "\ttransmitting:{}\tdecoding:{}\ttx_enabled:{}\ttx_watchdog:{}\tmode:{}\n\tsub_mode:{}\tfast_mode:{}\tspecial_op_mode:{}".format(
+            self.transmitting,
+            self.decoding,
+            self.tx_enabled,
+            self.tx_watchdog,
+            self.mode,
+            self.sub_mode,
+            self.fast_mode,
+            self.special_op_mode
+        )
+        return str
+
+
 class DecodePacket(GenericWSJTXPacket):
     TYPE_VALUE = 2
 
@@ -207,6 +271,65 @@ class DecodePacket(GenericWSJTXPacket):
         str_repr = f'DecodePacket: from {self.addr_port[0]}:{self.addr_port[1]}\n\twsjtx id:{self.wsjtx_id}\tmessage:{self.message}\n'
         str_repr += f'\tdelta_f:{self.delta_f}\tnew:{self.new_decode}\ttime:{self.time}\tsnr:{self.snr}\tdelta_f:{self.delta_f}\tmode:{self.mode}'
         return str_repr
+
+def send_status_packet(
+        wsjtx_id="WSJT-X",
+        dial_frequency=50313000,  # Fréquence en Hz
+        mode="FT8",
+        dx_call="CQ",
+        report="-10",
+        tx_mode="FT8",
+        tx_enabled=False,
+        transmitting=False,
+        decoding=True,
+        rx_df=1500,
+        tx_df=1500,
+        de_call="F5UKW",
+        de_grid="JN12",
+        dx_grid="FN31",
+        tx_watchdog=True,
+        sub_mode="",
+        fast_mode=False,
+        special_op_mode=False,
+        ip_address="127.0.0.1",
+        udp_port=2237
+    ):
+    """
+    Envoie un paquet de statut WSJT-X via UDP.
+    """
+    UDP_IP = ip_address
+    UDP_PORT = udp_port        
+
+    pkt_writer = PacketWriter()
+
+    pkt_writer.write_QInt32(StatusPacket.TYPE_VALUE)  # Type de paquet (Status)
+    pkt_writer.write_QString(wsjtx_id)                # Identifiant WSJT-X
+    pkt_writer.write_QInt64(dial_frequency)           # Fréquence de travail
+    pkt_writer.write_QString(mode)                    # Mode de transmission (ex: FT8)
+    pkt_writer.write_QString(dx_call)                 # Indicatif DX
+    pkt_writer.write_QString(report)                  # Rapport signal
+    pkt_writer.write_QString(tx_mode)                 # Mode TX
+    pkt_writer.write_QInt8(int(tx_enabled))           # TX activé
+    pkt_writer.write_QInt8(int(transmitting))         # En train d'émettre ?
+    pkt_writer.write_QInt8(int(decoding))             # En train de décoder ?
+    pkt_writer.write_QInt32(rx_df)                    # Fréquence RX DF
+    pkt_writer.write_QInt32(tx_df)                    # Fréquence TX DF
+    pkt_writer.write_QString(de_call)                 # Indicatif local
+    pkt_writer.write_QString(de_grid)                 # Grid locator de l'émetteur
+    pkt_writer.write_QString(dx_grid)                 # Grid locator du DX
+    pkt_writer.write_QInt8(int(tx_watchdog))          # Watchdog TX
+    pkt_writer.write_QString(sub_mode)                # Mode secondaire (ex: non défini)
+    pkt_writer.write_QInt8(int(fast_mode))            # Mode rapide activé ?
+    pkt_writer.write_QInt8(int(special_op_mode))      # Mode spécial activé ?
+
+    packet_data = pkt_writer.packet
+
+    print("📡 Hex value for Status Packet:")
+    print(PacketUtil.hexdump(packet_data))
+
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+        sock.sendto(packet_data, (UDP_IP, UDP_PORT))
+        print(f"✅ Status Packet sent to {UDP_IP}:{UDP_PORT}")
 
 def send_decode_packet(
         wsjtx_id="WSJT-X",
@@ -300,6 +423,13 @@ def simulate(ip_address="127.0.0.1", udp_port=2237):
     
     ] 
     
+
+    send_status_packet(
+        ip_address=ip_address,
+        udp_port=udp_port
+    )
+    time.sleep(15)
+
     for i, message_series in enumerate(messages_series):
         print(f"📡 Sending series {i + 1}...\n")
 
