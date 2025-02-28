@@ -21,6 +21,7 @@ from constants import (
     # Colors
     BG_COLOR_BLACK_ON_PURPLE,
     FG_COLOR_BLACK_ON_PURPLE,
+    STATUS_TRX_COLOR,
     # Labels
     GUI_LABEL_NAME,
     # Modes
@@ -451,15 +452,24 @@ class SettingsDialog(QtWidgets.QDialog):
         marathon_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
         self.marathon_group = QtWidgets.QGroupBox("Enable Marathon for selected bands")
-        marathon_layout = QtWidgets.QVBoxLayout()
+        marathon_layout = QtWidgets.QGridLayout()
 
-        self.band_checkboxes = {}
+        self.band_buttons = {}
+        max_cols = 3  # nombre de colonnes souhaitées
+        row = 0
+        col = 0
 
         for band_name in AMATEUR_BANDS.keys():
-            cb = QtWidgets.QCheckBox(band_name)
-            cb.setChecked(False)
-            self.band_checkboxes[band_name] = cb
-            marathon_layout.addWidget(cb)
+            btn = CustomButton(band_name)
+            btn.setCheckable(True)         
+            btn.toggled.connect(lambda checked, btn=btn, name=band_name: self.on_band_toggled(btn, name, checked))
+            self.band_buttons[band_name] = btn
+            marathon_layout.addWidget(btn, row, col)
+            
+            col += 1
+            if col >= max_cols:
+                col = 0
+                row += 1
 
         self.marathon_group.setLayout(marathon_layout)
 
@@ -551,6 +561,12 @@ class SettingsDialog(QtWidgets.QDialog):
 
         self.on_tab_changed(self.tab_widget.currentIndex())  
         self.tab_widget.currentChanged.connect(self.on_tab_changed)        
+
+    def on_band_toggled(self, button, band_name, checked):
+        if checked:
+            button.updateStyle(band_name, STATUS_TRX_COLOR, "#FFFFFF")
+        else:
+            button.resetStyle()        
 
     def on_table_row_selected(self, row, column):
         button = self.mode_table_widget.cellWidget(row, 0)
@@ -714,11 +730,9 @@ class SettingsDialog(QtWidgets.QDialog):
 
         if isinstance(self.marathon_preference, bool):
             self.marathon_preference = {}
-        for band_name in AMATEUR_BANDS.keys():
-            if band_name in self.marathon_preference:
-                self.band_checkboxes[band_name].setChecked(self.marathon_preference[band_name])
-            else:
-                self.band_checkboxes[band_name].setChecked(False)    
+        for band_name, btn in self.band_buttons.items():
+            checked = self.marathon_preference.get(band_name, False)
+            btn.setChecked(checked)
     
     def get_result(self):
         freq_range_mode = MODE_NORMAL 
@@ -740,8 +754,8 @@ class SettingsDialog(QtWidgets.QDialog):
         max_waiting_delay = int(self.max_waiting_delay_combo.currentText())
 
         marathon_preference = {}
-        for band_name, checkbox in self.band_checkboxes.items():
-            marathon_preference[band_name] = checkbox.isChecked()
+        for band_name, btn in self.band_buttons.items():
+            marathon_preference[band_name] = btn.isChecked()
 
         return {
             'primary_udp_server_address'                 : self.primary_udp_server_address.text(),
