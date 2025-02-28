@@ -1592,10 +1592,7 @@ class MainApp(QtWidgets.QMainWindow):
         message_type      = message.get('message_type')
         formatted_message = message.get('formatted_message').strip()
 
-        if message_type == 'wanted_callsign_detected' and 'CQ 'in formatted_message:
-            self.focus_value_label.setText(f"{message.get('snr')}: {formatted_message}")
-        else:
-            self.focus_value_label.setText(formatted_message)
+        self.focus_value_label.setText(formatted_message)
 
         contains_my_call = message.get('directed') == message.get('my_call')
 
