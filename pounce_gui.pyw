@@ -35,6 +35,7 @@ from custom_button import CustomButton
 from custom_qlabel import CustomQLabel
 from adif_summary_dialog import AdifSummaryDialog
 from time_ago_delegate import TimeAgoDelegate
+from color_row_delegate import ColorRowDelegate
 from search_field_input import SearchFilterInput
 from tray_icon import TrayIcon
 from activity_bar import ActivityBar
@@ -178,8 +179,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.pobjc_timer.timeout.connect(self.status_menu_agent.process_events)
             self.pobjc_timer.start(10) 
             
-        
-        params                   = self.load_params()  
+        params                      = self.load_params()  
         
         """
             Store data from update_model_data
@@ -390,6 +390,7 @@ class MainApp(QtWidgets.QMainWindow):
             Main output table
         """
         self.output_table          = self.init_output_table_ui()
+        self.output_table.setItemDelegate(ColorRowDelegate(self.output_table))
 
         """
             Filter layout
@@ -771,10 +772,6 @@ class MainApp(QtWidgets.QMainWindow):
                 output_table.setColumnWidth(i, width)
                 if i in [5, 6]:
                     output_table.horizontalHeader().setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
-                        
-        self.time_ago_delegate = TimeAgoDelegate(output_table)  
-        self.default_delegate = QtWidgets.QStyledItemDelegate(output_table)
-        self.current_delegate = None
 
         output_table.horizontalHeader().sectionClicked.connect(self.on_header_clicked)
 
@@ -954,9 +951,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.datetime_column_setting = DATE_COLUMN_AGE   
         self.set_time_mode_header(self.datetime_column_setting)
 
-        self.current_delegate = self.time_ago_delegate
-
-        self.output_table.setItemDelegateForColumn(0, self.current_delegate)
         self.output_table.viewport().update()
         self.output_table.setColumnWidth(0, 60)
 
@@ -967,9 +961,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.datetime_column_setting = DATE_COLUMN_DATETIME
         self.set_time_mode_header(self.datetime_column_setting)
 
-        self.current_delegate = self.default_delegate
-
-        self.output_table.setItemDelegateForColumn(0, self.current_delegate)
         self.output_table.viewport().update()
         self.output_table.setColumnWidth(0, 130)
 
@@ -1877,6 +1868,9 @@ class MainApp(QtWidgets.QMainWindow):
                 background-color: {background_color};
                 gridline-color: {gridline_color}; 
             }}
+            QTableView::item {{
+                padding: 5px;
+            }}            
             QHeaderView::section {{
                 font-weight: normal;
                 border: none;
@@ -1888,7 +1882,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.output_table.setStyleSheet(table_qss)
         self.output_table.setPalette(table_palette)
-
+        self.output_table.setShowGrid(False)
         self.wait_pounce_history_table.setStyleSheet(table_qss)
         self.wait_pounce_history_table.setPalette(table_palette)
 
@@ -2059,8 +2053,7 @@ class MainApp(QtWidgets.QMainWindow):
         
         proxy_index = self.filter_proxy_model.mapFromSource(source_index)
 
-        self.output_table.scrollTo(proxy_index, scroll_hint)
-        
+        self.output_table.scrollTo(proxy_index, scroll_hint)        
         self.output_table.setCurrentIndex(proxy_index)
 
     def add_row_to_history_table(self, raw_data, add_to_history=True):
@@ -2243,6 +2236,14 @@ class MainApp(QtWidgets.QMainWindow):
                     """)
 
     def create_main_menu(self):
+        self.menu_bar.setStyleSheet(f"""
+            QMenuBar {{
+                font: {CUSTOM_FONT.pointSize()}pt '{CUSTOM_FONT.family() }';
+            }}
+            QMenu {{
+                font: {CUSTOM_FONT.pointSize()}pt '{CUSTOM_FONT.family() }';
+            }}""")
+
         main_menu = self.menu_bar.addMenu(GUI_LABEL_NAME)
 
         about_action = QtGui.QAction(f"About {GUI_LABEL_NAME}", self)

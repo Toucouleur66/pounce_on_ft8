@@ -15,6 +15,7 @@ from PyQt6.QtCore import QCoreApplication, QStandardPaths
 from PyQt6.QtGui import QTextCursor
 
 from collections import defaultdict
+from datetime import datetime, timezone
 
 QCoreApplication.setApplicationName("Wait and Pounce")
 
@@ -59,7 +60,7 @@ def get_app_data_dir():
     return app_data_dir
 
 def get_log_filename():
-    today = datetime.datetime.now().strftime("%y%m%d")
+    today = datetime.now().strftime("%y%m%d")
 
     return os.path.join(get_app_data_dir(), f"{today}_pounce.log")
 
@@ -353,6 +354,26 @@ def focus_out_event(widget, mode):
         original_focus_out(event)
 
     widget.focusOutEvent = custom_focus_out
+
+def compute_time_ago(dt_value):
+    if dt_value.tzinfo is None:
+        dt_value = dt_value.replace(tzinfo=timezone.utc)
+
+    now     = datetime.now(timezone.utc)
+    delta   = now - dt_value
+    seconds = int(delta.total_seconds())
+
+    if seconds < 60:
+        return f"{seconds}s"
+    elif seconds < 3_600:
+        return f"{seconds // 60}m"
+    elif seconds < 86_400:
+        return f"{seconds // 3600}h"
+    elif seconds <= 1_209_600:  # 2 weeks
+        return f"{seconds // 86400}d"
+    else:
+        weeks = seconds // (86400 * 7)
+        return f"{weeks}w"            
 
 def parse_adif_record(record, lookup):    
     fields = {field.upper(): value.strip() for field, value in ADIF_FIELD_RE.findall(record)}

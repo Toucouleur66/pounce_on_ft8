@@ -6,6 +6,8 @@ from PyQt6.QtGui import QColor
 
 from pympler import asizeof
 
+from utils import compute_time_ago
+
 from constants import (
     FG_COLOR_FOCUS_MY_CALL,
     BG_COLOR_FOCUS_MY_CALL,
@@ -50,6 +52,11 @@ class RawDataModel(QtCore.QAbstractTableModel):
 
     def setTimeMode(self, value: bool):
         self.datetime_column_setting = value
+
+        top_left    = self.index(0, 0)
+        bottom_right= self.index(self.rowCount()-1, 0)
+        self.dataChanged.emit(top_left, bottom_right, [QtCore.Qt.ItemDataRole.DisplayRole])
+
         self.headerDataChanged.emit(QtCore.Qt.Orientation.Horizontal, 0, 0)
 
     def headerData(self, section, orientation, role=QtCore.Qt.ItemDataRole.DisplayRole):               
@@ -92,8 +99,11 @@ class RawDataModel(QtCore.QAbstractTableModel):
             return None
 
         if role == QtCore.Qt.ItemDataRole.DisplayRole:
-            if column == 0:
-                return raw_data['date_str']
+            if column == 0:                
+                if self.datetime_column_setting == DATE_COLUMN_AGE and "row_datetime" in raw_data:
+                    return compute_time_ago(raw_data["row_datetime"])
+                else:
+                    return raw_data['date_str']
             elif column == 1:
                 return raw_data['band']
             elif column == 2:
@@ -125,7 +135,12 @@ class RawDataModel(QtCore.QAbstractTableModel):
                 if color:
                     return color
         elif role == QtCore.Qt.ItemDataRole.TextAlignmentRole:
-            if column in [1, 2, 3, 4]:
+            if column == 0:
+                if self.datetime_column_setting == DATE_COLUMN_AGE:
+                    return QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter
+                else:
+                    return QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter
+            elif column in [1, 2, 3, 4]:
                 return QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter
             elif column in [7, 8, 9]:
                 return QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter
