@@ -512,7 +512,6 @@ class MainApp(QtWidgets.QMainWindow):
         """
             Main layout
         """
-
         worked_history_layout = QtWidgets.QVBoxLayout()
 
         worked_history_layout.addWidget(self.worked_history_callsigns_label)

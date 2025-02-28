@@ -423,12 +423,13 @@ class Listener:
             })
 
     def reset_targeted_call(self):
+        """
         self.grid_being_called          .pop(self.targeted_call, None)
         self.qso_time_on                .pop(self.targeted_call, None)
         self.qso_time_off               .pop(self.targeted_call, None)
         self.rst_rcvd_from_being_called .pop(self.targeted_call, None)
         self.rst_sent                   .pop(self.targeted_call, None)
-        
+        """
         self.targeted_call              = None
         self.targeted_call_period       = None
         self.targeted_call_frequencies  = set()
