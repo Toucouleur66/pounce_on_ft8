@@ -1880,6 +1880,9 @@ class MainApp(QtWidgets.QMainWindow):
                 padding: 0 3px 0 3px;
                 border-right: 1px solid {gridline_color};
             }}
+            QHeaderView::section:horizontal:last {{
+                border-right: none;
+            }}
         """
 
         self.output_table.setStyleSheet(table_qss)
