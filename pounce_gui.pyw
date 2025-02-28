@@ -319,7 +319,7 @@ class MainApp(QtWidgets.QMainWindow):
             Top layout for focus_frame and timer_value_label
         """
         top_layout = QtWidgets.QHBoxLayout()
-        top_layout.setContentsMargins(0, 0, 0, 0)
+        top_layout.setContentsMargins(0, 0, 0, 5)
         top_layout.setSpacing(0)
         self.focus_frame = QtWidgets.QFrame()
         self.focus_frame_layout = QtWidgets.QHBoxLayout()
