@@ -26,7 +26,7 @@ class CustomTabWidget(QtWidgets.QWidget):
         self.scroll_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.scroll_area.setWidget(self.tab_container)
         self.scroll_area.setStyleSheet("background: transparent; border: none;")
-        self.scroll_area.setMaximumHeight(40)
+        self.scroll_area.setMaximumHeight(42)
 
         self.stacked_widget = QtWidgets.QStackedWidget()
 

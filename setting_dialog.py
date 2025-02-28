@@ -146,7 +146,6 @@ class SettingsDialog(QtWidgets.QDialog):
         general_settings_group = QtWidgets.QGroupBox(f"General {GUI_LABEL_NAME} Settings")
         
         general_settings_widget = QtWidgets.QWidget()
-        general_settings_widget.setStyleSheet(f"background-color: {BG_COLOR_BLACK_ON_PURPLE}; color: {FG_COLOR_BLACK_ON_PURPLE}; ")
         general_settings_layout = QtWidgets.QGridLayout(general_settings_widget)
         
         self.enable_sending_reply = QtWidgets.QCheckBox("Enable reply")
