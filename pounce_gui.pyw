@@ -512,10 +512,15 @@ class MainApp(QtWidgets.QMainWindow):
         """
             Main layout
         """
+
+        worked_history_layout = QtWidgets.QVBoxLayout()
+
+        worked_history_layout.addWidget(self.worked_history_callsigns_label)
+        worked_history_layout.addWidget(self.wait_pounce_history_table, 1)  
         main_layout.addLayout(top_layout, 0, 0, 1, 5) 
-        main_layout.addWidget(self.worked_history_callsigns_label, 1, 3, 1, 2)
+        
         main_layout.addWidget(self.tab_widget, 2, 0, 4, 3)                
-        main_layout.addWidget(self.wait_pounce_history_table, 2, 3, 5, 2)
+        main_layout.addLayout(worked_history_layout, 2, 3, 5, 2)
         main_layout.addLayout(status_layout, 8, 1, 1, 1)
         main_layout.addWidget(self.status_button, 8, 3)
         main_layout.addWidget(self.stop_button, 8, 4)
@@ -523,6 +528,7 @@ class MainApp(QtWidgets.QMainWindow):
         main_layout.addWidget(self.output_table, 10, 0, 1, 5)
         main_layout.addWidget(self.filter_widget, 11, 0, 1, 5)
         main_layout.addWidget(bottom_widget, 12, 0, 1, 5)
+        
 
         self.file_handler = None
         if self.enable_pounce_log:
@@ -1882,6 +1888,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_table.setShowGrid(False)
         self.wait_pounce_history_table.setStyleSheet(table_qss)
         self.wait_pounce_history_table.setPalette(table_palette)
+        self.wait_pounce_history_table.setShowGrid(False)
 
         self.update_tab_widget_labels_style()
 
@@ -2269,13 +2276,12 @@ class MainApp(QtWidgets.QMainWindow):
         enable_sound_action.setChecked(self.enable_global_sound)  
         main_menu.addAction(enable_sound_action)
 
-        if tuple(map(int, CURRENT_VERSION_NUMBER.split('.'))) >= (2, 7):
-            enable_marathon_action = QtGui.QAction("Enable Marathon (β use with caution)", self)
-            enable_marathon_action.setShortcut(QtGui.QKeySequence("Ctrl+H"))
-            enable_marathon_action.triggered.connect(self.update_marathon_preference)
-            enable_marathon_action.setCheckable(True)  
-            enable_marathon_action.setChecked(self.enable_marathon)  
-            main_menu.addAction(enable_marathon_action)
+        enable_marathon_action = QtGui.QAction("Enable Marathon", self)
+        enable_marathon_action.setShortcut(QtGui.QKeySequence("Ctrl+H"))
+        enable_marathon_action.triggered.connect(self.update_marathon_preference)
+        enable_marathon_action.setCheckable(True)  
+        enable_marathon_action.setChecked(self.enable_marathon)  
+        main_menu.addAction(enable_marathon_action)
 
         settings_action = QtGui.QAction("Settings...", self)
         settings_action.setShortcut("Ctrl+,")  # Default shortcut for macOS

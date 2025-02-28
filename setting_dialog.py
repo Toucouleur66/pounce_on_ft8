@@ -455,11 +455,11 @@ class SettingsDialog(QtWidgets.QDialog):
         marathon_layout = QtWidgets.QGridLayout()
 
         self.band_buttons = {}
-        max_cols = 3  # nombre de colonnes souhaitées
+        max_cols = 4
         row = 0
         col = 0
 
-        for band_name in AMATEUR_BANDS.keys():
+        for band_name in list(AMATEUR_BANDS.keys())[:-1]:
             btn = CustomButton(band_name)
             btn.setCheckable(True)         
             btn.toggled.connect(lambda checked, btn=btn, name=band_name: self.on_band_toggled(btn, name, checked))
