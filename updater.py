@@ -1,6 +1,7 @@
 # updater.py
 
 from PyQt6 import QtCore, QtWidgets, QtNetwork
+from PyQt6.QtCore import QThread, pyqtSignal
 
 import sys
 import os
@@ -26,29 +27,52 @@ from constants import (
     UPDATE_JSON_INFO_URL,
     GUI_LABEL_VERSION,
     README_URL,
-    CUSTOM_FONT,
     CUSTOM_FONT_README
 )
 
-class Updater:
+class Updater(QThread):
+    update_available = pyqtSignal(dict)
+    update_check_failed = pyqtSignal(str)
+
     def __init__(self, parent=None):
-        self.parent         = parent
+        super().__init__(parent)
         self.latest_version = None
 
-    def check_expiration_or_update(self, force_show_dialog=False):
+    def run(self):
         try:
             response = requests.get(UPDATE_JSON_INFO_URL, timeout=5)
             if response.status_code == 200:
                 update_info = response.json().get(platform.system().lower(), {})
                 self.latest_version = update_info.get('version')
-                if version.parse(self.latest_version) > version.parse(CURRENT_VERSION_NUMBER) or force_show_dialog:
-                    log.warning(f"Last known version available: {self.latest_version}")                    
-                    self.show_update_dialog(update_info)
+
+                if version.parse(self.latest_version) > version.parse(CURRENT_VERSION_NUMBER):
+                    log.warning(f"Last known version available: {self.latest_version}")
+                    self.update_available.emit(update_info)
         except requests.RequestException as e:
             log.error(f"Can't fetch data to get update: {e}")
-            update_info = {}
+            self.update_check_failed.emit(f"Error checking updates: {e}")
 
+class UpdateManager:
+    def __init__(self, parent=None):
+        self.parent = parent
+        self.latest_version = None
+        self.updater_thread = Updater()
+
+        self.updater_thread.update_available.connect(self.show_update_dialog)
+        self.updater_thread.update_check_failed.connect(self.handle_update_error)
+
+    def check_expiration_or_update(self, force_show_dialog=False):
         self.check_expiration()
+
+        if force_show_dialog:
+            self.updater_thread.update_available.connect(self.show_update_dialog)
+            self.updater_thread.start()
+        else:
+            self.updater_thread.start()
+
+    def handle_update_error(self, error_message):
+        log.error(error_message)
+        QtWidgets.QMessageBox.warning(None, "Update Check Failed", error_message)
 
     def fetch_readme(self):
         try:
@@ -63,14 +87,13 @@ class Updater:
         readme_content = self.fetch_readme()
 
         dialog = QtWidgets.QDialog()
-        dialog.setWindowTitle(f"Latest known version: {self.latest_version}")
+        dialog.setWindowTitle(f"Latest known version: {update_info.get('version')}")
 
         dialog.setModal(True)
         dialog.resize(750, 400)
 
         layout = QtWidgets.QVBoxLayout(dialog)
 
-        # Zone défilante pour le README
         scroll_area = QtWidgets.QScrollArea()
         scroll_area.setWidgetResizable(True)
         readme_widget = QtWidgets.QWidget()
@@ -88,7 +111,7 @@ class Updater:
         button_layout = QtWidgets.QHBoxLayout()
         button_layout.addStretch()
 
-        if self.latest_version and version.parse(self.latest_version) > version.parse(CURRENT_VERSION_NUMBER):
+        if update_info.get('version') and version.parse(update_info.get('version')) > version.parse(CURRENT_VERSION_NUMBER):
             download_button = CustomButton("Start download")
             download_button.clicked.connect(lambda: self.handle_download(update_info))
             button_layout.addWidget(download_button)
@@ -119,11 +142,7 @@ class Updater:
                     "The update download has been cancelled."
                 )
         else:
-            QtWidgets.QMessageBox.critical(
-                None,
-                "error",
-                "Download URL not available"
-            )
+            QtWidgets.QMessageBox.critical(None, "Error", "Download URL not available")
 
     def install_update(self, save_path):
         try:
@@ -136,55 +155,17 @@ class Updater:
             sys.exit()
         except Exception as e:
             log.error(f"Can't update program: {e}")
-            QtWidgets.QMessageBox.critical(
-                None,
-                "Error",
-                "Try to manually update the program"
-            )
+            QtWidgets.QMessageBox.critical(None, "Error", "Try to manually update the program")
 
     def check_expiration(self):
         current_date = datetime.now()
         if current_date > EXPIRATION_DATE:
             expiration_date_str = EXPIRATION_DATE.strftime('%B %d, %Y')
 
-            dialog = QtWidgets.QDialog()
-            dialog.setWindowTitle("Program Expired")
-            dialog.setFixedSize(300, 200)
-
-            layout = QtWidgets.QVBoxLayout(dialog)
-            label = QtWidgets.QLabel(f"{GUI_LABEL_VERSION} expired on <u>{expiration_date_str}</u>.<br /><br />Please contact the author.")
-
-            label.setFont(CUSTOM_FONT)
-            label.setTextFormat(QtCore.Qt.TextFormat.RichText)
-            label.setWordWrap(True)
-            layout.addWidget(label)
-
-            ok_button = CustomButton("OK")
-            ok_button.setFixedWidth(80)
-            ok_button.clicked.connect(dialog.accept)
-
-            button_layout = QtWidgets.QHBoxLayout()
-            button_layout.addStretch()
-            button_layout.addWidget(ok_button)
-            button_layout.addStretch()
-            layout.addLayout(button_layout)
-
-            dialog.exec()
+            QtWidgets.QMessageBox.critical(None, "Program Expired",
+                                           f"{GUI_LABEL_VERSION} expired on {expiration_date_str}.\n\nPlease contact the author.")
             sys.exit()
 
-    def download_and_install_update(self, download_url):
-        save_filename = os.path.basename(download_url)
-        save_path = os.path.join(os.path.expanduser("~"), "Downloads", save_filename)
-
-        dialog = DownloadDialog(download_url, save_path)
-        if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
-            self.install_update(save_path)
-        else:
-            QtWidgets.QMessageBox.warning(
-                None,
-                "Download Cancelled",
-                "The update download was cancelled."
-            )
 
 class DownloadDialog(QtWidgets.QDialog):
     def __init__(self, url, save_path, parent=None, title=None):

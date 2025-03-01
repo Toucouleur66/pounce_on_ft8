@@ -171,8 +171,8 @@ if platform.system() == 'Windows':
 
     screen                      = app.primaryScreen()
     dpi_scaling                 = screen.logicalDotsPerInch() / 96
-    base_size                   = int(9 * dpi_scaling)
-    small_size                  = int(8 * dpi_scaling)
+    base_size                   = int(10 * dpi_scaling)
+    small_size                  = int(9 * dpi_scaling)
 
     system_default_font         = QtWidgets.QApplication.font()
     CUSTOM_FONT                 = system_default_font
@@ -181,7 +181,7 @@ if platform.system() == 'Windows':
     CUSTOM_FONT.setPointSize(base_size)
     CUSTOM_FONT_SMALL.setPointSize(small_size)
 
-    CUSTOM_FONT_MONO            = QtGui.QFont("Consolas", 9)
+    CUSTOM_FONT_MONO            = QtGui.QFont("Consolas", 10)
     CUSTOM_FONT_MONO_LG         = QtGui.QFont("Consolas", 15)
     CUSTOM_FONT_BOLD            = QtGui.QFont("Consolas", 13, QtGui.QFont.Weight.Bold)
 

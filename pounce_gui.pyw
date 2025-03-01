@@ -42,7 +42,7 @@ from activity_bar import ActivityBar
 from tooltip import ToolTip
 from worker import Worker
 from monitoring_setting import MonitoringSettings
-from updater import Updater
+from updater import Updater, UpdateManager
 from theme_manager import ThemeManager
 from clublog import ClubLogManager
 from setting_dialog import SettingsDialog
@@ -1890,7 +1890,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_table.setShowGrid(False)
         self.wait_pounce_history_table.setStyleSheet(table_qss)
         self.wait_pounce_history_table.setPalette(table_palette)
-        self.wait_pounce_history_table.setShowGrid(False)
+        # self.wait_pounce_history_table.setShowGrid(False)
 
         self.update_tab_widget_labels_style()
 
@@ -2691,14 +2691,14 @@ def main():
     window          = MainApp()
     update_timer    = QtCore.QTimer()
 
+    window.updater  = UpdateManager()
+    window.updater.check_expiration_or_update()
+
     window.show()
     window.update_status_menu_message((f'{GUI_LABEL_VERSION}').upper(), BG_COLOR_REGULAR_FOCUS, FG_COLOR_REGULAR_FOCUS)   
 
     update_timer.timeout.connect(window.updater.check_expiration_or_update)
-
-    update_timer.setInterval(60 * 60 * 1_000)  
-    update_timer.start()
-    update_timer.timeout.emit()
+    update_timer.start(60 * 60 * 1_000)
 
     if is_first_launch_or_new_version(CURRENT_VERSION_NUMBER):
         window.show_about_dialog() 
