@@ -1,8 +1,10 @@
 import xml.etree.ElementTree as ET
 import datetime
-from collections import OrderedDict
+import threading
 import json
 import os
+
+from collections import OrderedDict
 
 from shapely.geometry import shape, Point
 from shapely.ops import unary_union
@@ -21,21 +23,27 @@ class CallsignLookup:
             cache_file              = f"{CURRENT_DIR}/lookup_cache.json",              
             cache_size             = 1_0_00,
         ):
-        self.callsign_exceptions = {}
-        self.prefixes             = {}
-        self.entities            = {}
-        self.invalid_operations  = {}
-        self.zone_exceptions     = {}
+        self.callsign_exceptions   = {}
+        self.prefixes               = {}
+        self.entities              = {}
+        self.invalid_operations    = {}
+        self.zone_exceptions       = {}
 
-        self.cache               = OrderedDict()
-        self.cache_size          = cache_size
-        self.cache_file           = cache_file
+        self.xml_file_path          = xml_file_path
+        self.cq_zones_geojson_path = cq_zones_geojson_path
 
-        self.load_clublog_xml(xml_file_path)
+        self.cache                 = OrderedDict()
+        self.cache_size            = cache_size
+        self.cache_file             = cache_file
 
-        self.zone_polygons = self.load_cq_zones(cq_zones_geojson_path)
+        self.thread = threading.Thread(target=self.loader, daemon=True)
+        self.thread.start()
 
+    def loader(self):
+        self.load_clublog_xml(self.xml_file_path)
         self.load_cache_from_disk()
+        
+        self.zone_polygons = self.load_cq_zones(self.cq_zones_geojson_path)
 
     def load_cache_from_disk(self):
         """
