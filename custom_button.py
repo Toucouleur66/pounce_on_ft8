@@ -50,6 +50,7 @@ class CustomButton(QtWidgets.QPushButton):
                 background-color: {bg_color}; 
                 color: {fg_color};
                 border: 2px solid {bg_color};
+                font: {CUSTOM_FONT.pointSize()}pt '{CUSTOM_FONT.family() }';
                 border-radius: 8px;
                 padding: 5px 10px;
             }}
