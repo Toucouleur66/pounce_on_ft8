@@ -1347,6 +1347,8 @@ class MainApp(QtWidgets.QMainWindow):
             Fetch data to build menu
         """
         index = table.indexAt(position)
+        if not index.isValid():
+            return 
         row = index.row()
 
         if table.objectName() == 'history_table':
