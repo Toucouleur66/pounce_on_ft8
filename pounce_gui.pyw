@@ -2556,6 +2556,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.adif_file_path                  = params.get('adif_file_path', None)
         self.worked_before_preference       = params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS)
+        self.marathon_preference            = params.get('marathon_preference', {})
         
         self.save_unique_param('freq_range_mode', freq_range_mode )        
 
