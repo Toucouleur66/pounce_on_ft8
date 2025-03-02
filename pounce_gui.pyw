@@ -2622,9 +2622,11 @@ class MainApp(QtWidgets.QMainWindow):
         if self.worker:
             self.worker.blockSignals(True)
             self.worker = None
-        if self.thread.isRunning():
-            self.thread.quit()
-            self.thread.wait()
+        if self.thread is not None:
+            if self.thread.isRunning():
+                self.thread.quit()
+                self.thread.wait()
+            self.thread = None
 
     def stop_tray_icon(self):
         if self.tray_icon:
