@@ -646,7 +646,7 @@ class Listener:
                     callsign in self.wanted_callsigns_per_entity.get(self.band, {}).get(entity_code, {})
                 ):                                    
                     marathon = True
-                elif entity_code not in self.adif_data.get['entity'].get(current_year, {}).get(self.band, {}):
+                elif entity_code not in self.adif_data.get('entity', {}).get(current_year, {}).get(self.band, {}):
                     marathon = True
 
                     if not self.wanted_callsigns_per_entity.get(self.band):
@@ -659,7 +659,7 @@ class Listener:
                         self.wanted_callsigns_per_entity[self.band][entity_code].append(callsign)
                         save_marathon_wanted_data(MARATHON_FILE, self.wanted_callsigns_per_entity)
 
-                        log.info(f"Entity Code Wanted={entity_code} ({self.band}/{current_year})\n\tAdding Wanted Callsign={callsign}\n\tWorked ({self.band}/{current_year}):{self.adif_data.get['entity'].get(current_year, {}).get(self.band, {})}")
+                        log.info(f"Entity Code Wanted={entity_code} ({self.band}/{current_year})\n\tAdding Wanted Callsign={callsign}\n\tWorked ({self.band}/{current_year}):{self.adif_data.get('entity', {}).get(current_year, {}).get(self.band, {})}")
 
                     if callsign not in self.wanted_callsigns:
                         if self.message_callback:
