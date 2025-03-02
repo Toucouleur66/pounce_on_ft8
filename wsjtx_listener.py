@@ -214,7 +214,7 @@ class Listener:
             self.secondary_udp_server_port
         )        
 
-    def receive_packets(self):        
+    def receive_packets(self):
         while self._running:
             try:
                 pkt, addr_port = self.s.sock.recvfrom(8192)
@@ -224,7 +224,9 @@ class Listener:
                 self.packet_queue.put((pkt, addr_port))
             except socket.timeout:
                 continue
-            except Exception as e:
+            except OSError as e:
+                if hasattr(e, 'winerror') and e.winerror == 10038:
+                    break
                 error_message = f"Exception in receive_packets: {e}\n{traceback.format_exc()}"
                 log.info(error_message)
                 if self.message_callback:
