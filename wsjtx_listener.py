@@ -240,6 +240,14 @@ class Listener:
                     log.info(message)
                 self.the_packet = pywsjtx.WSJTXPacketClassFactory.from_udp_packet(self.addr_port, self.pkt)
                 self.assign_packet()
+
+                if self.enable_secondary_udp_server:
+                    target_server = (
+                        self.secondary_udp_server_address,
+                        self.secondary_udp_server_port
+                    )
+                    self.s.send_packet(target_server, self.pkt)
+
             except socket.timeout:
                 continue
             except OSError as e:
