@@ -1,7 +1,7 @@
 # wsjtx_packet_sender.py
 
 import socket
-from pywsjtx.wsjtx_packets import PacketWriter, QSOLoggedPacket, HeartBeatPacket, PacketUtil
+from pywsjtx.wsjtx_packets import PacketWriter, QSOLoggedPacket, StatusPacket, DecodePacket, HeartBeatPacket, PacketUtil
 import datetime
 
 class WSJTXPacketSender:
@@ -85,6 +85,90 @@ class WSJTXPacketSender:
         packet_data = pkt_writer.packet
 
         print("Hex value for HeartBeat Packet:")
+        print(PacketUtil.hexdump(packet_data))
+
+        self.send_packet(packet_data)
+
+    def send_decode_packet(
+            self,
+            wsjtx_id="WSJT-X",
+            snr=0,
+            delta_t=0.0,
+            delta_f=0,
+            mode="FT8",
+            message="CQ DX",
+        ):
+        pkt_writer = PacketWriter()
+
+        pkt_writer.write_QInt32(DecodePacket.TYPE_VALUE)  
+        pkt_writer.write_QString(wsjtx_id)                
+        pkt_writer.write_QInt8(1)                         
+
+        midnight = datetime.datetime.combine(datetime.datetime.utcnow().date(), datetime.time(0))
+        millis_since_midnight = int((datetime.datetime.utcnow() - midnight).total_seconds() * 1000)
+        pkt_writer.write_QInt32(millis_since_midnight)    
+
+        pkt_writer.write_QInt32(snr)                      
+        pkt_writer.write_QFloat(delta_t)                  
+        pkt_writer.write_QInt32(delta_f)                  
+        pkt_writer.write_QString(mode)                    
+        pkt_writer.write_QString(message)                 
+        pkt_writer.write_QInt8(0)                         
+        pkt_writer.write_QInt8(0)                         
+
+        packet_data = pkt_writer.packet
+
+        print("Hex value for Packet:")
+        print(PacketUtil.hexdump(packet_data))
+
+        self.send_packet(packet_data)
+
+    def send_status_packet(
+            self,
+            wsjtx_id="WSJT-X",
+            dial_frequency=50313000, 
+            mode="FT8",
+            dx_call="CQ",
+            report="-10",
+            tx_mode="FT8",
+            tx_enabled=False,
+            transmitting=False,
+            decoding=True,
+            rx_df=1500,
+            tx_df=1500,
+            de_call="F5UKW",
+            de_grid="JN12",
+            dx_grid="FN31",
+            tx_watchdog=True,
+            sub_mode="",
+            fast_mode=False,
+            special_op_mode=False
+        ):
+        pkt_writer = PacketWriter()
+
+        pkt_writer.write_QInt32(StatusPacket.TYPE_VALUE)
+        pkt_writer.write_QString(wsjtx_id)
+        pkt_writer.write_QInt64(dial_frequency)
+        pkt_writer.write_QString(mode)
+        pkt_writer.write_QString(dx_call)
+        pkt_writer.write_QString(report)
+        pkt_writer.write_QString(tx_mode)
+        pkt_writer.write_QInt8(int(tx_enabled))
+        pkt_writer.write_QInt8(int(transmitting))
+        pkt_writer.write_QInt8(int(decoding))
+        pkt_writer.write_QInt32(rx_df)
+        pkt_writer.write_QInt32(tx_df)
+        pkt_writer.write_QString(de_call)
+        pkt_writer.write_QString(de_grid)
+        pkt_writer.write_QString(dx_grid)
+        pkt_writer.write_QInt8(int(tx_watchdog))
+        pkt_writer.write_QString(sub_mode)
+        pkt_writer.write_QInt8(int(fast_mode))
+        pkt_writer.write_QInt8(int(special_op_mode))
+
+        packet_data = pkt_writer.packet
+
+        print("📡 Hex value for Status Packet:")
         print(PacketUtil.hexdump(packet_data))
 
         self.send_packet(packet_data)

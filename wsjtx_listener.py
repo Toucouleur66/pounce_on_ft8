@@ -2,6 +2,7 @@
 
 import pywsjtx.extra.simple_server
 import threading
+import queue
 import traceback
 import socket
 import re
@@ -74,10 +75,11 @@ class Listener:
         self.decode_packet_count        = 0
         self.last_decode_packet_time    = None
         self.last_heartbeat_time        = None
-              
+
         self.packet_store               = {}
         self.packet_counter             = 0        
         self.reply_message_buffer       = deque()
+
         self.reply_to_packet_time       = None
         self.last_message_replied       = None
         
@@ -141,6 +143,9 @@ class Listener:
         self.monitored_callsigns            = None
         self.monitored_cq_zones             = None
         self.worked_callsigns               = set()        
+
+        self.wanted_callsigns_per_entity   = {}
+
         self.freq_range_mode                = freq_range_mode
         self.message_callback               = message_callback
 
@@ -153,6 +158,11 @@ class Listener:
 
         self._running                       = True
         
+        self.packet_queue = queue.Queue(maxsize=1000)
+
+        self.receiver_thread                = threading.Thread(target=self.receive_packets, daemon=True)
+        self.processor_thread               = threading.Thread(target=self.process_packets, daemon=True)
+
         """
             Check ADIF file to handle Worked B4 
         """
@@ -204,6 +214,49 @@ class Listener:
             self.secondary_udp_server_port
         )        
 
+    def receive_packets(self):        
+        while self._running:
+            try:
+                pkt, addr_port = self.s.sock.recvfrom(8192)
+                if self.enable_log_packet_data:
+                    message = f"Received packet of length {len(pkt)} from {addr_port}\nPacket data: {pkt.hex()}"
+                    log.info(message)
+                self.packet_queue.put((pkt, addr_port))
+            except socket.timeout:
+                continue
+            except Exception as e:
+                error_message = f"Exception in receive_packets: {e}\n{traceback.format_exc()}"
+                log.info(error_message)
+                if self.message_callback:
+                    self.message_callback(error_message)
+        try:
+            self.s.sock.close()
+        except Exception:
+            pass
+        log.info("Receiver thread stopped")
+
+    def process_packets(self):
+        while self._running or not self.packet_queue.empty():
+            try:
+                pkt, addr_port = self.packet_queue.get(timeout=1)
+            except queue.Empty:
+                continue
+
+            try:
+                self.the_packet = pywsjtx.WSJTXPacketClassFactory.from_udp_packet(addr_port, pkt)
+                self.assign_packet()
+                if self.enable_secondary_udp_server:
+                    target_server = (self.secondary_udp_server_address, self.secondary_udp_server_port)
+                    self.s.send_packet(target_server, pkt)
+            except Exception as e:
+                error_message = f"Exception in process_packets: {e}\n{traceback.format_exc()}"
+                log.info(error_message)
+                if self.message_callback:
+                    self.message_callback(error_message)
+            finally:
+                self.packet_queue.task_done()
+        log.info("Processor thread stopped")
+
     def update_settings(self):
         self.wanted_callsigns       = self.monitoring_settings.get_wanted_callsigns()
         self.excluded_callsigns     = self.monitoring_settings.get_excluded_callsigns()
@@ -228,55 +281,22 @@ class Listener:
         
     def stop(self):
         self._running = False
-        self.s.sock.close() 
-
-    def doListen(self):
-        while self._running:
-            try:
-                self.pkt, self.addr_port = self.s.sock.recvfrom(8192)
-                if self.enable_log_packet_data:
-                    message = f"Received packet of length {len(self.pkt)} from {self.addr_port}"
-                    message += f"\nPacket data: {self.pkt.hex()}"
-                    log.info(message)
-                self.the_packet = pywsjtx.WSJTXPacketClassFactory.from_udp_packet(self.addr_port, self.pkt)
-                self.assign_packet()
-
-                if self.enable_secondary_udp_server:
-                    target_server = (
-                        self.secondary_udp_server_address,
-                        self.secondary_udp_server_port
-                    )
-                    self.s.send_packet(target_server, self.pkt)
-
-            except socket.timeout:
-                continue
-            except OSError as e:
-                if e.winerror == 10038:
-                    break
-                else:
-                    error_message = f"Exception in doListen: {e}\n{traceback.format_exc()}"
-                    log.info(error_message)
-                    if self.message_callback:
-                        self.message_callback(error_message)
-            except Exception as e:
-                error_message = f"Exception in doListen: {e}\n{traceback.format_exc()}"
-                log.info(error_message)
-                if self.message_callback:
-                    self.message_callback(error_message)
-        
         try:
             self.s.sock.close()
         except Exception:
             pass
-        log.info("Listener stopped")                       
+        self.receiver_thread.join()
+        self.processor_thread.join()                
 
     def listen(self):
-        self.t = threading.Thread(target=self.doListen, daemon=True)
-        display_message = "Listener:{}:{} started (mode: {})".format(self.primary_udp_server_address, self.primary_udp_server_port, self.freq_range_mode)
+        self.receiver_thread.start()
+        self.processor_thread.start()
+
+        display_message = f"Listener started on {self.primary_udp_server_address}:{self.primary_udp_server_port} (mode: {self.freq_range_mode})"
         log.info(display_message)
+        
         if self.enable_debug_output and self.message_callback:
             self.message_callback(display_message)
-        self.t.start()
 
     def send_heartbeat(self):
         max_schema = max(self.the_packet.max_schema, 3)
@@ -617,15 +637,14 @@ class Listener:
                 not worked_b4 and
                 entity_code
             ):
+                """
+                    Callsign already checked and wanted for
+                """
                 if (
                     callsign in self.wanted_callsigns_per_entity.get(self.band, {}).get(entity_code, {})
                 ):                                    
                     marathon = True
-                elif (                
-                    current_year in self.adif_data['entity'] and
-                    self.band in self.adif_data['entity'][current_year] and
-                    entity_code not in self.adif_data['entity'][current_year][self.band]
-                ):
+                elif entity_code not in self.adif_data.get['entity'].get(current_year, {}).get(self.band, {}):
                     marathon = True
 
                     if not self.wanted_callsigns_per_entity.get(self.band):
@@ -638,7 +657,7 @@ class Listener:
                         self.wanted_callsigns_per_entity[self.band][entity_code].append(callsign)
                         save_marathon_wanted_data(MARATHON_FILE, self.wanted_callsigns_per_entity)
 
-                        log.info(f"Entity Code Wanted={entity_code} ({self.band}/{current_year})\n\tAdding Wanted Callsign={callsign}\n\tWorked ({self.band}/{current_year}):{self.adif_data['entity'][current_year][self.band]}")
+                        log.info(f"Entity Code Wanted={entity_code} ({self.band}/{current_year})\n\tAdding Wanted Callsign={callsign}\n\tWorked ({self.band}/{current_year}):{self.adif_data.get['entity'].get(current_year, {}).get(self.band, {})}")
 
                     if callsign not in self.wanted_callsigns:
                         if self.message_callback:
