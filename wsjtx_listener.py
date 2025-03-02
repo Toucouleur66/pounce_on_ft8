@@ -156,15 +156,14 @@ class Listener:
         """
             Check ADIF file to handle Worked B4 
         """
-        if worked_before_preference != WKB4_REPLY_MODE_ALWAYS and adif_file_path:            
+        if adif_file_path:            
             self.adif_monitor               = AdifMonitor(adif_file_path, ADIF_WORKED_CALLSIGNS_FILE)
-            # register_lookup allow us to get adif data per band, year and entity
             if (
                 self.enable_marathon and 
-                adif_file_path and 
                 lookup
             ):
                 self.wanted_callsigns_per_entity = load_marathon_wanted_data(MARATHON_FILE)
+                # register_lookup allow us to get adif data per band, year and entity
                 self.adif_monitor.register_lookup(lookup)
             self.adif_monitor.start()
             self.adif_monitor.register_callback(self.update_adif_data)
@@ -214,7 +213,8 @@ class Listener:
 
         log_output = []
         log_output.append(f"Updated settings (~{CURRENT_VERSION_NUMBER}):")
-        log_output.append(f"Band={self.band}")
+        log_output.append(f"EnableSendingReply={self.enable_sending_reply}")             
+        log_output.append(f"Band={self.band}")   
         log_output.append(f"WantedCallsigns={self.wanted_callsigns}")
         log_output.append(f"MonitoredCallsigns={self.monitored_callsigns}")
         log_output.append(f"ExcludedCallsigns={self.excluded_callsigns}")

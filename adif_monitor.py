@@ -63,6 +63,7 @@ class AdifMonitor:
                 try:
                     current_mtime = os.path.getmtime(file_path)
                     if self.adif_last_mtime[file_path] is None or current_mtime != self.adif_last_mtime[file_path]:
+                        log.info(f"Start processing: {file_path}")
                         self.adif_last_mtime[file_path] = current_mtime
                         processing_time, parsed_data = parse_adif(file_path, self._lookup)
                         
