@@ -118,6 +118,9 @@ class Listener:
         self.secondary_udp_server_address   = secondary_udp_server_address or get_local_ip_address()
         self.secondary_udp_server_port      = secondary_udp_server_port or 2237
 
+        self.is_server_slave                = False
+        self.is_server_master               = True
+
         self.enable_secondary_udp_server    = enable_secondary_udp_server or False
 
         self.enable_sending_reply           = enable_sending_reply
@@ -159,9 +162,9 @@ class Listener:
         self._running                       = True
         
         self.packet_queue = queue.Queue(maxsize=1000)
-
         self.receiver_thread                = threading.Thread(target=self.receive_packets, daemon=True)
         self.processor_thread               = threading.Thread(target=self.process_packets, daemon=True)
+        self.origin_addr                    = None
 
         """
             Check ADIF file to handle Worked B4 
@@ -218,10 +221,35 @@ class Listener:
         while self._running:
             try:
                 pkt, addr_port = self.s.sock.recvfrom(8192)
+                header_end = pkt.find(b'|')
+                if header_end != -1:
+                    try:
+                        header = pkt[:header_end].decode('utf-8')
+
+                        origin_ip, origin_port_str = header.split(':')
+
+                        origin_port = int(origin_port_str)
+                        origin_addr = (origin_ip, origin_port)
+                        actual_pkt  = pkt[header_end+1:]
+                        
+                        self.is_server_slave    = True
+                        self.is_server_master   = False
+                    except (UnicodeDecodeError, ValueError):                        
+                        origin_addr = addr_port
+                        actual_pkt  = pkt
+
+                        self.is_server_slave    = False
+                        self.is_server_master   = True
+                else:
+                    origin_addr = addr_port
+                    actual_pkt  = pkt
+
+                self.origin_addr = origin_addr
+
                 if self.enable_log_packet_data:
                     message = f"Received packet of length {len(pkt)} from {addr_port}\nPacket data: {pkt.hex()}"
                     log.info(message)
-                self.packet_queue.put((pkt, addr_port))
+                self.packet_queue.put((actual_pkt, origin_addr))
             except socket.timeout:
                 continue
             except OSError as e:
@@ -240,16 +268,27 @@ class Listener:
     def process_packets(self):
         while self._running or not self.packet_queue.empty():
             try:
-                pkt, addr_port = self.packet_queue.get(timeout=1)
+                packet, addr_port = self.packet_queue.get(timeout=1)
             except queue.Empty:
                 continue
 
             try:
-                self.the_packet = pywsjtx.WSJTXPacketClassFactory.from_udp_packet(addr_port, pkt)
+                self.the_packet = pywsjtx.WSJTXPacketClassFactory.from_udp_packet(addr_port, packet)
                 self.assign_packet()
                 if self.enable_secondary_udp_server:
-                    target_server = (self.secondary_udp_server_address, self.secondary_udp_server_port)
-                    self.s.send_packet(target_server, pkt)
+                    target_server = (
+                        self.secondary_udp_server_address,
+                        self.secondary_udp_server_port
+                    )
+                    """
+                        Add header "IP:port" to the packet and
+                        make sure to add "|" to the end of the header
+                        so we can handle it with receive_packets
+                        on the other side (Secondary UDP Server)
+                    """
+                    header = f"{addr_port[0]}:{addr_port[1]}|".encode('utf-8')
+                    forwarded_packet = header + packet
+                    self.s.send_packet(target_server, forwarded_packet)
             except Exception as e:
                 error_message = f"Exception in process_packets: {e}\n{traceback.format_exc()}"
                 log.info(error_message)
@@ -301,9 +340,11 @@ class Listener:
             self.message_callback(display_message)
 
     def send_heartbeat(self):
+        if not self.is_server_master:
+            return        
         max_schema = max(self.the_packet.max_schema, 3)
         reply_beat_packet = pywsjtx.HeartBeatPacket.Builder(self.the_packet.wsjtx_id,max_schema)
-        self.s.send_packet(self.addr_port, reply_beat_packet)
+        self.s.send_packet(self.origin_addr, reply_beat_packet)
 
     def handle_status_packet(self):
         if self.enable_log_packet_data:
@@ -423,6 +464,8 @@ class Listener:
                 self.collect_used_frequencies()                     
         elif isinstance(self.the_packet, pywsjtx.ClearPacket):
             log.debug("Received ClearPacket method")
+        elif isinstance(self.the_packet, pywsjtx.ReplyPacket):
+            log.debug("Received ReplyPacket method")            
         elif isinstance(self.the_packet, pywsjtx.ClosePacket):
             self.send_stop_monitoring_request()
         else:
@@ -671,26 +714,6 @@ class Listener:
                             
                 if marathon:
                     wanted = True
-
-            log.debug(f"""After Check Wkb4 and Marathon:\n
-                Callsign: {callsign}
-                Callsign Info: {callsign_info}
-                Directed: {directed}
-                Wanted: {wanted}
-                Excluded: {excluded}
-                Monitored: {monitored}
-                Monitored CQ Zone: {monitored_cq_zone}
-                Worked B4: {worked_b4}  
-                Marathon: {marathon}
-                Entity Code: {entity_code}              
-                self.mycall: {self.my_call}
-                self.targeted_call: {self.targeted_call}
-                self.worked_callsigns: {self.worked_callsigns}
-                self.wanted_callsigns_per_entity: {self.wanted_callsigns_per_entity}
-                self.adif_data: {self.adif_data}
-                self.marathon_preference: {self.marathon_preference}
-                self.enable_marathon: {self.enable_marathon}
-            """)
 
             """
                 Callsign already logged, we can move over new Wanted callsign
@@ -965,7 +988,7 @@ class Listener:
     def halt_packet(self):
         try:
             halt_pkt = pywsjtx.HaltTxPacket.Builder(self.the_packet)             
-            self.s.send_packet(self.addr_port, halt_pkt)         
+            self.s.send_packet(self.origin_addr, halt_pkt)         
             log.debug(f"Sent HaltPacket: {halt_pkt}")         
         except Exception as e:
             log.error(f"Error sending packets: {e}\n{traceback.format_exc()}")
@@ -985,23 +1008,26 @@ class Listener:
                     self.set_delta_f_packet(self.suggested_frequency)
 
             reply_pkt = pywsjtx.ReplyPacket.Builder(callsign_packet)
-            self.s.send_packet(self.addr_port, reply_pkt)         
+            self.s.send_packet(self.origin_addr, reply_pkt)         
             log.debug(f"Sent ReplyPacket: {reply_pkt}")            
         except Exception as e:
             log.error(f"Error sending packets: {e}\n{traceback.format_exc()}")
 
-    def set_delta_f_packet(self, frequency):        
+    def set_delta_f_packet(self, frequency):  
+        if not self.is_server_master:
+            return        
+      
         try:
             delta_f_paquet = pywsjtx.SetTxDeltaFreqPacket.Builder(self.the_packet.wsjtx_id, frequency)
             log.warning(f"Sending SetTxDeltaFreqPacket: {delta_f_paquet}")
-            self.s.send_packet(self.addr_port, delta_f_paquet)
+            self.s.send_packet(self.origin_addr, delta_f_paquet)
         except Exception as e:
             log.error(f"Error sending packets: {e}\n{traceback.format_exc()}")
 
     def configure_packet(self):
         configure_paquet = pywsjtx.ConfigurePacket.Builder(self.the_packet.wsjtx_id, "FT4")
         log.warning(f"Sending ConfigurePacket: {configure_paquet}")
-        self.s.send_packet(self.addr_port, configure_paquet)        
+        self.s.send_packet(self.origin_addr, configure_paquet)        
 
     def clear_wanted_callsigns(self, entity_code):
         entity_callsigns = self.wanted_callsigns_per_entity.get(self.band, {}).get(entity_code, [])
