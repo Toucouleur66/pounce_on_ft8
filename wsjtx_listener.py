@@ -787,7 +787,7 @@ class Listener:
 
                     # Make sure to not call again this callsign once QSO done    
                     if not self.worked_callsigns.get(self.band):
-                        self.worked_callsigns[self.band] = {}
+                        self.worked_callsigns[self.band] = []
                     
                     self.worked_callsigns[self.band].append(callsign)                    
                     self.call_ready_to_log = None
