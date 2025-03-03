@@ -2689,7 +2689,29 @@ class MainApp(QtWidgets.QMainWindow):
     def status_menu_agent_cleaner(self):
         if sys.platform == 'darwin':
             self.status_menu_agent.hide_status_bar()
-            self.status_menu_agent.deleteLater()            
+            self.status_menu_agent.deleteLater()       
+
+def on_about_to_quit(window):
+    log.info("Application is about to quit. Cleaning up...")
+
+    if sys.platform == 'darwin':
+        try:
+            log.info("Calling status_menu_agent_cleaner")
+            window.status_menu_agent_cleaner()
+        except Exception as e:
+            log.exception("Error in status_menu_agent_cleaner")
+
+    try:
+        log.info("Calling save_band_settings")
+        window.save_band_settings()
+    except Exception as e:
+        log.exception("Error in save_band_settings")
+
+    try:
+        log.info("Calling save_worked_callsigns")
+        window.save_worked_callsigns()
+    except Exception as e:
+        log.exception("Error in save_worked_callsigns")     
 
 def main():
     app             = QtWidgets.QApplication(sys.argv)    
@@ -2709,12 +2731,12 @@ def main():
         window.show_about_dialog() 
         save_current_version(CURRENT_VERSION_NUMBER)
 
-    app.aboutToQuit.connect(window.status_menu_agent_cleaner)       
-    app.aboutToQuit.connect(window.save_band_settings)       
-    app.aboutToQuit.connect(window.save_worked_callsigns) 
+    app.aboutToQuit.connect(lambda: on_about_to_quit(window))
 
+    log.info("Starting application event loop")
     exit_code = app.exec()
 
+    log.info("Application event loop finished with exit code %s", exit_code)
     sys.exit(exit_code)
 
 if __name__ == '__main__':
