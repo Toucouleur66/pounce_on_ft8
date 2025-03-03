@@ -307,6 +307,22 @@ class Listener:
         self.monitored_cq_zones     = self.monitoring_settings.get_monitored_cq_zones()
         self.excluded_cq_zones      = self.monitoring_settings.get_excluded_cq_zones()
 
+        log_output = []
+        log_output.append(f"Updated settings (~{CURRENT_VERSION_NUMBER}):")
+        log_output.append(f"Server={'Master' if self.is_server_master else 'Slave'}")
+        log_output.append(f"EnableSendingReply={self.enable_sending_reply}")             
+        log_output.append(f"Band={self.band}")   
+        log_output.append(f"WantedCallsigns={self.wanted_callsigns}")
+        log_output.append(f"MonitoredCallsigns={self.monitored_callsigns}")
+        log_output.append(f"ExcludedCallsigns={self.excluded_callsigns}")
+        log_output.append(f"MonitoredZones={self.monitored_cq_zones}")
+        log_output.append(f"ExcludedZones={self.excluded_cq_zones}")
+        
+        if self.enable_marathon:
+            log_output.append(f"Marathon={self.marathon_preference.get(self.band)}")
+
+        log.warning(f"\n\t".join(log_output))
+
         """
             Send settings to slave server if we are master
         """
@@ -319,7 +335,7 @@ class Listener:
                 "excluded_cq_zones"     : self.excluded_cq_zones,
             }
 
-            header = f"{self.primary_udp_server_address}:{self.primary_udp_server_port}|".encode('utf-8')
+            header = f"{self.primary_udp_server_address}:{self.primary_udp_server_port}|settings".encode('utf-8')
             
             settings_packet = pywsjtx.SettingsPacket.Builder(
                 to_wsjtx_id="WSJT-X",
@@ -335,23 +351,7 @@ class Listener:
                 ), packet_with_header
             )
 
-            log.debug(f"Settings sent to {self.secondary_udp_server_address}:{self.secondary_udp_server_port}")
-
-        log_output = []
-        log_output.append(f"Updated settings (~{CURRENT_VERSION_NUMBER}):")
-        log_output.append(f"EnableSendingReply={self.enable_sending_reply}")             
-        log_output.append(f"Band={self.band}")   
-        log_output.append(f"WantedCallsigns={self.wanted_callsigns}")
-        log_output.append(f"MonitoredCallsigns={self.monitored_callsigns}")
-        log_output.append(f"ExcludedCallsigns={self.excluded_callsigns}")
-        log_output.append(f"MonitoredZones={self.monitored_cq_zones}")
-        log_output.append(f"ExcludedZones={self.excluded_cq_zones}")
-        log_output.append(f"Server={'Master' if self.is_server_master else 'Slave'}")
-        
-        if self.enable_marathon:
-            log_output.append(f"Marathon={self.marathon_preference.get(self.band)}")
-
-        log.warning(f"\n\t".join(log_output))
+            log.info(f"Settings sent to {self.secondary_udp_server_address}:{self.secondary_udp_server_port}")
         
     def stop(self):
         self._running = False
