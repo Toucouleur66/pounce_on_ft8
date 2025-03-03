@@ -992,6 +992,9 @@ class Listener:
         self.reply_to_packet(callsign_packet) 
 
     def halt_packet(self):
+        if not self.is_server_master:
+            return        
+        
         try:
             halt_pkt = pywsjtx.HaltTxPacket.Builder(self.the_packet)             
             self.s.send_packet(self.origin_addr, halt_pkt)         
@@ -1059,7 +1062,7 @@ class Listener:
             return 
         
         callsign        = self.call_ready_to_log
-        grid            = self.grid_being_called.get(self.call_ready_to_log) or ''
+        grid            = self.grid_being_called.get(self.call_ready_to_log, '')
         mode            = self.mode
         rst_sent        = get_clean_rst(self.rst_sent.get(self.call_ready_to_log, '?')) 
         rst_rcvd        = get_clean_rst(self.rst_rcvd_from_being_called.get(self.call_ready_to_log, '?')) 
