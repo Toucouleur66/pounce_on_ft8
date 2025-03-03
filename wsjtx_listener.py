@@ -145,7 +145,7 @@ class Listener:
         self.excluded_callsigns             = None
         self.monitored_callsigns            = None
         self.monitored_cq_zones             = None
-        self.worked_callsigns               = set()        
+        self.worked_callsigns               = {}
 
         self.wanted_callsigns_per_entity   = {}
 
@@ -463,7 +463,9 @@ class Listener:
             if self.enable_gap_finder:
                 self.collect_used_frequencies()                     
         elif isinstance(self.the_packet, pywsjtx.ClearPacket):
-            log.debug("Received ClearPacket method")
+            log.debug("Received ClearPacket method")        
+        elif isinstance(self.the_packet, pywsjtx.LoggedADIFPacket):
+            log.debug("Received ReplyPacket method")            
         elif isinstance(self.the_packet, pywsjtx.ReplyPacket):
             log.debug("Received ReplyPacket method")            
         elif isinstance(self.the_packet, pywsjtx.ClosePacket):
@@ -622,7 +624,7 @@ class Listener:
                 message,
                 lookup,
                 self.wanted_callsigns,
-                self.worked_callsigns,
+                self.worked_callsigns.get(self.band, {}),
                 self.excluded_callsigns,
                 self.monitored_callsigns,
                 self.monitored_cq_zones,
@@ -720,7 +722,7 @@ class Listener:
             """
             if (callsign == self.targeted_call and
                 directed != self.my_call and
-                callsign in self.worked_callsigns
+                callsign in self.worked_callsigns.get(self.band, {})
             ):
                 self.reset_targeted_call()
             
@@ -762,28 +764,32 @@ class Listener:
                     self.call_ready_to_log = callsign 
                     log.warning("Found message to log [ {} ]".format(self.call_ready_to_log))
                     self.qso_time_off[self.call_ready_to_log] = decode_time
-                    self.log_qso_to_adif()
 
-                    if self.enable_secondary_udp_server:
-                        self.log_qso_to_udp()
+                    if callsign not in self.worked_callsigns.get(self.band, {}):
+                        self.log_qso_to_adif()
 
-                    """
-                        Update marathon data and clear all related Wanted callsigns
-                    """
-                    if (
-                        entity_code and
-                        self.enable_marathon and 
-                        self.adif_data.get('entity') and
-                        self.marathon_preference.get(self.band)
-                    ):
-                        self.adif_monitor.process_adif_file()
-                        self.clear_wanted_callsigns(entity_code)  
+                        if self.enable_secondary_udp_server:
+                            self.log_qso_to_udp()
+                        """
+                            Update marathon data and clear all related Wanted callsigns
+                        """
+                        if (
+                            entity_code and
+                            self.enable_marathon and 
+                            self.adif_data.get('entity') and
+                            self.marathon_preference.get(self.band)
+                        ):
+                            self.adif_monitor.process_adif_file()
+                            self.clear_wanted_callsigns(entity_code)  
                         
                     if callsign in self.wanted_callsigns:
                         self.wanted_callsigns.remove(callsign)   
 
-                    # Make sure to remove this callsign once QSO done                    
-                    self.worked_callsigns.add(callsign)
+                    # Make sure to not call again this callsign once QSO done    
+                    if not self.worked_callsigns.get(self.band):
+                        self.worked_callsigns[self.band] = {}
+                    
+                    self.worked_callsigns[self.band].append(callsign)                    
                     self.call_ready_to_log = None
 
                     if msg in {'RR73', 'RRR'}:
@@ -994,6 +1000,9 @@ class Listener:
             log.error(f"Error sending packets: {e}\n{traceback.format_exc()}")
 
     def reply_to_packet(self, callsign_packet):
+        if not self.is_server_master:
+            return        
+        
         try:            
             self.reply_to_packet_time    = datetime.now(timezone.utc)
             self.targeted_call_period    = self.odd_or_even_period()
