@@ -238,10 +238,11 @@ class Listener:
                     except (UnicodeDecodeError, ValueError):                        
                         origin_addr = addr_port
                         actual_pkt  = pkt
-
-                        self.is_server_slave    = False
-                        self.is_server_master   = True
                 else:
+
+                    self.is_server_slave    = False
+                    self.is_server_master   = True
+
                     origin_addr = addr_port
                     actual_pkt  = pkt
 
@@ -334,6 +335,8 @@ class Listener:
                 ), packet_with_header
             )
 
+            log.debug(f"Settings sent to {self.secondary_udp_server_address}:{self.secondary_udp_server_port}")
+
         log_output = []
         log_output.append(f"Updated settings (~{CURRENT_VERSION_NUMBER}):")
         log_output.append(f"EnableSendingReply={self.enable_sending_reply}")             
@@ -343,6 +346,7 @@ class Listener:
         log_output.append(f"ExcludedCallsigns={self.excluded_callsigns}")
         log_output.append(f"MonitoredZones={self.monitored_cq_zones}")
         log_output.append(f"ExcludedZones={self.excluded_cq_zones}")
+        log_output.append(f"Server={'Master' if self.is_server_master else 'Slave'}")
         
         if self.enable_marathon:
             log_output.append(f"Marathon={self.marathon_preference.get(self.band)}")
