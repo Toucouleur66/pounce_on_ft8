@@ -7,6 +7,7 @@ import traceback
 import socket
 import re
 import bisect
+import json
 
 from wsjtx_packet_sender import WSJTXPacketSender
 from datetime import datetime, timezone
@@ -119,7 +120,7 @@ class Listener:
         self.secondary_udp_server_port      = secondary_udp_server_port or 2237
 
         self.is_server_slave                = False
-        self.is_server_master               = True
+        self.is_server_master               = False
 
         self.enable_secondary_udp_server    = enable_secondary_udp_server or False
 
@@ -305,6 +306,34 @@ class Listener:
         self.monitored_cq_zones     = self.monitoring_settings.get_monitored_cq_zones()
         self.excluded_cq_zones      = self.monitoring_settings.get_excluded_cq_zones()
 
+        """
+            Send settings to slave server if we are master
+        """
+        if self.is_server_master:
+            settings = {
+                "wanted_callsigns"      : self.wanted_callsigns,
+                "excluded_callsigns"    : self.excluded_callsigns,
+                "monitored_callsigns"   : self.monitored_callsigns,
+                "monitored_cq_zones"    : self.monitored_cq_zones,
+                "excluded_cq_zones"     : self.excluded_cq_zones,
+            }
+
+            header = f"{self.primary_udp_server_address}:{self.primary_udp_server_port}|".encode('utf-8')
+            
+            settings_packet = pywsjtx.SettingsPacket.Builder(
+                to_wsjtx_id="WSJT-X",
+                settings_dict=settings
+            )
+
+            packet_with_header = header + settings_packet
+
+            self.s.send_packet(
+                (
+                    self.secondary_udp_server_address,
+                    self.secondary_udp_server_port
+                ), packet_with_header
+            )
+
         log_output = []
         log_output.append(f"Updated settings (~{CURRENT_VERSION_NUMBER}):")
         log_output.append(f"EnableSendingReply={self.enable_sending_reply}")             
@@ -397,7 +426,8 @@ class Listener:
                         self.get_frequency_suggestion(self.targeted_call_period)
                     ))
                 """
-                status_had_time_to_update = (datetime.now(timezone.utc) - self.reply_to_packet_time).total_seconds() > 30
+
+                status_had_time_to_update = (datetime.now(timezone.utc) - self.reply_to_packet_time).total_seconds() > 30 if self.reply_to_packet_time else None 
                 if (
                     status_had_time_to_update and
                     self.the_packet.tx_enabled == 0 and 
@@ -470,6 +500,19 @@ class Listener:
             log.debug("Received ReplyPacket method")            
         elif isinstance(self.the_packet, pywsjtx.ClosePacket):
             self.send_stop_monitoring_request()
+        elif isinstance(self.the_packet, pywsjtx.SettingsPacket):
+            try:
+                settings = json.loads(self.the_packet.settings_json)
+                """
+                self.monitoring_settings.set_wanted_callsigns(settings.get("wanted_callsigns", ""))
+                self.monitoring_settings.set_excluded_callsigns(settings.get("excluded_callsigns", ""))
+                self.monitoring_settings.set_monitored_callsigns(settings.get("monitored_callsigns", ""))
+                self.monitoring_settings.set_monitored_cq_zones(settings.get("monitored_cq_zones", ""))
+                self.monitoring_settings.set_excluded_cq_zones(settings.get("excluded_cq_zones", ""))
+                """
+                log.info(f"SettingsPacket received: {settings}")
+            except Exception as e:
+                log.error(f"Error processing SettingsPacket: {e}")            
         else:
             status_update = False
             log.error('Unknown packet type {}; {}'.format(type(self.the_packet),self.the_packet))

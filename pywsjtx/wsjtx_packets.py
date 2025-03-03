@@ -3,6 +3,7 @@
 import struct
 import datetime
 import math
+import json
 
 class PacketUtil:
     @classmethod
@@ -425,7 +426,6 @@ class QSOLoggedPacket(GenericWSJTXPacket):
             self.exchange_sent = None
             self.exchange_recv = None
 
-
     def __repr__(self):
         str = 'QSOLoggedPacket: call {} @ {}\n\tdatetime:{}\tfreq:{}\n'.format(self.call,
                                                                              self.grid,
@@ -435,7 +435,6 @@ class QSOLoggedPacket(GenericWSJTXPacket):
                                                     self.report_sent,
                                                     self.report_recv)
         return str
-
 
 class ClosePacket(GenericWSJTXPacket):
     TYPE_VALUE = 6
@@ -576,6 +575,30 @@ class ConfigurePacket(GenericWSJTXPacket):
         pkt.write_QBool(generate_messages)
         return pkt.packet
 
+class SettingsPacket(GenericWSJTXPacket):
+    TYPE_VALUE = 33
+
+    def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
+        GenericWSJTXPacket.__init__(self, addr_port, magic, schema, pkt_type, id, pkt)
+        ps = PacketReader(pkt)
+        self.wsjtx_id = ps.QString()
+        self.settings_json = ps.QString() 
+
+    def __repr__(self):
+        return f"SettingsPacket: settings: {self.settings_json}"
+
+    @classmethod
+    def Builder(cls, to_wsjtx_id='WSJT-X', settings_dict=None):
+        pkt = PacketWriter()
+        pkt.write_QInt32(SettingsPacket.TYPE_VALUE)
+        pkt.write_QString(to_wsjtx_id)
+        if settings_dict is None:
+            settings_dict = {}
+
+        settings_str = json.dumps(settings_dict)
+        pkt.write_QString(settings_str)
+        return pkt.packet
+
 class WSJTXPacketClassFactory(GenericWSJTXPacket):
 
     PACKET_TYPE_TO_OBJ_MAP = {
@@ -593,7 +616,8 @@ class WSJTXPacketClassFactory(GenericWSJTXPacket):
         LoggedADIFPacket.TYPE_VALUE: LoggedADIFPacket,  
         SetTxDeltaFreqPacket.TYPE_VALUE: SetTxDeltaFreqPacket,
         HighlightCallsignPacket.TYPE_VALUE: HighlightCallsignPacket,
-        ConfigurePacket.TYPE_VALUE: ConfigurePacket
+        ConfigurePacket.TYPE_VALUE: ConfigurePacket,
+        SettingsPacket.TYPE_VALUE: SettingsPacket 
     }
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
         self.addr_port = addr_port
