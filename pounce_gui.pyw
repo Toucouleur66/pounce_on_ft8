@@ -888,6 +888,7 @@ class MainApp(QtWidgets.QMainWindow):
         if checked:
             self.show_filter_layout()
         else:
+            self.clear_filters()
             self.hide_filter_layout()            
         
         if self.enable_filter_gui != checked:

@@ -1091,33 +1091,40 @@ class Listener:
         freq            = f"{round((self.frequency + self.tx_df) / 1_000_000, 6):.6f}"
         band            = self.band
         my_call         = self.my_call
-        qso_date        = self.qso_time_on[self.call_ready_to_log].strftime('%Y%m%d')        
-        qso_time_on     = self.qso_time_on[self.call_ready_to_log].strftime('%H%M%S')
-        qso_time_off    = self.qso_time_off[self.call_ready_to_log].strftime('%H%M%S')
-
-        adif_entry = " ".join([
-            f"<call:{len(callsign)}>{callsign}",
-            f"<gridsquare:{len(grid)}>{grid}",
-            f"<mode:{len(mode)}>{mode}",
-            f"<rst_sent:{len(rst_sent)}>{rst_sent}",
-            f"<rst_rcvd:{len(rst_rcvd)}>{rst_rcvd}",
-            f"<qso_date:{len(qso_date)}>{qso_date}",
-            f"<time_on:{len(qso_time_on)}>{qso_time_on}",
-            f"<time_off:{len(qso_time_off)}>{qso_time_off}",
-            f"<band:{len(str(band))}>{band}",
-            f"<freq:{len(str(freq))}>{freq}",
-            f"<freq_rx:{len(str(freq_rx))}>{freq_rx}",
-            f"<station_callsign:{len(my_call)}>{my_call}",
-            f"<my_gridsquare:{len(self.my_grid)}>{self.my_grid}",
-            f"<eor>\n"
-        ])
 
         try:
+            if (
+                self.qso_time_off.get(self.call_ready_to_log) and
+                not self.qso_time_on.get(self.call_ready_to_log)            
+            ):
+                self.qso_time_on[self.call_ready_to_log] = self.qso_time_off[self.call_ready_to_log]
+            
+            qso_date        = self.qso_time_on[self.call_ready_to_log].strftime('%Y%m%d')        
+            qso_time_on     = self.qso_time_on[self.call_ready_to_log].strftime('%H%M%S')
+            qso_time_off    = self.qso_time_off[self.call_ready_to_log].strftime('%H%M%S')
+
+            adif_entry = " ".join([
+                f"<call:{len(callsign)}>{callsign}",
+                f"<gridsquare:{len(grid)}>{grid}",
+                f"<mode:{len(mode)}>{mode}",
+                f"<rst_sent:{len(rst_sent)}>{rst_sent}",
+                f"<rst_rcvd:{len(rst_rcvd)}>{rst_rcvd}",
+                f"<qso_date:{len(qso_date)}>{qso_date}",
+                f"<time_on:{len(qso_time_on)}>{qso_time_on}",
+                f"<time_off:{len(qso_time_off)}>{qso_time_off}",
+                f"<band:{len(str(band))}>{band}",
+                f"<freq:{len(str(freq))}>{freq}",
+                f"<freq_rx:{len(str(freq_rx))}>{freq_rx}",
+                f"<station_callsign:{len(my_call)}>{my_call}",
+                f"<my_gridsquare:{len(self.my_grid)}>{self.my_grid}",
+                f"<eor>\n"
+            ])
+
             with open(ADIF_WORKED_CALLSIGNS_FILE, "a") as adif_file:
                 adif_file.write(adif_entry)
             log.warning("QSO Logged [ {} ]".format(self.call_ready_to_log))
         except Exception as e:
-            log.error(f"Can't write ADIF file {e}")
+            log.error(f"Can't write ADIF file {e}\n{traceback.format_exc()}")
 
         # Keep this callsign to ensure we are not breaking auto-sequence 
         self.last_logged_call = callsign            
