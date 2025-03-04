@@ -36,7 +36,6 @@ from constants import (
     ODD,
     MODE_FOX_HOUND,
     MODE_NORMAL,
-    WKB4_REPLY_MODE_ALWAYS,
     WKB4_REPLY_MODE_NEVER,
     WKB4_REPLY_MODE_CURRENT_YEAR,
     FREQ_MINIMUM,
@@ -235,6 +234,7 @@ class Listener:
             try:
                 pkt, addr_port = self.s.sock.recvfrom(8192)
                 header_end = pkt.find(b'|')
+
                 if header_end != -1:
                     try:
                         header = pkt[:header_end].decode('utf-8')
@@ -251,7 +251,6 @@ class Listener:
                         origin_addr = addr_port
                         actual_pkt  = pkt
                 else:
-
                     self.is_server_slave    = False
                     self.is_server_master   = True
 
@@ -289,21 +288,18 @@ class Listener:
 
             try:
                 self.the_packet = pywsjtx.WSJTXPacketClassFactory.from_udp_packet(addr_port, packet)
-                self.assign_packet()
-                if self.enable_secondary_udp_server:
-                    target_server = (
-                        self.secondary_udp_server_address,
-                        self.secondary_udp_server_port
-                    )
+                """
+                    Assign packet and deal with it
+                """
+                self.assign_packet()  
+                if (
+                    self.enable_secondary_udp_server and 
+                    self.secondary_udp_server_address != self.primary_udp_server_address
+                ):
                     """
-                        Add header "IP:port" to the packet and
-                        make sure to add "|" to the end of the header
-                        so we can handle it with receive_packets
-                        on the other side (Secondary UDP Server)
+                        Forward packet to secondary server
                     """
-                    header = f"{addr_port[0]}:{addr_port[1]}|".encode('utf-8')
-                    forwarded_packet = header + packet
-                    self.s.send_packet(target_server, forwarded_packet)
+                    self.forward_packet(packet, addr_port)              
             except Exception as e:
                 error_message = f"Exception in process_packets: {e}\n{traceback.format_exc()}"
                 log.info(error_message)
@@ -312,6 +308,21 @@ class Listener:
             finally:
                 self.packet_queue.task_done()
         log.info("Processor thread stopped")
+
+    def forward_packet(self, packet, addr_port):
+        target_server = (
+            self.secondary_udp_server_address,
+            self.secondary_udp_server_port
+        )
+        """
+            Add header "IP:port" to the packet and
+            make sure to add "|" to the end of the header
+            so we can handle it with receive_packets
+            on the other side (Secondary UDP Server)
+        """
+        header = f"{addr_port[0]}:{addr_port[1]}|".encode('utf-8')
+        forwarded_packet = header + packet
+        self.s.send_packet(target_server, forwarded_packet)
 
     def update_settings(self):
         self.wanted_callsigns       = self.monitoring_settings.get_wanted_callsigns()
@@ -348,7 +359,7 @@ class Listener:
                 "excluded_cq_zones"     : self.excluded_cq_zones,
             }
 
-            header = f"{self.primary_udp_server_address}:{self.primary_udp_server_port}|settings".encode('utf-8')
+            header = f"{self.primary_udp_server_address}:{self.primary_udp_server_port}|".encode('utf-8')
             
             settings_packet = pywsjtx.SettingsPacket.Builder(
                 to_wsjtx_id="WSJT-X",

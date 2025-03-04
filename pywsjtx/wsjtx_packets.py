@@ -581,6 +581,7 @@ class SettingsPacket(GenericWSJTXPacket):
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
         GenericWSJTXPacket.__init__(self, addr_port, magic, schema, pkt_type, id, pkt)
         ps = PacketReader(pkt)
+        the_type = ps.QInt32()
         self.wsjtx_id = ps.QString()
         self.settings_json = ps.QString() 
 

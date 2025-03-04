@@ -4,6 +4,7 @@ import math
 import socket
 import argparse
 import time
+import json
 
 class PacketUtil:
     @classmethod
@@ -26,25 +27,24 @@ class PacketUtil:
     @classmethod
     def JDToDateMeeus(cls, jDNum):
         F = 0.0
-
         jDNum += 0.5
         Z = jDNum
         F = jDNum - Z
-        if(Z < 2299161):
+        if Z < 2299161:
             A = Z
         else:
             alpha = math.floor((Z - 1867216.25) / 36524.25)
             A = Z + 1 + alpha - math.floor(alpha / 4.0)
         B = A + 1524
-        C = math.floor((B - 122.1) /365.25)
+        C = math.floor((B - 122.1) / 365.25)
         D = math.floor(365.25 * C)
-        E = math.floor((B - D) /30.6001)
+        E = math.floor((B - D) / 30.6001)
         day = int(B - D - math.floor(30.6001 * E) + F)
-        if(E < 14):
+        if E < 14:
             month = E - 1
         else:
             month = E - 13
-        if(month > 2):
+        if month > 2:
             year = C - 4716
         else:
             year = C - 4715
@@ -112,17 +112,13 @@ class PacketWriter(object):
         self.packet.extend(b_values)
 
     def write_QColor(self, color_val):
-        # Supposons que color_val a les attributs spec, alpha, red, green, blue
         self.write_QInt8(color_val.spec)
         self.write_QUInt8(color_val.alpha)
         self.write_QUInt8(color_val.alpha)
-
         self.write_QUInt8(color_val.red)
         self.write_QUInt8(color_val.red)
-
         self.write_QUInt8(color_val.green)
         self.write_QUInt8(color_val.green)
-
         self.write_QUInt8(color_val.blue)
         self.write_QUInt8(color_val.blue)
         self.write_QUInt16(0)
@@ -169,7 +165,7 @@ class PacketReader(object):
         if str_len == -1:
             return None
         self.check_ptr_bound('QString[{}]'.format(str_len), str_len)
-        (str_bytes,) = struct.unpack('{}s'.format(str_len), self.packet[self.ptr_pos:self.ptr_pos + str_len])
+        (str_bytes,) = struct.unpack('{}s'.format(str_len), self.packet[self.ptr_pos:self.ptr_pos+str_len])
         self.ptr_pos += str_len
         return str_bytes.decode('utf-8')
 
@@ -183,78 +179,40 @@ class QDateTime(object):
     def __repr__(self):
         return "date {}\n\ttime {}\n\tspec {}\n\toffset {}".format(self.date, self.time, self.spec, self.offset)
 
-
 class StatusPacket(GenericWSJTXPacket):
     TYPE_VALUE = 1
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
         GenericWSJTXPacket.__init__(self, addr_port, magic, schema, pkt_type, id, pkt)
         ps = PacketReader(pkt)
-        
-        the_type = ps.QInt32()
+        _ = ps.QInt32()  # Type
         self.wsjtx_id = ps.QString()
         self.dial_frequency = ps.QInt64()
-
         self.mode = ps.QString()
         self.dx_call = ps.QString()
-
         self.report = ps.QString()
         self.tx_mode = ps.QString()
-
         self.tx_enabled = ps.QInt8()
         self.transmitting = ps.QInt8()
         self.decoding = ps.QInt8()
         self.rx_df = ps.QInt32()
         self.tx_df = ps.QInt32()
-
         self.de_call = ps.QString()
         self.de_grid = ps.QString()
         self.dx_grid = ps.QString()
-
         self.tx_watchdog = ps.QInt8()
         self.sub_mode = ps.QString()
         self.fast_mode = ps.QInt8()
-
-        # new in wsjtx-2.0.0
         self.special_op_mode = ps.QInt8()
 
     def __repr__(self):
-        str =  'StatusPacket: from {}:{}\n\twsjtx id:{}\t\tde_call:{}\tde_grid:{}\tfrequency:{}\n'.format(
-            self.addr_port[0],
-            self.addr_port[1],
-            self.wsjtx_id,
-            self.de_call,
-            self.de_grid,
-            self.dial_frequency / 1_000            
-        )
-
-        str += "\trx_df:{}\ttx_df:{}\tdx_call:{}\tdx_grid:{}\treport:{}\n".format(
-            self.rx_df,
-            self.tx_df,
-            self.dx_call,
-            self.dx_grid,
-            self.report
-        )
-        str += "\ttransmitting:{}\tdecoding:{}\ttx_enabled:{}\ttx_watchdog:{}\tmode:{}\n\tsub_mode:{}\tfast_mode:{}\tspecial_op_mode:{}".format(
-            self.transmitting,
-            self.decoding,
-            self.tx_enabled,
-            self.tx_watchdog,
-            self.mode,
-            self.sub_mode,
-            self.fast_mode,
-            self.special_op_mode
-        )
-        return str
-
+        return f"StatusPacket: from {self.addr_port[0]}:{self.addr_port[1]}, wsjtx_id: {self.wsjtx_id}, freq: {self.dial_frequency/1000} kHz"
 
 class DecodePacket(GenericWSJTXPacket):
     TYPE_VALUE = 2
-
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
-        super().__init__(addr_port, magic, schema, pkt_type, id, pkt)
-        # Traitement spécifique du paquet
+        GenericWSJTXPacket.__init__(self, addr_port, magic, schema, pkt_type, id, pkt)
         ps = PacketReader(pkt)
-        the_type = ps.QInt32()
+        _ = ps.QInt32()  # Type
         self.wsjtx_id = ps.QString()
         self.new_decode = ps.QInt8()
         self.millis_since_midnight = ps.QInt32()
@@ -268,13 +226,67 @@ class DecodePacket(GenericWSJTXPacket):
         self.off_air = ps.QInt8()
 
     def __repr__(self):
-        str_repr = f'DecodePacket: from {self.addr_port[0]}:{self.addr_port[1]}\n\twsjtx id:{self.wsjtx_id}\tmessage:{self.message}\n'
-        str_repr += f'\tdelta_f:{self.delta_f}\tnew:{self.new_decode}\ttime:{self.time}\tsnr:{self.snr}\tdelta_f:{self.delta_f}\tmode:{self.mode}'
-        return str_repr
+        return f"DecodePacket: from {self.addr_port[0]}:{self.addr_port[1]}, wsjtx_id: {self.wsjtx_id}, message: {self.message}"
+
+class SettingsPacket(GenericWSJTXPacket):
+    TYPE_VALUE = 33
+
+    def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
+        GenericWSJTXPacket.__init__(self, addr_port, magic, schema, pkt_type, id, pkt)
+        ps = PacketReader(pkt)
+        self.wsjtx_id = ps.QString()
+        self.settings_json = ps.QString() 
+
+    def __repr__(self):
+        return f"SettingsPacket: settings: {self.settings_json}"
+
+    @classmethod
+    def Builder(cls, to_wsjtx_id='WSJT-X', settings_dict=None):
+        pkt = PacketWriter()
+        pkt.write_QInt32(SettingsPacket.TYPE_VALUE)
+        pkt.write_QString(to_wsjtx_id)
+        if settings_dict is None:
+            settings_dict = {}
+        settings_str = json.dumps(settings_dict)
+        pkt.write_QString(settings_str)
+        return pkt.packet
+
+class WSJTXPacketClassFactory(GenericWSJTXPacket):
+    PACKET_TYPE_TO_OBJ_MAP = {
+        StatusPacket.TYPE_VALUE: StatusPacket,
+        DecodePacket.TYPE_VALUE: DecodePacket,
+        SettingsPacket.TYPE_VALUE: SettingsPacket
+    }
+    def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
+        self.addr_port = addr_port
+        self.magic = magic
+        self.schema = schema
+        self.pkt_type = pkt_type
+        self.pkt_id = id
+        self.pkt = pkt
+
+    def __repr__(self):
+        return 'WSJTXPacketFactory: from {}:{}\n{}'.format(self.addr_port[0], self.addr_port[1], PacketUtil.hexdump(self.pkt))
+
+    @classmethod
+    def from_udp_packet(cls, addr_port, udp_packet):
+        if len(udp_packet) < GenericWSJTXPacket.MINIMUM_NETWORK_MESSAGE_SIZE:
+            return None  # Pour simplifier la simulation
+        if len(udp_packet) > GenericWSJTXPacket.MAXIMUM_NETWORK_MESSAGE_SIZE:
+            return None
+        (magic, schema, pkt_type, id_len) = struct.unpack('>LLLL', udp_packet[0:16])
+        if magic != GenericWSJTXPacket.MAGIC_NUMBER:
+            return None
+        if schema < GenericWSJTXPacket.MINIMUM_SCHEMA_SUPPORTED or schema > GenericWSJTXPacket.MAXIMUM_SCHEMA_SUPPORTED:
+            return None
+        klass = WSJTXPacketClassFactory.PACKET_TYPE_TO_OBJ_MAP.get(pkt_type)
+        if klass is None:
+            return None
+        return klass(addr_port, magic, schema, pkt_type, id_len, udp_packet)
 
 def send_status_packet(
         wsjtx_id="WSJT-X",
-        dial_frequency=50313000,  # Fréquence en Hz
+        dial_frequency=50313000,
         mode="FT8",
         dx_call="CQ",
         report="-10",
@@ -294,34 +306,29 @@ def send_status_packet(
         ip_address="127.0.0.1",
         udp_port=2237
     ):
-    """
-    Envoie un paquet de statut WSJT-X via UDP.
-    """
     UDP_IP = ip_address
     UDP_PORT = udp_port        
 
     pkt_writer = PacketWriter()
-
-    pkt_writer.write_QInt32(StatusPacket.TYPE_VALUE)  # Type de paquet (Status)
-    pkt_writer.write_QString(wsjtx_id)                # Identifiant WSJT-X
-    pkt_writer.write_QInt64(dial_frequency)           # Fréquence de travail
-    pkt_writer.write_QString(mode)                    # Mode de transmission (ex: FT8)
-    pkt_writer.write_QString(dx_call)                 # Indicatif DX
-    pkt_writer.write_QString(report)                  # Rapport signal
-    pkt_writer.write_QString(tx_mode)                 # Mode TX
-    pkt_writer.write_QInt8(int(tx_enabled))           # TX activé
-    pkt_writer.write_QInt8(int(transmitting))         # En train d'émettre ?
-    pkt_writer.write_QInt8(int(decoding))             # En train de décoder ?
-    pkt_writer.write_QInt32(rx_df)                    # Fréquence RX DF
-    pkt_writer.write_QInt32(tx_df)                    # Fréquence TX DF
-    pkt_writer.write_QString(de_call)                 # Indicatif local
-    pkt_writer.write_QString(de_grid)                 # Grid locator de l'émetteur
-    pkt_writer.write_QString(dx_grid)                 # Grid locator du DX
-    pkt_writer.write_QInt8(int(tx_watchdog))          # Watchdog TX
-    pkt_writer.write_QString(sub_mode)                # Mode secondaire (ex: non défini)
-    pkt_writer.write_QInt8(int(fast_mode))            # Mode rapide activé ?
-    pkt_writer.write_QInt8(int(special_op_mode))      # Mode spécial activé ?
-
+    pkt_writer.write_QInt32(StatusPacket.TYPE_VALUE)
+    pkt_writer.write_QString(wsjtx_id)
+    pkt_writer.write_QInt64(dial_frequency)
+    pkt_writer.write_QString(mode)
+    pkt_writer.write_QString(dx_call)
+    pkt_writer.write_QString(report)
+    pkt_writer.write_QString(tx_mode)
+    pkt_writer.write_QInt8(int(tx_enabled))
+    pkt_writer.write_QInt8(int(transmitting))
+    pkt_writer.write_QInt8(int(decoding))
+    pkt_writer.write_QInt32(rx_df)
+    pkt_writer.write_QInt32(tx_df)
+    pkt_writer.write_QString(de_call)
+    pkt_writer.write_QString(de_grid)
+    pkt_writer.write_QString(dx_grid)
+    pkt_writer.write_QInt8(int(tx_watchdog))
+    pkt_writer.write_QString(sub_mode)
+    pkt_writer.write_QInt8(int(fast_mode))
+    pkt_writer.write_QInt8(int(special_op_mode))
     packet_data = pkt_writer.packet
 
     print("📡 Hex value for Status Packet:")
@@ -338,107 +345,75 @@ def send_decode_packet(
         delta_f=0,
         mode="FT8",
         message="CQ DX",
-        ip_address="127.0.0.1"  ,
+        ip_address="127.0.0.1",
         udp_port=2237
     ):
     UDP_IP = ip_address
     UDP_PORT = udp_port        
-
     pkt_writer = PacketWriter()
-
-    pkt_writer.write_QInt32(DecodePacket.TYPE_VALUE)  
-    pkt_writer.write_QString(wsjtx_id)                
-    pkt_writer.write_QInt8(1)                         
-
+    pkt_writer.write_QInt32(DecodePacket.TYPE_VALUE)
+    pkt_writer.write_QString(wsjtx_id)
+    pkt_writer.write_QInt8(1)
     midnight = datetime.datetime.combine(datetime.datetime.utcnow().date(), datetime.time(0))
     millis_since_midnight = int((datetime.datetime.utcnow() - midnight).total_seconds() * 1000)
-    pkt_writer.write_QInt32(millis_since_midnight)    
-
-    pkt_writer.write_QInt32(snr)                      
-    pkt_writer.write_QFloat(delta_t)                  
-    pkt_writer.write_QInt32(delta_f)                  
-    pkt_writer.write_QString(mode)                    
-    pkt_writer.write_QString(message)                 
-    pkt_writer.write_QInt8(0)                         
-    pkt_writer.write_QInt8(0)                         
-
+    pkt_writer.write_QInt32(millis_since_midnight)
+    pkt_writer.write_QInt32(snr)
+    pkt_writer.write_QFloat(delta_t)
+    pkt_writer.write_QInt32(delta_f)
+    pkt_writer.write_QString(mode)
+    pkt_writer.write_QString(message)
+    pkt_writer.write_QInt8(0)
+    pkt_writer.write_QInt8(0)
     packet_data = pkt_writer.packet
 
-    print("Hex value for Packet:")
+    print("Hex value for Decode Packet:")
     print(PacketUtil.hexdump(packet_data))
 
+    header = f"{UDP_IP}:{UDP_PORT}|".encode('utf-8')
+    packet_with_header = header + packet_data
+
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-        sock.sendto(packet_data, (UDP_IP, UDP_PORT))
+        sock.sendto(packet_with_header, (UDP_IP, UDP_PORT))
         print(f"Packet sent to {UDP_IP}:{UDP_PORT}")
 
+def send_settings_packet(
+        wsjtx_id="WSJT-X",
+        settings_dict=None,
+        ip_address="127.0.0.1",
+        udp_port=2237,
+        primary_addr="127.0.0.1",
+        primary_port=2237
+    ):
+    UDP_IP = ip_address
+    UDP_PORT = udp_port
+    # Construire le paquet SettingsPacket
+    packet = SettingsPacket.Builder(to_wsjtx_id=wsjtx_id, settings_dict=settings_dict)
+    # Construire un header "primary_addr:primary_port|"
+    header = f"{primary_addr}:{primary_port}|".encode('utf-8')
+    packet_with_header = header + packet
+    print("Hex value for Settings Packet with header:")
+    print(PacketUtil.hexdump(packet_with_header))
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+        sock.sendto(packet_with_header, (UDP_IP, UDP_PORT))
+        print(f"Settings Packet sent to {UDP_IP}:{UDP_PORT}")
+
 def simulate(ip_address="127.0.0.1", udp_port=2237):  
-    """
-    messages_series = [[
-        {"message": "CQ DL2EA JN12", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
-        {"message": "CQ VK9DX RJ11", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
-        {"message": "F5BZB V88CB RR73", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
-        {"message": "F5UKW VR2AZC +15", "snr": "+12", "delta_t": "+0.3", "delta_f": "450"},
-        {"message": "F5UKW FK8CP +12", "snr": "+12", "delta_t": "+0.3", "delta_f": "550"},
-        {"message": "CQ VR2KW AA00", "snr": "+13", "delta_t": "+0.2", "delta_f": "1100"},
-    ],
-    [
-        {"message": "CQ SV1GA KN12", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
-        {"message": "CQ VK9DX RJ11", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
-        {"message": "F5UKW V88CB -20", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
-        {"message": "F5UKW VR2AZC RR73", "snr": "+12", "delta_t": "+0.3", "delta_f": "450"},
-        {"message": "F5UKW FK8CP -02", "snr": "+12", "delta_t": "+0.3", "delta_f": "550"},
-        {"message": "CQ VR2KW AA00", "snr": "+13", "delta_t": "+0.2", "delta_f": "1100"},
-    ],
-    [
-        {"message": "CQ DL2EA JN12", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
-        {"message": "CQ VK9DX RJ11", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
-        {"message": "F4BKV V88CB -12", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
-        {"message": "F5BZB VR2AZC -13", "snr": "+12", "delta_t": "+0.3", "delta_f": "450"},
-        {"message": "F5UKW FK8CP -02", "snr": "+12", "delta_t": "+0.3", "delta_f": "550"},
-        {"message": "CQ VR2KW AA00", "snr": "+13", "delta_t": "+0.2", "delta_f": "1100"},
-    ],[
-        {"message": "CQ DL2EA JN12", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
-        {"message": "CQ VK9DX RJ11", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
-        {"message": "F4BKB V88CB 73", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
-        {"message": "F5BZB VR2AZC -13", "snr": "+12", "delta_t": "+0.3", "delta_f": "450"},
-        {"message": "F5UKW FK8CP RRR", "snr": "+12", "delta_t": "+0.3", "delta_f": "550"},
-        {"message": "CQ VR2KW AA00", "snr": "+13", "delta_t": "+0.2", "delta_f": "1100"},
-    ],[
-        {"message": "CQ DL2EA JN12", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
-        {"message": "CQ VK9DX RJ11", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
-        {"message": "F4BKB V88CB 73", "snr": "-12", "delta_t": "+0.3", "delta_f": "2200"},
-        {"message": "F5BZB VR2AZC -13", "snr": "+12", "delta_t": "+0.3", "delta_f": "450"},
-        {"message": "CQ FK8CP RG37", "snr": "+12", "delta_t": "+0.3", "delta_f": "550"},
-        {"message": "CQ VR2KW AA00", "snr": "+13", "delta_t": "+0.2", "delta_f": "1100"},
-    ]
-    
-    ]
-    """ 
-    
     messages_series = [[
         {"message": "BG4TDG 9A2AA +12", "snr": "+12", "delta_t": "+0.3", "delta_f": "450"},
         {"message": "F5BZB SV5DKL -13", "snr": "+12", "delta_t": "+0.3", "delta_f": "450"},
         {"message": "F2DX F4BKB -13", "snr": "+12", "delta_t": "+0.3", "delta_f": "450"},
         {"message": "CQ FR4NB LG79", "snr": "+13", "delta_t": "+0.2", "delta_f": "1100"},
-        {"message": "CQ V63CB AA00", "snr": "+13", "delta_t": "+0.2", "delta_f": "1300"},
+        {"message": "F5UKW V63CB AA00", "snr": "+13", "delta_t": "+0.2", "delta_f": "1300"},
         {"message": "CQ VK9DX RJ11", "snr": "+13", "delta_t": "+0.2", "delta_f": "1400"},
-    ]
+    ]]
     
-    ] 
-    
-
-    send_status_packet(
-        ip_address=ip_address,
-        udp_port=udp_port
-    )
+    send_status_packet(ip_address=ip_address, udp_port=udp_port)
     time.sleep(15)
 
     for i, message_series in enumerate(messages_series):
         print(f"📡 Sending series {i + 1}...\n")
-
         for msg in message_series:
             print(f"📨 Sending: {msg['message']} (SNR: {msg['snr']}, ΔT: {msg['delta_t']}, ΔF: {msg['delta_f']})")
-            
             send_decode_packet(
                 message=msg["message"],
                 snr=int(msg["snr"]),              
@@ -447,35 +422,43 @@ def simulate(ip_address="127.0.0.1", udp_port=2237):
                 ip_address=ip_address,
                 udp_port=udp_port
             )
-        
-        print(f"⏳ Waiting 15 seconds before next series...\n")
+        print("⏳ Waiting 15 seconds before next series...\n")
         time.sleep(15)
 
-def parse_arguments():
-    parser = argparse.ArgumentParser(description="Try to send to UDP server sample Packet for DecodePacket.")
-    
-    parser.add_argument('--message', type=str, help='Message to handle')
-    parser.add_argument('--wsjtx_id', type=str, default="WSJT-X", help='ID for WSJT-X (default: WSJT-X).')
-    parser.add_argument('--snr', type=int, default=0, help='Signal-to-noise ratio (SNR).')
-    parser.add_argument('--delta_t', type=float, default=0.1, help='Delta T.')
-    parser.add_argument('--delta_f', type=int, default=350, help='Delta F.')
-    parser.add_argument('--mode', type=str, default="FT8", help='Transmission Mode (default: FT8).')
-    parser.add_argument('--ip_address', type=str, default="127.0.0.1", help='IP adress for UDP server (default: 127.0.0.1).')
-    parser.add_argument('--udp_port', type=int, default=2237, help='UDP Server Port (default: 2237).')
-    parser.add_argument('--simulate', action='store_true', help='Run in simulation mode, sending predefined messages.')
+def simulate_settings(ip_address="127.0.0.1", udp_port=2237):
+    settings = {
+        "wanted_callsigns": "VK9DX, ZL7DX",
+        "excluded_callsigns": "9M2DA",
+        "monitored_callsigns": "F4BKV",
+        "monitored_cq_zones": "31,32",
+        "excluded_cq_zones": "14"
+    }
+    send_settings_packet(wsjtx_id="WSJT-X Simulator", settings_dict=settings, ip_address=ip_address, udp_port=udp_port)
 
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Simulate sending WSJT-X packets via UDP.")
+    parser.add_argument('--message', type=str, help='Message to send (for decode packet)')
+    parser.add_argument('--wsjtx_id', type=str, default="WSJT-X", help='ID for WSJT-X (default: WSJT-X)')
+    parser.add_argument('--snr', type=int, default=0, help='Signal-to-noise ratio (SNR)')
+    parser.add_argument('--delta_t', type=float, default=0.1, help='Delta T')
+    parser.add_argument('--delta_f', type=int, default=350, help='Delta F')
+    parser.add_argument('--mode', type=str, default="FT8", help='Transmission mode (default: FT8)')
+    parser.add_argument('--ip_address', type=str, default="127.0.0.1", help='IP address for UDP server (default: 127.0.0.1)')
+    parser.add_argument('--udp_port', type=int, default=2237, help='UDP server port (default: 2237)')
+    parser.add_argument('--simulate', action='store_true', help='Run simulation with decode/status packets')
+    parser.add_argument('--simulate_settings', action='store_true', help='Simulate sending a Settings packet')
     return parser.parse_args()
 
 if __name__ == "__main__":
     args = parse_arguments()
-
-    if args.simulate:
+    if args.simulate_settings:
+        simulate_settings(ip_address=args.ip_address, udp_port=args.udp_port)
+    elif args.simulate:
         simulate(ip_address=args.ip_address, udp_port=args.udp_port)
     else:
         if not args.message:
-            print("Error: You must provide a message with --message unless using --simulate")
+            print("Error: You must provide a message with --message unless using --simulate or --simulate_settings")
             exit(1)
-
         send_decode_packet(
             wsjtx_id=args.wsjtx_id,
             snr=args.snr,
