@@ -17,6 +17,7 @@ import pyperclip
 import sys
 import threading
 import uuid
+import time 
 
 """
     Not to be deleted because it allows for one-off debugging
@@ -2606,6 +2607,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.thread.start()   
 
     def handle_worker_error(self, error_message):
+        log.error(error_message)
         self.stop_worker() 
         self.stop_monitoring()
 
@@ -2637,6 +2639,18 @@ class MainApp(QtWidgets.QMainWindow):
         self.network_check_status.stop()
         self.activity_bar.setValue(0) 
         self.hide_status_menu()
+
+        if self.worker:
+            self.worker.finished.disconnect()
+            self.worker.error.disconnect()
+            self.worker.message.disconnect()
+
+            self.worker.stop()  
+            self.worker = None
+
+        if self.thread:
+            self.thread.started.disconnect()
+            self.thread.finished.disconnect()
         
         if self.timer: 
             self.timer.stop()
