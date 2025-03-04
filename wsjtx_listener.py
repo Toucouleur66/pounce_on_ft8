@@ -1,16 +1,19 @@
 # wsjtx_listener.py
 
 import pywsjtx.extra.simple_server
-import threading
 import queue
 import traceback
 import socket
-import re
 import bisect
 
 from wsjtx_packet_sender import WSJTXPacketSender
 from datetime import datetime, timezone
 from collections import deque
+
+from receiver_worker import ReceiverWorker
+from processor_worker import ProcessorWorker
+
+from PyQt6.QtCore import QThread
 
 from logger import get_logger
 
@@ -77,6 +80,7 @@ class Listener:
         self.last_heartbeat_time        = None
 
         self.packet_store               = {}
+        self.origin_addr                = None
         self.packet_counter             = 0        
         self.reply_message_buffer       = deque()
 
@@ -162,9 +166,17 @@ class Listener:
         self._running                       = True
         
         self.packet_queue = queue.Queue(maxsize=1000)
-        self.receiver_thread                = threading.Thread(target=self.receive_packets, daemon=True)
-        self.processor_thread               = threading.Thread(target=self.process_packets, daemon=True)
-        self.origin_addr                    = None
+        self.receiver_thread                = QThread()
+        self.processor_thread               = QThread()
+
+        self.receiver_worker                = ReceiverWorker(self.receive_packets)
+        self.processor_worker               = ProcessorWorker(self.process_packets)
+
+        self.receiver_worker.moveToThread(self.receiver_thread)
+        self.processor_worker.moveToThread(self.processor_thread)
+
+        self.receiver_thread.started.connect(self.receiver_worker.run)
+        self.processor_thread.started.connect(self.processor_worker.run)
 
         """
             Check ADIF file to handle Worked B4 
@@ -206,7 +218,7 @@ class Listener:
                 if self.message_callback:
                     self.message_callback(custom_message)
             else:
-                error_message = f"Socket error de socket : {e}"
+                error_message = f"Socket error: {e}"
                 log.error(error_message, exc_info=True)
                 if self.message_callback:
                     self.message_callback(error_message)
@@ -251,14 +263,15 @@ class Listener:
                     log.info(message)
                 self.packet_queue.put((actual_pkt, origin_addr))
             except socket.timeout:
-                continue
+                return None, None
             except OSError as e:
                 if hasattr(e, 'winerror') and e.winerror == 10038:
-                    break
+                    return None, None
                 error_message = f"Exception in receive_packets: {e}\n{traceback.format_exc()}"
                 log.info(error_message)
                 if self.message_callback:
                     self.message_callback(error_message)
+                return None, None
         try:
             self.s.sock.close()
         except Exception:
@@ -326,8 +339,11 @@ class Listener:
             self.s.sock.close()
         except Exception:
             pass
-        self.receiver_thread.join()
-        self.processor_thread.join()                
+        
+        self.receiver_worker.stop()
+        self.processor_worker.stop()
+        self.receiver_thread.quit()
+        self.processor_thread.quit()
 
     def listen(self):
         self.receiver_thread.start()
@@ -779,7 +795,6 @@ class Listener:
                             self.adif_data.get('entity') and
                             self.marathon_preference.get(self.band)
                         ):
-                            self.adif_monitor.process_adif_file()
                             self.clear_wanted_callsigns(entity_code)  
                         
                     if callsign in self.wanted_callsigns:
@@ -841,6 +856,7 @@ class Listener:
 
             elif monitored or monitored_cq_zone:
                 message_type = 'monitored_callsign_detected'   
+                priority = 1
             elif self.targeted_call is not None:
                 if (
                     self.reply_attempts.get(self.targeted_call) and
@@ -868,7 +884,7 @@ class Listener:
             """
                 Send message to GUI
             """                      
-            if self.message_callback:
+            if self.message_callback:                    
                 self.message_callback({           
                 'wsjtx_id'          : self.the_packet.wsjtx_id,
                 'priority'          : priority,

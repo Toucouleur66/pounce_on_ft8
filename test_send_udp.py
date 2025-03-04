@@ -420,7 +420,7 @@ def simulate(ip_address="127.0.0.1", udp_port=2237):
         {"message": "F5BZB SV5DKL -13", "snr": "+12", "delta_t": "+0.3", "delta_f": "450"},
         {"message": "F2DX F4BKB -13", "snr": "+12", "delta_t": "+0.3", "delta_f": "450"},
         {"message": "CQ FR4NB LG79", "snr": "+13", "delta_t": "+0.2", "delta_f": "1100"},
-        {"message": "F5UKW V63CB AA00", "snr": "+13", "delta_t": "+0.2", "delta_f": "1300"},
+        {"message": "CQ V63CB AA00", "snr": "+13", "delta_t": "+0.2", "delta_f": "1300"},
         {"message": "CQ VK9DX RJ11", "snr": "+13", "delta_t": "+0.2", "delta_f": "1400"},
     ]
     

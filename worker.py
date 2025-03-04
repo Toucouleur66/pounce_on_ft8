@@ -108,8 +108,13 @@ class Worker(QObject):
         finally:
             self.finished.emit()
 
-    def update_settings(self):
-        # print(f"update_settings called")
+    def stop(self):
         if self.listener is not None:
-            # print(f"Listener settings updated in thread")
+            self.listener.stop()            
+
+    """
+        Make sure we are using the latest settings
+    """
+    def update_settings(self):
+        if self.listener is not None:
             self.listener.update_settings()
