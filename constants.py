@@ -7,7 +7,7 @@ import platform
 from datetime import datetime
 from utils import get_app_data_dir
 
-CURRENT_VERSION_NUMBER          = "2.7.4"
+CURRENT_VERSION_NUMBER          = "2.7.5"
 EXPIRATION_DATE                 = datetime(2025, 5, 15)
 UPDATE_JSON_INFO_URL            = "https://storage.de.cloud.ovh.net/v1/AUTH_31163bb499dc49eb819aacdfd32ae82c/wait.and.pounce/public/update_info.json"
 
@@ -182,7 +182,7 @@ if platform.system() == 'Windows':
     CUSTOM_FONT_SMALL.setPointSize(small_size)
 
     CUSTOM_FONT_MONO            = QtGui.QFont("Consolas", 10)
-    CUSTOM_FONT_MONO_LG         = QtGui.QFont("Consolas", 15)
+    CUSTOM_FONT_MONO_LG         = QtGui.QFont("Consolas", 16)
     CUSTOM_FONT_BOLD            = QtGui.QFont("Consolas", 13, QtGui.QFont.Weight.Bold)
 
     CUSTOM_FONT_README          = QtGui.QFont("Consolas", 12)

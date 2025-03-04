@@ -301,7 +301,8 @@ class Listener:
                     """
                     header = f"{addr_port[0]}:{addr_port[1]}|".encode('utf-8')
                     forwarded_packet = header + packet
-                    self.s.send_packet(target_server, forwarded_packet)
+                    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as send_sock:
+                        send_sock.sendto(forwarded_packet, target_server)
             except Exception as e:
                 error_message = f"Exception in process_packets: {e}\n{traceback.format_exc()}"
                 log.info(error_message)
