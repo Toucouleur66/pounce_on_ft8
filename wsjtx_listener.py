@@ -651,6 +651,7 @@ class Listener:
             callsign_info     = parsed_data['callsign_info']
             worked_b4         = False
             marathon          = False
+            priority          = 0
 
             grid              = parsed_data['grid']
             report            = parsed_data['report']
@@ -870,16 +871,17 @@ class Listener:
             """
                 Check priority
             """
-            priority = self.process_reply_packet_buffer({           
-                'packet_id'         : packet_id,                   
-                'decode_time'       : decode_time,
-                'callsign'          : callsign,
-                'directed'          : directed,
-                'marathon'          : marathon,
-                'grid'              : grid,
-                'cqing'             : cqing,
-                'msg'               : msg
-            }) if reply_to_packet else 0
+            if reply_to_packet:
+                priority = self.process_reply_packet_buffer({           
+                    'packet_id'         : packet_id,                   
+                    'decode_time'       : decode_time,
+                    'callsign'          : callsign,
+                    'directed'          : directed,
+                    'marathon'          : marathon,
+                    'grid'              : grid,
+                    'cqing'             : cqing,
+                    'msg'               : msg
+                }) 
             
             """
                 Send message to GUI
@@ -887,7 +889,6 @@ class Listener:
             if self.message_callback:                    
                 self.message_callback({           
                 'wsjtx_id'          : self.the_packet.wsjtx_id,
-                'priority'          : priority,
                 'my_call'           : self.my_call,     
                 'packet_id'         : packet_id,     
                 'decode_time'       : decode_time,              
@@ -904,6 +905,7 @@ class Listener:
                 'snr'               : snr,                
                 'message'           : f"{message:<21.21}".strip(),
                 'message_type'      : message_type,
+                'priority'          : priority,
                 'formatted_message' : formatted_message
             })        
 
