@@ -783,6 +783,11 @@ class Listener:
                     self.qso_time_off[self.call_ready_to_log] = decode_time
 
                     if callsign not in self.worked_callsigns.get(self.band, {}):
+                        # Make sure to not log again this callsign once QSO done    
+                        if not self.worked_callsigns.get(self.band):
+                            self.worked_callsigns[self.band] = []                        
+                        self.worked_callsigns[self.band].append(callsign)                   
+
                         self.log_qso_to_adif()
 
                         if self.enable_secondary_udp_server:
@@ -797,15 +802,13 @@ class Listener:
                             self.marathon_preference.get(self.band)
                         ):
                             self.clear_wanted_callsigns(entity_code)  
-                        
+
+                    """
+                        Clean Wanted callsigns
+                    """  
                     if callsign in self.wanted_callsigns:
                         self.wanted_callsigns.remove(callsign)   
-
-                    # Make sure to not call again this callsign once QSO done    
-                    if not self.worked_callsigns.get(self.band):
-                        self.worked_callsigns[self.band] = []
-                    
-                    self.worked_callsigns[self.band].append(callsign)                    
+                     
                     self.call_ready_to_log = None
 
                     if msg in {'RR73', 'RRR'}:
