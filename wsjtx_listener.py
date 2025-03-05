@@ -232,6 +232,8 @@ class Listener:
     def receive_packets(self):
         while self._running:
             try:
+                server_status_changed = False
+
                 pkt, addr_port = self.s.sock.recvfrom(8192)
                 header_end = pkt.find(b'|')
 
@@ -249,14 +251,8 @@ class Listener:
                         """
                         if not self.is_server_slave:
                             self.is_server_slave    = True
-                            self.is_server_master   = False
-
-                            if self.message_callback:
-                                self.message_callback({
-                                    'type'      : 'update_master_status',
-                                    'mode'      : 'slave'
-                                })
-
+                            self.is_server_master   = False         
+                            server_status_changed   = True
                     except (UnicodeDecodeError, ValueError):                        
                         origin_addr = addr_port
                         actual_pkt  = pkt
@@ -264,17 +260,19 @@ class Listener:
                     if not self.is_server_master:
                         self.is_server_slave    = False
                         self.is_server_master   = True
-
-                        if self.message_callback:
-                                self.message_callback({
-                                    'type'      : 'update_master_status',
-                                    'status'    : 'master'
-                                })
+                        server_status_changed   = True
 
                     origin_addr = addr_port
                     actual_pkt  = pkt
 
                 self.origin_addr = origin_addr
+
+                if server_status_changed and self.message_callback:
+                    self.message_callback({
+                        'type'      : 'master_slave_status',
+                        'status'    : 'master' if self.is_server_master else 'slave',
+                        'addr_port' : addr_port
+                    })
 
                 if self.enable_log_packet_data:
                     message = f"Received packet of length {len(pkt)} from {addr_port}\nPacket data: {pkt.hex()}"
@@ -518,7 +516,7 @@ class Listener:
         elif isinstance(self.the_packet, pywsjtx.StatusPacket):
             self.handle_status_packet()
         elif isinstance(self.the_packet, pywsjtx.QSOLoggedPacket):
-            log.error('QSOLoggedPacket should not be handle due to JTDX restrictions')   
+            log.warning('QSOLoggedPacket should not be handle due to JTDX restrictions')   
         elif isinstance(self.the_packet, pywsjtx.DecodePacket):
             self.last_decode_packet_time = datetime.now(timezone.utc)
             self.decode_packet_count += 1
@@ -545,7 +543,7 @@ class Listener:
         elif isinstance(self.the_packet, pywsjtx.ClearPacket):
             log.debug("Received ClearPacket method")        
         elif isinstance(self.the_packet, pywsjtx.LoggedADIFPacket):
-            log.debug("Received ReplyPacket method")            
+            log.warning("Received LoggedADIFPacket method")            
         elif isinstance(self.the_packet, pywsjtx.ReplyPacket):
             log.debug("Received ReplyPacket method")            
         elif isinstance(self.the_packet, pywsjtx.ClosePacket):
@@ -961,7 +959,7 @@ class Listener:
                     'cqing'             : cqing,
                     'msg'               : msg
                 }) 
-            elif message_type and not excluded:
+            elif message_type:
                 priority = 1
             
             """

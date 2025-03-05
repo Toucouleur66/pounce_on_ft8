@@ -18,12 +18,13 @@ ODD                             = "ODD"
 
 EVEN_COLOR                      = "#9DFFFE"
 ODD_COLOR                       = "#FFFE9F"
+FG_TIMER_COLOR                  = "#3D25FB"
 
 """
 BG_COLOR_FOCUS_MY_CALL          = "#CCDEAA"
 """
 BG_COLOR_FOCUS_MY_CALL          = ODD_COLOR
-FG_COLOR_FOCUS_MY_CALL          = "#FF675D"
+FG_COLOR_FOCUS_MY_CALL          = "#FF0000"
 
 BG_COLOR_REGULAR_FOCUS          = "#000000"
 FG_COLOR_REGULAR_FOCUS          = "#01FFFF"
@@ -46,8 +47,6 @@ FG_COLOR_BLACK_ON_CYAN          = "#000000"
 STATUS_MONITORING_COLOR         = "#0D81FF"
 STATUS_DECODING_COLOR           = "#2BBE7E"
 STATUS_TRX_COLOR                = "#FF5600"
-
-BG_COLOR_BLACK_ON_LIGHT_BLUE    = "62FFFFF"
 
 STATUS_COLOR_LABEL_OFF          = "#E5E5E5"
 STATUS_COLOR_LABEL_SELECTED     = "#808080"

@@ -72,6 +72,7 @@ from constants import (
     # Colors
     EVEN_COLOR,
     ODD_COLOR,
+    FG_TIMER_COLOR,
     FG_COLOR_FOCUS_MY_CALL,
     BG_COLOR_FOCUS_MY_CALL,
     FG_COLOR_REGULAR_FOCUS,
@@ -83,8 +84,7 @@ from constants import (
     BG_COLOR_BLACK_ON_PURPLE,
     FG_COLOR_BLACK_ON_PURPLE,
     BG_COLOR_BLACK_ON_CYAN,
-    FG_COLOR_BLACK_ON_CYAN,
-    BG_COLOR_BLACK_ON_LIGHT_BLUE,    
+    FG_COLOR_BLACK_ON_CYAN,    
     # Status buttons
     STATUS_MONITORING_COLOR,
     STATUS_DECODING_COLOR,
@@ -228,7 +228,7 @@ class MainApp(QtWidgets.QMainWindow):
         
         self._running = False
 
-        self._master_status = 'master'
+        self.master_slave_status = 'master'
 
         self.message_times = deque()
 
@@ -1190,8 +1190,9 @@ class MainApp(QtWidgets.QMainWindow):
 
             if message_type == 'update_mode':
                 self.mode = message.get('mode')            
-            elif message_type == 'update_master_status':
-                self._master_status = message.get('status')
+            elif message_type == 'master_slave_status':
+                self.master_slave_status = message.get('status')
+                self.master_slave_addr_port = message.get('addr_port') 
             elif message_type == 'update_frequency':
                 self.frequency = message.get('frequency')                
                 if self.frequency != self.last_frequency:
@@ -1698,7 +1699,7 @@ class MainApp(QtWidgets.QMainWindow):
         if transmitting is not None:
             self.transmitting = transmitting
 
-        now                 = datetime.now(timezone.utc)
+        current_time        = datetime.now(timezone.utc)
         current_mode        = ""
         connection_lost     = False
         nothing_to_decode   = False
@@ -1714,19 +1715,31 @@ class MainApp(QtWidgets.QMainWindow):
         if self.mode is not None:
             current_mode = f"{self.mode}"
 
+        if self.last_heartbeat_time:
+            time_since_last_heartbeat = (current_time - self.last_heartbeat_time).total_seconds()
+            if time_since_last_heartbeat > HEARTBEAT_TIMEOUT_THRESHOLD:
+                status_text_array.append(f"No HeartBeat for more than {HEARTBEAT_TIMEOUT_THRESHOLD} seconds.")
+                connection_lost = True
+            else:
+                last_heartbeat_str = self.last_heartbeat_time.strftime('%Y-%m-%d <u>%H:%M:%S</u>')
+                status_text_array.append(f"Last HeartBeat @ {last_heartbeat_str}")
+        else:
+            status_text_array.append("No HeartBeat received yet.")
+
+        if self.master_slave_status == 'slave' and not connection_lost:
+            status_text_array.append(f"Slave connected ~ {self.master_slave_addr_port[0]}:{self.master_slave_addr_port[1]}")
+
         decoded_packet_text = f"DecodePacket #{self.output_model.rowCount()} {self.get_size_of_output_model()}"
         if self.last_targeted_call:
             decoded_packet_text += f" ~ Focus on <u>{self.last_targeted_call}</u>"
-        if self._master_status == 'slave':
-            decoded_packet_text += f" [<u>Slave</u>]"
- 
+        
         status_text_array.append(decoded_packet_text)
 
         HEARTBEAT_TIMEOUT_THRESHOLD     = 30  # secondes
         DECODE_PACKET_TIMEOUT_THRESHOLD = 60  # secondes
 
         if self.last_decode_packet_time:
-            time_since_last_decode = (now - self.last_decode_packet_time).total_seconds()
+            time_since_last_decode = (current_time - self.last_decode_packet_time).total_seconds()
             network_check_status_interval = 5_000
 
             status_mode_frequency = f"({current_mode} <u>{display_frequency(self.last_frequency)}</u>)"
@@ -1763,18 +1776,7 @@ class MainApp(QtWidgets.QMainWindow):
             if self._running:
                 self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR) 
             self.last_transmit_time = None
-            self.stop_blinking_status_button()        
-            
-        if self.last_heartbeat_time:
-            time_since_last_heartbeat = (now - self.last_heartbeat_time).total_seconds()
-            if time_since_last_heartbeat > HEARTBEAT_TIMEOUT_THRESHOLD:
-                status_text_array.append(f"No HeartBeat for more than {HEARTBEAT_TIMEOUT_THRESHOLD} seconds.")
-                connection_lost = True
-            else:
-                last_heartbeat_str = self.last_heartbeat_time.strftime('%Y-%m-%d <u>%H:%M:%S</u>')
-                status_text_array.append(f"Last HeartBeat @ {last_heartbeat_str}")
-        else:
-            status_text_array.append("No HeartBeat received yet.")
+            self.stop_blinking_status_button()                
 
         self.status_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
         self.status_label.setText('<br>'.join(status_text_array))
@@ -1787,14 +1789,12 @@ class MainApp(QtWidgets.QMainWindow):
         elif nothing_to_decode: 
             self.update_status_label_style("white", "black")
         else:
-            self.connection_lost_shown = False            
-            if self._master_status == 'slave':
-                status_label_bg_color = BG_COLOR_BLACK_ON_LIGHT_BLUE
-                status_label_fg_color = FG_COLOR_BLACK_ON_CYAN
+            self.connection_lost_shown = False      
+    
+            if self.master_slave_status == 'master':
+                self.update_status_label_style(BG_COLOR_BLACK_ON_YELLOW, FG_COLOR_BLACK_ON_CYAN)
             else:
-                status_label_bg_color = BG_COLOR_BLACK_ON_YELLOW
-                status_label_fg_color = FG_COLOR_BLACK_ON_CYAN
-            self.update_status_label_style(status_label_bg_color, status_label_fg_color)
+                self.update_status_label_style(EVEN_COLOR, FG_TIMER_COLOR)
             
     def on_close(self, event):        
         self.save_window_position()
@@ -2199,19 +2199,19 @@ class MainApp(QtWidgets.QMainWindow):
         else:
             self.setGeometry(100, 100, 900, 700) 
 
-    def update_mode_timer(self):
-        current_time = datetime.now(timezone.utc)
-        utc_time = current_time.strftime("%H:%M:%S")
-
+    def get_timer_bg_color(self, current_time):
         if (current_time.second // get_mode_interval(self.mode)) % 2 == 0:
-            background_color = EVEN_COLOR
+            return EVEN_COLOR
         else:
-            background_color = ODD_COLOR
+            return ODD_COLOR
 
-        self.timer_value_label.setText(utc_time)
+    def update_mode_timer(self):
+        current_time = datetime.now(timezone.utc)        
+
+        self.timer_value_label.setText(current_time.strftime("%H:%M:%S"))
         self.timer_value_label.setStyleSheet(f"""
-            background-color: {background_color};
-            color: #3d25fb;
+            background-color: {self.get_timer_bg_color(current_time)};
+            color: {FG_TIMER_COLOR};
             padding: 10px;
             border-radius: 8px;
         """)
