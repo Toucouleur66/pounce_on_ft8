@@ -84,8 +84,8 @@ from constants import (
     FG_COLOR_BLACK_ON_PURPLE,
     BG_COLOR_BLACK_ON_CYAN,
     FG_COLOR_BLACK_ON_CYAN,
+    BG_COLOR_BLACK_ON_LIGHT_BLUE,    
     # Status buttons
-    STATUS_MASTER_SLAVE_COLOR,
     STATUS_MONITORING_COLOR,
     STATUS_DECODING_COLOR,
     STATUS_TRX_COLOR,
@@ -1787,11 +1787,14 @@ class MainApp(QtWidgets.QMainWindow):
         elif nothing_to_decode: 
             self.update_status_label_style("white", "black")
         else:
-            self.connection_lost_shown = False
-            status_label_color = FG_COLOR_BLACK_ON_YELLOW
+            self.connection_lost_shown = False            
             if self._master_status == 'slave':
-                status_label_color = STATUS_MASTER_SLAVE_COLOR
-            self.update_status_label_style(status_label_color, FG_COLOR_BLACK_ON_YELLOW)
+                status_label_bg_color = BG_COLOR_BLACK_ON_LIGHT_BLUE
+                status_label_fg_color = FG_COLOR_BLACK_ON_CYAN
+            else:
+                status_label_bg_color = BG_COLOR_BLACK_ON_YELLOW
+                status_label_fg_color = FG_COLOR_BLACK_ON_CYAN
+            self.update_status_label_style(status_label_bg_color, status_label_fg_color)
             
     def on_close(self, event):        
         self.save_window_position()
