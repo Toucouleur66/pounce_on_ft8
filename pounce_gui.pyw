@@ -85,6 +85,7 @@ from constants import (
     BG_COLOR_BLACK_ON_CYAN,
     FG_COLOR_BLACK_ON_CYAN,
     # Status buttons
+    STATUS_MASTER_SLAVE_COLOR,
     STATUS_MONITORING_COLOR,
     STATUS_DECODING_COLOR,
     STATUS_TRX_COLOR,
@@ -152,6 +153,20 @@ from constants import (
 log         = get_logger(__name__)
 stop_event  = threading.Event()
 
+
+""""
+    Need to be provided for showing the icon in the taskbar for Windows 11
+
+try:
+    from ctypes import windll  
+    myappid = f"f5ukw.waitandpounce.{CURRENT_VERSION_NUMBER}"
+    windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+except ImportError:
+    pass
+"""
+"""
+    Main Application
+"""
 class MainApp(QtWidgets.QMainWindow):
     error_occurred = QtCore.pyqtSignal(str)    
     message_received = QtCore.pyqtSignal(object)
@@ -209,9 +224,11 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.stop_event = threading.Event()
         self.error_occurred.connect(self.set_notice_to_focus_value_label)
-        self.message_received.connect(self.handle_message_received)
+        self.message_received.connect(self.on_message_received)
         
         self._running = False
+
+        self._master_status = 'master'
 
         self.message_times = deque()
 
@@ -888,6 +905,7 @@ class MainApp(QtWidgets.QMainWindow):
         if checked:
             self.show_filter_layout()
         else:
+            self.clear_filters()
             self.hide_filter_layout()            
         
         if self.enable_filter_gui != checked:
@@ -1157,7 +1175,7 @@ class MainApp(QtWidgets.QMainWindow):
                 self.worker.update_settings_signal.emit()
         
     @QtCore.pyqtSlot(object)
-    def handle_message_received(self, message):        
+    def on_message_received(self, message):        
         if isinstance(message, dict):
             if (
                 self.window_title is None and 
@@ -1172,6 +1190,8 @@ class MainApp(QtWidgets.QMainWindow):
 
             if message_type == 'update_mode':
                 self.mode = message.get('mode')            
+            elif message_type == 'update_master_status':
+                self._master_status = message.get('status')
             elif message_type == 'update_frequency':
                 self.frequency = message.get('frequency')                
                 if self.frequency != self.last_frequency:
@@ -1697,6 +1717,8 @@ class MainApp(QtWidgets.QMainWindow):
         decoded_packet_text = f"DecodePacket #{self.output_model.rowCount()} {self.get_size_of_output_model()}"
         if self.last_targeted_call:
             decoded_packet_text += f" ~ Focus on <u>{self.last_targeted_call}</u>"
+        if self._master_status == 'slave':
+            decoded_packet_text += f" [<u>Slave</u>]"
  
         status_text_array.append(decoded_packet_text)
 
@@ -1766,8 +1788,11 @@ class MainApp(QtWidgets.QMainWindow):
             self.update_status_label_style("white", "black")
         else:
             self.connection_lost_shown = False
-            self.update_status_label_style("yellow", "black")
-
+            status_label_color = FG_COLOR_BLACK_ON_YELLOW
+            if self._master_status == 'slave':
+                status_label_color = STATUS_MASTER_SLAVE_COLOR
+            self.update_status_label_style(status_label_color, FG_COLOR_BLACK_ON_YELLOW)
+            
     def on_close(self, event):        
         self.save_window_position()
         if self._running:
@@ -2602,7 +2627,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.worker.error.connect(self.set_notice_to_focus_value_label)
         self.worker.error.connect(self.handle_worker_error)
 
-        self.worker.message.connect(self.handle_message_received)
+        self.worker.message.connect(self.on_message_received)
 
         self.thread.start()   
 

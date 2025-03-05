@@ -23,7 +23,7 @@ ODD_COLOR                       = "#FFFE9F"
 BG_COLOR_FOCUS_MY_CALL          = "#CCDEAA"
 """
 BG_COLOR_FOCUS_MY_CALL          = ODD_COLOR
-FG_COLOR_FOCUS_MY_CALL          = "#FF0000"
+FG_COLOR_FOCUS_MY_CALL          = "#FF675D"
 
 BG_COLOR_REGULAR_FOCUS          = "#000000"
 FG_COLOR_REGULAR_FOCUS          = "#01FFFF"
@@ -182,7 +182,7 @@ if platform.system() == 'Windows':
     CUSTOM_FONT_SMALL.setPointSize(small_size)
 
     CUSTOM_FONT_MONO            = QtGui.QFont("Consolas", 10)
-    CUSTOM_FONT_MONO_LG         = QtGui.QFont("Consolas", 15)
+    CUSTOM_FONT_MONO_LG         = QtGui.QFont("Consolas", 16)
     CUSTOM_FONT_BOLD            = QtGui.QFont("Consolas", 13, QtGui.QFont.Weight.Bold)
 
     CUSTOM_FONT_README          = QtGui.QFont("Consolas", 12)

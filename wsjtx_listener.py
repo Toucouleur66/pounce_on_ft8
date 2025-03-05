@@ -244,15 +244,32 @@ class Listener:
                         origin_port = int(origin_port_str)
                         origin_addr = (origin_ip, origin_port)
                         actual_pkt  = pkt[header_end+1:]
-                        
-                        self.is_server_slave    = True
-                        self.is_server_master   = False
+                        """
+                            Update server status
+                        """
+                        if not self.is_server_slave:
+                            self.is_server_slave    = True
+                            self.is_server_master   = False
+
+                            if self.message_callback:
+                                self.message_callback({
+                                    'type'      : 'update_master_status',
+                                    'mode'      : 'slave'
+                                })
+
                     except (UnicodeDecodeError, ValueError):                        
                         origin_addr = addr_port
                         actual_pkt  = pkt
                 else:
-                    self.is_server_slave    = False
-                    self.is_server_master   = True
+                    if not self.is_server_master:
+                        self.is_server_slave    = False
+                        self.is_server_master   = True
+
+                        if self.message_callback:
+                                self.message_callback({
+                                    'type'      : 'update_master_status',
+                                    'status'    : 'master'
+                                })
 
                     origin_addr = addr_port
                     actual_pkt  = pkt
@@ -318,11 +335,13 @@ class Listener:
             Add header "IP:port" to the packet and
             make sure to add "|" to the end of the header
             so we can handle it with receive_packets
-            on the other side (Secondary UDP Server)
+            on the other side (Secondary UDP Server) as a slave
         """
         header = f"{addr_port[0]}:{addr_port[1]}|".encode('utf-8')
-        forwarded_packet = header + packet
-        self.s.send_packet(target_server, forwarded_packet)
+        fwd_packet = header + packet
+
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as send_sock:
+            send_sock.sendto(fwd_packet, target_server)
 
     def update_settings(self):
         self.wanted_callsigns       = self.monitoring_settings.get_wanted_callsigns()
@@ -884,9 +903,10 @@ class Listener:
             elif directed == self.my_call:
                 log.warning(f"Found message directed to my call [ {directed} ] from [ {callsign} ]")
                 
-                self.rst_rcvd_from_being_called[callsign]   = report                 
-                self.grid_being_called[callsign]            = grid or ''                    
+                self.rst_rcvd_from_being_called[callsign]   = report                                   
                 self.qso_time_on[callsign]                  = decode_time
+                if not self.grid_being_called.get(callsign):
+                    self.grid_being_called[callsign]        = grid or '' 
 
                 if wanted is True:    
                     focus_info = f"Report [ {report} ]" if report else f"Grid [ {grid} ]"
@@ -898,7 +918,6 @@ class Listener:
                         message_type = 'wanted_callsign_being_called'
                     else:
                         message_type = 'directed_to_my_call'    
-
             elif wanted is True: 
                 reply_to_packet = True
                 message_type = 'wanted_callsign_detected'
@@ -918,7 +937,6 @@ class Listener:
 
             elif monitored or monitored_cq_zone:
                 message_type = 'monitored_callsign_detected'   
-                priority = 1
             elif self.targeted_call is not None:
                 if (
                     self.reply_attempts.get(self.targeted_call) and
@@ -943,6 +961,8 @@ class Listener:
                     'cqing'             : cqing,
                     'msg'               : msg
                 }) 
+            elif message_type and not excluded:
+                priority = 1
             
             """
                 Send message to GUI
@@ -1149,33 +1169,40 @@ class Listener:
         freq            = f"{round((self.frequency + self.tx_df) / 1_000_000, 6):.6f}"
         band            = self.band
         my_call         = self.my_call
-        qso_date        = self.qso_time_on[self.call_ready_to_log].strftime('%Y%m%d')        
-        qso_time_on     = self.qso_time_on[self.call_ready_to_log].strftime('%H%M%S')
-        qso_time_off    = self.qso_time_off[self.call_ready_to_log].strftime('%H%M%S')
-
-        adif_entry = " ".join([
-            f"<call:{len(callsign)}>{callsign}",
-            f"<gridsquare:{len(grid)}>{grid}",
-            f"<mode:{len(mode)}>{mode}",
-            f"<rst_sent:{len(rst_sent)}>{rst_sent}",
-            f"<rst_rcvd:{len(rst_rcvd)}>{rst_rcvd}",
-            f"<qso_date:{len(qso_date)}>{qso_date}",
-            f"<time_on:{len(qso_time_on)}>{qso_time_on}",
-            f"<time_off:{len(qso_time_off)}>{qso_time_off}",
-            f"<band:{len(str(band))}>{band}",
-            f"<freq:{len(str(freq))}>{freq}",
-            f"<freq_rx:{len(str(freq_rx))}>{freq_rx}",
-            f"<station_callsign:{len(my_call)}>{my_call}",
-            f"<my_gridsquare:{len(self.my_grid)}>{self.my_grid}",
-            f"<eor>\n"
-        ])
 
         try:
+            if (
+                self.qso_time_off.get(self.call_ready_to_log) and
+                not self.qso_time_on.get(self.call_ready_to_log)            
+            ):
+                self.qso_time_on[self.call_ready_to_log] = self.qso_time_off[self.call_ready_to_log]
+            
+            qso_date        = self.qso_time_on[self.call_ready_to_log].strftime('%Y%m%d')        
+            qso_time_on     = self.qso_time_on[self.call_ready_to_log].strftime('%H%M%S')
+            qso_time_off    = self.qso_time_off[self.call_ready_to_log].strftime('%H%M%S')
+
+            adif_entry = " ".join([
+                f"<call:{len(callsign)}>{callsign}",
+                f"<gridsquare:{len(grid)}>{grid}",
+                f"<mode:{len(mode)}>{mode}",
+                f"<rst_sent:{len(rst_sent)}>{rst_sent}",
+                f"<rst_rcvd:{len(rst_rcvd)}>{rst_rcvd}",
+                f"<qso_date:{len(qso_date)}>{qso_date}",
+                f"<time_on:{len(qso_time_on)}>{qso_time_on}",
+                f"<time_off:{len(qso_time_off)}>{qso_time_off}",
+                f"<band:{len(str(band))}>{band}",
+                f"<freq:{len(str(freq))}>{freq}",
+                f"<freq_rx:{len(str(freq_rx))}>{freq_rx}",
+                f"<station_callsign:{len(my_call)}>{my_call}",
+                f"<my_gridsquare:{len(self.my_grid)}>{self.my_grid}",
+                f"<eor>\n"
+            ])
+
             with open(ADIF_WORKED_CALLSIGNS_FILE, "a") as adif_file:
                 adif_file.write(adif_entry)
             log.warning("QSO Logged [ {} ]".format(self.call_ready_to_log))
         except Exception as e:
-            log.error(f"Can't write ADIF file {e}")
+            log.error(f"Can't write ADIF file {e}\n{traceback.format_exc()}")
 
         # Keep this callsign to ensure we are not breaking auto-sequence 
         self.last_logged_call = callsign            
