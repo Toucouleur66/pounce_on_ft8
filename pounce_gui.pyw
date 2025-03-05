@@ -155,14 +155,14 @@ stop_event  = threading.Event()
 
 """"
     Need to be provided for showing the icon in the taskbar for Windows 11
-"""
+
 try:
     from ctypes import windll  
     myappid = f"f5ukw.waitandpounce.{CURRENT_VERSION_NUMBER}"
     windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 except ImportError:
     pass
-
+"""
 """
     Main Application
 """
