@@ -827,9 +827,10 @@ class Listener:
             elif directed == self.my_call:
                 log.warning(f"Found message directed to my call [ {directed} ] from [ {callsign} ]")
                 
-                self.rst_rcvd_from_being_called[callsign]   = report                 
-                self.grid_being_called[callsign]            = grid or ''                    
+                self.rst_rcvd_from_being_called[callsign]   = report                                   
                 self.qso_time_on[callsign]                  = decode_time
+                if not self.grid_being_called.get(callsign):
+                    self.grid_being_called[callsign]        = grid or '' 
 
                 if wanted is True:    
                     focus_info = f"Report [ {report} ]" if report else f"Grid [ {grid} ]"
@@ -841,7 +842,6 @@ class Listener:
                         message_type = 'wanted_callsign_being_called'
                     else:
                         message_type = 'directed_to_my_call'    
-
             elif wanted is True: 
                 reply_to_packet = True
                 message_type = 'wanted_callsign_detected'
@@ -861,7 +861,6 @@ class Listener:
 
             elif monitored or monitored_cq_zone:
                 message_type = 'monitored_callsign_detected'   
-                priority = 1
             elif self.targeted_call is not None:
                 if (
                     self.reply_attempts.get(self.targeted_call) and
@@ -886,6 +885,8 @@ class Listener:
                     'cqing'             : cqing,
                     'msg'               : msg
                 }) 
+            elif message_type and not excluded:
+                priority = 1
             
             """
                 Send message to GUI
