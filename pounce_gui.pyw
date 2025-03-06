@@ -2755,12 +2755,12 @@ def main():
         window.updater  = UpdateManager()
         window.updater.check_expiration_or_update()
 
+        update_timer.timeout.connect(window.updater.check_expiration_or_update)
+        update_timer.start(60 * 60 * 1_000)
+
     window.show()
     window.update_status_menu_message((f'{GUI_LABEL_VERSION}').upper(), BG_COLOR_REGULAR_FOCUS, FG_COLOR_REGULAR_FOCUS)   
-
-    update_timer.timeout.connect(window.updater.check_expiration_or_update)
-    update_timer.start(60 * 60 * 1_000)
-
+   
     if is_first_launch_or_new_version(CURRENT_VERSION_NUMBER):
         window.show_about_dialog() 
         save_current_version(CURRENT_VERSION_NUMBER)
