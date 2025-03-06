@@ -461,14 +461,14 @@ class MainApp(QtWidgets.QMainWindow):
         horizontal_layout.setContentsMargins(0, 0, 0, 0)
         horizontal_layout.setSpacing(0)  
 
-        horizontal_layout.addWidget(CustomQLabel("Enable Sounds"))
+        horizontal_layout.addWidget(CustomQLabel("Sound Alerts"))
         
         horizontal_layout.addWidget(self.global_sound_toggle)
         horizontal_layout.addSpacing(20)
-        horizontal_layout.addWidget(CustomQLabel("Show All Messages"))  
+        horizontal_layout.addWidget(CustomQLabel("View All"))  
         horizontal_layout.addWidget(self.show_all_decoded_toggle)
         horizontal_layout.addSpacing(20)
-        horizontal_layout.addWidget(CustomQLabel("Show Filters"))  
+        horizontal_layout.addWidget(CustomQLabel("Filters"))  
         horizontal_layout.addWidget(self.filter_gui_toggle)
 
         # Apply layout to the widget
