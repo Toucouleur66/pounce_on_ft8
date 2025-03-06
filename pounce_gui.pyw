@@ -147,7 +147,10 @@ from constants import (
     MENU_FONT,
     # URL
     DISCORD_SECTION,
-    DONATION_SECTION
+    DONATION_SECTION,
+    # Threshold
+    HEARTBEAT_TIMEOUT_THRESHOLD,
+    DECODE_PACKET_TIMEOUT_THRESHOLD
 )
 
 log         = get_logger(__name__)
@@ -1724,9 +1727,6 @@ class MainApp(QtWidgets.QMainWindow):
             decoded_packet_text += f" ~ Focus on <u>{self.last_targeted_call}</u>"
         
         status_text_array.append(decoded_packet_text)
-
-        HEARTBEAT_TIMEOUT_THRESHOLD     = 30  # secondes
-        DECODE_PACKET_TIMEOUT_THRESHOLD = 60  # secondes
 
         if self.last_decode_packet_time:
             time_since_last_decode = (current_time - self.last_decode_packet_time).total_seconds()

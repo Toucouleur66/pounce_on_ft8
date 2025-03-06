@@ -881,15 +881,16 @@ class Listener:
                     """
                         Clean Wanted callsigns
                     """  
-                    if callsign in self.wanted_callsigns:
-                        self.wanted_callsigns.remove(callsign)   
-                     
                     self.call_ready_to_log = None
-
                     if msg in {'RR73', 'RRR'}:
                         reply_to_packet = True
                     elif msg == '73':
                         self.reset_targeted_call()
+
+                    if callsign in self.wanted_callsigns:
+                        self.wanted_callsigns.remove(callsign)   
+                    elif reply_to_packet:
+                        reply_to_packet = False                     
      
                 elif self.targeted_call is not None:
                     log.error(f"Received |{msg}| from [ {callsign} ] but ongoing callsign is [ {self.targeted_call} ]")
@@ -1128,7 +1129,7 @@ class Listener:
       
         try:
             delta_f_paquet = pywsjtx.SetTxDeltaFreqPacket.Builder(self.the_packet.wsjtx_id, frequency)
-            log.warning(f"Sending SetTxDeltaFreqPacket: {delta_f_paquet}")
+            log.warning(f"Sending SetTxDeltaFreqPacket (Df={frequency}): {delta_f_paquet}")
             self.s.send_packet(self.origin_addr, delta_f_paquet)
         except Exception as e:
             log.error(f"Error sending packets: {e}\n{traceback.format_exc()}")
