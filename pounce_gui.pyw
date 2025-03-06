@@ -173,7 +173,7 @@ class MainApp(QtWidgets.QMainWindow):
 
     def __init__(self):
         super(MainApp, self).__init__()
-        self.updater             = Updater()
+
 
         self.base_title          = GUI_LABEL_VERSION
         self.window_title        = None
@@ -187,6 +187,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.status_menu_agent   = None
 
         if sys.platform == 'darwin':
+            self.updater           = Updater()
+
             self.status_menu_agent = StatusMenuAgent()
             self.status_menu_agent.clicked.connect(self.on_status_menu_clicked)
             self.status_menu_agent.run()
@@ -2309,10 +2311,11 @@ class MainApp(QtWidgets.QMainWindow):
         settings_action.triggered.connect(self.open_settings)
         main_menu.addAction(settings_action)
 
-        check_update_action = QtGui.QAction("Check for Updates...", self)
-        check_update_action.setShortcut("Ctrl+I")  
-        check_update_action.triggered.connect(lambda: self.updater.check_expiration_or_update(True))
-        main_menu.addAction(check_update_action)
+        if sys.platform == 'darwin':
+            check_update_action = QtGui.QAction("Check for Updates...", self)
+            check_update_action.setShortcut("Ctrl+I")  
+            check_update_action.triggered.connect(lambda: self.updater.check_expiration_or_update(True))
+            main_menu.addAction(check_update_action)
 
         # Add Online menu
         self.online_menu = self.menu_bar.addMenu("Online")
