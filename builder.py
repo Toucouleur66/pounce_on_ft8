@@ -34,11 +34,9 @@ qt_plugins_path = os.path.join(
 
 if platform.system() == 'Windows':
     pyinstaller_cmd = common_options + [
-        "--onedir",
-        "--no-archive",
+        "--onefile",
         "--collect-submodules", "PIL",
         "--icon=pounce.ico",
-        f"--key=MySuperSecretForDefender{CURRENT_VERSION_NUMBER}",
         "--add-data=pounce.ico;.",
         "--add-data=pounce.png:.",
         "--add-data=sounds;sounds",
@@ -48,9 +46,6 @@ if platform.system() == 'Windows':
         '--hidden-import=Foundation',
         '--hidden-import=objc',
         '--runtime-tmpdir=dist/tmp',
-        "--exclude-module=tkinter",
-        "--exclude-module=test",
-        "--exclude-module=unittest",
         '--noconfirm',
     ]
 elif platform.system() == 'Darwin':

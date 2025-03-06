@@ -46,13 +46,12 @@ from monitoring_setting import MonitoringSettings
 from theme_manager import ThemeManager
 from clublog import ClubLogManager
 from setting_dialog import SettingsDialog
-
+from updater import Updater, UpdateManager
 from raw_data_model import RawDataModel
 from raw_data_filter_proxy_model import RawDataFilterProxyModel
 
 if sys.platform == 'darwin':
     from status_menu import StatusMenuAgent
-    from updater import Updater, UpdateManager
 
 from utils import get_local_ip_address, get_log_filename, matches_any
 from utils import get_mode_interval, get_amateur_band, display_frequency
@@ -189,9 +188,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.clublog_manager     = ClubLogManager(self) 
         self.status_menu_agent   = None
 
-        if sys.platform == 'darwin':
-            self.updater           = Updater()
+        self.updater             = Updater()
 
+        if sys.platform == 'darwin':
             self.status_menu_agent = StatusMenuAgent()
             self.status_menu_agent.clicked.connect(self.on_status_menu_clicked)
             self.status_menu_agent.run()
@@ -2311,11 +2310,10 @@ class MainApp(QtWidgets.QMainWindow):
         settings_action.triggered.connect(self.open_settings)
         main_menu.addAction(settings_action)
 
-        if sys.platform == 'darwin':
-            check_update_action = QtGui.QAction("Check for Updates...", self)
-            check_update_action.setShortcut("Ctrl+I")  
-            check_update_action.triggered.connect(lambda: self.updater.check_expiration_or_update(True))
-            main_menu.addAction(check_update_action)
+        check_update_action = QtGui.QAction("Check for Updates...", self)
+        check_update_action.setShortcut("Ctrl+I")  
+        check_update_action.triggered.connect(lambda: self.updater.check_expiration_or_update(True))
+        main_menu.addAction(check_update_action)
 
         # Add Online menu
         self.online_menu = self.menu_bar.addMenu("Online")
@@ -2751,12 +2749,11 @@ def main():
     window          = MainApp()
     update_timer    = QtCore.QTimer()
 
-    if sys.platform == 'darwin':
-        window.updater  = UpdateManager()
-        window.updater.check_expiration_or_update()
+    window.updater  = UpdateManager()
+    window.updater.check_expiration_or_update()
 
-        update_timer.timeout.connect(window.updater.check_expiration_or_update)
-        update_timer.start(60 * 60 * 1_000)
+    update_timer.timeout.connect(window.updater.check_expiration_or_update)
+    update_timer.start(60 * 60 * 1_000)
 
     window.show()
     window.update_status_menu_message((f'{GUI_LABEL_VERSION}').upper(), BG_COLOR_REGULAR_FOCUS, FG_COLOR_REGULAR_FOCUS)   
