@@ -72,8 +72,7 @@ class UpdateManager:
 
     def handle_update_error(self, error_message):
         log.error(error_message)
-        QtWidgets.QMessageBox.warning(None, "Update Check Failed", error_message)
-
+    
     def fetch_readme(self):
         try:
             response = requests.get(README_URL, timeout=5)
@@ -165,7 +164,6 @@ class UpdateManager:
             QtWidgets.QMessageBox.critical(None, "Program Expired",
                                            f"{GUI_LABEL_VERSION} expired on {expiration_date_str}.\n\nPlease contact the author.")
             sys.exit()
-
 
 class DownloadDialog(QtWidgets.QDialog):
     def __init__(self, url, save_path, parent=None, title=None):
