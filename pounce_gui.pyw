@@ -43,7 +43,6 @@ from activity_bar import ActivityBar
 from tooltip import ToolTip
 from worker import Worker
 from monitoring_setting import MonitoringSettings
-from updater import Updater, UpdateManager
 from theme_manager import ThemeManager
 from clublog import ClubLogManager
 from setting_dialog import SettingsDialog
@@ -53,6 +52,7 @@ from raw_data_filter_proxy_model import RawDataFilterProxyModel
 
 if sys.platform == 'darwin':
     from status_menu import StatusMenuAgent
+    from updater import Updater, UpdateManager
 
 from utils import get_local_ip_address, get_log_filename, matches_any
 from utils import get_mode_interval, get_amateur_band, display_frequency
@@ -156,14 +156,14 @@ stop_event  = threading.Event()
 
 """"
     Need to be provided for showing the icon in the taskbar for Windows 11
-
+"""
 try:
     from ctypes import windll  
     myappid = f"f5ukw.waitandpounce.{CURRENT_VERSION_NUMBER}"
     windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 except ImportError:
     pass
-"""
+
 """
     Main Application
 """
@@ -1590,17 +1590,6 @@ class MainApp(QtWidgets.QMainWindow):
             self.status_button.setVisibleState(True)        
             self.is_status_button_label_visible = True
 
-    def update_current_callsign_highlight(self):
-        if self._running:
-            for index in range(self.listbox.count()):
-                item = self.listbox.item(index)
-                if item.text() == self.wanted_callsigns_vars[self.operating_band].text() and self._running:
-                    item.setBackground(QtGui.QBrush(QtGui.QColor('yellow')))
-                    item.setForeground(QtGui.QBrush(QtGui.QColor('black')))
-                else:
-                    item.setBackground(QtGui.QBrush())
-                    item.setForeground(QtGui.QBrush())   
-
     def update_status_label_style(self, background_color, text_color):
         style = f"""
             background-color: {background_color};
@@ -1618,7 +1607,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.last_focus_value_message_uid = None
 
     def set_message_to_focus_value_label(self, message):   
-        message_type      = message.get('message_type')
         formatted_message = message.get('formatted_message').strip()
 
         self.focus_value_label.setText(formatted_message)
@@ -2760,8 +2748,9 @@ def main():
     window          = MainApp()
     update_timer    = QtCore.QTimer()
 
-    window.updater  = UpdateManager()
-    window.updater.check_expiration_or_update()
+    if sys.platform == 'darwin':
+        window.updater  = UpdateManager()
+        window.updater.check_expiration_or_update()
 
     window.show()
     window.update_status_menu_message((f'{GUI_LABEL_VERSION}').upper(), BG_COLOR_REGULAR_FOCUS, FG_COLOR_REGULAR_FOCUS)   
