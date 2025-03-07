@@ -33,7 +33,7 @@ class ColorRowDelegate(QStyledItemDelegate):
             painter.setPen(QPen(text_color))
 
         text_rect = option.rect.adjusted(5, 0, -5, 0)
-        alignment = index.data(Qt.ItemDataRole.TextAlignmentRole) or (Qt.AlignLeft | Qt.AlignVCenter)
+        alignment = index.data(Qt.ItemDataRole.TextAlignmentRole) or (Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
 
         if text is None:
             text = ""

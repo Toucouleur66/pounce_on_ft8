@@ -34,6 +34,8 @@ from constants import (
     BAND_CHANGE_WAITING_DELAY,
     EVEN,
     ODD,
+    MASTER_STATUS,
+    SLAVE_STATUS,
     MODE_FOX_HOUND,
     MODE_NORMAL,
     WKB4_REPLY_MODE_NEVER,
@@ -270,7 +272,7 @@ class Listener:
                 if server_status_changed and self.message_callback:
                     self.message_callback({
                         'type'      : 'master_slave_status',
-                        'status'    : 'master' if self.is_server_master else 'slave',
+                        'status'    : MASTER_STATUS if self.is_server_master else SLAVE_STATUS,
                         'addr_port' : addr_port
                     })
 
@@ -350,7 +352,7 @@ class Listener:
 
         log_output = []
         log_output.append(f"Updated settings (~{CURRENT_VERSION_NUMBER}):")
-        log_output.append(f"Server={'Master' if self.is_server_master else 'Slave'}")
+        log_output.append(f"Server={MASTER_STATUS if self.is_server_master else SLAVE_STATUS}")
         log_output.append(f"EnableSendingReply={self.enable_sending_reply}")             
         log_output.append(f"Band={self.band}")   
         log_output.append(f"WantedCallsigns={self.wanted_callsigns}")

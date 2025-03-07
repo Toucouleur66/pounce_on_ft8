@@ -7,7 +7,7 @@ import platform
 from datetime import datetime
 from utils import get_app_data_dir
 
-CURRENT_VERSION_NUMBER          = "2.7.4.4"
+CURRENT_VERSION_NUMBER          = "2.7.5"
 EXPIRATION_DATE                 = datetime(2025, 5, 15)
 UPDATE_JSON_INFO_URL            = "https://storage.de.cloud.ovh.net/v1/AUTH_31163bb499dc49eb819aacdfd32ae82c/wait.and.pounce/public/update_info.json"
 
@@ -15,6 +15,9 @@ README_URL                      = "https://storage.de.cloud.ovh.net/v1/AUTH_3116
 
 EVEN                            = "EVEN"
 ODD                             = "ODD"
+
+MASTER_STATUS                   = "master_status"
+SLAVE_STATUS                    = "slave_status"      
 
 EVEN_COLOR                      = "#9DFFFE"
 ODD_COLOR                       = "#FFFE9F"
@@ -136,7 +139,8 @@ TOOLTIP_QSS                      = f"""
                 background-color: {STATUS_MONITORING_COLOR}; 
                 color: white;
                 padding: 3px;
-                border-style: none;
+                margin: 0px;
+                border-radius: 6px;
             }}
         """
 

@@ -68,6 +68,8 @@ from utils import(
 
 from constants import (
     CURRENT_VERSION_NUMBER,
+    MASTER_STATUS,
+    SLAVE_STATUS,
     # Colors
     EVEN_COLOR,
     ODD_COLOR,
@@ -232,7 +234,7 @@ class MainApp(QtWidgets.QMainWindow):
         
         self._running = False
 
-        self.master_slave_status = 'master'
+        self.master_slave_status = MASTER_STATUS
 
         self.message_times = deque()
 
@@ -326,6 +328,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.wait_pounce_history_table = self.init_wait_pounce_history_table_ui()
         self.wait_pounce_history_table.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
+        #self.wait_pounce_history_table.setItemDelegate(ColorRowDelegate(self.wait_pounce_history_table))
 
         refresh_history_table_timer = QtCore.QTimer(self)
         refresh_history_table_timer.start(1_000)        
@@ -465,7 +468,7 @@ class MainApp(QtWidgets.QMainWindow):
         
         horizontal_layout.addWidget(self.global_sound_toggle)
         horizontal_layout.addSpacing(20)
-        horizontal_layout.addWidget(CustomQLabel("View All"))  
+        horizontal_layout.addWidget(CustomQLabel("View All Messages"))  
         horizontal_layout.addWidget(self.show_all_decoded_toggle)
         horizontal_layout.addSpacing(20)
         horizontal_layout.addWidget(CustomQLabel("Filters"))  
@@ -1196,7 +1199,7 @@ class MainApp(QtWidgets.QMainWindow):
                 self.mode = message.get('mode')            
             elif message_type == 'master_slave_status':
                 self.master_slave_status = message.get('status')
-                self.master_slave_addr_port = message.get('addr_port') 
+                self.master_slave_addr_port = message.get('addr_port')            
             elif message_type == 'update_frequency':
                 self.frequency = message.get('frequency')                
                 if self.frequency != self.last_frequency:
@@ -1718,10 +1721,10 @@ class MainApp(QtWidgets.QMainWindow):
         else:
             status_text_array.append("No HeartBeat received yet.")
 
-        if self.master_slave_status == 'slave' and not connection_lost:
+        if self.master_slave_status == SLAVE_STATUS and not connection_lost:
             status_text_array.append(f"Slave connected ~ {self.master_slave_addr_port[0]}:{self.master_slave_addr_port[1]}")
 
-        decoded_packet_text = f"DecodePacket #{self.output_model.rowCount()} {self.get_size_of_output_model()}"
+        decoded_packet_text = f"Message Packet #{self.output_model.rowCount()} {self.get_size_of_output_model()}"
         if self.last_targeted_call:
             decoded_packet_text += f" ~ Focus on <u>{self.last_targeted_call}</u>"
         
@@ -1775,15 +1778,19 @@ class MainApp(QtWidgets.QMainWindow):
             self.update_status_label_style("red", "white")
             if not self.connection_lost_shown:
                 self.connection_lost_shown = True
+                self.operating_band = None
+                self.update_tab_widget_labels_style()
+                if self.global_sound_toggle.isChecked():      
+                    self.play_sound("error_occurred")
         elif nothing_to_decode: 
             self.update_status_label_style("white", "black")
         else:
             self.connection_lost_shown = False      
     
-            if self.master_slave_status == 'master':
+            if self.master_slave_status == MASTER_STATUS:
                 self.update_status_label_style(BG_COLOR_BLACK_ON_YELLOW, FG_COLOR_BLACK_ON_CYAN)
             else:
-                self.update_status_label_style(EVEN_COLOR, FG_TIMER_COLOR)
+                self.update_status_label_style(FG_TIMER_COLOR, EVEN_COLOR)
             
     def on_close(self, event):        
         self.save_window_position()
@@ -1910,7 +1917,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_table.setShowGrid(False)
         self.wait_pounce_history_table.setStyleSheet(table_qss)
         self.wait_pounce_history_table.setPalette(table_palette)
-        # self.wait_pounce_history_table.setShowGrid(False)
+        self.wait_pounce_history_table.setShowGrid(False)
 
         self.update_tab_widget_labels_style()
 
@@ -2218,48 +2225,60 @@ class MainApp(QtWidgets.QMainWindow):
                 self.status_button.current_fg_color != fg_color
             ):      
                 self.status_button.updateStyle(text, bg_color, fg_color)
-        
+
     def update_tab_widget_labels_style(self):
+        # Définition des styles de base
         styles = [
-            (
-                BG_COLOR_BLACK_ON_YELLOW,
-                FG_COLOR_BLACK_ON_YELLOW
-            ),
-            (
-                BG_COLOR_BLACK_ON_PURPLE,
-                FG_COLOR_BLACK_ON_PURPLE
-            ),
-            (
-                BG_COLOR_BLACK_ON_CYAN,
-                FG_COLOR_BLACK_ON_CYAN
-            ),
-            (
-                "transparent",
-                "palette(text)"
-            )
+            (BG_COLOR_BLACK_ON_YELLOW, FG_COLOR_BLACK_ON_YELLOW),
+            (BG_COLOR_BLACK_ON_PURPLE, FG_COLOR_BLACK_ON_PURPLE),
+            (BG_COLOR_BLACK_ON_CYAN, FG_COLOR_BLACK_ON_CYAN),
+            ("transparent", "palette(text)")
         ]
 
-        for band in AMATEUR_BANDS.keys():    
+        # Styles réutilisables
+        active_style_template = """
+            background-color: {bg_color};
+            color: {fg_color};
+            border-radius: 6px;
+            padding: 3px;
+        """
+        default_style = """
+            border-radius: 6px;
+            color: palette(text);
+            padding: 3px;
+        """
+        slave_style = f"""
+            background-color: {FG_TIMER_COLOR};
+            color: {EVEN_COLOR};
+        """
+
+        def apply_active_style(label_widget, bg_color, fg_color):
+            label_widget.setStyleSheet(active_style_template.format(bg_color=bg_color, fg_color=fg_color))
+
+        def apply_default_style(label_widget):
+            label_widget.setStyleSheet(default_style)
+
+        for band in AMATEUR_BANDS.keys():
             content_widget = self.tab_widget.get_content_widget(band)
             layout = content_widget.layout()
 
             for idx, (bg_color, fg_color) in enumerate(styles, start=1):
                 label_widget = layout.itemAtPosition(idx, 0).widget()
+                input_widget = layout.itemAtPosition(idx, 1).widget()
+
                 if band == self.operating_band and self._running:
-                    label_widget.setStyleSheet(
-                        f"""
-                            background-color: {bg_color};
-                            color: {fg_color}; 
-                            border-radius: 6px;
-                            padding: 3px;
-                        """
-                    )
+                    apply_active_style(label_widget, bg_color, fg_color)
+                    if idx == 1 and self.master_slave_status == SLAVE_STATUS:
+                        input_widget.setEnabled(False)
+                        input_widget.setStyleSheet(slave_style)
+                    else:
+                        input_widget.setEnabled(True)
+                        input_widget.setStyleSheet("")
                 else:
-                    label_widget.setStyleSheet("""
-                        border-radius: 6px;
-                        color: palette(text);                        
-                        padding: 3px;
-                    """)
+                    apply_default_style(label_widget)
+                    if idx == 1:
+                        input_widget.setEnabled(True)
+                        input_widget.setStyleSheet("")
 
     def create_main_menu(self):
         self.menu_bar.setStyleSheet(f"""
@@ -2676,10 +2695,14 @@ class MainApp(QtWidgets.QMainWindow):
         if self._running:
             self.stop_event.set()
 
-            self.worker             = None
-            self._running           = False
-            self.operating_band     = None
-            self.transmitting       = False
+            self.worker              = None
+            self._running            = False
+            self.master_slave_status = MASTER_STATUS            
+
+            self.update_tab_widget_labels_style()
+
+            self.operating_band      = None
+            self.transmitting        = False
             
             self.stop_tray_icon()
             self.stop_blinking_status_button()            
@@ -2694,7 +2717,6 @@ class MainApp(QtWidgets.QMainWindow):
             self.status_button.setEnabled(True)
             self.stop_button.setEnabled(False)
 
-            self.update_tab_widget_labels_style()
             # Update Windows menu            
             self.update_monitoring_action()   
             self.reset_window_title()
