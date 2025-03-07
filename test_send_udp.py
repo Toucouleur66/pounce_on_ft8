@@ -304,7 +304,8 @@ def send_status_packet(
         fast_mode=False,
         special_op_mode=False,
         ip_address="127.0.0.1",
-        udp_port=2237
+        udp_port=2237,
+        is_slave=False
     ):
     UDP_IP = ip_address
     UDP_PORT = udp_port        
@@ -334,6 +335,10 @@ def send_status_packet(
     print("📡 Hex value for Status Packet:")
     print(PacketUtil.hexdump(packet_data))
 
+    #if is_slave:
+    #    header = f"{UDP_IP}:{UDP_PORT}|".encode('utf-8')
+    #    packet_data = header + packet_data
+
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
         sock.sendto(packet_data, (UDP_IP, UDP_PORT))
         print(f"✅ Status Packet sent to {UDP_IP}:{UDP_PORT}")
@@ -346,7 +351,8 @@ def send_decode_packet(
         mode="FT8",
         message="CQ DX",
         ip_address="127.0.0.1",
-        udp_port=2237
+        udp_port=2237,
+        is_slave=False
     ):
     UDP_IP = ip_address
     UDP_PORT = udp_port        
@@ -369,11 +375,12 @@ def send_decode_packet(
     print("Hex value for Decode Packet:")
     print(PacketUtil.hexdump(packet_data))
 
-    header = f"{UDP_IP}:{UDP_PORT}|".encode('utf-8')
-    packet_with_header = header + packet_data
+    if is_slave:
+        header = f"{UDP_IP}:{UDP_PORT}|".encode('utf-8')
+        packet_data = header + packet_data
 
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-        sock.sendto(packet_with_header, (UDP_IP, UDP_PORT))
+        sock.sendto(packet_data, (UDP_IP, UDP_PORT))
         print(f"Packet sent to {UDP_IP}:{UDP_PORT}")
 
 def send_settings_packet(
@@ -397,17 +404,20 @@ def send_settings_packet(
         sock.sendto(packet_with_header, (UDP_IP, UDP_PORT))
         print(f"Settings Packet sent to {UDP_IP}:{UDP_PORT}")
 
-def simulate(ip_address="127.0.0.1", udp_port=2237):  
+def simulate(ip_address="127.0.0.1", udp_port=2237, is_slave=True):  
+
+    print("Running as slave" if is_slave else "Running as master")
+
     messages_series = [[
         {"message": "BG4TDG 9A2AA +12", "snr": "+12", "delta_t": "+0.3", "delta_f": "450"},
         {"message": "F5BZB SV5DKL -13", "snr": "+12", "delta_t": "+0.3", "delta_f": "450"},
         {"message": "F2DX F4BKB -13", "snr": "+12", "delta_t": "+0.3", "delta_f": "450"},
-        {"message": "CQ FR4NB LG79", "snr": "+13", "delta_t": "+0.2", "delta_f": "1100"},
-        {"message": "F5UKW V63CB AA00", "snr": "+13", "delta_t": "+0.2", "delta_f": "1300"},
-        {"message": "CQ VK9DX RJ11", "snr": "+13", "delta_t": "+0.2", "delta_f": "1400"},
+        {"message": "CQ 3D2AG RJ11", "snr": "+13", "delta_t": "+0.2", "delta_f": "1400"},
     ]]
     
-    send_status_packet(ip_address=ip_address, udp_port=udp_port)
+    send_status_packet(ip_address=ip_address, udp_port=udp_port, is_slave=is_slave)
+    if is_slave:
+        simulate_settings(ip_address=ip_address, udp_port=udp_port)
     time.sleep(15)
 
     for i, message_series in enumerate(messages_series):
@@ -420,18 +430,19 @@ def simulate(ip_address="127.0.0.1", udp_port=2237):
                 delta_t=float(msg["delta_t"]),    
                 delta_f=int(msg["delta_f"]),      
                 ip_address=ip_address,
-                udp_port=udp_port
+                udp_port=udp_port,
+                is_slave=is_slave
             )
         print("⏳ Waiting 15 seconds before next series...\n")
         time.sleep(15)
 
 def simulate_settings(ip_address="127.0.0.1", udp_port=2237):
     settings = {
-        "wanted_callsigns": "VK9DX, ZL7DX",
-        "excluded_callsigns": "9M2DA",
-        "monitored_callsigns": "F4BKV",
-        "monitored_cq_zones": "31,32",
-        "excluded_cq_zones": "14"
+        "wanted_callsigns": ["VK9DX", "ZL7DX"],
+        "excluded_callsigns": ["9M2DA"],
+        "monitored_callsigns": ["F4BKV"],
+        "monitored_cq_zones": ["31,32"],
+        "excluded_cq_zones": ["14"]
     }
     send_settings_packet(wsjtx_id="WSJT-X Simulator", settings_dict=settings, ip_address=ip_address, udp_port=udp_port)
 
@@ -444,6 +455,7 @@ def parse_arguments():
     parser.add_argument('--delta_f', type=int, default=350, help='Delta F')
     parser.add_argument('--mode', type=str, default="FT8", help='Transmission mode (default: FT8)')
     parser.add_argument('--ip_address', type=str, default="127.0.0.1", help='IP address for UDP server (default: 127.0.0.1)')
+    parser.add_argument('--is_slave', action='store_true', help='Set is server behavior jas to be a slave')
     parser.add_argument('--udp_port', type=int, default=2237, help='UDP server port (default: 2237)')
     parser.add_argument('--simulate', action='store_true', help='Run simulation with decode/status packets')
     parser.add_argument('--simulate_settings', action='store_true', help='Simulate sending a Settings packet')
@@ -454,7 +466,7 @@ if __name__ == "__main__":
     if args.simulate_settings:
         simulate_settings(ip_address=args.ip_address, udp_port=args.udp_port)
     elif args.simulate:
-        simulate(ip_address=args.ip_address, udp_port=args.udp_port)
+        simulate(ip_address=args.ip_address, udp_port=args.udp_port, is_slave=args.is_slave)
     else:
         if not args.message:
             print("Error: You must provide a message with --message unless using --simulate or --simulate_settings")

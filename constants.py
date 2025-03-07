@@ -140,7 +140,6 @@ TOOLTIP_QSS                      = f"""
                 color: white;
                 padding: 3px;
                 margin: 0px;
-                border-radius: 6px;
             }}
         """
 
