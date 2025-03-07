@@ -125,6 +125,7 @@ class Listener:
         self.secondary_udp_server_port      = secondary_udp_server_port or 2237
 
         self.server_status                  = None
+        self.master_slave_settings          = None
 
         self.enable_secondary_udp_server    = enable_secondary_udp_server or False
 
@@ -232,10 +233,7 @@ class Listener:
 
     def receive_packets(self):
         while self._running:
-            try:
-                #server_status_changed = True if self.server_status is None else False
-                server_status_changed = False
-
+            try:                
                 pkt, addr_port = self.s.sock.recvfrom(8192)
                 header_end = pkt.find(b'|')
 
@@ -251,25 +249,21 @@ class Listener:
                         """
                             Update server status
                         """
-                        if not self.server_status or self.server_status == MASTER_STATUS:
-                            self.server_status = SLAVE_STATUS
-                            server_status_changed = True
+                        server_status = SLAVE_STATUS                        
                     except (UnicodeDecodeError, ValueError):                        
                         origin_addr = addr_port
                         actual_pkt  = pkt
-                else:
-                    if not self.server_status or self.server_status == SLAVE_STATUS:
-                        self.server_status = MASTER_STATUS
-                        server_status_changed = True
+                else:                    
+                        origin_addr = addr_port
+                        actual_pkt  = pkt
 
-                    origin_addr = addr_port
-                    actual_pkt  = pkt
+                        server_status = MASTER_STATUS    
 
                 self.origin_addr = origin_addr
 
-                log.error(f"server_status_changed: {server_status_changed}--- {self.server_status}")
-
-                if server_status_changed:
+                if server_status != self.server_status:
+                    self.server_status = server_status
+                    self.update_settings()
                     self.send_settings_to_slave()
                     if self.message_callback:
                         self.message_callback({
@@ -367,8 +361,6 @@ class Listener:
             log_output.append(f"Marathon={self.marathon_preference.get(self.band)}")
 
         log.warning(f"\n\t".join(log_output))
-
-        self.send_settings_to_slave()
 
     def stop(self):
         self._running = False
@@ -553,22 +545,8 @@ class Listener:
             self.send_stop_monitoring_request()
         elif isinstance(self.the_packet, pywsjtx.SettingsPacket):
             try:
-                settings = json.loads(self.the_packet.settings_json)
-                """
-                self.monitoring_settings.set_wanted_callsigns(settings.get("wanted_callsigns", ""))
-                self.monitoring_settings.set_excluded_callsigns(settings.get("excluded_callsigns", ""))
-                self.monitoring_settings.set_monitored_callsigns(settings.get("monitored_callsigns", ""))
-                self.monitoring_settings.set_monitored_cq_zones(settings.get("monitored_cq_zones", ""))
-                self.monitoring_settings.set_excluded_cq_zones(settings.get("excluded_cq_zones", ""))
-                """
-
-                if self.message_callback:
-                    self.message_callback({
-                        'type'     : 'master_slave_settings',
-                        'settings' : settings
-                    })
-
-                log.info(f"SettingsPacket received: {settings}")
+                self.master_slave_settings = json.loads(self.the_packet.settings_json)              
+                log.info(f"SettingsPacket received: {self.master_settings}")
             except Exception as e:
                 log.error(f"Error processing SettingsPacket: {e}")            
         else:
@@ -576,8 +554,11 @@ class Listener:
             log.error('Unknown packet type {}; {}'.format(type(self.the_packet),self.the_packet))
 
         if status_update:
-            self.send_status_update()            
+            self.send_status_update()       
 
+            if self.master_slave_settings:
+                self.send_master_settings_update()
+               
     def send_status_update(self):
         if self.message_callback:
             self.message_callback({
@@ -587,6 +568,13 @@ class Listener:
                 'last_decode_packet_time'   : self.last_decode_packet_time,
                 'last_heartbeat_time'       : self.last_heartbeat_time,
                 'transmitting'              : self.transmitting
+            })
+
+    def send_master_settings_update(self):
+        if self.message_callback:
+            self.message_callback({
+                'type'     : 'master_slave_settings',
+                'settings' : self.master_slave_settings
             })
 
     def send_stop_monitoring_request(self):

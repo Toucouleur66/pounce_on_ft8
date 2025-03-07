@@ -1696,14 +1696,13 @@ class MainApp(QtWidgets.QMainWindow):
         self,
         addr_port               = None,
         status                  = None
-    ):
-        if status != self.master_slave_status:
-            self.master_slave_status = status                      
+    ):        
+        self.master_slave_status = status                      
         if self.master_slave_status == MASTER_STATUS:
             self.handle_master_settings(action='restore')
-        else:
-            self.update_tab_widget_labels_style()
+        else:      
             self.master_slave_addr_port = addr_port      
+        self.update_tab_widget_labels_style()            
 
     def check_connection_status(
         self,
@@ -1812,7 +1811,8 @@ class MainApp(QtWidgets.QMainWindow):
                 if self.global_sound_toggle.isChecked():      
                     self.play_sound("error_occurred")
         elif nothing_to_decode: 
-            self.update_status_label_style("white", "black")
+            if not self.master_slave_status == SLAVE_STATUS:
+                self.update_status_label_style("white", "black")
         else:
             self.connection_lost_shown = False      
     
