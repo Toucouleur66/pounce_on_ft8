@@ -269,12 +269,16 @@ class Listener:
 
                 self.origin_addr = origin_addr
 
-                if server_status_changed and self.message_callback:
-                    self.message_callback({
-                        'type'      : 'master_slave_status',
-                        'status'    : MASTER_STATUS if self.is_server_master else SLAVE_STATUS,
-                        'addr_port' : addr_port
-                    })
+                if server_status_changed:
+                    server_status = MASTER_STATUS if self.is_server_master else SLAVE_STATUS
+                    if self.is_server_slave:
+                        self.send_settings_to_slave()
+                    if self.message_callback:
+                        self.message_callback({
+                            'type'      : 'master_slave_status',
+                            'status'    : server_status,
+                            'addr_port' : addr_port
+                        })
 
                 if self.enable_log_packet_data:
                     message = f"Received packet of length {len(pkt)} from {addr_port}\nPacket data: {pkt.hex()}"
@@ -366,6 +370,9 @@ class Listener:
 
         log.warning(f"\n\t".join(log_output))
 
+        self.send_settings_to_slave()
+        
+    def send_settings_to_slave(self):
         """
             Send settings to slave server if we are master
         """
@@ -378,23 +385,19 @@ class Listener:
                 "excluded_cq_zones"     : self.excluded_cq_zones,
             }
 
-            header = f"{self.primary_udp_server_address}:{self.primary_udp_server_port}|".encode('utf-8')
-            
             settings_packet = pywsjtx.SettingsPacket.Builder(
                 to_wsjtx_id="WSJT-X",
                 settings_dict=settings
             )
-
-            packet_with_header = header + settings_packet
+            header = f"{self.primary_udp_server_address}:{self.primary_udp_server_port}|".encode('utf-8')            
 
             self.s.send_packet(
                 (
                     self.secondary_udp_server_address,
                     self.secondary_udp_server_port
-                ), packet_with_header
+                ),  header + settings_packet
             )
-
-            log.info(f"Settings sent to {self.secondary_udp_server_address}:{self.secondary_udp_server_port}")
+            log.info(f"Settings sent to {self.secondary_udp_server_address}:{self.secondary_udp_server_port}")        
         
     def stop(self):
         self._running = False
@@ -560,6 +563,13 @@ class Listener:
                 self.monitoring_settings.set_monitored_cq_zones(settings.get("monitored_cq_zones", ""))
                 self.monitoring_settings.set_excluded_cq_zones(settings.get("excluded_cq_zones", ""))
                 """
+
+                if self.message_callback:
+                    self.message_callback({
+                        'type'     : 'master_slave_settings',
+                        'settings' : settings
+                    })
+
                 log.info(f"SettingsPacket received: {settings}")
             except Exception as e:
                 log.error(f"Error processing SettingsPacket: {e}")            

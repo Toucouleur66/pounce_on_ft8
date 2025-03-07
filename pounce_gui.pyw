@@ -1199,7 +1199,9 @@ class MainApp(QtWidgets.QMainWindow):
                 self.mode = message.get('mode')            
             elif message_type == 'master_slave_status':
                 self.master_slave_status = message.get('status')
-                self.master_slave_addr_port = message.get('addr_port')            
+                self.master_slave_addr_port = message.get('addr_port')     
+            elif message_type == 'master_slave_settings':
+                self.handle_master_settings(message.get('settings'))                       
             elif message_type == 'update_frequency':
                 self.frequency = message.get('frequency')                
                 if self.frequency != self.last_frequency:
@@ -1299,6 +1301,18 @@ class MainApp(QtWidgets.QMainWindow):
         else:
             pass
     
+    def handle_master_settings(self, settings):
+        """
+            sauvegarder wanted_callsigns actuel sur la bande concernée
+            écraser wanted_callsigns avec les données comprises dans settings
+            en cas d'arrêt slave restaurer les données 
+        """
+        log.error(settings)
+        log.error(self.operating_band)
+        #this_save = self.wanted_callsigns_vars[self.operating_band]
+        self.wanted_callsigns_vars[self.operating_band] = ", ".join(settings.get('wanted_callsigns'))
+        log.error(self.wanted_callsigns_vars[self.operating_band])
+        
     def process_message_buffer(self):     
         if not self.message_buffer:
             return None
