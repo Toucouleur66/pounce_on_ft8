@@ -263,8 +263,7 @@ class Listener:
 
                 if server_status != self.server_status:
                     self.server_status = server_status
-                    self.update_settings()
-                    self.send_settings_to_slave()
+                    self.update_settings()                    
                     if self.message_callback:
                         self.message_callback({
                             'type'      : 'master_status',
@@ -510,6 +509,15 @@ class Listener:
             self.send_heartbeat()
         elif isinstance(self.the_packet, pywsjtx.StatusPacket):
             self.handle_status_packet()
+            """"
+                Send settings to slave server if we are master
+            """
+            if (
+                self.server_status == MASTER_STATUS and
+                self.enable_secondary_udp_server and 
+                self.secondary_udp_server_address != self.primary_udp_server_address
+            ):    
+                self.send_settings_to_slave()
         elif isinstance(self.the_packet, pywsjtx.QSOLoggedPacket):
             log.warning('QSOLoggedPacket should not be handle due to JTDX restrictions')   
         elif isinstance(self.the_packet, pywsjtx.DecodePacket):
@@ -542,7 +550,7 @@ class Listener:
         elif isinstance(self.the_packet, pywsjtx.ReplyPacket):
             log.debug("Received ReplyPacket method")            
         elif isinstance(self.the_packet, pywsjtx.ClosePacket):
-            self.send_stop_monitoring_request()
+            self.callback_stop_monitoring()
         elif isinstance(self.the_packet, pywsjtx.SettingsPacket):
             try:
                 self.master_slave_settings = json.loads(self.the_packet.settings_json)              
@@ -554,12 +562,12 @@ class Listener:
             log.error('Unknown packet type {}; {}'.format(type(self.the_packet),self.the_packet))
 
         if status_update:
-            self.send_status_update()       
+            self.callback_status_update()       
 
-            if self.master_slave_settings:
-                self.send_master_settings_update()
+        if self.master_slave_settings:
+            self.callback_master_settings_update()
                
-    def send_status_update(self):
+    def callback_status_update(self):
         if self.message_callback:
             self.message_callback({
                 'type'                      : 'update_status',
@@ -570,14 +578,14 @@ class Listener:
                 'transmitting'              : self.transmitting
             })
 
-    def send_master_settings_update(self):
+    def callback_master_settings_update(self):
         if self.message_callback:
             self.message_callback({
                 'type'     : 'master_slave_settings',
                 'settings' : self.master_slave_settings
             })
 
-    def send_stop_monitoring_request(self):
+    def callback_stop_monitoring(self):
         log.debug("Received ClosePacket method")
         if self.message_callback:
             self.message_callback({
