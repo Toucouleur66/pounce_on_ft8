@@ -237,7 +237,6 @@ class Listener:
             try:                
                 pkt, addr_port = self.s.sock.recvfrom(8192)
 
-                server_status = None
                 header_end = pkt.find(b'|')
                 if header_end != -1:
                     try:
@@ -247,26 +246,21 @@ class Listener:
 
                         origin_port = int(origin_port_str)
                         origin_addr = (origin_ip, origin_port)
-                        actual_pkt  = pkt[header_end+1:]
-                        """
-                            Update server status
-                        """
-                        server_status = SLAVE_STATUS                        
+                        actual_pkt  = pkt[header_end+1:]                   
                     except (UnicodeDecodeError, ValueError):                        
                         origin_addr = addr_port
                         actual_pkt  = pkt
-                else:                    
-                        origin_addr = addr_port
-                        actual_pkt  = pkt
 
-                        server_status = MASTER_STATUS    
+                    server_status = SLAVE_STATUS        
+                else:                    
+                    origin_addr = addr_port
+                    actual_pkt  = pkt
+
+                    server_status = MASTER_STATUS    
 
                 self.origin_addr = origin_addr
 
-                if (
-                    server_status is not None and
-                    server_status != self.server_status
-                ):
+                if server_status != self.server_status:
                     self.server_status = server_status
                     self.update_settings()                    
                     if self.message_callback:
