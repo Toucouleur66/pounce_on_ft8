@@ -236,7 +236,7 @@ class Listener:
         while self._running:
             try:                
                 pkt, addr_port = self.s.sock.recvfrom(8192)
-
+                server_status = None
                 header_end = pkt.find(b'|')
                 if header_end != -1:
                     try:
@@ -247,11 +247,11 @@ class Listener:
                         origin_port = int(origin_port_str)
                         origin_addr = (origin_ip, origin_port)
                         actual_pkt  = pkt[header_end+1:]                   
+
+                        server_status = SLAVE_STATUS        
                     except (UnicodeDecodeError, ValueError):                        
                         origin_addr = addr_port
                         actual_pkt  = pkt
-
-                    server_status = SLAVE_STATUS        
                 else:                    
                     origin_addr = addr_port
                     actual_pkt  = pkt
