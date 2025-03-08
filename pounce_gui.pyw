@@ -231,10 +231,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.stop_event = threading.Event()
         self.error_occurred.connect(self.set_notice_to_focus_value_label)
         self.message_received.connect(self.on_message_received)
-        
-        self._running                    = False
-        self._instance_status            = MASTER_STATUS
-        self.slave_wanted_callsigns      = None
 
         self.message_times = deque()
 
@@ -252,6 +248,11 @@ class MainApp(QtWidgets.QMainWindow):
         self.network_check_status_interval = 5_000
         self.network_check_status = QtCore.QTimer()
         self.network_check_status.timeout.connect(self.check_connection_status)
+
+        self._running                            = False
+        self._instance_status                    = MASTER_STATUS
+        self.slave_wanted_callsigns              = None
+        self.last_master_band                    = None
 
         self.decode_packet_count                = 0
         self.last_decode_packet_time            = None
@@ -1304,20 +1305,31 @@ class MainApp(QtWidgets.QMainWindow):
         else:
             pass
 
-    def apply_master_setting(self, master_settings=None):
-        if master_settings:
-            master_band_key = list(master_settings.keys())[0]        
-
-            if self.slave_wanted_callsigns is None:
-                self.slave_wanted_callsigns = {}
+    def save_slave_settings(self):
+        if self.slave_wanted_callsigns is None:
+            self.slave_wanted_callsigns = {}
 
             for band in AMATEUR_BANDS.keys():
-                if not self.slave_wanted_callsigns.get(band):
-                    self.slave_wanted_callsigns[band] = self.wanted_callsigns_vars[band].text()
-            
+                self.slave_wanted_callsigns[band] = self.wanted_callsigns_vars[band].text()        
+
+    def apply_master_setting(self, master_settings=None):
+        if master_settings:
+            self.save_slave_settings()
+            master_band_key = list(master_settings.keys())[0]        
+            """
+            if self.last_master_band != master_band_key:
+                self.restore_slave_settings()
+                self.last_master_band = master_band_key
+            """
             if self._instance_status == SLAVE_STATUS:                
                 master_wanted_callsigns = master_settings.get(master_band_key).get('wanted_callsigns')
-                self.wanted_callsigns_vars[master_band_key].setText(", ".join(master_wanted_callsigns))
+
+                log.info(f"Apply master settings: {master_wanted_callsigns}")
+
+                if not master_wanted_callsigns:
+                    self.wanted_callsigns_vars[master_band_key].clear()
+                else:
+                    self.wanted_callsigns_vars[master_band_key].setText(", ".join(master_wanted_callsigns))
 
     def restore_slave_settings(self):
         if (
@@ -1325,7 +1337,11 @@ class MainApp(QtWidgets.QMainWindow):
             self.slave_wanted_callsigns
         ):            
             for band in AMATEUR_BANDS.keys():
-                self.wanted_callsigns_vars[band].setText(self.slave_wanted_callsigns[band])
+                slave_wanted_callsigns_band = self.slave_wanted_callsigns[band]
+                if not slave_wanted_callsigns_band:
+                    self.wanted_callsigns_vars[band].clear()
+                else:
+                    self.wanted_callsigns_vars[band].setText(slave_wanted_callsigns_band)                  
         
     def process_message_buffer(self):     
         if not self.message_buffer:
@@ -1833,11 +1849,9 @@ class MainApp(QtWidgets.QMainWindow):
                 if self.global_sound_toggle.isChecked():      
                     self.play_sound("error_occurred")
         elif nothing_to_decode: 
-            if not self._instance_status == SLAVE_STATUS:
-                self.update_status_label_style("white", "black")
+            self.update_status_label_style("white", "black")
         else:
             self.connection_lost_shown = False      
-    
             if self._instance_status == SLAVE_STATUS:
                 self.update_status_label_style(FG_TIMER_COLOR, EVEN_COLOR)
             else:

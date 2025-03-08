@@ -652,21 +652,19 @@ class Listener:
         return int(suggested_freq)
     
     def handle_settings_packet(self):
-        log.info(f"SettingsPacket received: {self.master_slave_settings}")
         try:
             self.master_slave_settings = json.loads(self.the_packet.settings_json)              
             if (
-                self.last_master_slave_settings is None and
+                self.last_master_slave_settings is None or
                 self.last_master_slave_settings != self.master_slave_settings
-            ):
-                
+            ):                
                 self.last_master_slave_settings = self.master_slave_settings
                 if self.message_callback:
                     self.message_callback({
                         'type'     : 'master_slave_settings',
                         'settings' : self.master_slave_settings
                     })
-                log.info(f"SettingsPacket received and sent to GUI")                    
+                log.info(f"SettingsPacket received & callback sent to GUI: {self.master_slave_settings}")                    
         except Exception as e:
             log.error(f"Error processing SettingsPacket: {e}")     
 
