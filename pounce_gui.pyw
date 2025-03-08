@@ -233,9 +233,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.message_received.connect(self.on_message_received)
         
         self._running                    = False
-
-        self.current_server_status       = MASTER_STATUS
-        self.slave_wanted_callsigns_vars = None
+        self._instance_status            = MASTER_STATUS
+        self.slave_wanted_callsigns      = None
 
         self.message_times = deque()
 
@@ -1199,7 +1198,7 @@ class MainApp(QtWidgets.QMainWindow):
             if message_type == 'update_mode':
                 self.mode = message.get('mode')          
             elif message_type == 'master_status':
-                self.check_current_server_status(
+                self.check_instance_status(
                         message.get('addr_port'),
                         message.get('status')
                     )          
@@ -1306,13 +1305,27 @@ class MainApp(QtWidgets.QMainWindow):
             pass
 
     def apply_master_setting(self, master_settings=None):
-        master_band_key = list(master_settings.keys())[0]        
-        master_wanted_callsigns = master_settings.get(master_band_key).get('wanted_callsigns')
-        self.wanted_callsigns_vars[master_band_key].setText(", ".join(master_wanted_callsigns))
+        if master_settings:
+            master_band_key = list(master_settings.keys())[0]        
+
+            if self.slave_wanted_callsigns is None:
+                self.slave_wanted_callsigns = {}
+
+            for band in AMATEUR_BANDS.keys():
+                if not self.slave_wanted_callsigns.get(band):
+                    self.slave_wanted_callsigns[band] = self.wanted_callsigns_vars[band].text()
+            
+            if self._instance_status == SLAVE_STATUS:                
+                master_wanted_callsigns = master_settings.get(master_band_key).get('wanted_callsigns')
+                self.wanted_callsigns_vars[master_band_key].setText(", ".join(master_wanted_callsigns))
 
     def restore_slave_settings(self):
-        if self.slave_wanted_callsigns_vars:
-            self.wanted_callsigns_vars = self.slave_wanted_callsigns_vars.copy()
+        if (
+            self._instance_status == SLAVE_STATUS and
+            self.slave_wanted_callsigns
+        ):            
+            for band in AMATEUR_BANDS.keys():
+                self.wanted_callsigns_vars[band].setText(self.slave_wanted_callsigns[band])
         
     def process_message_buffer(self):     
         if not self.message_buffer:
@@ -1692,26 +1705,25 @@ class MainApp(QtWidgets.QMainWindow):
         else:
             return ''
         
-    def check_current_server_status(
+    def check_instance_status(
         self,
-        addr_port               = None,
-        status                  = None
+        addr_port             = None,
+        updated_instance_status    = None
     ):        
-        if status != self.current_server_status:
-            """
-                We are going to switch from Master to Slave
-            """
-            if self.current_server_status == MASTER_STATUS:
-                self.slave_wanted_callsigns_vars = self.wanted_callsigns_vars.copy()
+        if updated_instance_status != self._instance_status:
+            if (
+                self._instance_status == MASTER_STATUS and
+                updated_instance_status == SLAVE_STATUS
+            ):
                 self.master_slave_addr_port = addr_port     
 
-            """
-                We are going to switch from Slave to Master
-            """
-            if self.current_server_status == SLAVE_STATUS:
+            if (
+                self._instance_status == SLAVE_STATUS and
+                updated_instance_status == MASTER_STATUS
+            ):
                 self.restore_slave_settings()
 
-        self.current_server_status = status    
+        self._instance_status = updated_instance_status    
         self.update_tab_widget_labels_style()            
 
     def check_connection_status(
@@ -1742,7 +1754,6 @@ class MainApp(QtWidgets.QMainWindow):
         if frequency is not None:
             operating_band = get_amateur_band(frequency)     
             if operating_band != 'Invalid' and self.operating_band != operating_band:
-                self.restore_slave_settings()
                 self.apply_band_change(operating_band)
            
         if self.mode is not None:
@@ -1759,7 +1770,7 @@ class MainApp(QtWidgets.QMainWindow):
         else:
             status_text_array.append("No HeartBeat received yet.")
 
-        if self.current_server_status == SLAVE_STATUS and not connection_lost:
+        if self._instance_status == SLAVE_STATUS and not connection_lost:
             status_text_array.append(f"Slave connected ~ {self.master_slave_addr_port[0]}:{self.master_slave_addr_port[1]}")
 
         decoded_packet_text = f"Message Packet #{self.output_model.rowCount()} {self.get_size_of_output_model()}"
@@ -1822,12 +1833,12 @@ class MainApp(QtWidgets.QMainWindow):
                 if self.global_sound_toggle.isChecked():      
                     self.play_sound("error_occurred")
         elif nothing_to_decode: 
-            if not self.current_server_status == SLAVE_STATUS:
+            if not self._instance_status == SLAVE_STATUS:
                 self.update_status_label_style("white", "black")
         else:
             self.connection_lost_shown = False      
     
-            if self.current_server_status == SLAVE_STATUS:
+            if self._instance_status == SLAVE_STATUS:
                 self.update_status_label_style(FG_TIMER_COLOR, EVEN_COLOR)
             else:
                 self.update_status_label_style(BG_COLOR_BLACK_ON_YELLOW, FG_COLOR_BLACK_ON_CYAN)
@@ -2305,7 +2316,7 @@ class MainApp(QtWidgets.QMainWindow):
 
                 if band == self.operating_band and self._running:
                     label_widget.setStyleSheet(active_style_template.format(bg_color=bg_color, fg_color=fg_color))
-                    if idx == 1 and self.current_server_status == SLAVE_STATUS:
+                    if idx == 1 and self._instance_status == SLAVE_STATUS:
                         input_widget.setEnabled(False)
                         input_widget.setStyleSheet(slave_style)
                     else:
@@ -2733,12 +2744,12 @@ class MainApp(QtWidgets.QMainWindow):
             self.stop_event.set()
 
             self.worker              = None
-            self._running            = False
-            self.current_server_status = MASTER_STATUS            
+            self._running            = False       
 
             self.update_tab_widget_labels_style()
             self.restore_slave_settings()
 
+            self._instance_status      = MASTER_STATUS
             self.operating_band      = None
             self.transmitting        = False
             

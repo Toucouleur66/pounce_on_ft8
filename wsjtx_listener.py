@@ -236,8 +236,9 @@ class Listener:
         while self._running:
             try:                
                 pkt, addr_port = self.s.sock.recvfrom(8192)
-                header_end = pkt.find(b'|')
 
+                server_status = None
+                header_end = pkt.find(b'|')
                 if header_end != -1:
                     try:
                         header = pkt[:header_end].decode('utf-8')
@@ -262,7 +263,10 @@ class Listener:
 
                 self.origin_addr = origin_addr
 
-                if server_status != self.server_status:
+                if (
+                    server_status is not None and
+                    server_status != self.server_status
+                ):
                     self.server_status = server_status
                     self.update_settings()                    
                     if self.message_callback:
