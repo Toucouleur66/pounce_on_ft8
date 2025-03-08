@@ -126,6 +126,7 @@ class Listener:
 
         self.server_status                  = None
         self.master_slave_settings          = None
+        self.last_master_slave_settings     = None
 
         self.enable_secondary_udp_server    = enable_secondary_udp_server or False
 
@@ -554,7 +555,8 @@ class Listener:
         elif isinstance(self.the_packet, pywsjtx.SettingsPacket):
             try:
                 self.master_slave_settings = json.loads(self.the_packet.settings_json)              
-                log.info(f"SettingsPacket received: {self.master_settings}")
+                if self.enable_log_packet_data:
+                    log.info(f"SettingsPacket received: {self.master_slave_settings}")
             except Exception as e:
                 log.error(f"Error processing SettingsPacket: {e}")            
         else:
@@ -564,7 +566,11 @@ class Listener:
         if status_update:
             self.callback_status_update()       
 
-        if self.master_slave_settings:
+        if (
+            self.last_master_slave_settings is None and
+            self.last_master_slave_settings != self.master_slave_settings
+        ):
+            self.last_master_slave_settings = self.master_slave_settings
             self.callback_master_settings_update()
                
     def callback_status_update(self):

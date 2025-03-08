@@ -1203,6 +1203,7 @@ class MainApp(QtWidgets.QMainWindow):
                         message.get('status')
                     )          
             elif message_type == 'master_slave_settings':
+                log.warning(f"Je reçois quoi {message.get('settings')}")
                 self.handle_master_settings(message.get('settings'))   
             elif message_type == 'update_frequency':
                 self.frequency = message.get('frequency')                
@@ -1304,15 +1305,16 @@ class MainApp(QtWidgets.QMainWindow):
         else:
             pass
     
-    def handle_master_settings(self, settings=None, action='set'):
-        master_band_key = f'master_{self.operating_band}'
+    def handle_master_settings(self, settings=None):
+        if self.master_slave_status == SLAVE_STATUS and self.operating_band:
+            master_band_key = f'master_{self.operating_band}'
 
-        if action == 'set' and settings is not None:
-            self.wanted_callsigns_vars[master_band_key] = self.wanted_callsigns_vars[self.operating_band].text()
-            self.wanted_callsigns_vars[self.operating_band].setText(", ".join(settings.get('wanted_callsigns')))
-        elif action == 'restore':
-            if self.wanted_callsigns_vars.get(master_band_key):
-                self.wanted_callsigns_vars[self.operating_band].setText(self.wanted_callsigns_vars[master_band_key])
+            if settings:
+                self.wanted_callsigns_vars[master_band_key] = self.wanted_callsigns_vars[self.operating_band].text()
+                self.wanted_callsigns_vars[self.operating_band].setText(", ".join(settings.get('wanted_callsigns')))
+            else:
+                if self.wanted_callsigns_vars.get(master_band_key):
+                    self.wanted_callsigns_vars[self.operating_band].setText(self.wanted_callsigns_vars[master_band_key])
         
     def process_message_buffer(self):     
         if not self.message_buffer:
@@ -1699,7 +1701,7 @@ class MainApp(QtWidgets.QMainWindow):
     ):        
         self.master_slave_status = status                      
         if self.master_slave_status == MASTER_STATUS:
-            self.handle_master_settings(action='restore')
+            self.handle_master_settings()
         else:      
             self.master_slave_addr_port = addr_port      
         self.update_tab_widget_labels_style()            
@@ -1732,6 +1734,7 @@ class MainApp(QtWidgets.QMainWindow):
         if frequency is not None:
             operating_band = get_amateur_band(frequency)     
             if operating_band != 'Invalid' and self.operating_band != operating_band:
+                self.handle_master_settings()
                 self.apply_band_change(operating_band)
            
         if self.mode is not None:
@@ -1806,7 +1809,7 @@ class MainApp(QtWidgets.QMainWindow):
             if not self.connection_lost_shown:
                 self.connection_lost_shown = True
                 self.operating_band = None
-                self.handle_master_settings(action='restore')
+                self.handle_master_settings()
                 self.update_tab_widget_labels_style()
                 if self.global_sound_toggle.isChecked():      
                     self.play_sound("error_occurred")
@@ -1872,7 +1875,7 @@ class MainApp(QtWidgets.QMainWindow):
         log.debug("Quit")
 
     def restart_application(self):
-        self.handle_master_settings(action='restore')
+        self.handle_master_settings()
         self.save_window_position()
 
         self.save_band_settings()
@@ -2726,7 +2729,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.master_slave_status = MASTER_STATUS            
 
             self.update_tab_widget_labels_style()
-            self.handle_master_settings(action='restore')
+            self.handle_master_settings()
 
             self.operating_band      = None
             self.transmitting        = False
