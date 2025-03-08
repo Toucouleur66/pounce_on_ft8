@@ -392,16 +392,18 @@ class Listener:
         self.s.send_packet(self.origin_addr, reply_beat_packet)
         
     def send_settings_to_slave(self):
-        if self.server_status == MASTER_STATUS:
+        if self.server_status == MASTER_STATUS and self.band :
             """
                 Send settings to slave server if we are master
             """
-            settings = {
+            settings = { 
+                self.band               : {
                 "wanted_callsigns"      : self.wanted_callsigns,
                 "excluded_callsigns"    : self.excluded_callsigns,
                 "monitored_callsigns"   : self.monitored_callsigns,
                 "monitored_cq_zones"    : self.monitored_cq_zones,
                 "excluded_cq_zones"     : self.excluded_cq_zones,
+                }
             }
 
             settings_packet = pywsjtx.SettingsPacket.Builder(
@@ -522,26 +524,7 @@ class Listener:
         elif isinstance(self.the_packet, pywsjtx.QSOLoggedPacket):
             log.warning('QSOLoggedPacket should not be handle due to JTDX restrictions')   
         elif isinstance(self.the_packet, pywsjtx.DecodePacket):
-            self.last_decode_packet_time = datetime.now(timezone.utc)
-            self.decode_packet_count += 1
-            """
-                We need a StatusPacket before handling the DecodePacket
-                and we have to check last_band_time_change            
-            """
-            seconds_since_band_change = round(
-                (datetime.now() - self.last_band_time_change).total_seconds()
-            )
-
-            if not self.my_call:
-                log.error("No StatusPacket received yet, can\'t handle DecodePacket for now.") 
-            elif seconds_since_band_change < BAND_CHANGE_WAITING_DELAY:
-                wait_before_decoding = BAND_CHANGE_WAITING_DELAY - seconds_since_band_change
-                if wait_before_decoding != self.wait_before_decoding:
-                    self.wait_before_decoding = wait_before_decoding
-                    log.error(f"Can't handle DecodePacket yet. {wait_before_decoding} seconds to wait.")    
-            else:
-                self.handle_decode_packet()
-            
+            self.handle_decode_packet()
             if self.enable_gap_finder:
                 self.collect_used_frequencies()                     
         elif isinstance(self.the_packet, pywsjtx.ClearPacket):
@@ -553,25 +536,13 @@ class Listener:
         elif isinstance(self.the_packet, pywsjtx.ClosePacket):
             self.callback_stop_monitoring()
         elif isinstance(self.the_packet, pywsjtx.SettingsPacket):
-            try:
-                self.master_slave_settings = json.loads(self.the_packet.settings_json)              
-                if self.enable_log_packet_data:
-                    log.info(f"SettingsPacket received: {self.master_slave_settings}")
-            except Exception as e:
-                log.error(f"Error processing SettingsPacket: {e}")            
+            self.handle_settings_packet()       
         else:
             status_update = False
             log.error('Unknown packet type {}; {}'.format(type(self.the_packet),self.the_packet))
 
         if status_update:
             self.callback_status_update()       
-
-        if (
-            self.last_master_slave_settings is None and
-            self.last_master_slave_settings != self.master_slave_settings
-        ):
-            self.last_master_slave_settings = self.master_slave_settings
-            self.callback_master_settings_update()
                
     def callback_status_update(self):
         if self.message_callback:
@@ -582,13 +553,6 @@ class Listener:
                 'last_decode_packet_time'   : self.last_decode_packet_time,
                 'last_heartbeat_time'       : self.last_heartbeat_time,
                 'transmitting'              : self.transmitting
-            })
-
-    def callback_master_settings_update(self):
-        if self.message_callback:
-            self.message_callback({
-                'type'     : 'master_slave_settings',
-                'settings' : self.master_slave_settings
             })
 
     def callback_stop_monitoring(self):
@@ -688,8 +652,49 @@ class Listener:
         suggested_freq = (largest_gap[0] + largest_gap[1]) / 2
 
         return int(suggested_freq)
+    
+    def handle_settings_packet(self):
+        try:
+            self.master_slave_settings = json.loads(self.the_packet.settings_json)              
+            if self.enable_log_packet_data:
+                log.info(f"SettingsPacket received: {self.master_slave_settings}")
+
+            if (
+                self.last_master_slave_settings is None and
+                self.last_master_slave_settings != self.master_slave_settings
+            ):
+                self.last_master_slave_settings = self.master_slave_settings
+                if self.message_callback:
+                    self.message_callback({
+                        'type'     : 'master_slave_settings',
+                        'settings' : self.master_slave_settings
+                    })
+        except Exception as e:
+            log.error(f"Error processing SettingsPacket: {e}")     
 
     def handle_decode_packet(self):
+        self.last_decode_packet_time = datetime.now(timezone.utc)
+        self.decode_packet_count += 1
+        """
+            We need a StatusPacket before handling the DecodePacket
+            and we have to check last_band_time_change            
+        """
+        seconds_since_band_change = round(
+            (datetime.now() - self.last_band_time_change).total_seconds()
+        )
+
+        if not self.my_call:
+            log.error("No StatusPacket received yet, can\'t handle DecodePacket for now.") 
+        elif seconds_since_band_change < BAND_CHANGE_WAITING_DELAY:
+            wait_before_decoding = BAND_CHANGE_WAITING_DELAY - seconds_since_band_change
+            if wait_before_decoding != self.wait_before_decoding:
+                self.wait_before_decoding = wait_before_decoding
+                log.error(f"Can't handle DecodePacket yet. {wait_before_decoding} seconds to wait.")    
+                return 
+
+        """
+            Start to handle DecodePacket
+        """
         if self.enable_log_packet_data:
             log.debug('{}'.format(self.the_packet))
 
