@@ -232,9 +232,10 @@ class MainApp(QtWidgets.QMainWindow):
         self.error_occurred.connect(self.set_notice_to_focus_value_label)
         self.message_received.connect(self.on_message_received)
         
-        self._running = False
+        self._running                    = False
 
-        self.current_server_status = MASTER_STATUS
+        self.current_server_status       = MASTER_STATUS
+        self.slave_wanted_callsigns_vars = None
 
         self.message_times = deque()
 
