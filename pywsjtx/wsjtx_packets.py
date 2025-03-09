@@ -391,7 +391,6 @@ class ReplyPacket(GenericWSJTXPacket):
         pkt.write_QInt8(0)
         return pkt.packet
 
-
 class QSOLoggedPacket(GenericWSJTXPacket):
     TYPE_VALUE = 5
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
@@ -468,7 +467,6 @@ class FreeTextPacket(GenericWSJTXPacket):
 
     @classmethod
     def Builder(cls,to_wsjtx_id='WSJT-X', text="", send=False):
-        # build the packet to send
         pkt = PacketWriter()
         print('To_wsjtx_id ',to_wsjtx_id,' text ',text, 'send ',send)
         pkt.write_QInt32(FreeTextPacket.TYPE_VALUE)
@@ -575,7 +573,7 @@ class ConfigurePacket(GenericWSJTXPacket):
         pkt.write_QBool(generate_messages)
         return pkt.packet
 
-class SettingsPacket(GenericWSJTXPacket):
+class SettingPacket(GenericWSJTXPacket):
     TYPE_VALUE = 33
 
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
@@ -586,12 +584,12 @@ class SettingsPacket(GenericWSJTXPacket):
         self.settings_json = ps.QString() 
 
     def __repr__(self):
-        return f"SettingsPacket: settings: {self.settings_json}"
+        return f"SettingPacket: settings: {self.settings_json}"
 
     @classmethod
     def Builder(cls, to_wsjtx_id='WSJT-X', settings_dict=None):
         pkt = PacketWriter()
-        pkt.write_QInt32(SettingsPacket.TYPE_VALUE)
+        pkt.write_QInt32(SettingPacket.TYPE_VALUE)
         pkt.write_QString(to_wsjtx_id)
         if settings_dict is None:
             settings_dict = {}
@@ -600,8 +598,25 @@ class SettingsPacket(GenericWSJTXPacket):
         pkt.write_QString(settings_str)
         return pkt.packet
 
-class WSJTXPacketClassFactory(GenericWSJTXPacket):
+class RequestSettingPacket(GenericWSJTXPacket):
+    TYPE_VALUE = 34
 
+    def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
+        GenericWSJTXPacket.__init__(self, addr_port, magic, schema, pkt_type, id, pkt)
+        ps = PacketReader(pkt)
+        the_type = ps.QInt32()
+        self.wsjtx_id = ps.QString()
+
+    def __repr__(self):
+        return f"RequestSettingPacket"
+
+    @classmethod
+    def Builder(cls, to_wsjtx_id='WSJT-X', settings_dict=None):
+        pkt = PacketWriter()
+        pkt.write_QInt32(RequestSettingPacket.TYPE_VALUE)
+        return pkt.packet
+
+class WSJTXPacketClassFactory(GenericWSJTXPacket):
     PACKET_TYPE_TO_OBJ_MAP = {
         HeartBeatPacket.TYPE_VALUE: HeartBeatPacket,
         StatusPacket.TYPE_VALUE:    StatusPacket,
@@ -618,7 +633,8 @@ class WSJTXPacketClassFactory(GenericWSJTXPacket):
         SetTxDeltaFreqPacket.TYPE_VALUE: SetTxDeltaFreqPacket,
         HighlightCallsignPacket.TYPE_VALUE: HighlightCallsignPacket,
         ConfigurePacket.TYPE_VALUE: ConfigurePacket,
-        SettingsPacket.TYPE_VALUE: SettingsPacket 
+        SettingPacket.TYPE_VALUE: SettingPacket,
+        RequestSettingPacket.TYPE_VALUE: RequestSettingPacket 
     }
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
         self.addr_port = addr_port

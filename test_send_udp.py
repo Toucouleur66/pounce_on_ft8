@@ -228,7 +228,7 @@ class DecodePacket(GenericWSJTXPacket):
     def __repr__(self):
         return f"DecodePacket: from {self.addr_port[0]}:{self.addr_port[1]}, wsjtx_id: {self.wsjtx_id}, message: {self.message}"
 
-class SettingsPacket(GenericWSJTXPacket):
+class SettingPacket(GenericWSJTXPacket):
     TYPE_VALUE = 33
 
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
@@ -238,12 +238,12 @@ class SettingsPacket(GenericWSJTXPacket):
         self.settings_json = ps.QString() 
 
     def __repr__(self):
-        return f"SettingsPacket: settings: {self.settings_json}"
+        return f"SettingPacket: settings: {self.settings_json}"
 
     @classmethod
     def Builder(cls, to_wsjtx_id='WSJT-X', settings_dict=None):
         pkt = PacketWriter()
-        pkt.write_QInt32(SettingsPacket.TYPE_VALUE)
+        pkt.write_QInt32(SettingPacket.TYPE_VALUE)
         pkt.write_QString(to_wsjtx_id)
         if settings_dict is None:
             settings_dict = {}
@@ -255,7 +255,7 @@ class WSJTXPacketClassFactory(GenericWSJTXPacket):
     PACKET_TYPE_TO_OBJ_MAP = {
         StatusPacket.TYPE_VALUE: StatusPacket,
         DecodePacket.TYPE_VALUE: DecodePacket,
-        SettingsPacket.TYPE_VALUE: SettingsPacket
+        SettingPacket.TYPE_VALUE: SettingPacket
     }
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
         self.addr_port = addr_port
@@ -393,8 +393,8 @@ def send_settings_packet(
     ):
     UDP_IP = ip_address
     UDP_PORT = udp_port
-    # Construire le paquet SettingsPacket
-    packet = SettingsPacket.Builder(to_wsjtx_id=wsjtx_id, settings_dict=settings_dict)
+    # Construire le paquet SettingPacket
+    packet = SettingPacket.Builder(to_wsjtx_id=wsjtx_id, settings_dict=settings_dict)
     # Construire un header "primary_addr:primary_port|"
     header = f"{primary_addr}:{primary_port}|".encode('utf-8')
     packet_with_header = header + packet

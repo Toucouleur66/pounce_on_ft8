@@ -124,11 +124,6 @@ class Listener:
         self.secondary_udp_server_address   = secondary_udp_server_address or get_local_ip_address()
         self.secondary_udp_server_port      = secondary_udp_server_port or 2237
 
-        self.server_status                  = None
-        self.master_slave_settings          = None
-        self.last_master_slave_settings     = None
-        self.master_operating_band          = None
-
         self.enable_secondary_udp_server    = enable_secondary_udp_server or False
 
         self.enable_sending_reply           = enable_sending_reply
@@ -164,10 +159,13 @@ class Listener:
         self.marathon_preference            = marathon_preference
 
         self.adif_data                      = {}        
-        
-        self.update_settings()
 
         self._running                       = True
+        
+        self._instance                      = None
+        self.master_slave_settings          = None
+        self.last_master_slave_settings     = None
+        self.master_operating_band          = None
         
         self.packet_queue = queue.Queue(maxsize=1000)
         self.receiver_thread                = QThread()
@@ -181,6 +179,8 @@ class Listener:
 
         self.receiver_thread.started.connect(self.receiver_worker.run)
         self.processor_thread.started.connect(self.processor_worker.run)
+
+        self.update_settings()
 
         """
             Check ADIF file to handle Worked B4 
@@ -237,7 +237,7 @@ class Listener:
         while self._running:
             try:                
                 pkt, addr_port = self.s.sock.recvfrom(8192)
-                server_status = None
+                _instance = None
                 header_end = pkt.find(b'|')
                 if header_end != -1:
                     try:
@@ -249,7 +249,7 @@ class Listener:
                         origin_addr = (origin_ip, origin_port)
                         actual_pkt  = pkt[header_end+1:]                   
 
-                        server_status = SLAVE        
+                        _instance = SLAVE        
                     except (UnicodeDecodeError, ValueError):                        
                         origin_addr = addr_port
                         actual_pkt  = pkt
@@ -257,17 +257,17 @@ class Listener:
                     origin_addr = addr_port
                     actual_pkt  = pkt
 
-                    server_status = MASTER    
+                    _instance = MASTER    
 
                 self.origin_addr = origin_addr
 
-                if server_status and server_status != self.server_status:
-                    self.server_status = server_status
+                if _instance and _instance != self._instance:
+                    self._instance = _instance
                     self.update_settings()                    
                     if self.message_callback:
                         self.message_callback({
                             'type'      : 'master_status',
-                            'status'    : self.server_status,
+                            'status'    : self._instance,
                             'addr_port' : addr_port
                         })
 
@@ -311,7 +311,7 @@ class Listener:
                     """
                         Forward packet to secondary server
                     """
-                    self.forward_packet(packet, addr_port)              
+                    self.forward_packet(packet)              
             except Exception as e:
                 error_message = f"Exception in process_packets: {e}\n{traceback.format_exc()}"
                 log.info(error_message)
@@ -321,22 +321,24 @@ class Listener:
                 self.packet_queue.task_done()
         log.info("Processor thread stopped")
 
-    def forward_packet(self, packet, addr_port):
+    def add_header(self, address=None, port=None):
+        if address is None:
+            address = self.primary_udp_server_address
+        if port is None:
+            port = self.primary_udp_server_port
+        """
+            Add header "IP:port" to the packet and
+            make sure to add "|" to the end of the header
+        """
+        return f"{address}:{port}|".encode('utf-8') 
+
+    def forward_packet(self, packet):
         target_server = (
             self.secondary_udp_server_address,
             self.secondary_udp_server_port
         )
-        """
-            Add header "IP:port" to the packet and
-            make sure to add "|" to the end of the header
-            so we can handle it with receive_packets
-            on the other side (Secondary UDP Server) as a slave
-        """
-        header = f"{addr_port[0]}:{addr_port[1]}|".encode('utf-8')
-        fwd_packet = header + packet
-
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as send_sock:
-            send_sock.sendto(fwd_packet, target_server)
+            send_sock.sendto(self.add_header() + packet, target_server)
 
     def update_settings(self):
         self.wanted_callsigns       = self.monitoring_settings.get_wanted_callsigns()
@@ -348,7 +350,8 @@ class Listener:
 
         log_output = []
         log_output.append(f"Updated settings (~{CURRENT_VERSION_NUMBER}):")
-        log_output.append(f"Server={self.server_status}")
+        log_output.append(f"Instance={self._instance}")
+        log_output.append(f"MyCall={self.my_call}")
         log_output.append(f"EnableSendingReply={self.enable_sending_reply}")             
         log_output.append(f"Band={self.band}")   
         log_output.append(f"WantedCallsigns={self.wanted_callsigns}")
@@ -362,8 +365,53 @@ class Listener:
 
         log.warning(f"\n\t".join(log_output))
 
+    def request_master_settings(self):
+        if (
+            self._instance == SLAVE and
+            self.band 
+        ):  
+            self.s.send_packet(
+                (
+                    self.secondary_udp_server_address,
+                    self.secondary_udp_server_port
+                ),  pywsjtx.RequestSettingPacket.Builder(self.the_packet.wsjtx_id)
+            )
+            log.info(f"RequestSettingPacket sent.")      
+        
+    def send_master_settings(self):
+        if (
+            self._instance == MASTER and
+            self.band and 
+            self.enable_secondary_udp_server and 
+            self.secondary_udp_server_address != self.primary_udp_server_address
+        ):    
+            settings = { 
+                'band'                  : self.band,
+                'wanted_callsigns'      : self.wanted_callsigns,
+                'excluded_callsigns'    : self.excluded_callsigns,
+                'monitored_callsigns'   : self.monitored_callsigns,
+                'monitored_cq_zones'    : self.monitored_cq_zones,
+                'excluded_cq_zones'     : self.excluded_cq_zones,
+            }
+
+            settings_packet = pywsjtx.SettingPacket.Builder(
+                to_wsjtx_id="WSJT-X",
+                settings_dict=settings
+            )
+
+            self.s.send_packet(
+                (
+                    self.secondary_udp_server_address,
+                    self.secondary_udp_server_port
+                ),  self.add_header() + settings_packet
+            )
+            log.info(f"SettingPacket sent.")        
+
     def stop(self):
         self._running = False
+        self._instance = MASTER
+        self.master_slave_settings = False
+
         try:
             self.s.sock.close()
         except Exception:
@@ -385,41 +433,11 @@ class Listener:
             self.message_callback(display_message)
 
     def send_heartbeat(self):
-        if self.server_status == SLAVE:
+        if self._instance == SLAVE:
             return        
         max_schema = max(self.the_packet.max_schema, 3)
         reply_beat_packet = pywsjtx.HeartBeatPacket.Builder(self.the_packet.wsjtx_id,max_schema)
         self.s.send_packet(self.origin_addr, reply_beat_packet)
-        
-    def send_settings_to_slave(self):
-        if (
-            self.server_status == MASTER and
-            self.band and 
-            self.enable_secondary_udp_server and 
-            self.secondary_udp_server_address != self.primary_udp_server_address
-        ):    
-            settings = { 
-                "band"                  : self.band,
-                "wanted_callsigns"      : self.wanted_callsigns,
-                "excluded_callsigns"    : self.excluded_callsigns,
-                "monitored_callsigns"   : self.monitored_callsigns,
-                "monitored_cq_zones"    : self.monitored_cq_zones,
-                "excluded_cq_zones"     : self.excluded_cq_zones,
-            }
-
-            settings_packet = pywsjtx.SettingsPacket.Builder(
-                to_wsjtx_id="WSJT-X",
-                settings_dict=settings
-            )
-            header = f"{self.primary_udp_server_address}:{self.primary_udp_server_port}|".encode('utf-8')            
-
-            self.s.send_packet(
-                (
-                    self.secondary_udp_server_address,
-                    self.secondary_udp_server_port
-                ),  header + settings_packet
-            )
-            log.info(f"Settings sent to {self.secondary_udp_server_address}:{self.secondary_udp_server_port}")        
 
     def handle_status_packet(self):
         if self.enable_log_packet_data:
@@ -461,7 +479,15 @@ class Listener:
                     self.message_callback({
                         'type'      : 'update_frequency',
                         'frequency' : self.frequency
-                    })                    
+                    })       
+
+            if (
+                self._instance == SLAVE and (
+                    self.master_slave_settings is None or 
+                    self.master_operating_band != self.band
+                )
+            ):
+                    self.request_master_settings()       
             
             if self.targeted_call is not None:
                 """
@@ -527,7 +553,7 @@ class Listener:
             log.debug("Received ReplyPacket method")            
         elif isinstance(self.the_packet, pywsjtx.ClosePacket):
             self.callback_stop_monitoring()
-        elif isinstance(self.the_packet, pywsjtx.SettingsPacket):
+        elif isinstance(self.the_packet, pywsjtx.SettingPacket):
             self.handle_settings_packet()       
         else:
             status_update = False
@@ -646,7 +672,11 @@ class Listener:
         return int(suggested_freq)
     
     def handle_settings_packet(self):
-        if self.band is not None and self.master_operating_band == self.band:
+        if (
+            self._instance == SLAVE and
+            self.band is not None and 
+            self.master_operating_band == self.band
+        ):
             try:                
                 self.master_slave_settings = json.loads(self.the_packet.settings_json)              
                 if (
@@ -659,9 +689,17 @@ class Listener:
                             'type'     : 'master_slave_settings',
                             'settings' : self.master_slave_settings
                         })
-                    log.info(f"SettingsPacket received & callback sent to GUI: {self.master_slave_settings}")                    
+                    log.info(f"SettingPacket received & callback sent to GUI: {self.master_slave_settings}")                    
             except Exception as e:
-                log.error(f"Error processing SettingsPacket: {e}")     
+                log.error(f"Error processing SettingPacket: {e}")  
+        elif self._instance == MASTER:
+            try:                                       
+                if json.loads(self.the_packet.settings_json).get(SLAVE) == True:
+                    self.send_master_settings()
+            except Exception as e:
+                log.error(f"Error processing SettingPacket: {e}")     
+        else:
+            log.error(f"Can't handle SettingPacket yet.")     
 
     def handle_decode_packet(self):
         self.last_decode_packet_time = datetime.now(timezone.utc)
@@ -1098,7 +1136,7 @@ class Listener:
         self.reply_to_packet(callsign_packet) 
 
     def halt_packet(self):
-        if self.server_status == SLAVE:
+        if self._instance == SLAVE:
             return        
         
         try:
@@ -1109,7 +1147,7 @@ class Listener:
             log.error(f"Error sending packets: {e}\n{traceback.format_exc()}")
 
     def reply_to_packet(self, callsign_packet):
-        if self.server_status == SLAVE:
+        if self._instance == SLAVE:
             return        
         
         try:            
@@ -1132,7 +1170,7 @@ class Listener:
             log.error(f"Error sending packets: {e}\n{traceback.format_exc()}")
 
     def set_delta_f_packet(self, frequency):  
-        if self.server_status == SLAVE:
+        if self._instance == SLAVE:
             return        
       
         try:
