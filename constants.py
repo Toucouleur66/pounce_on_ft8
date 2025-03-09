@@ -16,8 +16,8 @@ README_URL                      = "https://storage.de.cloud.ovh.net/v1/AUTH_3116
 EVEN                            = "EVEN"
 ODD                             = "ODD"
 
-MASTER_STATUS                   = "master_status"
-SLAVE_STATUS                    = "slave_status"      
+MASTER                          = "MASTER"
+SLAVE                           = "SLAVE"      
 
 EVEN_COLOR                      = "#9DFFFE"
 ODD_COLOR                       = "#FFFE9F"

@@ -13,6 +13,7 @@ class Worker(QObject):
     listener_started       = pyqtSignal()
     message                = pyqtSignal(object)
     update_settings_signal = pyqtSignal()
+    send_settings_signal   = pyqtSignal()
 
     def __init__(
             self,
@@ -41,6 +42,7 @@ class Worker(QObject):
         super(Worker, self).__init__()
 
         self.update_settings_signal.connect(self.update_settings)
+        self.send_settings_signal.connect(self.send_settings_to_slave)
 
         self.listener                           = None 
         self.stop_event                         = stop_event
@@ -118,3 +120,7 @@ class Worker(QObject):
     def update_settings(self):
         if self.listener is not None:
             self.listener.update_settings()
+
+    def send_settings_to_slave(self):
+        if self.listener is not None:
+            self.listener.send_settings_to_slave()            

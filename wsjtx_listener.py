@@ -34,8 +34,8 @@ from constants import (
     BAND_CHANGE_WAITING_DELAY,
     EVEN,
     ODD,
-    MASTER_STATUS,
-    SLAVE_STATUS,
+    MASTER,
+    SLAVE,
     MODE_FOX_HOUND,
     MODE_NORMAL,
     WKB4_REPLY_MODE_NEVER,
@@ -127,6 +127,7 @@ class Listener:
         self.server_status                  = None
         self.master_slave_settings          = None
         self.last_master_slave_settings     = None
+        self.master_operating_band          = None
 
         self.enable_secondary_udp_server    = enable_secondary_udp_server or False
 
@@ -248,7 +249,7 @@ class Listener:
                         origin_addr = (origin_ip, origin_port)
                         actual_pkt  = pkt[header_end+1:]                   
 
-                        server_status = SLAVE_STATUS        
+                        server_status = SLAVE        
                     except (UnicodeDecodeError, ValueError):                        
                         origin_addr = addr_port
                         actual_pkt  = pkt
@@ -256,7 +257,7 @@ class Listener:
                     origin_addr = addr_port
                     actual_pkt  = pkt
 
-                    server_status = MASTER_STATUS    
+                    server_status = MASTER    
 
                 self.origin_addr = origin_addr
 
@@ -343,6 +344,7 @@ class Listener:
         self.monitored_callsigns    = self.monitoring_settings.get_monitored_callsigns()
         self.monitored_cq_zones     = self.monitoring_settings.get_monitored_cq_zones()
         self.excluded_cq_zones      = self.monitoring_settings.get_excluded_cq_zones()
+        self.master_operating_band  = self.monitoring_settings.get_operating_band()
 
         log_output = []
         log_output.append(f"Updated settings (~{CURRENT_VERSION_NUMBER}):")
@@ -383,25 +385,26 @@ class Listener:
             self.message_callback(display_message)
 
     def send_heartbeat(self):
-        if self.server_status == SLAVE_STATUS:
+        if self.server_status == SLAVE:
             return        
         max_schema = max(self.the_packet.max_schema, 3)
         reply_beat_packet = pywsjtx.HeartBeatPacket.Builder(self.the_packet.wsjtx_id,max_schema)
         self.s.send_packet(self.origin_addr, reply_beat_packet)
         
     def send_settings_to_slave(self):
-        if self.server_status == MASTER_STATUS and self.band :
-            """
-                Send settings to slave server if we are master
-            """
+        if (
+            self.server_status == MASTER and
+            self.band and 
+            self.enable_secondary_udp_server and 
+            self.secondary_udp_server_address != self.primary_udp_server_address
+        ):    
             settings = { 
-                self.band               : {
+                "band"                  : self.band,
                 "wanted_callsigns"      : self.wanted_callsigns,
                 "excluded_callsigns"    : self.excluded_callsigns,
                 "monitored_callsigns"   : self.monitored_callsigns,
                 "monitored_cq_zones"    : self.monitored_cq_zones,
                 "excluded_cq_zones"     : self.excluded_cq_zones,
-                }
             }
 
             settings_packet = pywsjtx.SettingsPacket.Builder(
@@ -510,15 +513,6 @@ class Listener:
             self.send_heartbeat()
         elif isinstance(self.the_packet, pywsjtx.StatusPacket):
             self.handle_status_packet()
-            """"
-                Send settings to slave server if we are master
-            """
-            if (
-                self.server_status == MASTER_STATUS and
-                self.enable_secondary_udp_server and 
-                self.secondary_udp_server_address != self.primary_udp_server_address
-            ):    
-                self.send_settings_to_slave()
         elif isinstance(self.the_packet, pywsjtx.QSOLoggedPacket):
             log.warning('QSOLoggedPacket should not be handle due to JTDX restrictions')   
         elif isinstance(self.the_packet, pywsjtx.DecodePacket):
@@ -652,21 +646,22 @@ class Listener:
         return int(suggested_freq)
     
     def handle_settings_packet(self):
-        try:
-            self.master_slave_settings = json.loads(self.the_packet.settings_json)              
-            if (
-                self.last_master_slave_settings is None or
-                self.last_master_slave_settings != self.master_slave_settings
-            ):                
-                self.last_master_slave_settings = self.master_slave_settings
-                if self.message_callback:
-                    self.message_callback({
-                        'type'     : 'master_slave_settings',
-                        'settings' : self.master_slave_settings
-                    })
-                log.info(f"SettingsPacket received & callback sent to GUI: {self.master_slave_settings}")                    
-        except Exception as e:
-            log.error(f"Error processing SettingsPacket: {e}")     
+        if self.band is not None and self.master_operating_band == self.band:
+            try:                
+                self.master_slave_settings = json.loads(self.the_packet.settings_json)              
+                if (
+                    self.last_master_slave_settings is None or
+                    self.last_master_slave_settings != self.master_slave_settings
+                ):                
+                    self.last_master_slave_settings = self.master_slave_settings
+                    if self.message_callback:
+                        self.message_callback({
+                            'type'     : 'master_slave_settings',
+                            'settings' : self.master_slave_settings
+                        })
+                    log.info(f"SettingsPacket received & callback sent to GUI: {self.master_slave_settings}")                    
+            except Exception as e:
+                log.error(f"Error processing SettingsPacket: {e}")     
 
     def handle_decode_packet(self):
         self.last_decode_packet_time = datetime.now(timezone.utc)
@@ -1103,7 +1098,7 @@ class Listener:
         self.reply_to_packet(callsign_packet) 
 
     def halt_packet(self):
-        if self.server_status == SLAVE_STATUS:
+        if self.server_status == SLAVE:
             return        
         
         try:
@@ -1114,7 +1109,7 @@ class Listener:
             log.error(f"Error sending packets: {e}\n{traceback.format_exc()}")
 
     def reply_to_packet(self, callsign_packet):
-        if self.server_status == SLAVE_STATUS:
+        if self.server_status == SLAVE:
             return        
         
         try:            
@@ -1137,7 +1132,7 @@ class Listener:
             log.error(f"Error sending packets: {e}\n{traceback.format_exc()}")
 
     def set_delta_f_packet(self, frequency):  
-        if self.server_status == SLAVE_STATUS:
+        if self.server_status == SLAVE:
             return        
       
         try:
