@@ -238,12 +238,16 @@ def matches_any(patterns, callsign):
     return any(fnmatch.fnmatch(callsign, pattern) for pattern in patterns)
 
 def int_to_array(pattern):
+    array = []
     if re.fullmatch(r'[0-9,\s]*', pattern):
-        return sorted([int(number) for number in re.findall(r'\d+', pattern)])
+        array = sorted([int(number) for number in re.findall(r'\d+', pattern)])
+    return array
         
 def text_to_array(pattern):
+    array = []
     if not re.fullmatch(r'[0-9,\s]*', pattern):
-        return sorted([text.strip().upper() for text in pattern.split(',') if text.strip()])
+        array = sorted([text.strip().upper() for text in pattern.split(',') if text.strip()])
+    return array        
 
 def get_mode_interval(mode):
     if mode == "FT4":
