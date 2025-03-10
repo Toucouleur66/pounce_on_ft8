@@ -604,16 +604,17 @@ class RequestSettingPacket(GenericWSJTXPacket):
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
         GenericWSJTXPacket.__init__(self, addr_port, magic, schema, pkt_type, id, pkt)
         ps = PacketReader(pkt)
-        the_type = ps.QInt32()
+        _ = ps.QInt32() 
         self.wsjtx_id = ps.QString()
 
     def __repr__(self):
-        return f"RequestSettingPacket"
+        return "RequestSettingPacket"
 
     @classmethod
-    def Builder(cls, to_wsjtx_id='WSJT-X', settings_dict=None):
+    def Builder(cls, to_wsjtx_id='WSJT-X'):
         pkt = PacketWriter()
         pkt.write_QInt32(RequestSettingPacket.TYPE_VALUE)
+        pkt.write_QString(to_wsjtx_id)
         return pkt.packet
 
 class WSJTXPacketClassFactory(GenericWSJTXPacket):
