@@ -1315,6 +1315,7 @@ class MainApp(QtWidgets.QMainWindow):
                 self.slave_wanted_callsigns[band] = self.wanted_callsigns_vars[band].text()   
                 
             master_wanted_callsigns = master_settings.get('wanted_callsigns')
+
             if not master_wanted_callsigns:
                 self.wanted_callsigns_vars[master_operating_band].clear()
             else:
@@ -1461,9 +1462,13 @@ class MainApp(QtWidgets.QMainWindow):
                 actions['remove_callsign_from_worked_history'] = menu.addAction(f"Remove {callsign} on all bands from Worked History ({", ".join(sorted(callsign_bands[callsign]))})")
             menu.addSeparator()
 
-        header_action = QtGui.QAction(f"Apply to {context_menu_band}")
-        header_action.setEnabled(False)  
-        menu.addAction(header_action)
+        label = QtWidgets.QLabel(f"Apply to {context_menu_band}")
+        label.setStyleSheet(f"background-color: {STATUS_TRX_COLOR}; color: white; border-radius: 6px; padding: 6px;")
+
+        widget_action = QtWidgets.QWidgetAction(menu)
+        widget_action.setDefaultWidget(label)
+
+        menu.addAction(widget_action)
         menu.addSeparator()
         
         """
@@ -1471,11 +1476,17 @@ class MainApp(QtWidgets.QMainWindow):
         """
         if callsign not in self.wanted_callsigns_vars[context_menu_band].text():
             actions['add_callsign_to_wanted'] = menu.addAction(f"Add {callsign} to Wanted Callsigns")
+            if self._instance == SLAVE:
+                actions['add_callsign_to_wanted'].setEnabled(False)
         else:
             actions['remove_callsign_from_wanted'] = menu.addAction(f"Remove {callsign} from Wanted Callsigns")
+            if self._instance == SLAVE:
+                actions['remove_callsign_from_wanted'].setEnabled(False)
 
         if callsign != self.wanted_callsigns_vars[context_menu_band].text():
             actions['replace_wanted_with_callsign'] = menu.addAction(f"Make {callsign} your only Wanted Callsign")
+            if self._instance == SLAVE:
+                actions['replace_wanted_with_callsign'].setEnabled(False)
         menu.addSeparator()
 
         """
@@ -1494,8 +1505,12 @@ class MainApp(QtWidgets.QMainWindow):
             if directed and directed != self.my_call:
                 if directed not in self.wanted_callsigns_vars[context_menu_band].text():
                     actions['add_directed_to_wanted'] = menu.addAction(f"Add {directed} to Wanted Callsigns")
+                    if self._instance == SLAVE:
+                        actions['add_directed_to_wanted'].setEnabled(False)
                 else:
                     actions['remove_directed_from_wanted'] = menu.addAction(f"Remove {directed} from Wanted Callsigns")
+                    if self._instance == SLAVE:
+                        actions['remove_directed_from_wanted'].setEnabled(False)
 
                 if directed != self.wanted_callsigns_vars[context_menu_band].text():
                     actions['replace_wanted_with_directed'] = menu.addAction(f"Make {directed} your only Monitored Callsign")                
@@ -1586,6 +1601,8 @@ class MainApp(QtWidgets.QMainWindow):
 
     def update_window_title(self):
             self.window_title = f"{self.base_title} - Connected to {self.my_wsjtx_id}"
+            if self._instance:
+                self.window_title+= f" - {self._instance}"
             self.setWindowTitle(self.window_title)
 
     def reset_window_title(self):

@@ -36,6 +36,7 @@ from constants import (
     ODD,
     MASTER,
     SLAVE,
+    HEARTBEAT_TIMEOUT_THRESHOLD,
     MODE_FOX_HOUND,
     MODE_NORMAL,
     WKB4_REPLY_MODE_NEVER,
@@ -431,8 +432,12 @@ class Listener:
             self.message_callback(display_message)
 
     def send_heartbeat(self):
-        if self._instance == SLAVE:
-            return        
+        if self._instance == SLAVE: 
+            if self.last_heartbeat_time:        
+                if (datetime.now(timezone.utc) - self.last_heartbeat_time).total_seconds() > HEARTBEAT_TIMEOUT_THRESHOLD:
+                    self.master_slave_settings = False                
+            return    
+            
         max_schema = max(self.the_packet.max_schema, 3)
         reply_beat_packet = pywsjtx.HeartBeatPacket.Builder(self.the_packet.wsjtx_id,max_schema)
         self.s.send_packet(self.origin_addr, reply_beat_packet)

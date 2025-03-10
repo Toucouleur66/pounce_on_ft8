@@ -140,6 +140,8 @@ TOOLTIP_QSS                      = f"""
                 color: white;
                 padding: 3px;
                 margin: 0px;
+                margin: 0px;
+                border-radius: 6px;
             }}
         """
 
@@ -154,14 +156,13 @@ CONTEXT_MENU_DARWIN_QSS         = f"""
                 font-size: 12px;
                 color: black;
             }}
-            QMenu::item:selected,
-            QMenu::item:disabled {{
+            QMenu::item:selected {{
                 background-color: #499EFF;
                 border-radius: 4px;
                 color: white;
             }}
             QMenu::item:disabled {{
-                background-color: {STATUS_TRX_COLOR};      
+                color: grey;
             }}
             QMenu::separator {{
                 height: 1px;
