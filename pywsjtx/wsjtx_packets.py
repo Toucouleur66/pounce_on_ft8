@@ -600,15 +600,18 @@ class SettingPacket(GenericWSJTXPacket):
 
 class RequestSettingPacket(GenericWSJTXPacket):
     TYPE_VALUE = 34
-
-    def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
+    
+    def __init__(self, addr_port: object, magic: object, schema: object, pkt_type: object, id: object, pkt: object) -> object:
         GenericWSJTXPacket.__init__(self, addr_port, magic, schema, pkt_type, id, pkt)
         ps = PacketReader(pkt)
-        _ = ps.QInt32() 
+        the_type = ps.QInt32()
         self.wsjtx_id = ps.QString()
+        self.max_schema = ps.QInt32()
+        self.version = ps.QInt8()
+        self.revision = ps.QInt8()
 
     def __repr__(self):
-        return "RequestSettingPacket"
+        return 'RequestSettingPacket: from {}:{}\n\twsjtx id:{}\tmax_schema:{}' .format(self.addr_port[0], self.addr_port[1], self.wsjtx_id, self.max_schema)    
 
     @classmethod
     def Builder(cls, to_wsjtx_id='WSJT-X'):
