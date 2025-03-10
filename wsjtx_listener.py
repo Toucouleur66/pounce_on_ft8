@@ -375,6 +375,8 @@ class Listener:
             log.info(f"RequestSettingPacket sent.")      
         
     def send_master_settings(self):
+        if self.enable_log_packet_data:
+            log.debug('{}'.format(self.the_packet))
         if (
             self._instance == MASTER and
             self.band and 
@@ -550,7 +552,7 @@ class Listener:
         elif isinstance(self.the_packet, pywsjtx.ClosePacket):
             self.callback_stop_monitoring()
         elif isinstance(self.the_packet, pywsjtx.RequestSettingPacket):
-            log.warning('Received RequestSettingPacket method')   
+            log.debug('Received RequestSettingPacket method')   
             self.send_master_settings()                 
         elif isinstance(self.the_packet, pywsjtx.SettingPacket):
             self.handle_settings_packet()       
@@ -700,6 +702,9 @@ class Listener:
             log.error(f"Can't handle SettingPacket yet.")     
 
     def handle_decode_packet(self):
+        if self.enable_log_packet_data:
+            log.debug('{}'.format(self.the_packet))
+
         self.last_decode_packet_time = datetime.now(timezone.utc)
         self.decode_packet_count += 1
         """
@@ -722,9 +727,6 @@ class Listener:
         """
             Start to handle DecodePacket
         """
-        if self.enable_log_packet_data:
-            log.debug('{}'.format(self.the_packet))
-
         try:
             message_type                 = None 
             reply_to_packet              = False
