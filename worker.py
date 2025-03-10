@@ -12,7 +12,7 @@ class Worker(QObject):
     error                  = pyqtSignal(str)
     listener_started       = pyqtSignal()
     message                = pyqtSignal(object)
-    update_settings_signal = pyqtSignal()
+    update_listener_settings_signal = pyqtSignal()
     send_settings_signal   = pyqtSignal()
 
     def __init__(
@@ -41,8 +41,8 @@ class Worker(QObject):
         ):
         super(Worker, self).__init__()
 
-        self.update_settings_signal.connect(self.update_settings)
-        self.send_settings_signal.connect(self.send_settings_to_slave)
+        self.update_listener_settings_signal.connect(self.update_listener_settings)
+        self.send_settings_signal.connect(self.send_master_settings)
 
         self.listener                           = None 
         self.stop_event                         = stop_event
@@ -117,10 +117,10 @@ class Worker(QObject):
     """
         Make sure we are using the latest settings
     """
-    def update_settings(self):
+    def update_listener_settings(self):
         if self.listener is not None:
-            self.listener.update_settings()
+            self.listener.update_listener_settings()
 
-    def send_settings_to_slave(self):
+    def send_master_settings(self):
         if self.listener is not None:
-            self.listener.send_settings_to_slave()            
+            self.listener.send_master_settings()            

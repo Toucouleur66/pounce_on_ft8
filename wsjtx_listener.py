@@ -180,7 +180,7 @@ class Listener:
         self.receiver_thread.started.connect(self.receiver_worker.run)
         self.processor_thread.started.connect(self.processor_worker.run)
 
-        self.update_settings()
+        self.update_listener_settings()
 
         """
             Check ADIF file to handle Worked B4 
@@ -263,7 +263,7 @@ class Listener:
 
                 if _instance and _instance != self._instance:
                     self._instance = _instance
-                    self.update_settings()                    
+                    self.update_listener_settings()                    
                     if self.message_callback:
                         self.message_callback({
                             'type'      : 'master_status',
@@ -340,7 +340,7 @@ class Listener:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as send_sock:
             send_sock.sendto(self.add_header() + packet, target_server)
 
-    def update_settings(self):
+    def update_listener_settings(self):
         self.wanted_callsigns       = self.monitoring_settings.get_wanted_callsigns()
         self.excluded_callsigns     = self.monitoring_settings.get_excluded_callsigns()
         self.monitored_callsigns    = self.monitoring_settings.get_monitored_callsigns()

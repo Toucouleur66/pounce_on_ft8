@@ -1177,7 +1177,7 @@ class MainApp(QtWidgets.QMainWindow):
             
     def send_worker_signal(self):
         if self.worker is not None:
-            self.worker.update_settings_signal.emit()
+            self.worker.update_listener_settings_signal.emit()
             if self._instance == MASTER:
                 self.worker.send_settings_signal.emit()   
         
