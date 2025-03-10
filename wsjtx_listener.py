@@ -370,12 +370,8 @@ class Listener:
             self._instance == SLAVE and
             self.band 
         ):  
-            self.s.send_packet(
-                (
-                    self.secondary_udp_server_address,
-                    self.secondary_udp_server_port
-                ),  pywsjtx.RequestSettingPacket.Builder(self.the_packet.wsjtx_id)
-            )
+            request_setting_packet = pywsjtx.RequestSettingPacket.Builder(self.the_packet.wsjtx_id)
+            self.s.send_packet(self.origin_addr, request_setting_packet)
             log.info(f"RequestSettingPacket sent.")      
         
     def send_master_settings(self):
