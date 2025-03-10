@@ -1,6 +1,6 @@
 import threading
 
-from utils import text_to_array
+from utils import text_to_array, int_to_array
 
 class MonitoringSettings:
     def __init__(self):
@@ -51,11 +51,11 @@ class MonitoringSettings:
 
     def set_monitored_cq_zones(self, cq_zones):
         with self.lock:
-            self._monitored_cq_zones = text_to_array(cq_zones)
+            self._monitored_cq_zones = int_to_array(cq_zones)
 
     def set_excluded_cq_zones(self, cq_zones):
         with self.lock:
-            self._excluded_cq_zones = text_to_array(cq_zones)
+            self._excluded_cq_zones = int_to_array(cq_zones)
 
     def set_operating_band(self, band):
         with self.lock:

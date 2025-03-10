@@ -237,13 +237,13 @@ def parse_wsjtx_message(
 def matches_any(patterns, callsign):
     return any(fnmatch.fnmatch(callsign, pattern) for pattern in patterns)
 
-def text_to_array(pattern):
+def int_to_array(pattern):
     if re.fullmatch(r'[0-9,\s]*', pattern):
-        array = [text for text in re.findall(r'\d+', pattern)]
-    else:
-        array = [text.strip().upper() for text in pattern.split(',') if text.strip()]
-
-    return sorted(array)
+        return sorted([int(number) for number in re.findall(r'\d+', pattern)])
+        
+def text_to_array(pattern):
+    if not re.fullmatch(r'[0-9,\s]*', pattern):
+        return sorted([text.strip().upper() for text in pattern.split(',') if text.strip()])
 
 def get_mode_interval(mode):
     if mode == "FT4":
