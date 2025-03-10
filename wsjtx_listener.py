@@ -553,6 +553,9 @@ class Listener:
             log.debug("Received ReplyPacket method")            
         elif isinstance(self.the_packet, pywsjtx.ClosePacket):
             self.callback_stop_monitoring()
+        elif isinstance(self.the_packet, pywsjtx.RequestSettingPacket):
+            log.warning('Received RequestSettingPacket method')   
+            self.send_master_settings()                 
         elif isinstance(self.the_packet, pywsjtx.SettingPacket):
             self.handle_settings_packet()       
         else:
@@ -694,8 +697,7 @@ class Listener:
                 log.error(f"Error processing SettingPacket: {e}")  
         elif self._instance == MASTER:
             try:                                       
-                if json.loads(self.the_packet.settings_json).get(SLAVE) == True:
-                    self.send_master_settings()
+                self.send_master_settings()
             except Exception as e:
                 log.error(f"Error processing SettingPacket: {e}")     
         else:
