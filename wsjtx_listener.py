@@ -370,8 +370,7 @@ class Listener:
             self._instance == SLAVE and
             self.band 
         ):  
-            max_schema = max(self.the_packet.max_schema, 3)
-            request_setting_packet = pywsjtx.RequestSettingPacket.Builder(self.the_packet.wsjtx_id, max_schema)
+            request_setting_packet = pywsjtx.RequestSettingPacket.Builder(self.the_packet.wsjtx_id)
             self.s.send_packet(self.origin_addr, request_setting_packet)
             log.info(f"RequestSettingPacket sent.")      
         
