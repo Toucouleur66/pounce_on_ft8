@@ -207,6 +207,26 @@ class StatusPacket(GenericWSJTXPacket):
     def __repr__(self):
         return f"StatusPacket: from {self.addr_port[0]}:{self.addr_port[1]}, wsjtx_id: {self.wsjtx_id}, freq: {self.dial_frequency/1000} kHz"
 
+
+class RequestSettingPacket(GenericWSJTXPacket):
+    TYPE_VALUE = 34
+    
+    def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
+        GenericWSJTXPacket.__init__(self, addr_port, magic, schema, pkt_type, id, pkt)
+        ps = PacketReader(pkt)
+        the_type = ps.QInt32()
+        self.wsjtx_id = ps.QString()
+
+    def __repr__(self):
+        return 'RequestSettingPacket: from {}:{}\n\twsjtx id:{}' .format(self.addr_port[0], self.addr_port[1], self.wsjtx_id)
+
+    @classmethod
+    def Builder(cls, to_wsjtx_id='WSJT-X'):
+        pkt = PacketWriter()
+        pkt.write_QInt32(RequestSettingPacket.TYPE_VALUE)
+        pkt.write_QString(to_wsjtx_id)
+        return pkt.packet
+
 class DecodePacket(GenericWSJTXPacket):
     TYPE_VALUE = 2
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
@@ -383,6 +403,18 @@ def send_decode_packet(
         sock.sendto(packet_data, (UDP_IP, UDP_PORT))
         print(f"Packet sent to {UDP_IP}:{UDP_PORT}")
 
+def request_master_settings(
+        wsjtx_id="WSJT-X",
+        ip_address="127.0.0.1",
+        udp_port=2237,
+    ):
+    UDP_IP = ip_address
+    UDP_PORT = udp_port
+    packet = RequestSettingPacket.Builder(to_wsjtx_id=wsjtx_id)
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+        sock.sendto(packet, (UDP_IP, UDP_PORT))
+        print(f"Settings Packet sent to {UDP_IP}:{UDP_PORT}")
+
 def send_settings_packet(
         wsjtx_id="WSJT-X",
         settings_dict=None,
@@ -446,6 +478,9 @@ def simulate_settings(ip_address="127.0.0.1", udp_port=2237):
     }
     send_settings_packet(wsjtx_id="WSJT-X Simulator", settings_dict=settings, ip_address=ip_address, udp_port=udp_port)
 
+def request_settings(ip_address="127.0.0.1", udp_port=2237):
+    request_master_settings(wsjtx_id="WSJT-X Simulator", ip_address=ip_address, udp_port=udp_port)
+
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Simulate sending WSJT-X packets via UDP.")
     parser.add_argument('--message', type=str, help='Message to send (for decode packet)')
@@ -458,6 +493,7 @@ def parse_arguments():
     parser.add_argument('--is_slave', action='store_true', help='Set is server behavior jas to be a slave')
     parser.add_argument('--udp_port', type=int, default=2237, help='UDP server port (default: 2237)')
     parser.add_argument('--simulate', action='store_true', help='Run simulation with decode/status packets')
+    parser.add_argument('--request_settings', action='store_true', help='Run simulation and asking for settings')
     parser.add_argument('--simulate_settings', action='store_true', help='Simulate sending a Settings packet')
     return parser.parse_args()
 
@@ -465,6 +501,8 @@ if __name__ == "__main__":
     args = parse_arguments()
     if args.simulate_settings:
         simulate_settings(ip_address=args.ip_address, udp_port=args.udp_port)
+    elif args.request_settings:
+        request_settings(ip_address=args.ip_address, udp_port=args.udp_port)
     elif args.simulate:
         simulate(ip_address=args.ip_address, udp_port=args.udp_port, is_slave=args.is_slave)
     else:

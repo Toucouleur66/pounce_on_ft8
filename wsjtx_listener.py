@@ -276,7 +276,7 @@ class Listener:
                     log.info(message)
                 self.packet_queue.put((actual_pkt, origin_addr))
             except socket.timeout:
-                return None, None
+                continue
             except OSError as e:
                 if hasattr(e, 'winerror') and e.winerror == 10038:
                     return None, None
@@ -372,7 +372,7 @@ class Listener:
         ):  
             request_setting_packet = pywsjtx.RequestSettingPacket.Builder(self.the_packet.wsjtx_id)
             self.s.send_packet(self.origin_addr, request_setting_packet)
-            log.info(f"RequestSettingPacket sent.")      
+            log.info(f"RequestSettingPacket sent to {self.origin_addr}.")      
         
     def send_master_settings(self):
         if self.enable_log_packet_data:
@@ -690,7 +690,7 @@ class Listener:
                             'type'     : 'master_slave_settings',
                             'settings' : self.master_slave_settings
                         })
-                    log.info(f"SettingPacket received & callback sent to GUI: {self.master_slave_settings}")                    
+                    log.info(f"SettingPacket received")                    
             except Exception as e:
                 log.error(f"Error processing SettingPacket: {e}")  
         elif self._instance == MASTER:

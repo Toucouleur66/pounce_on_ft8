@@ -1307,16 +1307,14 @@ class MainApp(QtWidgets.QMainWindow):
     def apply_master_settings(self, master_settings):
         master_operating_band = master_settings.get('band')
         if master_operating_band:
-            for band in AMATEUR_BANDS.keys():
-                if band != self.last_master_operating_band:
-                    self.slave_wanted_callsigns[band] = self.wanted_callsigns_vars[band].text()   
-
-            if self.last_master_operating_band != master_operating_band:
-                self.restore_slave_settings()
-                self.last_master_operating_band = master_operating_band
+            self.restore_slave_settings()
+            """
+                Save settings per band
+            """
+            for band in AMATEUR_BANDS.keys():                
+                self.slave_wanted_callsigns[band] = self.wanted_callsigns_vars[band].text()   
                 
             master_wanted_callsigns = master_settings.get('wanted_callsigns')
-
             if not master_wanted_callsigns:
                 self.wanted_callsigns_vars[master_operating_band].clear()
             else:
@@ -1722,7 +1720,6 @@ class MainApp(QtWidgets.QMainWindow):
             ):
                 self.master_slave_addr_port     = addr_port     
                 self.slave_wanted_callsigns     = {}
-                self.last_master_operating_band = None
 
             if (
                 self._instance == SLAVE and
