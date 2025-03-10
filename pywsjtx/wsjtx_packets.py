@@ -608,7 +608,7 @@ class RequestSettingPacket(GenericWSJTXPacket):
         self.wsjtx_id = ps.QString()
 
     def __repr__(self):
-        return 'RequestSettingPacket: from {}:{}\n\twsjtx id:{}' .format(self.addr_port[0], self.addr_port[1], self.wsjtx_id    
+        return 'RequestSettingPacket: from {}:{}\n\twsjtx id:{}' .format(self.addr_port[0], self.addr_port[1], self.wsjtx_id)
 
     @classmethod
     def Builder(cls, to_wsjtx_id='WSJT-X'):
