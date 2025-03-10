@@ -239,10 +239,10 @@ def matches_any(patterns, callsign):
 
 def text_to_array(pattern):
     if re.fullmatch(r'[0-9,\s]*', pattern):
-        array = [int(number) for number in re.findall(r'\d+', pattern)]
+        array = [text for text in re.findall(r'\d+', pattern)]
     else:
         array = [text.strip().upper() for text in pattern.split(',') if text.strip()]
-        
+
     return sorted(array)
 
 def get_mode_interval(mode):
