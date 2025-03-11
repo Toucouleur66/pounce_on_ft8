@@ -70,6 +70,7 @@ class Listener:
             enable_marathon,
             marathon_preference,
             adif_file_path,
+            adif_worked_backup_file_path,
             worked_before_preference,
             message_callback=None
         ):
@@ -197,6 +198,11 @@ class Listener:
                 self.adif_monitor.register_lookup(lookup)
             self.adif_monitor.start()
             self.adif_monitor.register_callback(self.update_adif_data)
+        
+        """
+            Use ADIF file to log        
+        """
+        self.adif_worked_backup_file_path           = adif_worked_backup_file_path
 
         """
             Check what period to use
@@ -706,12 +712,14 @@ class Listener:
         else:
             log.error(f"Can't handle SettingPacket yet.")     
 
-    def handle_decode_packet(self):
-        if self.enable_log_packet_data:
-            log.debug('{}'.format(self.the_packet))
-
+    def handle_decode_packet(self):        
         self.last_decode_packet_time = datetime.now(timezone.utc)
         self.decode_packet_count += 1
+        
+        if not self.my_call:
+            log.error("No StatusPacket received yet, can\'t handle DecodePacket for now.") 
+            return
+        
         """
             We need a StatusPacket before handling the DecodePacket
             and we have to check last_band_time_change            
@@ -719,15 +727,18 @@ class Listener:
         seconds_since_band_change = round(
             (datetime.now() - self.last_band_time_change).total_seconds()
         )
-
-        if not self.my_call:
-            log.error("No StatusPacket received yet, can\'t handle DecodePacket for now.") 
-        elif seconds_since_band_change < BAND_CHANGE_WAITING_DELAY:
+        if seconds_since_band_change < BAND_CHANGE_WAITING_DELAY:
             wait_before_decoding = BAND_CHANGE_WAITING_DELAY - seconds_since_band_change
             if wait_before_decoding != self.wait_before_decoding:
                 self.wait_before_decoding = wait_before_decoding
                 log.error(f"Can't handle DecodePacket yet. {wait_before_decoding} seconds to wait.")    
-                return 
+                """
+                    Add callback to let GUI know we can't handle decode yet
+                """
+            return 
+
+        if self.enable_log_packet_data:
+            log.debug('{}'.format(self.the_packet))
 
         """
             Start to handle DecodePacket
@@ -1248,7 +1259,7 @@ class Listener:
                 f"<eor>\n"
             ])
 
-            with open(ADIF_WORKED_CALLSIGNS_FILE, "a") as adif_file:
+            with open(self.adif_worked_backup_file_path, "a") as adif_file:
                 adif_file.write(adif_entry)
             log.warning("QSO Logged [ {} ]".format(self.call_ready_to_log))
         except Exception as e:

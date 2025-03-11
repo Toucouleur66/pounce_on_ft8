@@ -35,6 +35,7 @@ class Worker(QObject):
             enable_pounce_log,
             enable_log_packet_data,
             adif_file_path,
+            adif_worked_backup_file_path,
             worked_before_preference,
             enable_marathon,
             marathon_preference                          
@@ -68,6 +69,7 @@ class Worker(QObject):
         self.enable_log_packet_data             = enable_log_packet_data
         
         self.adif_file_path                      = adif_file_path
+        self.adif_worked_backup_file_path               = adif_worked_backup_file_path
         self.worked_before_preference           = worked_before_preference
         self.enable_marathon                    = enable_marathon
         self.marathon_preference                = marathon_preference
@@ -94,6 +96,7 @@ class Worker(QObject):
                 enable_marathon                 = self.enable_marathon,
                 marathon_preference             = self.marathon_preference,
                 adif_file_path                   = self.adif_file_path,
+                adif_worked_backup_file_path            = self.adif_worked_backup_file_path,
                 worked_before_preference        = self.worked_before_preference,
                 message_callback                = self.message.emit
             )

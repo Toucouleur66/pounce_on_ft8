@@ -379,6 +379,21 @@ def compute_time_ago(dt_value):
         weeks = seconds // (86400 * 7)
         return f"{weeks}w"            
 
+def has_significant_change(first_array, second_array):
+    if len(first_array) != len(second_array):
+        return True  
+
+    for first_item, second_item in zip(first_array, second_array):
+        if abs(len(first_item) - len(second_item)) > 1:
+            return True
+
+        changes = sum(1 for a, b in zip(first_item, second_item) if a != b)
+
+        if changes > 1:
+            return True
+
+    return False 
+
 def parse_adif_record(record, lookup):    
     fields = {field.upper(): value.strip() for field, value in ADIF_FIELD_RE.findall(record)}
     

@@ -27,6 +27,7 @@ import traceback
 
 from datetime import datetime, timezone, timedelta
 from collections import deque, defaultdict
+from queue import Queue
 from functools import partial
 
 # Custom classes 
@@ -55,7 +56,7 @@ if sys.platform == 'darwin':
 
 from utils import get_local_ip_address, get_log_filename, matches_any
 from utils import get_mode_interval, get_amateur_band, display_frequency
-from utils import force_input, focus_out_event, text_to_array
+from utils import force_input, focus_out_event, text_to_array, has_significant_change
 from utils import parse_adif
 
 from version import is_first_launch_or_new_version, save_current_version
@@ -273,12 +274,18 @@ class MainApp(QtWidgets.QMainWindow):
                 
         self.menu_bar                           = self.menuBar() 
 
+        self.sound_queue                        = Queue()
+        self.sound_timer                        = QtCore.QTimer()
+        self.sound_timer.timeout.connect(self._play_next_sound)
+        self.currently_playing = False
+
         self.wanted_callsign_detected_sound     = QSoundEffect()
         self.wanted_callsign_being_called_sound = QSoundEffect()
         self.directed_to_my_call_sound          = QSoundEffect()
         self.ready_to_log_sound                 = QSoundEffect()
         self.error_occurred_sound               = QSoundEffect()
         self.band_change_sound                  = QSoundEffect()
+        self.updated_settings                   = QSoundEffect()
         self.monitored_callsign_detected_sound  = QSoundEffect()
         self.enabled_global_sound               = QSoundEffect()
 
@@ -289,6 +296,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.error_occurred_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/142608__autistic-lucario__error.wav"))
         self.monitored_callsign_detected_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/716442__scottyd0es__tone12_alert_3.wav"))
         self.band_change_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/342759__rhodesmas__score-counter-01.wav"))
+        self.updated_settings.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/342757__rhodesmas__searching-03.wav"))
         self.enabled_global_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/342754__rhodesmas__searching-01.wav"))
         
         self.enable_pounce_log                  = params.get('enable_pounce_log', True)
@@ -1203,7 +1211,7 @@ class MainApp(QtWidgets.QMainWindow):
                         message.get('status')
                     )          
             elif message_type == 'master_slave_settings':
-                self.apply_master_settings(message.get('settings'))   
+                self.apply_master_settings(message.get('settings'))                  
             elif message_type == 'update_frequency':
                 self.frequency = message.get('frequency')                
                 if self.frequency != self.last_frequency:
@@ -1262,6 +1270,7 @@ class MainApp(QtWidgets.QMainWindow):
                     message_color      = "black_on_cyan"
                 elif (
                     directed is not None and 
+                    self.operating_band and 
                     matches_any(text_to_array(self.wanted_callsigns_vars[self.operating_band].text()), directed)
                 ):                    
                     message_color      = "white_on_blue"
@@ -1307,19 +1316,34 @@ class MainApp(QtWidgets.QMainWindow):
     def apply_master_settings(self, master_settings):
         master_operating_band = master_settings.get('band')
         if master_operating_band:
+            """
+                Check if need to play sound if
+            """
+            play_sound = False
+            master_wanted_callsigns = master_settings.get('wanted_callsigns')
+            if(
+                self.global_sound_toggle.isChecked() and
+                has_significant_change(self.wanted_callsigns_vars[master_operating_band].text().split(','), master_wanted_callsigns)
+            ):
+                play_sound = True
+
+            """
+                Restore settings before any change
+            """
             self.restore_slave_settings()
             """
                 Save settings per band
             """
             for band in AMATEUR_BANDS.keys():                
                 self.slave_wanted_callsigns[band] = self.wanted_callsigns_vars[band].text()   
-                
-            master_wanted_callsigns = master_settings.get('wanted_callsigns')
-
+          
             if not master_wanted_callsigns:
                 self.wanted_callsigns_vars[master_operating_band].clear()
             else:
                 self.wanted_callsigns_vars[master_operating_band].setText(", ".join(master_wanted_callsigns))
+
+            if play_sound:
+                self.play_sound("updated_settings")     
 
     def restore_slave_settings(self):
         if self._instance == SLAVE:            
@@ -1689,8 +1713,6 @@ class MainApp(QtWidgets.QMainWindow):
     @QtCore.pyqtSlot(object)
     def play_sound(self, sound_name):
         try:           
-            log.debug(f"Play sound: [{sound_name}]")
-
             sound_mapping = {
                 'wanted_callsign_detected'      : self.wanted_callsign_detected_sound,
                 'wanted_callsign_being_called'  : self.wanted_callsign_being_called_sound,
@@ -1698,18 +1720,36 @@ class MainApp(QtWidgets.QMainWindow):
                 'monitored_callsign_detected'   : self.monitored_callsign_detected_sound,
                 'ready_to_log'                  : self.ready_to_log_sound,
                 'band_change'                   : self.band_change_sound,
+                'updated_settings'              : self.updated_settings,
                 'error_occurred'                : self.error_occurred_sound,
                 'enable_global_sound'           : self.enabled_global_sound
             }
 
             sound = sound_mapping.get(sound_name)
             if sound:
-                sound.play()
+                log.debug(f"Queued sound: [{sound_name}]")
+                self.sound_queue.put(sound)
+                self._start_sound_queue()
             else:
                 log.error(f"Unknown sound: [{sound_name}]") 
 
         except Exception as e:
-            log.error(f"Failed to play alert sound: {e}")
+            log.error(f"Failed to queue alert sound: {e}")
+
+    def _start_sound_queue(self):
+        if not self.currently_playing and not self.sound_queue.empty():
+            self._play_next_sound()
+
+    def _play_next_sound(self):
+        if not self.sound_queue.empty():
+            self.currently_playing = True
+            sound = self.sound_queue.get()
+            sound.play()
+            
+            duration = sound.duration() if hasattr(sound, "duration") else 500
+            self.sound_timer.start(duration)
+        else:
+            self.currently_playing = False            
 
     def get_size_of_output_model(self):
         output_model_size_bytes = self.output_model._current_size_bytes
@@ -1828,18 +1868,7 @@ class MainApp(QtWidgets.QMainWindow):
                 self.network_check_status.setInterval(self.network_check_status_interval)                               
         else:
             status_text_array.append("No DecodePacket received yet.")
-
-        if self.transmitting:            
-            self.update_status_button(STATUS_BUTTON_LABEL_TRX, STATUS_TRX_COLOR)
-            self.last_transmit_time = datetime.now(timezone.utc)
-            self.start_blinking_status_button()
-            network_check_status_interval = 100            
-        elif self.last_transmit_time:
-            if self._running:
-                self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR) 
-            self.last_transmit_time = None
-            self.stop_blinking_status_button()                
-
+        
         self.status_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
         self.status_label.setText('<br>'.join(status_text_array))
 
@@ -1861,6 +1890,20 @@ class MainApp(QtWidgets.QMainWindow):
                 self.update_status_label_style(FG_TIMER_COLOR, EVEN_COLOR)
             else:
                 self.update_status_label_style(BG_COLOR_BLACK_ON_YELLOW, FG_COLOR_BLACK_ON_CYAN)
+
+        """
+            Handle change for status_button when transmitting
+        """
+        if self.transmitting and not connection_lost:            
+            self.update_status_button(STATUS_BUTTON_LABEL_TRX, STATUS_TRX_COLOR)
+            self.last_transmit_time = datetime.now(timezone.utc)
+            self.start_blinking_status_button()
+            network_check_status_interval = 100            
+        elif self.last_transmit_time:
+            if self._running:
+                self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR) 
+            self.last_transmit_time = None
+            self.stop_blinking_status_button()                
             
     def on_close(self, event):        
         self.save_window_position()
@@ -2661,6 +2704,7 @@ class MainApp(QtWidgets.QMainWindow):
         enable_log_all_valid_contact        = params.get('enable_log_all_valid_contact', DEFAULT_LOG_ALL_VALID_CONTACT)        
 
         self.adif_file_path                  = params.get('adif_file_path', None)
+        self.adif_worked_backup_file_path           = params.get('adif_worked_backup_file_path', None)
         self.worked_before_preference       = params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS)
         self.marathon_preference            = params.get('marathon_preference', {})
         
@@ -2687,6 +2731,7 @@ class MainApp(QtWidgets.QMainWindow):
             enable_pounce_log,
             enable_log_packet_data,
             self.adif_file_path,
+            self.adif_worked_backup_file_path,
             self.worked_before_preference,
             self.enable_marathon,
             self.marathon_preference           

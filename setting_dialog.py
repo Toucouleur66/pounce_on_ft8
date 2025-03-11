@@ -500,16 +500,25 @@ class SettingsDialog(QtWidgets.QDialog):
         adif_backup_widget = QtWidgets.QWidget()
         adif_backup_layout = QtWidgets.QGridLayout(adif_backup_widget)
 
-        show_backup_file_path = QtWidgets.QLineEdit(f"{ADIF_WORKED_CALLSIGNS_FILE}")
-        show_backup_file_path.setReadOnly(True) 
+        self.show_backup_file_path = QtWidgets.QLineEdit()
+        self.show_backup_file_path.setText(ADIF_WORKED_CALLSIGNS_FILE)
+        self.show_backup_file_path.setReadOnly(False)  
 
-        open_backup_file_button = QtWidgets.QPushButton("Open Folder")
-        open_backup_file_button.setFixedWidth(120)
-        open_backup_file_button.clicked.connect(self.open_backup_file_location) 
+        self.select_backup_file_button = QtWidgets.QPushButton("Select File")
+        self.select_backup_file_button.setFixedWidth(120)
+        self.select_backup_file_button.clicked.connect(self.open_backup_file_dialog)
 
-        adif_backup_layout.addWidget(show_backup_file_path, 0, 0)
-        adif_backup_layout.addWidget(open_backup_file_button, 0, 1)
-
+        """
+        self.open_backup_file_button = QtWidgets.QPushButton("Open Folder")
+        self.open_backup_file_button.setFixedWidth(120)
+        self.open_backup_file_button.clicked.connect(self.open_backup_file_location) 
+        """
+        adif_backup_layout.addWidget(self.show_backup_file_path, 0, 0)
+        adif_backup_layout.addWidget(self.select_backup_file_button, 0, 1)
+        
+        """
+        adif_backup_layout.addWidget(self.open_backup_file_button, 0, 2)
+        """
         adif_backup_selection_group.setLayout(QtWidgets.QVBoxLayout())
         adif_backup_selection_group.layout().setContentsMargins(0, 0, 0, 0)
         adif_backup_selection_group.layout().addWidget(adif_backup_widget)
@@ -586,6 +595,20 @@ class SettingsDialog(QtWidgets.QDialog):
             total_height        = tab_size.height() + tab_bar_height + button_box_height + margins.top() + margins.bottom()
 
             self.setFixedHeight(total_height)
+
+
+    def open_backup_file_dialog(self):
+        dialog = QFileDialog(self, "Select ADIF Backup File")
+        dialog.setNameFilter("ADIF Files (*.adif *.adi);;All Files (*)")
+        dialog.setFileMode(QFileDialog.FileMode.AnyFile)
+        dialog.setOptions(
+            QFileDialog.Option.DontUseCustomDirectoryIcons
+        )
+
+        if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            selected_files = dialog.selectedFiles()
+            if selected_files:
+                self.show_backup_file_path.setText(selected_files[0])            
 
     def open_adif_file_dialog(self):
         dialog = QFileDialog(self, "Select ADIF File")
@@ -693,6 +716,9 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_sound_monitored_callsigns.setChecked(
             self.params.get('enable_sound_monitored_callsigns', True)
         )        
+        self.show_backup_file_path.setText(
+            self.params.get('adif_worked_backup_file_path', ADIF_WORKED_CALLSIGNS_FILE)
+        )
         selected_file = self.params.get('adif_file_path', None)
         self.adif_file_path.setText(selected_file)
 
@@ -775,7 +801,8 @@ class SettingsDialog(QtWidgets.QDialog):
             'enable_sound_directed_my_callsign'          : self.enable_sound_directed_my_callsign.isChecked(),
             'enable_sound_monitored_callsigns'           : self.enable_sound_monitored_callsigns.isChecked(),
             'delay_between_sound_for_monitored'          : self.delay_between_sound_for_monitored.text(),
-            'adif_file_path'                              : self.adif_file_path.text(),            
+            'adif_file_path'                              : self.adif_file_path.text(),      
+            'adif_worked_backup_file_path'                       : self.show_backup_file_path.text(),
             'freq_range_mode'                            : freq_range_mode,
             'worked_before_preference'                   : worked_before_preference,
             'marathon_preference'                        : marathon_preference            
