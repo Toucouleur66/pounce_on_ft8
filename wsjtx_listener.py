@@ -964,6 +964,8 @@ class Listener:
             elif directed == self.my_call:
                 log.warning(f"Found message directed to my call [ {directed} ] from [ {callsign} ]")
                 
+                message_type = 'directed_to_my_call'
+                
                 self.rst_rcvd_from_being_called[callsign]   = report                                   
                 self.qso_time_on[callsign]                  = decode_time
                 if not self.grid_being_called.get(callsign):
@@ -976,9 +978,7 @@ class Listener:
                     # self.mode             = self.the_packet.mode
                     if self.enable_sending_reply:  
                         reply_to_packet = True
-                        message_type = 'wanted_callsign_being_called'
-                    else:
-                        message_type = 'directed_to_my_call'    
+                        message_type = 'wanted_callsign_being_called'                            
             elif wanted is True: 
                 reply_to_packet = True
                 message_type = 'wanted_callsign_detected'

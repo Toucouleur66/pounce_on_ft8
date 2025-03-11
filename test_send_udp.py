@@ -471,7 +471,7 @@ def simulate(ip_address="127.0.0.1", udp_port=2237, is_slave=True):
 def simulate_settings(ip_address="127.0.0.1", udp_port=2237):
     settings = {
         "band": "6m",
-        "wanted_callsigns": ["3"],
+        "wanted_callsigns": ["VK9DX,SV1GA/A"],
         "excluded_callsigns": ["9M2DA"],
         "monitored_callsigns": ["F4BKV"],
         "monitored_cq_zones": ["31,32"],
