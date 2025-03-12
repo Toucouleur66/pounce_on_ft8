@@ -381,7 +381,13 @@ def compute_time_ago(dt_value):
 
 def has_significant_change(first_array, second_array):
     if len(first_array) != len(second_array):
-        return True  
+        longer_list, shorter_list = (second_array, first_array) if len(second_array) > len(first_array) else (first_array, second_array)
+
+        for new_item in longer_list[len(shorter_list):]:
+            if len(new_item) > 3:
+                return True 
+
+        return False 
 
     for first_item, second_item in zip(first_array, second_array):
         if abs(len(first_item) - len(second_item)) > 1:
