@@ -101,7 +101,7 @@ class SettingsDialog(QtWidgets.QDialog):
         jtdx_notice_label.setStyleSheet(SETTING_QSS)
         jtdx_notice_label.setAutoFillBackground(True)
 
-        primary_group = QtWidgets.QGroupBox("Primary UDP Server")
+        primary_group = QtWidgets.QGroupBox("Master UDP instance")
         primary_layout = QtWidgets.QGridLayout()
 
         self.primary_udp_server_address = QtWidgets.QLineEdit()
@@ -116,13 +116,13 @@ class SettingsDialog(QtWidgets.QDialog):
 
         primary_group.setLayout(primary_layout)
 
-        secondary_group = QtWidgets.QGroupBox("Second UDP Server (Send logged QSO ADIF data)")
+        secondary_group = QtWidgets.QGroupBox("Slave UDP instance (used to forward from Master to Slave)")
         secondary_layout = QtWidgets.QGridLayout()
 
         self.secondary_udp_server_address = QtWidgets.QLineEdit()
         self.secondary_udp_server_port = QtWidgets.QLineEdit()
 
-        self.enable_secondary_udp_server = QtWidgets.QCheckBox("Enable sending to secondary UDP server")
+        self.enable_secondary_udp_server = QtWidgets.QCheckBox("Enable forwarding to Slave instance")
         self.enable_secondary_udp_server.setChecked(DEFAULT_SECONDARY_UDP_SERVER)
 
         secondary_layout.addWidget(QtWidgets.QLabel("UDP Server:"), 0, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
@@ -135,9 +135,29 @@ class SettingsDialog(QtWidgets.QDialog):
 
         secondary_group.setLayout(secondary_layout)
 
+        logging_group = QtWidgets.QGroupBox("UDP instance for external logging program (e.g. Logger32, RUMlogNG)")
+        logging_layout = QtWidgets.QGridLayout()
+
+        self.logging_udp_server_address = QtWidgets.QLineEdit()
+        self.logging_udp_server_port = QtWidgets.QLineEdit()
+
+        self.enable_logging_udp_server = QtWidgets.QCheckBox("Enable sending QSO data for logging program")
+        self.enable_logging_udp_server.setChecked(DEFAULT_SECONDARY_UDP_SERVER)
+
+        logging_layout.addWidget(QtWidgets.QLabel("UDP Server:"), 0, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
+        logging_layout.addWidget(self.logging_udp_server_address, 0, 1)
+        logging_layout.addWidget(QtWidgets.QLabel("UDP Server port number:"), 1, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
+        logging_layout.addWidget(self.logging_udp_server_port, 1, 1)
+        logging_layout.addWidget(self.enable_logging_udp_server, 2, 0, 1, 2)
+        logging_layout.setColumnMinimumWidth(0, 200)
+        logging_layout.setColumnStretch(0, 0)
+
+        logging_group.setLayout(logging_layout)
+
         tab_1_layout.addWidget(jtdx_notice_label)
         tab_1_layout.addWidget(primary_group)
         tab_1_layout.addWidget(secondary_group)
+        tab_1_layout.addWidget(logging_group)
         tab_1_layout.addStretch() 
 
         """
@@ -683,6 +703,15 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_secondary_udp_server.setChecked(
             self.params.get('enable_secondary_udp_server', DEFAULT_SECONDARY_UDP_SERVER)
         )
+        self.logging_udp_server_address.setText(
+            self.params.get('logging_udp_server_address') or local_ip_address
+        )
+        self.logging_udp_server_port.setText(
+            str(self.params.get('logging_udp_server_port') or DEFAULT_UDP_PORT)
+        )
+        self.enable_logging_udp_server.setChecked(
+            self.params.get('enable_logging_udp_server', DEFAULT_SECONDARY_UDP_SERVER)
+        )
         self.enable_sending_reply.setChecked(
             self.params.get('enable_sending_reply', DEFAULT_SENDING_REPLY)
         )
@@ -789,6 +818,9 @@ class SettingsDialog(QtWidgets.QDialog):
             'secondary_udp_server_address'               : self.secondary_udp_server_address.text(),
             'secondary_udp_server_port'                  : self.secondary_udp_server_port.text(),
             'enable_secondary_udp_server'                : self.enable_secondary_udp_server.isChecked(),
+            'logging_udp_server_address'                 : self.logging_udp_server_address.text(),
+            'logging_udp_server_port'                    : self.logging_udp_server_port.text(),
+            'enable_logging_udp_server'                  : self.enable_logging_udp_server.isChecked(),
             'enable_sending_reply'                       : self.enable_sending_reply.isChecked(),
             'max_reply_attemps_to_callsign'              : max_reply_attemps,
             'max_waiting_delay'                          : max_waiting_delay,

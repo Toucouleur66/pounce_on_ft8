@@ -456,7 +456,7 @@ def simulate(ip_address="127.0.0.1", udp_port=2237, is_slave=True):
     ],
     [
         {"message": "F2DX F4BKB -13", "snr": "+12", "delta_t": "+0.3", "delta_f": "450"},
-        {"message": "CQ 3D2AG RJ1112", "snr": "+13", "delta_t": "+0.2", "delta_f": "1400"},
+        {"message": "CQ 3D2AG RJ11", "snr": "+13", "delta_t": "+0.2", "delta_f": "1400"},
     ]]
     
     send_status_packet(ip_address=ip_address, udp_port=udp_port, is_slave=is_slave)

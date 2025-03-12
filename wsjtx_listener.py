@@ -55,6 +55,9 @@ class Listener:
             secondary_udp_server_address,
             secondary_udp_server_port,
             enable_secondary_udp_server,
+            logging_udp_server_address,
+            logging_udp_server_port,
+            enable_logging_udp_server,            
             enable_sending_reply,
             max_reply_attemps_to_callsign,
             max_working_delay,
@@ -126,6 +129,11 @@ class Listener:
         self.secondary_udp_server_port      = secondary_udp_server_port or 2237
 
         self.enable_secondary_udp_server    = enable_secondary_udp_server or False
+
+        self.logging_udp_server_address     = logging_udp_server_address or get_local_ip_address()
+        self.logging_udp_server_port        = logging_udp_server_port or 2237
+
+        self.enable_logging_udp_server      = enable_logging_udp_server or False
 
         self.enable_sending_reply           = enable_sending_reply
         self.enable_log_all_valid_contact   = enable_log_all_valid_contact
@@ -922,9 +930,7 @@ class Listener:
                         self.worked_callsigns[self.band].append(callsign)                   
 
                         self.log_qso_to_adif()
-
-                        if self.enable_secondary_udp_server:
-                            self.log_qso_to_udp()
+                        self.log_qso_to_udp()
                         """
                             Update marathon data and clear all related Wanted callsigns
                         """
@@ -1264,7 +1270,7 @@ class Listener:
         self.last_logged_call = callsign            
 
     def log_qso_to_udp(self):
-        if self._instance == SLAVE:
+        if not self.enable_logging_udp_server:
             return        
         try:
             awaited_rst_sent = get_clean_rst(self.rst_sent.get(self.call_ready_to_log, '?')) 
@@ -1293,13 +1299,13 @@ class Listener:
             )
 
             pywsjtx.extra.simple_server.SimpleServer().send_packet((
-                self.secondary_udp_server_address,
-                self.secondary_udp_server_port
+                self.logging_udp_server_address,
+                self.logging_udp_server_port
             ), log_pkt)    
 
             log.debug(f"QSOLoggedPacket sent via UDP for [ {self.call_ready_to_log} ] to {(
-                self.secondary_udp_server_address,
-                self.secondary_udp_server_port
+                self.logging_udp_server_address,
+                self.logging_udp_server_port
             )}")
         except Exception as e:
             log.error(f"Error sending QSOLoggedPacket via UDP: {e}")

@@ -2694,6 +2694,9 @@ class MainApp(QtWidgets.QMainWindow):
         secondary_udp_server_address        = params.get('secondary_udp_server_address') or local_ip_address
         secondary_udp_server_port           = int(params.get('secondary_udp_server_port') or DEFAULT_UDP_PORT)
         enable_secondary_udp_server         = params.get('enable_secondary_udp_server', DEFAULT_SECONDARY_UDP_SERVER)
+        logging_udp_server_address          = params.get('logging_udp_server_address') or local_ip_address
+        logging_udp_server_port             = int(params.get('logging_udp_server_port') or DEFAULT_UDP_PORT)
+        enable_logging_udp_server           = params.get('enable_logging_udp_server', DEFAULT_SECONDARY_UDP_SERVER)
         enable_sending_reply                = params.get('enable_sending_reply', DEFAULT_SENDING_REPLY)
         max_reply_attemps_to_callsign       = params.get('max_reply_attemps_to_callsign', DEFAULT_REPLY_ATTEMPTS)
         max_working_delay                   = params.get('max_working_delay', DEFAULT_MAX_WAITING_DELAY)
@@ -2722,6 +2725,9 @@ class MainApp(QtWidgets.QMainWindow):
             secondary_udp_server_address,
             secondary_udp_server_port,
             enable_secondary_udp_server,
+            logging_udp_server_address,
+            logging_udp_server_port,
+            enable_logging_udp_server,            
             enable_sending_reply,
             max_reply_attemps_to_callsign,
             max_working_delay,
