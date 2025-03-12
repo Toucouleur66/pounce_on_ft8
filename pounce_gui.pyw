@@ -1626,8 +1626,8 @@ class MainApp(QtWidgets.QMainWindow):
 
     def update_window_title(self):
             self.window_title = f"{self.base_title} - Connected to {self.my_wsjtx_id}"
-            if self._instance:
-                self.window_title+= f" [ as {self._instance} ]"
+            if self._instance and self._instance == SLAVE:
+                self.window_title+= f" - Running as {self._instance}"
             self.setWindowTitle(self.window_title)
 
     def reset_window_title(self):
