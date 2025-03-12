@@ -1,4 +1,4 @@
-from PyQt6.QtCore import QObject, pyqtSignal
+from PyQt6.QtCore import QObject, pyqtSignal, QThread
 
 class ReceiverWorker(QObject):
     packet_received = pyqtSignal(object, object)
@@ -9,6 +9,7 @@ class ReceiverWorker(QObject):
         self._running = True
 
     def run(self):
+        QThread.currentThread().setObjectName("ReceiverWorker")
         while self._running:
             result = self.receive_function()
             if result is not None:

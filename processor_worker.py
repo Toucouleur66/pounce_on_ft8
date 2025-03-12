@@ -1,4 +1,4 @@
-from PyQt6.QtCore import QObject, pyqtSignal
+from PyQt6.QtCore import QObject, pyqtSignal, QThread
 
 class ProcessorWorker(QObject):
     processing_done = pyqtSignal()
@@ -9,6 +9,7 @@ class ProcessorWorker(QObject):
         self._running = True
 
     def run(self):
+        QThread.currentThread().setObjectName("ProcessorWorker")
         while self._running:
             self.process_function()
         try:

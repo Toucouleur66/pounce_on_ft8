@@ -84,7 +84,7 @@ class Listener:
         self.last_heartbeat_time        = None
 
         self.packet_store               = {}
-        self.origin_addr                = None
+        self.origin_addr_port           = None
         self.packet_counter             = 0        
         self.reply_message_buffer       = deque()
 
@@ -171,7 +171,9 @@ class Listener:
         
         self.packet_queue = queue.Queue(maxsize=1000)
         self.receiver_thread                = QThread()
+        self.receiver_thread.setObjectName("ReceiverThread")
         self.processor_thread               = QThread()
+        self.processor_thread.setObjectName("ProcessorThread")
 
         self.receiver_worker                = ReceiverWorker(self.receive_packets)
         self.processor_worker               = ProcessorWorker(self.process_packets)
@@ -253,22 +255,25 @@ class Listener:
                         origin_ip, origin_port_str = header.split(':')
 
                         origin_port = int(origin_port_str)
-                        origin_addr = (origin_ip, origin_port)
+                        origin_addr_port = (origin_ip, origin_port)
                         actual_pkt  = pkt[header_end+1:]                   
 
                         _instance = SLAVE        
                     except (UnicodeDecodeError, ValueError):                        
-                        origin_addr = addr_port
+                        origin_addr_port = addr_port
                         actual_pkt  = pkt
                 else:                    
-                    origin_addr = addr_port
+                    origin_addr_port = addr_port
                     actual_pkt  = pkt
 
                     _instance = MASTER    
 
-                self.origin_addr = origin_addr
+                self.origin_addr_port = origin_addr_port
 
                 if _instance and _instance != self._instance:
+
+                    log.error(f'Set instance [ {_instance} ] with [ {pywsjtx.WSJTXPacketClassFactory.from_udp_packet(self.origin_addr_port, pkt)} ] from {self.origin_addr_port}')
+
                     self._instance = _instance
                     self.update_listener_settings()                    
                     if self.message_callback:
@@ -281,7 +286,7 @@ class Listener:
                 if self.enable_log_packet_data:
                     message = f"Received packet of length {len(pkt)} from {addr_port}\nPacket data: {pkt.hex()}"
                     log.info(message)
-                self.packet_queue.put((actual_pkt, origin_addr))
+                self.packet_queue.put((actual_pkt, origin_addr_port))
             except socket.timeout:
                 continue
             except OSError as e:
@@ -378,8 +383,8 @@ class Listener:
             self.band 
         ):  
             request_setting_packet = pywsjtx.RequestSettingPacket.Builder(self.the_packet.wsjtx_id)
-            self.s.send_packet(self.origin_addr, request_setting_packet)
-            log.info(f"RequestSettingPacket sent to {self.origin_addr}.")      
+            self.s.send_packet(self.origin_addr_port, request_setting_packet)
+            log.info(f"RequestSettingPacket sent to {self.origin_addr_port}.")      
         
     def send_master_settings(self):
         if self.enable_log_packet_data:
@@ -446,7 +451,7 @@ class Listener:
             
         max_schema = max(self.the_packet.max_schema, 3)
         reply_beat_packet = pywsjtx.HeartBeatPacket.Builder(self.the_packet.wsjtx_id,max_schema)
-        self.s.send_packet(self.origin_addr, reply_beat_packet)
+        self.s.send_packet(self.origin_addr_port, reply_beat_packet)
 
     def handle_status_packet(self):
         if self.enable_log_packet_data:
@@ -533,6 +538,7 @@ class Listener:
                     log.error('We should call [ {} ] not [ {} ]'.format(self.targeted_call, self.dx_call))   
 
                 if error_found and self.message_callback:
+                    self.master_slave_settings = False
                     self.message_callback({
                         'type': 'error_occurred',                
                     })
@@ -920,6 +926,7 @@ class Listener:
                     self.qso_time_off[self.call_ready_to_log] = decode_time
 
                     if callsign not in self.worked_callsigns.get(self.band, {}):
+                        message_type = 'ready_to_log'  
                         # Make sure to not log again this callsign once QSO done    
                         if not self.worked_callsigns.get(self.band):
                             self.worked_callsigns[self.band] = []                        
@@ -939,6 +946,8 @@ class Listener:
                             self.marathon_preference.get(self.band)
                         ):
                             self.clear_wanted_callsigns(entity_code)  
+                    else:
+                        message_type = 'directed_to_my_call'
 
                     """
                         Clean Wanted callsigns
@@ -956,10 +965,7 @@ class Listener:
      
                 elif self.targeted_call is not None:
                     log.error(f"Received |{msg}| from [ {callsign} ] but ongoing callsign is [ {self.targeted_call} ]")
-                    message_type = 'error_occurred'
-
-                if self.message_callback:
-                    message_type = 'ready_to_log'     
+                    message_type = 'error_occurred'   
                 
             elif directed == self.my_call:
                 log.warning(f"Found message directed to my call [ {directed} ] from [ {callsign} ]")
@@ -1157,7 +1163,7 @@ class Listener:
         
         try:
             halt_pkt = pywsjtx.HaltTxPacket.Builder(self.the_packet)             
-            self.s.send_packet(self.origin_addr, halt_pkt)         
+            self.s.send_packet(self.origin_addr_port, halt_pkt)         
             log.debug(f"Sent HaltPacket: {halt_pkt}")         
         except Exception as e:
             log.error(f"Error sending packets: {e}\n{traceback.format_exc()}")
@@ -1180,7 +1186,7 @@ class Listener:
                     self.set_delta_f_packet(self.suggested_frequency)
 
             reply_pkt = pywsjtx.ReplyPacket.Builder(callsign_packet)
-            self.s.send_packet(self.origin_addr, reply_pkt)         
+            self.s.send_packet(self.origin_addr_port, reply_pkt)         
             log.debug(f"Sent ReplyPacket: {reply_pkt}")            
         except Exception as e:
             log.error(f"Error sending packets: {e}\n{traceback.format_exc()}")
@@ -1192,14 +1198,14 @@ class Listener:
         try:
             delta_f_paquet = pywsjtx.SetTxDeltaFreqPacket.Builder(self.the_packet.wsjtx_id, frequency)
             log.warning(f"Sending SetTxDeltaFreqPacket (Df={frequency}): {delta_f_paquet}")
-            self.s.send_packet(self.origin_addr, delta_f_paquet)
+            self.s.send_packet(self.origin_addr_port, delta_f_paquet)
         except Exception as e:
             log.error(f"Error sending packets: {e}\n{traceback.format_exc()}")
 
     def configure_packet(self):
         configure_paquet = pywsjtx.ConfigurePacket.Builder(self.the_packet.wsjtx_id, "FT4")
         log.warning(f"Sending ConfigurePacket: {configure_paquet}")
-        self.s.send_packet(self.origin_addr, configure_paquet)        
+        self.s.send_packet(self.origin_addr_port, configure_paquet)        
 
     def clear_wanted_callsigns(self, entity_code):
         entity_callsigns = self.wanted_callsigns_per_entity.get(self.band, {}).get(entity_code, [])
@@ -1269,6 +1275,8 @@ class Listener:
         self.last_logged_call = callsign            
 
     def log_qso_to_udp(self):
+        if self._instance == SLAVE:
+            return        
         try:
             awaited_rst_sent = get_clean_rst(self.rst_sent.get(self.call_ready_to_log, '?')) 
             awaited_rst_rcvd = get_clean_rst(self.rst_rcvd_from_being_called.get(self.call_ready_to_log, '?')) 
