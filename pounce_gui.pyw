@@ -139,8 +139,9 @@ from constants import (
     DEFAULT_MAX_WAITING_DELAY,
     ACTIVITY_BAR_MAX_VALUE,
     WKB4_REPLY_MODE_ALWAYS,
-    # Style
+    # QSS
     CONTEXT_MENU_DARWIN_QSS,
+    CONTEXT_MENU_HEADER_QSS,
     # Fonts
     CUSTOM_FONT,
     CUSTOM_FONT_MONO,
@@ -1487,7 +1488,7 @@ class MainApp(QtWidgets.QMainWindow):
             menu.addSeparator()
 
         label = QtWidgets.QLabel(f"Apply to {context_menu_band}")
-        label.setStyleSheet(f"background-color: {STATUS_TRX_COLOR}; color: white; border-radius: 6px; padding: 6px;")
+        label.setStyleSheet(CONTEXT_MENU_HEADER_QSS)
 
         widget_action = QtWidgets.QWidgetAction(menu)
         widget_action.setDefaultWidget(label)

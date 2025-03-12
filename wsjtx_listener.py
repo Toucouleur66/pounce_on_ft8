@@ -7,7 +7,6 @@ import socket
 import bisect
 import json
 
-from wsjtx_packet_sender import WSJTXPacketSender
 from datetime import datetime, timezone
 from collections import deque
 
@@ -221,8 +220,11 @@ class Listener:
                 self.primary_udp_server_port
             )
             self.s.sock.settimeout(1.0)
+            log.info(f"✅ Primary server running on {self.primary_udp_server_address}:{self.primary_udp_server_port}")
+
         except socket.error as e:
-            if e.errno == 49:  # Can't assign requested address
+            log.error(f"❌ Error binding primary server to {self.primary_udp_server_address}:{self.primary_udp_server_port} - {e}")
+            if e.errno == 49:  
                 custom_message = (
                     f"Can't create server - {self.primary_udp_server_address}:{self.primary_udp_server_port}.\n"
                     "Please check your network settings or Primary UDP Server address."
@@ -230,17 +232,7 @@ class Listener:
                 log.error(custom_message)
                 if self.message_callback:
                     self.message_callback(custom_message)
-            else:
-                error_message = f"Socket error: {e}"
-                log.error(error_message, exc_info=True)
-                if self.message_callback:
-                    self.message_callback(error_message)
             raise
-
-        self.packet_sender = WSJTXPacketSender(
-            self.secondary_udp_server_address,
-            self.secondary_udp_server_port
-        )        
 
     def receive_packets(self):
         while self._running:
@@ -345,12 +337,11 @@ class Listener:
         return f"{address}:{port}|".encode('utf-8') 
 
     def forward_packet(self, packet):
-        target_server = (
-            self.secondary_udp_server_address,
-            self.secondary_udp_server_port
-        )
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as send_sock:
-            send_sock.sendto(self.add_header() + packet, target_server)
+            send_sock.sendto(self.add_header() + packet, (
+                self.secondary_udp_server_address,
+                self.secondary_udp_server_port
+            ))
 
     def update_listener_settings(self):
         self.wanted_callsigns       = self.monitoring_settings.get_wanted_callsigns()
@@ -409,12 +400,10 @@ class Listener:
                 settings_dict=settings
             )
 
-            self.s.send_packet(
-                (
-                    self.secondary_udp_server_address,
-                    self.secondary_udp_server_port
-                ),  self.add_header() + settings_packet
-            )
+            self.s.send_packet((
+                self.secondary_udp_server_address,
+                self.secondary_udp_server_port
+            ), self.add_header() + settings_packet)
             log.info(f"SettingPacket sent.")        
 
     def stop(self):
@@ -555,7 +544,7 @@ class Listener:
         elif isinstance(self.the_packet, pywsjtx.StatusPacket):
             self.handle_status_packet()
         elif isinstance(self.the_packet, pywsjtx.QSOLoggedPacket):
-            log.warning('QSOLoggedPacket should not be handle due to JTDX restrictions')   
+            log.warning('QSOLoggedPacket should not be handle')   
         elif isinstance(self.the_packet, pywsjtx.DecodePacket):
             self.handle_decode_packet()
             if self.enable_gap_finder:
@@ -1281,26 +1270,37 @@ class Listener:
             awaited_rst_sent = get_clean_rst(self.rst_sent.get(self.call_ready_to_log, '?')) 
             awaited_rst_rcvd = get_clean_rst(self.rst_rcvd_from_being_called.get(self.call_ready_to_log, '?')) 
 
-            self.packet_sender.send_qso_logged_packet(
-                wsjtx_id        = self.the_packet.wsjtx_id,
-                datetime_off    = self.qso_time_off[self.call_ready_to_log],
-                call            = self.call_ready_to_log,
-                grid            = self.grid_being_called[self.call_ready_to_log],
-                frequency       = self.frequency,
-                mode            = self.mode,
-                report_sent     = awaited_rst_sent,
-                report_recv     = awaited_rst_rcvd,
-                tx_power        = '', 
-                comments        = '',
-                name            = '',
-                datetime_on     = self.qso_time_on[self.call_ready_to_log],
-                op_call         = '',
-                my_call         = self.my_call,
-                my_grid         = self.my_grid,
-                exchange_sent   = awaited_rst_sent,
-                exchange_recv   = awaited_rst_rcvd
+            empty_string = ''
+
+            log_pkt = pywsjtx.QSOLoggedPacket.Builder(
+                self.the_packet.wsjtx_id,
+                self.qso_time_off[self.call_ready_to_log],
+                self.call_ready_to_log,
+                self.grid_being_called[self.call_ready_to_log],
+                self.frequency,
+                self.mode,
+                awaited_rst_sent,
+                awaited_rst_rcvd,
+                empty_string, 
+                empty_string,
+                empty_string,
+                self.qso_time_on[self.call_ready_to_log],
+                empty_string,
+                self.my_call,
+                self.my_grid,
+                awaited_rst_sent,
+                awaited_rst_rcvd
             )
-            log.debug("QSOLoggedPacket sent via UDP for [ {} ]".format(self.call_ready_to_log))
+
+            pywsjtx.extra.simple_server.SimpleServer().send_packet((
+                self.secondary_udp_server_address,
+                self.secondary_udp_server_port
+            ), log_pkt)    
+
+            log.debug(f"QSOLoggedPacket sent via UDP for [ {self.call_ready_to_log} ] to {(
+                self.secondary_udp_server_address,
+                self.secondary_udp_server_port
+            )}")
         except Exception as e:
             log.error(f"Error sending QSOLoggedPacket via UDP: {e}")
             log.error("Caught an error while trying to send QSOLoggedPacket packet: error {}\n{}".format(e, traceback.format_exc()))

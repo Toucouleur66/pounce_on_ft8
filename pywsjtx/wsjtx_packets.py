@@ -393,6 +393,7 @@ class ReplyPacket(GenericWSJTXPacket):
 
 class QSOLoggedPacket(GenericWSJTXPacket):
     TYPE_VALUE = 5
+
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
         GenericWSJTXPacket.__init__(self, addr_port, magic, schema, pkt_type, id, pkt)
         ps = PacketReader(pkt)
@@ -424,6 +425,48 @@ class QSOLoggedPacket(GenericWSJTXPacket):
         else:
             self.exchange_sent = None
             self.exchange_recv = None
+
+    @classmethod
+    def Builder(
+        cls,
+        wsjtx_id        = 'WSJT-X',
+        datetime_off    = None,
+        call            = None,
+        grid            = None,
+        frequency       = None,
+        mode            = None,
+        report_sent     = None,
+        report_recv     = None,
+        tx_power        = None,
+        comments        = None,
+        name            = None,
+        datetime_on     = None,
+        op_call         = None,
+        my_call         = None,
+        my_grid         = None,
+        exchange_sent   = None,
+        exchange_recv   = None
+        ):    
+            pkt = PacketWriter()
+            pkt.write_QInt32(QSOLoggedPacket.TYPE_VALUE)
+            pkt.write_QString(wsjtx_id)
+            pkt.write_QDateTime(datetime_off)
+            pkt.write_QString(call)
+            pkt.write_QString(grid)
+            pkt.write_QInt64(frequency)
+            pkt.write_QString(mode)
+            pkt.write_QString(report_sent)
+            pkt.write_QString(report_recv)
+            pkt.write_QString(tx_power)
+            pkt.write_QString(comments)
+            pkt.write_QString(name)
+            pkt.write_QDateTime(datetime_on)
+            pkt.write_QString(op_call)
+            pkt.write_QString(my_call)
+            pkt.write_QString(my_grid)
+            pkt.write_QString(exchange_sent)
+            pkt.write_QString(exchange_recv)
+            return pkt.packet 
 
     def __repr__(self):
         str = 'QSOLoggedPacket: call {} @ {}\n\tdatetime:{}\tfreq:{}\n'.format(self.call,
