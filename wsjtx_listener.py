@@ -345,11 +345,17 @@ class Listener:
         return f"{address}:{port}|".encode('utf-8') 
 
     def forward_packet(self, packet):
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as send_sock:
-            send_sock.sendto(self.add_header() + packet, (
-                self.secondary_udp_server_address,
-                self.secondary_udp_server_port
-            ))
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as send_sock:
+                send_sock.sendto(self.add_header() + packet, (
+                    self.secondary_udp_server_address,
+                    self.secondary_udp_server_port
+                ))
+        except Exception as e:
+            error_message = f"Can't forward packet: {e}\n{traceback.format_exc()}"
+            log.info(error_message)
+            if self.message_callback:
+                self.message_callback(error_message)    
 
     def update_listener_settings(self):
         self.wanted_callsigns       = self.monitoring_settings.get_wanted_callsigns()
@@ -376,14 +382,26 @@ class Listener:
 
         log.warning(f"\n\t".join(log_output))
 
+    """
+        Handle slave master relationship 
+    """
     def request_master_settings(self):
         if (
             self._instance == SLAVE and
             self.band 
         ):  
-            request_setting_packet = pywsjtx.RequestSettingPacket.Builder(self.the_packet.wsjtx_id)
-            self.s.send_packet(self.origin_addr_port, request_setting_packet)
-            log.info(f"RequestSettingPacket sent to {self.origin_addr_port}.")      
+            try:
+                request_setting_packet = pywsjtx.RequestSettingPacket.Builder(self.the_packet.wsjtx_id)
+                self.s.send_packet(self.origin_addr_port, request_setting_packet)
+                log.info(f"RequestSettingPacket sent to {self.origin_addr_port}.")      
+            except Exception as e:
+                log.error(f"Failed to request Master settings: {e}")
+
+    def reset_slave_settings(self):
+        log.debug(f"Reset settings. Have to request new settings.")      
+        self.master_slave_settings = None
+        self.master_operating_band = None
+        self.request_master_settings()   
         
     def send_master_settings(self):
         if self.enable_log_packet_data:
@@ -403,17 +421,23 @@ class Listener:
                 'excluded_cq_zones'     : self.excluded_cq_zones,
             }
 
-            settings_packet = pywsjtx.SettingPacket.Builder(
-                to_wsjtx_id="WSJT-X",
-                settings_dict=settings
-            )
+            try:
+                settings_packet = pywsjtx.SettingPacket.Builder(
+                    to_wsjtx_id="WSJT-X",
+                    settings_dict=settings
+                )
 
-            self.s.send_packet((
-                self.secondary_udp_server_address,
-                self.secondary_udp_server_port
-            ), self.add_header() + settings_packet)
-            log.info(f"SettingPacket sent.")        
+                self.s.send_packet((
+                    self.secondary_udp_server_address,
+                    self.secondary_udp_server_port
+                ), self.add_header() + settings_packet)
+                log.info(f"SettingPacket sent.")        
+            except Exception as e:
+                log.error(f"Failed to send Master settings: {e}")    
 
+    """
+        Process to stop Listener properly
+    """
     def stop(self):
         self._running = False
         self._instance = MASTER
@@ -535,7 +559,6 @@ class Listener:
                     log.error('We should call [ {} ] not [ {} ]'.format(self.targeted_call, self.dx_call))   
 
                 if error_found and self.message_callback:
-                    self.master_slave_settings = False
                     self.message_callback({
                         'type': 'error_occurred',                
                     })

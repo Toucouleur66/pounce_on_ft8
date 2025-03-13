@@ -8,12 +8,13 @@ from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
 from wsjtx_listener import Listener
 
 class Worker(QObject):
-    finished                = pyqtSignal()
-    error                  = pyqtSignal(str)
-    listener_started       = pyqtSignal()
-    message                = pyqtSignal(object)
+    finished                         = pyqtSignal()
+    error                           = pyqtSignal(str)
+    listener_started                = pyqtSignal()
+    message                         = pyqtSignal(object)
     update_listener_settings_signal = pyqtSignal()
-    send_settings_signal   = pyqtSignal()
+    send_settings_signal            = pyqtSignal()
+    reset_settings_signal           = pyqtSignal()    
 
     def __init__(
             self,
@@ -47,6 +48,7 @@ class Worker(QObject):
 
         self.update_listener_settings_signal.connect(self.update_listener_settings)
         self.send_settings_signal.connect(self.send_master_settings)
+        self.reset_settings_signal.connect(self.reset_slave_settings)
 
         self.listener                           = None 
         self.stop_event                         = stop_event
@@ -149,3 +151,7 @@ class Worker(QObject):
     def send_master_settings(self):
         if self.listener is not None:
             self.listener.send_master_settings()            
+
+    def reset_slave_settings(self):
+        if self.listener is not None:
+            self.listener.reset_slave_settings()                        

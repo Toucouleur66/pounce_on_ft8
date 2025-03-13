@@ -1185,10 +1185,10 @@ class MainApp(QtWidgets.QMainWindow):
             self.send_worker_signal()
             
     def send_worker_signal(self):
-        if self.worker is not None:
+        if self.worker is not None:            
             self.worker.update_listener_settings_signal.emit()
             if self._instance == MASTER:
-                self.worker.send_settings_signal.emit()   
+                self.worker.send_settings_signal.emit()  
         
     @QtCore.pyqtSlot(object)
     def on_message_received(self, message):        
@@ -1874,6 +1874,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.status_label.setText('<br>'.join(status_text_array))
 
         if connection_lost:
+            self.worker.reset_settings_signal.emit()
             self.reset_window_title()
             self.update_status_label_style("red", "white")
             if not self.connection_lost_shown:
