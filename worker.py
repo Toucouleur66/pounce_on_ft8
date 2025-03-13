@@ -149,7 +149,7 @@ class Worker(QObject):
     """
     def update_listener_settings(self):
         current_time = datetime.now()
-        if current_time - self.last_update_time >= 2:
+        if (current_time - self.last_update_time).total_seconds() > 1:
             self.last_update_time = current_time
             if self.listener is not None:
                 self.listener.update_listener_settings()
