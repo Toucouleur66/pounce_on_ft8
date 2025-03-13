@@ -402,8 +402,6 @@ class Listener:
         self.send_request_setting_packet()   
         
     def send_settings_packet(self):
-        if self.enable_log_packet_data:
-            log.debug('{}'.format(self.the_packet))
         if (
             self._instance == MASTER and
             self.band and 

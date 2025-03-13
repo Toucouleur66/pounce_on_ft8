@@ -150,7 +150,7 @@ class Worker(QObject):
 
     def send_master_settings(self):
         if self.listener is not None:
-            self.listener.send_master_settings()            
+            self.listener.send_settings_packet()            
 
     def reset_slave_settings(self):
         if self.listener is not None:
