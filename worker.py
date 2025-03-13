@@ -84,7 +84,7 @@ class Worker(QObject):
         self.enable_marathon                    = enable_marathon
         self.marathon_preference                = marathon_preference
 
-        self.last_update_time                   = 0  
+        self.last_update_time                   = datetime.now() 
 
     def run(self):
         try:
