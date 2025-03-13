@@ -1189,9 +1189,7 @@ class MainApp(QtWidgets.QMainWindow):
     def send_worker_signal(self):
         if self.worker is not None:            
             self.worker.update_listener_settings_signal.emit()
-            if self._instance == MASTER:
-                self.worker.send_settings_signal.emit()  
-        
+            
     @QtCore.pyqtSlot(object)
     def on_message_received(self, message):        
         if isinstance(message, dict):

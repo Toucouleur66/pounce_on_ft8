@@ -62,7 +62,7 @@ WORKED_CALLSIGNS_FILE           = os.path.join(get_app_data_dir(), "worked_calls
 ADIF_WORKED_CALLSIGNS_FILE      = os.path.join(get_app_data_dir(), "wait_pounce_log.adif")
 
 GUI_LABEL_NAME                  = "Wait and Pounce"
-GUI_LABEL_VERSION               = f"{GUI_LABEL_NAME} v{CURRENT_VERSION_NUMBER}"
+GUI_LABEL_VERSION               = f"{GUI_LABEL_NAME} build {CURRENT_VERSION_NUMBER}"
 
 STATUS_BUTTON_LABEL_MONITORING  = "Monitoring..."
 STATUS_BUTTON_LABEL_DECODING    = "Decoding..."

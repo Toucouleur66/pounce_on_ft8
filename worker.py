@@ -3,6 +3,7 @@
 import time
 import traceback
 
+from datetime import datetime
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
 
 from wsjtx_listener import Listener
@@ -83,6 +84,8 @@ class Worker(QObject):
         self.enable_marathon                    = enable_marathon
         self.marathon_preference                = marathon_preference
 
+        self.last_update_time                   = 0  
+
     def run(self):
         try:
             self.listener = Listener(
@@ -145,8 +148,11 @@ class Worker(QObject):
         Make sure we are using the latest settings
     """
     def update_listener_settings(self):
-        if self.listener is not None:
-            self.listener.update_listener_settings()
+        current_time = datetime.now()
+        if current_time - self.last_update_time >= 2:
+            self.last_update_time = current_time
+            if self.listener is not None:
+                self.listener.update_listener_settings()
 
     def send_master_settings(self):
         if self.listener is not None:
