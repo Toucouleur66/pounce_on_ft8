@@ -193,7 +193,11 @@ class MainApp(QtWidgets.QMainWindow):
         self.status_menu_agent   = None
 
         self.updater             = Updater()
+        params                   = self.load_params()  
 
+        """
+            Status bar for MacOsx
+        """
         if sys.platform == 'darwin':
             self.status_menu_agent = StatusMenuAgent()
             self.status_menu_agent.clicked.connect(self.on_status_menu_clicked)
@@ -202,8 +206,6 @@ class MainApp(QtWidgets.QMainWindow):
             self.pobjc_timer = QtCore.QTimer(self)
             self.pobjc_timer.timeout.connect(self.status_menu_agent.process_events)
             self.pobjc_timer.start(10) 
-            
-        params                      = self.load_params()  
         
         """
             Store data from update_model_data
@@ -235,11 +237,10 @@ class MainApp(QtWidgets.QMainWindow):
         self.message_received.connect(self.on_message_received)
 
         self.message_times = deque()
-
-        self.activity_timer = QtCore.QTimer()
-        self.activity_timer.timeout.connect(self.update_activity_bar)
-        self.activity_timer.start(100)
-
+        
+        self.activity_bar_timer = QtCore.QTimer()
+        self.activity_bar_timer.timeout.connect(self.update_activity_bar)
+        self.activity_bar_timer.start(100)
         self.theme_manager = ThemeManager()
         self.theme_manager.theme_changed.connect(self.apply_theme_to_all)
 
@@ -253,6 +254,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         self._running                           = False
         self._instance                          = MASTER
+        self._connected                         = True
 
         self.decode_packet_count                = 0
         self.last_decode_packet_time            = None
@@ -1422,7 +1424,8 @@ class MainApp(QtWidgets.QMainWindow):
         """
             Reset timer
         """
-        self.process_timer = False       
+        self.process_timer = False     
+        self.update_activity_bar()  
 
     def on_table_row_clicked(self, table, row, column):
         position = table.visualRect(table.model().index(row, column)).center()
@@ -1873,21 +1876,19 @@ class MainApp(QtWidgets.QMainWindow):
         self.status_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
         self.status_label.setText('<br>'.join(status_text_array))
 
-        if connection_lost:
-            self.worker.reset_settings_signal.emit()
+        if connection_lost:            
             self.reset_window_title()
             self.update_status_label_style("red", "white")
-            if not self.connection_lost_shown:
-                self.connection_lost_shown = True
-                self.operating_band = None
-                self.restore_slave_settings()
+            if self._connected:
+                self.on_lost_connection()
                 self.update_tab_widget_labels_style()
                 if self.global_sound_toggle.isChecked():      
                     self.play_sound("error_occurred")
         elif nothing_to_decode: 
             self.update_status_label_style("white", "black")
         else:
-            self.connection_lost_shown = False      
+            if not self._connected:  
+                self.on_resume_connection()
             if self._instance == SLAVE:
                 self.update_status_label_style(FG_TIMER_COLOR, EVEN_COLOR)
             else:
@@ -1905,7 +1906,31 @@ class MainApp(QtWidgets.QMainWindow):
             if self._running:
                 self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR) 
             self.last_transmit_time = None
-            self.stop_blinking_status_button()                
+            self.stop_blinking_status_button()   
+
+    def on_lost_connection(self):
+        log.warning("Lost connection")
+        self._connected = False
+        self.operating_band = None
+        
+        self.stop_blinking_status_button()  
+        self.activity_bar_timer.stop()
+        self.blink_timer.stop()
+        self.enforce_size_limit_timer.stop()
+
+        if sys.platform == 'darwin':
+            self.pobjc_timer.stop() 
+
+        self.restore_slave_settings()
+        self.worker.reset_settings_signal.emit()     
+                    
+    def on_resume_connection(self):
+        log.warning("Resume connection")
+        self._connected = True    
+        self.activity_bar_timer.start(100)
+        self.enforce_size_limit_timer.start(60_000) 
+        if sys.platform == 'darwin':
+            self.pobjc_timer.start(10) 
             
     def on_close(self, event):        
         self.save_window_position()
@@ -2894,9 +2919,6 @@ def main():
 
     window.updater  = UpdateManager()
     window.updater.check_expiration_or_update()
-
-    update_timer.timeout.connect(window.updater.check_expiration_or_update)
-    update_timer.start(60 * 60 * 1_000)
 
     window.show()
     window.update_status_menu_message((f'{GUI_LABEL_VERSION}').upper(), BG_COLOR_REGULAR_FOCUS, FG_COLOR_REGULAR_FOCUS)   

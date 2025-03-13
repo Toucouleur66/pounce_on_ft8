@@ -178,9 +178,7 @@ class Listener:
         
         self.packet_queue = queue.Queue(maxsize=1000)
         self.receiver_thread                = QThread()
-        self.receiver_thread.setObjectName("ReceiverThread")
         self.processor_thread               = QThread()
-        self.processor_thread.setObjectName("ProcessorThread")
 
         self.receiver_worker                = ReceiverWorker(self.receive_packets)
         self.processor_worker               = ProcessorWorker(self.process_packets)
@@ -385,7 +383,7 @@ class Listener:
     """
         Handle slave master relationship 
     """
-    def request_master_settings(self):
+    def send_request_setting_packet(self):
         if (
             self._instance == SLAVE and
             self.band 
@@ -398,12 +396,12 @@ class Listener:
                 log.error(f"Failed to request Master settings: {e}")
 
     def reset_slave_settings(self):
-        log.debug(f"Reset settings. Have to request new settings.")      
+        log.debug(f"Reset Slave settings.")      
         self.master_slave_settings = None
         self.master_operating_band = None
-        self.request_master_settings()   
+        self.send_request_setting_packet()   
         
-    def send_master_settings(self):
+    def send_settings_packet(self):
         if self.enable_log_packet_data:
             log.debug('{}'.format(self.the_packet))
         if (
@@ -463,7 +461,7 @@ class Listener:
         if self.enable_debug_output and self.message_callback:
             self.message_callback(display_message)
 
-    def send_heartbeat(self):
+    def send_heartbeat_packet(self):
         if self._instance == SLAVE: 
             if self.last_heartbeat_time:        
                 if (datetime.now(timezone.utc) - self.last_heartbeat_time).total_seconds() > HEARTBEAT_TIMEOUT_THRESHOLD:
@@ -522,7 +520,7 @@ class Listener:
                     self.master_operating_band != self.band
                 )
             ):
-                    self.request_master_settings()       
+                    self.send_request_setting_packet()       
             
             if self.targeted_call is not None:
                 """
@@ -571,7 +569,7 @@ class Listener:
 
         if isinstance(self.the_packet, pywsjtx.HeartBeatPacket):
             self.last_heartbeat_time = datetime.now(timezone.utc)
-            self.send_heartbeat()
+            self.send_heartbeat_packet()
         elif isinstance(self.the_packet, pywsjtx.StatusPacket):
             self.handle_status_packet()
         elif isinstance(self.the_packet, pywsjtx.QSOLoggedPacket):
@@ -590,7 +588,7 @@ class Listener:
             self.callback_stop_monitoring()
         elif isinstance(self.the_packet, pywsjtx.RequestSettingPacket):
             log.debug('Received RequestSettingPacket method')   
-            self.send_master_settings()                 
+            self.send_settings_packet()                 
         elif isinstance(self.the_packet, pywsjtx.SettingPacket):
             self.handle_settings_packet()       
         else:
@@ -729,13 +727,9 @@ class Listener:
                         })
                     log.info(f"SettingPacket received")                    
             except Exception as e:
-                log.error(f"Error processing SettingPacket: {e}")  
-        elif self._instance == MASTER:
-            try:                                       
-                self.send_master_settings()
-            except Exception as e:
-                log.error(f"Error processing SettingPacket: {e}")     
+                log.error(f"Error processing SettingPacket: {e}")          
         else:
+            self.last_master_slave_settings = None
             log.error(f"Can't handle SettingPacket yet.")     
 
     def handle_decode_packet(self):        

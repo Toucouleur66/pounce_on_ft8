@@ -9,11 +9,10 @@ class ReceiverWorker(QObject):
         self._running = True
 
     def run(self):
-        QThread.currentThread().setObjectName("ReceiverWorker")
         while self._running:
             result = self.receive_function()
             if result is not None:
-                packet, addr_port = result  # Décompresser seulement si result n'est pas None
+                packet, addr_port = result 
                 self.packet_received.emit(packet, addr_port)
 
     def stop(self):
