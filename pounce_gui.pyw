@@ -17,7 +17,6 @@ import pyperclip
 import sys
 import threading
 import uuid
-import time 
 
 """
     Not to be deleted because it allows for one-off debugging
@@ -1326,7 +1325,10 @@ class MainApp(QtWidgets.QMainWindow):
             master_wanted_callsigns = master_settings.get('wanted_callsigns')
             if(
                 self.global_sound_toggle.isChecked() and
-                has_significant_change(self.wanted_callsigns_vars[master_operating_band].text().split(','), master_wanted_callsigns)
+                has_significant_change(
+                    self.wanted_callsigns_vars[master_operating_band].text(),
+                    ", ".join(master_wanted_callsigns)
+                )
             ):
                 play_sound = True
 

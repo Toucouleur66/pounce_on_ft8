@@ -11,7 +11,6 @@ class SimpleServer(object):
 
     def __init__(self, ip_address='127.0.0.1', udp_port=DEFAULT_UDP_PORT, **kwargs):
         self.timeout = kwargs.get("timeout", None)
-        self.verbose = kwargs.get("verbose", False)
 
         self.ip_address = ip_address
         self.udp_port = udp_port
@@ -36,7 +35,7 @@ class SimpleServer(object):
             if self.timeout is not None:
                 self.sock.settimeout(self.timeout)
         except socket.error as e:
-            print(f"❌ Error creating UDP socket: {e}")
+            print(f"Error creating UDP socket: {e}")
             self.sock = None
 
     def close_socket(self):
@@ -62,11 +61,10 @@ class SimpleServer(object):
                 pkt, addr_port = self.sock.recvfrom(self.MAX_BUFFER_SIZE)
                 return pkt, addr_port
         except socket.timeout:
-            if self.verbose:
-                print("rx_packet: socket.timeout")
+            print("rx_packet: socket.timeout")
         except OSError as e:
             if e.errno == 10038:
-                print("⚠️ Invalid socket so try to create_socket")
+                print("Invalid socket so try to create_socket")
                 self.create_socket()
             else:
                 print(f"Exception in rx_packet: {e}\n{traceback.format_exc()}")

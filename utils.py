@@ -1,6 +1,7 @@
 # utils.py
 
 import socket
+import difflib
 import datetime
 import time
 import re
@@ -379,26 +380,18 @@ def compute_time_ago(dt_value):
         weeks = seconds // (86400 * 7)
         return f"{weeks}w"            
 
-def has_significant_change(first_array, second_array):
-    if len(first_array) != len(second_array):
-        longer_list, shorter_list = (second_array, first_array) if len(second_array) > len(first_array) else (first_array, second_array)
-
-        for new_item in longer_list[len(shorter_list):]:
-            if len(new_item) > 3:
-                return True 
-
-        return False 
-
-    for first_item, second_item in zip(first_array, second_array):
-        if abs(len(first_item) - len(second_item)) > 1:
-            return True
-
-        changes = sum(1 for a, b in zip(first_item, second_item) if a != b)
-
-        if changes > 1:
-            return True
-
-    return False 
+def has_significant_change(first_str, second_str):
+    if first_str.count(',') != second_str.count(','):
+        return True
+    
+    diff = list(difflib.ndiff(first_str, second_str))
+    
+    changes = sum(1 for d in diff if d.startswith(('+', '-')))
+    
+    if changes < 3:
+        return False
+    
+    return True
 
 def parse_adif_record(record, lookup):    
     fields = {field.upper(): value.strip() for field, value in ADIF_FIELD_RE.findall(record)}

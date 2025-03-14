@@ -224,10 +224,10 @@ class Listener:
                 self.primary_udp_server_port
             )
             self.s.sock.settimeout(1.0)
-            log.info(f"✅ Primary server running on {self.primary_udp_server_address}:{self.primary_udp_server_port}")
+            log.info(f"Primary server running on {self.primary_udp_server_address}:{self.primary_udp_server_port}")
 
         except socket.error as e:
-            log.error(f"❌ Error binding primary server to {self.primary_udp_server_address}:{self.primary_udp_server_port} - {e}")
+            log.error(f"Error binding primary server to {self.primary_udp_server_address}:{self.primary_udp_server_port} - {e}")
             if e.errno == 49:  
                 custom_message = (
                     f"Can't create server - {self.primary_udp_server_address}:{self.primary_udp_server_port}.\n"
