@@ -1,5 +1,5 @@
 import traceback
-from datetime import datetime
+
 from PyQt6.QtCore import QObject, pyqtSignal, QTimer
 
 from wsjtx_listener import Listener
@@ -81,7 +81,6 @@ class Worker(QObject):
         self.enable_marathon = enable_marathon
         self.marathon_preference = marathon_preference
 
-        self.last_update_time = datetime.now()
         self.timer = QTimer()
         self.timer.timeout.connect(self.check_stop_event)
 
@@ -141,7 +140,8 @@ class Worker(QObject):
             self.timer.stop()
             if self.listener is not None:
                 self.listener.stop()
-                self.listener.t.join()
+                if hasattr(self.listener, "t") and self.listener.t is not None:
+                    self.listener.t.join()
             self.finished.emit()
 
     def stop(self):
@@ -149,10 +149,7 @@ class Worker(QObject):
         self.check_stop_event()
 
     def update_listener_settings(self):
-        current_time = datetime.now()
-        if (current_time - self.last_update_time).total_seconds() >= 2:
-            self.last_update_time = current_time
-            if self.listener is not None:
+        if self.listener is not None:
                 self.listener.update_listener_settings()
 
     def send_master_settings(self):

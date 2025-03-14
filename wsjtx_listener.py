@@ -189,8 +189,6 @@ class Listener:
         self.receiver_thread.started.connect(self.receiver_worker.run)
         self.processor_thread.started.connect(self.processor_worker.run)
 
-        self.update_listener_settings()
-
         """
             Check ADIF file to handle Worked B4 
         """
@@ -271,8 +269,7 @@ class Listener:
                 if _instance and _instance != self._instance:
                     log.error(f'Set instance [ {_instance} ] with [ {pywsjtx.WSJTXPacketClassFactory.from_udp_packet(self.origin_addr_port, pkt)} ] from {self.origin_addr_port}')
 
-                    self._instance = _instance
-                    self.update_listener_settings()                    
+                    self._instance = _instance                 
                     if self.message_callback:
                         self.message_callback({
                             'type'      : 'master_status',
@@ -574,7 +571,8 @@ class Listener:
             log.debug('Received RequestSettingPacket method')   
             self.send_settings_packet()                 
         elif isinstance(self.the_packet, pywsjtx.SettingPacket):
-            self.handle_settings_packet()       
+            self.handle_settings_packet()  
+            self.update_listener_settings()        
         else:
             status_update = False
             log.error('Unknown packet type {}; {}'.format(type(self.the_packet),self.the_packet))
