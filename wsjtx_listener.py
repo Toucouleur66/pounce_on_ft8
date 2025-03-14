@@ -269,7 +269,6 @@ class Listener:
                 self.origin_addr_port = origin_addr_port
 
                 if _instance and _instance != self._instance:
-
                     log.error(f'Set instance [ {_instance} ] with [ {pywsjtx.WSJTXPacketClassFactory.from_udp_packet(self.origin_addr_port, pkt)} ] from {self.origin_addr_port}')
 
                     self._instance = _instance
@@ -310,18 +309,9 @@ class Listener:
 
             try:
                 self.the_packet = pywsjtx.WSJTXPacketClassFactory.from_udp_packet(addr_port, packet)
-                """
-                    Assign packet and deal with it
-                """
                 self.assign_packet()  
-                if (
-                    self.enable_secondary_udp_server and 
-                    self.secondary_udp_server_address != self.primary_udp_server_address
-                ):
-                    """
-                        Forward packet to secondary server
-                    """
-                    self.forward_packet(packet)              
+                if self.can_forward_packet():
+                    self.forward_packet(packet)                          
             except Exception as e:
                 error_message = f"Exception in process_packets: {e}\n{traceback.format_exc()}"
                 log.info(error_message)
@@ -396,10 +386,10 @@ class Listener:
                 log.error(f"Failed to request Master settings: {e}")
 
     def reset_slave_settings(self):
-        log.debug(f"Reset Slave settings.")      
-        self.master_slave_settings = None
-        self.master_operating_band = None
-        self.send_request_setting_packet()   
+        if self._instance == SLAVE:
+            log.debug(f"Reset Slave settings.")      
+            self.master_slave_settings = None
+            self.master_operating_band = None
         
     def send_settings_packet(self):
         if (
@@ -505,6 +495,7 @@ class Listener:
                     self.last_band = self.band
                     self.last_band_time_change = datetime.now()
                     self.reset_targeted_call()
+                    self.reset_slave_settings()
 
                 if self.message_callback:
                     self.message_callback({
@@ -512,13 +503,8 @@ class Listener:
                         'frequency' : self.frequency
                     })       
 
-            if (
-                self._instance == SLAVE and (
-                    self.master_slave_settings is None or 
-                    self.master_operating_band != self.band
-                )
-            ):
-                    self.send_request_setting_packet()       
+            if self._instance == SLAVE and not self.master_slave_settings:
+                self.send_request_setting_packet()       
             
             if self.targeted_call is not None:
                 """
@@ -594,7 +580,18 @@ class Listener:
             log.error('Unknown packet type {}; {}'.format(type(self.the_packet),self.the_packet))
 
         if status_update:
-            self.callback_status_update()       
+            self.callback_status_update()   
+
+    def can_forward_packet(self):    
+        if (
+            not self.enable_secondary_udp_server or 
+            self.secondary_udp_server_address == self.primary_udp_server_address
+        ):                    
+            return False
+        elif isinstance(self.the_packet, pywsjtx.RequestSettingPacket):
+            return False
+        else:
+            return True
                
     def callback_status_update(self):
         if self.message_callback:
