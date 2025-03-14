@@ -279,7 +279,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.sound_queue                        = Queue()
         self.sound_timer                        = QtCore.QTimer()
-        self.sound_timer.timeout.connect(self._play_next_sound)
+        self.sound_timer.timeout.connect(self.play_next_sound)
         self.currently_playing = False
 
         self.wanted_callsign_detected_sound     = QSoundEffect()
@@ -1731,18 +1731,25 @@ class MainApp(QtWidgets.QMainWindow):
             if sound:
                 log.debug(f"Queued sound: [{sound_name}]")
                 self.sound_queue.put(sound)
-                self._start_sound_queue()
+                self.start_sound_queue()
             else:
                 log.error(f"Unknown sound: [{sound_name}]") 
 
         except Exception as e:
             log.error(f"Failed to queue alert sound: {e}")
 
-    def _start_sound_queue(self):
-        if not self.currently_playing and not self.sound_queue.empty():
-            self._play_next_sound()
+    def stop_sound_queue(self):
+        self.sound_timer.stop()
+        while not self.sound_queue.empty():
+            self.sound_queue.get()  
 
-    def _play_next_sound(self):
+        self.currently_playing = False
+    
+    def start_sound_queue(self):
+        if not self.currently_playing and not self.sound_queue.empty():
+            self.play_next_sound()
+
+    def play_next_sound(self):
         if not self.sound_queue.empty():
             self.currently_playing = True
             sound = self.sound_queue.get()
@@ -1878,10 +1885,10 @@ class MainApp(QtWidgets.QMainWindow):
             self.reset_window_title()
             self.update_status_label_style("red", "white")
             if self._connected:
-                self.on_lost_connection()
-                self.update_tab_widget_labels_style()
                 if self.global_sound_toggle.isChecked():      
                     self.play_sound("error_occurred")
+                self.on_lost_connection()
+                self.update_tab_widget_labels_style()
         elif nothing_to_decode: 
             self.update_status_label_style("white", "black")
         else:
@@ -1911,6 +1918,7 @@ class MainApp(QtWidgets.QMainWindow):
         self._connected = False
         self.operating_band = None
         
+        self.stop_sound_queue()
         self.stop_blinking_status_button()  
         self.activity_bar_timer.stop()
         self.blink_timer.stop()
@@ -1924,6 +1932,7 @@ class MainApp(QtWidgets.QMainWindow):
                     
     def on_resume_connection(self):
         log.warning("Resume connection")
+        self.worker.send_settings_signal.emit()
         self._connected = True    
         self.activity_bar_timer.start(100)
         self.enforce_size_limit_timer.start(60_000) 

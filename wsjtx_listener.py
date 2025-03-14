@@ -727,7 +727,7 @@ class Listener:
             except Exception as e:
                 log.error(f"Error processing SettingPacket: {e}")          
         else:
-            self.last_master_slave_settings = None
+            self.master_slave_settings = None
             log.error(f"Can't handle SettingPacket yet.")     
 
     def handle_decode_packet(self):        
