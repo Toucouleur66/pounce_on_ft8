@@ -175,6 +175,7 @@ class Listener:
         self.master_slave_settings          = None
         self.last_master_slave_settings     = None
         self.master_operating_band          = None
+        self.last_synch_time                = None        
         
         self.packet_queue = queue.Queue(maxsize=1000)
         self.receiver_thread                = QThread()
@@ -376,7 +377,10 @@ class Listener:
             self.band 
         ):  
             try:
-                request_setting_packet = pywsjtx.RequestSettingPacket.Builder(self.the_packet.wsjtx_id)
+                request_setting_packet = pywsjtx.RequestSettingPacket.Builder(
+                    self.the_packet.wsjtx_id,
+                    self.last_synch_time
+                )
                 self.s.send_packet(self.origin_addr_port, request_setting_packet)
                 log.info(f"RequestSettingPacket sent to {self.origin_addr_port}.")      
             except Exception as e:
@@ -387,36 +391,43 @@ class Listener:
             log.debug(f"Reset Slave settings.")      
             self.master_slave_settings = None
             self.master_operating_band = None
-        
-    def send_settings_packet(self):
+
+    def send_settings(self):
         if (
             self._instance == MASTER and
             self.band and 
             self.enable_secondary_udp_server and 
             self.secondary_udp_server_address != self.primary_udp_server_address
         ):    
-            settings = { 
+            settings = {             
                 'band'                  : self.band,
+                'time'                  : datetime.now,
                 'wanted_callsigns'      : self.wanted_callsigns,
                 'excluded_callsigns'    : self.excluded_callsigns,
                 'monitored_callsigns'   : self.monitored_callsigns,
                 'monitored_cq_zones'    : self.monitored_cq_zones,
                 'excluded_cq_zones'     : self.excluded_cq_zones,
             }
+            self.send_settings_packet(
+                settings,
+                self.secondary_udp_server_address,
+                self.secondary_udp_server_port
+            )
+        
+    def send_settings_packet(self, settings, server_address, server_port):
+        try:
+            settings_packet = pywsjtx.SettingPacket.Builder(
+                to_wsjtx_id="WSJT-X",
+                settings_dict=settings
+            )
 
-            try:
-                settings_packet = pywsjtx.SettingPacket.Builder(
-                    to_wsjtx_id="WSJT-X",
-                    settings_dict=settings
-                )
-
-                self.s.send_packet((
-                    self.secondary_udp_server_address,
-                    self.secondary_udp_server_port
-                ), self.add_header() + settings_packet)
-                log.info(f"SettingPacket sent.")        
-            except Exception as e:
-                log.error(f"Failed to send Master settings: {e}")    
+            self.s.send_packet((
+                server_address,
+                server_port
+            ), self.add_header() + settings_packet)
+            log.info(f"SettingPacket sent.")        
+        except Exception as e:
+            log.error(f"Failed to send SettingPacket: {e}")    
 
     """
         Process to stop Listener properly
@@ -500,8 +511,19 @@ class Listener:
                         'frequency' : self.frequency
                     })       
 
+            """
+                If we are running Listerner as a slace instance we have to request master_slave_settings
+            """
             if self._instance == SLAVE and not self.master_slave_settings:
                 self.send_request_setting_packet()       
+
+            """
+                This is necessary to check if our master_slave_settings is not outdated
+            """
+            if self.last_synch_time is not None: 
+                current_time = datetime.now()
+                if (current_time - self.last_synch_time).total_seconds() > 60:
+                    self.send_request_setting_packet()                       
             
             if self.targeted_call is not None:
                 """
@@ -568,10 +590,9 @@ class Listener:
         elif isinstance(self.the_packet, pywsjtx.ClosePacket):
             self.callback_stop_monitoring()
         elif isinstance(self.the_packet, pywsjtx.RequestSettingPacket):
-            log.debug('Received RequestSettingPacket method')   
-            self.send_settings_packet()                 
+            self.handle_request_setting_packet()                      
         elif isinstance(self.the_packet, pywsjtx.SettingPacket):
-            self.handle_settings_packet()  
+            self.handle_setting_packet()  
             self.update_listener_settings()        
         else:
             status_update = False
@@ -602,6 +623,11 @@ class Listener:
                 'transmitting'              : self.transmitting
             })
 
+    def handle_request_setting_packet(self):
+        log.debug('Received RequestSettingPacket method')  
+        if self.last_synch_time != self.the_packet.setting_time:
+            self.send_settings_packet()       
+            
     def callback_stop_monitoring(self):
         log.debug("Received ClosePacket method")
         if self.message_callback:
@@ -700,25 +726,28 @@ class Listener:
 
         return int(suggested_freq)
     
-    def handle_settings_packet(self):
+    def handle_setting_packet(self):
         if (
             self._instance == SLAVE and
             self.band is not None and 
             self.master_operating_band == self.band
         ):
-            try:                
+            try:         
+                log.info(f"SettingPacket received")             
                 self.master_slave_settings = json.loads(self.the_packet.settings_json)              
                 if (
-                    self.last_master_slave_settings is None or
-                    self.last_master_slave_settings != self.master_slave_settings
-                ):                
+                    self.last_master_slave_settings is None or 
+                    self.last_synch_time is None or 
+                    self.last_synch_time < self.master_slave_settings.get('time')
+                ):
+                    self.last_synch_time = self.master_slave_settings.get('time')
                     self.last_master_slave_settings = self.master_slave_settings
                     if self.message_callback:
                         self.message_callback({
                             'type'     : 'master_slave_settings',
                             'settings' : self.master_slave_settings
-                        })
-                    log.info(f"SettingPacket received")                    
+                        })   
+                    log.info(f"SettingPacket has been processed")                        
             except Exception as e:
                 log.error(f"Error processing SettingPacket: {e}")          
         else:
@@ -989,7 +1018,10 @@ class Listener:
                     # self.mode             = self.the_packet.mode
                     if self.enable_sending_reply:  
                         reply_to_packet = True
-                        message_type = 'wanted_callsign_being_called'                            
+                        message_type = 'wanted_callsign_being_called'  
+                # We need to end this 
+                elif self.rst_sent.get(self.call_ready_to_log):
+                    reply_to_packet = True
             elif wanted is True: 
                 reply_to_packet = True
                 message_type = 'wanted_callsign_detected'

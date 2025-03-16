@@ -1922,7 +1922,6 @@ class MainApp(QtWidgets.QMainWindow):
         self._connected = False
         self.operating_band = None
         
-        self.stop_sound_queue()
         self.stop_blinking_status_button()  
         self.activity_bar_timer.stop()
         self.blink_timer.stop()
@@ -1931,12 +1930,11 @@ class MainApp(QtWidgets.QMainWindow):
         if sys.platform == 'darwin':
             self.pobjc_timer.stop() 
 
-        self.restore_slave_settings()
-        self.worker.reset_settings_signal.emit()     
+        self.restore_slave_settings()  
                     
     def on_resume_connection(self):
         log.warning("Resume connection")
-        self.worker.send_settings_signal.emit()
+        self.worker.reset_settings_signal.emit()   
         self._connected = True    
         self.activity_bar_timer.start(100)
         self.enforce_size_limit_timer.start(60_000) 

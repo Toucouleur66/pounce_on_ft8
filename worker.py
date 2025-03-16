@@ -45,7 +45,7 @@ class Worker(QObject):
         super().__init__()
 
         self.update_listener_settings_signal.connect(self.update_listener_settings)
-        self.send_settings_signal.connect(self.send_master_settings)
+        self.send_settings_signal.connect(self.send_settings)
         self.reset_settings_signal.connect(self.reset_slave_settings)
 
         self.listener = None
@@ -152,9 +152,9 @@ class Worker(QObject):
         if self.listener is not None:
                 self.listener.update_listener_settings()
 
-    def send_master_settings(self):
+    def send_settings(self):
         if self.listener is not None:
-            self.listener.send_settings_packet()
+            self.listener.send_settings()
 
     def reset_slave_settings(self):
         if self.listener is not None:
