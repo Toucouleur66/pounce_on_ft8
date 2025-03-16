@@ -1,3 +1,5 @@
+# worker.py
+
 import traceback
 
 from PyQt6.QtCore import QObject, pyqtSignal, QTimer
@@ -10,7 +12,7 @@ class Worker(QObject):
     listener_started                = pyqtSignal()
     message                         = pyqtSignal(object)
     update_listener_settings_signal = pyqtSignal()
-    send_settings_signal            = pyqtSignal()
+    synch_settings_signal           = pyqtSignal()
     reset_settings_signal           = pyqtSignal()
 
     def __init__(
@@ -45,7 +47,7 @@ class Worker(QObject):
         super().__init__()
 
         self.update_listener_settings_signal.connect(self.update_listener_settings)
-        self.send_settings_signal.connect(self.send_settings)
+        self.synch_settings_signal.connect(self.synch_settings)
         self.reset_settings_signal.connect(self.reset_slave_settings)
 
         self.listener = None
@@ -152,9 +154,9 @@ class Worker(QObject):
         if self.listener is not None:
                 self.listener.update_listener_settings()
 
-    def send_settings(self):
+    def synch_settings(self):
         if self.listener is not None:
-            self.listener.send_settings()
+            self.listener.synch_settings()
 
     def reset_slave_settings(self):
         if self.listener is not None:
