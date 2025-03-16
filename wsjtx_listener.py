@@ -392,7 +392,7 @@ class Listener:
             self.master_slave_settings = None
             self.master_operating_band = None
 
-    def send_settings(self):
+    def synch_settings(self):
         if (
             self._instance == MASTER and
             self.band and 
@@ -627,7 +627,7 @@ class Listener:
     def handle_request_setting_packet(self):
         log.debug('Received RequestSettingPacket method')  
         if self.last_synch_time != datetime.fromisoformat(self.the_packet.synch_time):
-            self.send_settings()       
+            self.synch_settings()       
             
     def callback_stop_monitoring(self):
         log.debug("Received ClosePacket method")
