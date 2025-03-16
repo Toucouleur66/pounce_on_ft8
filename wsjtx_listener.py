@@ -627,7 +627,7 @@ class Listener:
     def handle_request_setting_packet(self):
         log.debug('Received RequestSettingPacket method')  
         if self.last_synch_time != datetime.fromisoformat(self.the_packet.synch_time):
-            self.send_settings_packet()       
+            self.send_settings()       
             
     def callback_stop_monitoring(self):
         log.debug("Received ClosePacket method")
