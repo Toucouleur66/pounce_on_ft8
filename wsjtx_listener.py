@@ -175,7 +175,7 @@ class Listener:
         self.master_slave_settings          = None
         self.last_master_slave_settings     = None
         self.master_operating_band          = None
-        self.last_synch_time                = None        
+        self.last_synch_time                = datetime.now()        
         
         self.packet_queue = queue.Queue(maxsize=1000)
         self.receiver_thread                = QThread()
@@ -379,7 +379,7 @@ class Listener:
             try:
                 request_setting_packet = pywsjtx.RequestSettingPacket.Builder(
                     self.the_packet.wsjtx_id,
-                    self.last_synch_time                    
+                    self.last_synch_time.isoformat()                   
                 )
                 self.s.send_packet(self.origin_addr_port, request_setting_packet)
                 log.info(f"RequestSettingPacket sent to {self.origin_addr_port}.")      
@@ -520,10 +520,11 @@ class Listener:
             """
                 This is necessary to check if our master_slave_settings is not outdated
             """
-            if self.last_synch_time is not None: 
-                current_time = datetime.now()
-                if (current_time - self.last_synch_time).total_seconds() > 60:
-                    self.send_request_setting_packet()                       
+            if (
+                self.master_slave_settings and 
+                (datetime.now() - self.last_synch_time).total_seconds() > 60
+            ):
+                self.send_request_setting_packet()                       
             
             if self.targeted_call is not None:
                 """
