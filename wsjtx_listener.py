@@ -379,12 +379,12 @@ class Listener:
             try:
                 request_setting_packet = pywsjtx.RequestSettingPacket.Builder(
                     self.the_packet.wsjtx_id,
-                    self.last_synch_time
+                    self.last_synch_time                    
                 )
                 self.s.send_packet(self.origin_addr_port, request_setting_packet)
                 log.info(f"RequestSettingPacket sent to {self.origin_addr_port}.")      
             except Exception as e:
-                log.error(f"Failed to request Master settings: {e}")
+                log.error(f"Failed to request Master settings: {e}\n{traceback.format_exc()}")
 
     def reset_slave_settings(self):
         if self._instance == SLAVE:
@@ -401,7 +401,7 @@ class Listener:
         ):    
             settings = {             
                 'band'                  : self.band,
-                'time'                  : datetime.now,
+                'synch_time'            : datetime.now().isoformat(),
                 'wanted_callsigns'      : self.wanted_callsigns,
                 'excluded_callsigns'    : self.excluded_callsigns,
                 'monitored_callsigns'   : self.monitored_callsigns,
@@ -625,7 +625,7 @@ class Listener:
 
     def handle_request_setting_packet(self):
         log.debug('Received RequestSettingPacket method')  
-        if self.last_synch_time != self.the_packet.setting_time:
+        if self.last_synch_time != datetime.fromisoformat(self.the_packet.synch_time):
             self.send_settings_packet()       
             
     def callback_stop_monitoring(self):
@@ -734,13 +734,15 @@ class Listener:
         ):
             try:         
                 log.info(f"SettingPacket received")             
-                self.master_slave_settings = json.loads(self.the_packet.settings_json)              
+                self.master_slave_settings = json.loads(self.the_packet.settings_json)             
+
+                synch_time = datetime.fromisoformat(self.master_slave_settings.get('synch_time'))
                 if (
                     self.last_master_slave_settings is None or 
                     self.last_synch_time is None or 
-                    self.last_synch_time < self.master_slave_settings.get('time')
+                    self.last_synch_time < synch_time
                 ):
-                    self.last_synch_time = self.master_slave_settings.get('time')
+                    self.last_synch_time = synch_time
                     self.last_master_slave_settings = self.master_slave_settings
                     if self.message_callback:
                         self.message_callback({
