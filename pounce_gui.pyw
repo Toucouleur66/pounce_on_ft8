@@ -1125,7 +1125,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.save_unique_param('last_band_used', self.gui_selected_band)  
         
     def apply_band_change(self, band):
-        if band != 'Invalid' and band != self.operating_band:        
+        if band != 'Invalid' and band != self.operating_band:    
+            self.restore_slave_settings(blocSignals=True)
+
             self.operating_band = band
             self.monitoring_settings.set_wanted_callsigns(self.wanted_callsigns_vars[self.operating_band].text())
             self.monitoring_settings.set_monitored_callsigns(self.monitored_callsigns_vars[self.operating_band].text())
@@ -1140,9 +1142,11 @@ class MainApp(QtWidgets.QMainWindow):
             if self.global_sound_toggle.isChecked():      
                 self.play_sound("band_change")
 
-        if self._running:
+        if self._running:            
             self.send_worker_signal()
-            # Make sure to reset last_sound_played_time if we switch band
+            """
+                Make sure to reset last_sound_played_time if we switch band
+            """
             self.last_sound_played_time = datetime.min
             self.last_targeted_call = None
             self.hide_focus_value_label(visible=False)
@@ -1323,19 +1327,16 @@ class MainApp(QtWidgets.QMainWindow):
             """
             play_sound = False
             master_wanted_callsigns = master_settings.get('wanted_callsigns')
+
             if(
                 self.global_sound_toggle.isChecked() and
                 has_significant_change(
                     self.wanted_callsigns_vars[master_operating_band].text(),
-                    ", ".join(master_wanted_callsigns)
+                    ",".join(master_wanted_callsigns)
                 )
             ):
                 play_sound = True
 
-            """
-                Restore settings before any change
-            """
-            self.restore_slave_settings()
             """
                 Save settings per band
             """
@@ -1350,6 +1351,7 @@ class MainApp(QtWidgets.QMainWindow):
             if play_sound:
                 self.play_sound("updated_settings")     
 
+    """
     def restore_slave_settings(self):
         if self._instance == SLAVE:            
             for band in AMATEUR_BANDS.keys():
@@ -1358,7 +1360,22 @@ class MainApp(QtWidgets.QMainWindow):
                     if not slave_wanted_callsigns_band:
                         self.wanted_callsigns_vars[band].clear()
                     else:
-                        self.wanted_callsigns_vars[band].setText(slave_wanted_callsigns_band)                  
+                        self.wanted_callsigns_vars[band].setText(slave_wanted_callsigns_band)  
+    """                              
+
+    def restore_slave_settings(self, blocSignals=False):
+        if self._instance == SLAVE:            
+            for band in AMATEUR_BANDS.keys():
+                if blocSignals:
+                    self.wanted_callsigns_vars[band].blockSignals(True)
+                if self.slave_wanted_callsigns.get(band):
+                    slave_wanted_callsigns_band = self.slave_wanted_callsigns[band]
+                    if not slave_wanted_callsigns_band:
+                        self.wanted_callsigns_vars[band].clear()
+                    else:
+                        self.wanted_callsigns_vars[band].setText(slave_wanted_callsigns_band)
+                if blocSignals:
+                    self.wanted_callsigns_vars[band].blockSignals(False)
         
     def process_message_buffer(self):     
         if not self.message_buffer:

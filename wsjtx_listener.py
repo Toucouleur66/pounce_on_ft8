@@ -268,7 +268,7 @@ class Listener:
                 self.origin_addr_port = origin_addr_port
 
                 if _instance and _instance != self._instance:
-                    log.error(f'Set instance [ {_instance} ] with [ {pywsjtx.WSJTXPacketClassFactory.from_udp_packet(self.origin_addr_port, pkt)} ] from {self.origin_addr_port}')
+                    log.error(f'Set instance [ {_instance} ] with [ {type(pywsjtx.WSJTXPacketClassFactory.from_udp_packet(self.origin_addr_port, pkt)).__name__} ] from {self.origin_addr_port}')
 
                     self._instance = _instance                 
                     if self.message_callback:
@@ -512,17 +512,17 @@ class Listener:
                     })       
 
             """
-                If we are running Listerner as a slace instance we have to request master_slave_settings
-            """
-            if self._instance == SLAVE and not self.master_slave_settings:
-                self.send_request_setting_packet()       
-
-            """
-                This is necessary to check if our master_slave_settings is not outdated
+                If we are running Listerner as a slave instance we have to request master_slave_settings
             """
             if (
-                self.master_slave_settings and 
-                (datetime.now() - self.last_synch_time).total_seconds() > 60
+                (
+                    self._instance == SLAVE and
+                    not self.master_slave_settings
+                ) or 
+                (
+                    self.master_slave_settings and 
+                    (datetime.now() - self.last_synch_time).total_seconds() > 60
+                )
             ):
                 self.send_request_setting_packet()                       
             
@@ -593,8 +593,7 @@ class Listener:
         elif isinstance(self.the_packet, pywsjtx.RequestSettingPacket):
             self.handle_request_setting_packet()                      
         elif isinstance(self.the_packet, pywsjtx.SettingPacket):
-            self.handle_setting_packet()  
-            self.update_listener_settings()        
+            self.handle_setting_packet()      
         else:
             status_update = False
             log.error('Unknown packet type {}; {}'.format(type(self.the_packet),self.the_packet))
