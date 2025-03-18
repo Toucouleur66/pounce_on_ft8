@@ -157,6 +157,7 @@ class Listener:
         self.excluded_callsigns             = None
         self.monitored_callsigns            = None
         self.monitored_cq_zones             = None
+        self.excluded_cq_zones              = None
         self.worked_callsigns               = {}
 
         self.wanted_callsigns_per_entity   = {}
@@ -351,8 +352,8 @@ class Listener:
         self.excluded_cq_zones      = self.monitoring_settings.get_excluded_cq_zones()
         self.master_operating_band  = self.monitoring_settings.get_operating_band()
 
-        self.last_synch_time        = datetime.now().isoformat()
-
+        self.last_synch_time        = datetime.now()
+        
         log_output = []
         log_output.append(f"Updated settings (~{CURRENT_VERSION_NUMBER}):")
         log_output.append(f"Instance={self._instance}")
@@ -627,7 +628,7 @@ class Listener:
 
     def handle_request_setting_packet(self):
         log.debug('Received RequestSettingPacket method')  
-        if self.last_synch_time != datetime.fromisoformat(self.the_packet.synch_time):
+        if self.last_synch_time.isoformat() != datetime.fromisoformat(self.the_packet.synch_time):
             self.synch_settings()       
             
     def callback_stop_monitoring(self):
