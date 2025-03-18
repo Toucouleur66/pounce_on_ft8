@@ -625,12 +625,13 @@ class SettingPacket(GenericWSJTXPacket):
         the_type = ps.QInt32()
         self.wsjtx_id = ps.QString()
         self.settings_json = ps.QString() 
+        self.synch_time = ps.QString()
 
     def __repr__(self):
         return f"SettingPacket: settings: {self.settings_json}"
 
     @classmethod
-    def Builder(cls, to_wsjtx_id='WSJT-X', settings_dict=None):
+    def Builder(cls, to_wsjtx_id='WSJT-X', settings_dict=None, synch_time=None):
         pkt = PacketWriter()
         pkt.write_QInt32(SettingPacket.TYPE_VALUE)
         pkt.write_QString(to_wsjtx_id)
@@ -639,6 +640,7 @@ class SettingPacket(GenericWSJTXPacket):
 
         settings_str = json.dumps(settings_dict)
         pkt.write_QString(settings_str)
+        pkt.write_QString(synch_time)
         return pkt.packet
 
 class RequestSettingPacket(GenericWSJTXPacket):

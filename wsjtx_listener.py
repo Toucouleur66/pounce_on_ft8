@@ -404,7 +404,6 @@ class Listener:
         ):    
             settings = {             
                 'band'                  : self.band,
-                'synch_time'            : self.last_synch_time,
                 'wanted_callsigns'      : self.wanted_callsigns,
                 'excluded_callsigns'    : self.excluded_callsigns,
                 'monitored_callsigns'   : self.monitored_callsigns,
@@ -421,7 +420,8 @@ class Listener:
         try:
             settings_packet = pywsjtx.SettingPacket.Builder(
                 to_wsjtx_id="WSJT-X",
-                settings_dict=settings
+                settings_dict=settings,
+                synch_time=self.last_synch_time.isoformat()
             )
 
             self.s.send_packet((
@@ -737,20 +737,18 @@ class Listener:
         ):
             try:         
                 log.info(f"SettingPacket received")             
-                self.master_slave_settings = json.loads(self.the_packet.settings_json)             
-
-                synch_time = datetime.fromisoformat(self.master_slave_settings.get('synch_time'))
+                synch_time = datetime.fromisoformat(self.the_packet.synch_time)
                 if (
                     self.last_master_slave_settings is None or 
                     self.last_synch_time is None or 
                     self.last_synch_time < synch_time
                 ):
                     self.last_synch_time = synch_time
-                    self.last_master_slave_settings = self.master_slave_settings
+                    self.last_master_slave_settings = json.loads(self.the_packet.settings_json)
                     if self.message_callback:
                         self.message_callback({
                             'type'     : 'master_slave_settings',
-                            'settings' : self.master_slave_settings
+                            'settings' : self.last_master_slave_settings
                         })   
                     log.info(f"SettingPacket has been processed")                        
             except Exception as e:
