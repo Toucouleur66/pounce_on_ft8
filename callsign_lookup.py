@@ -22,6 +22,7 @@ class CallsignLookup:
         cq_zones_geojson_path=f"{CURRENT_DIR}/cq-zones.geojson",
         cache_file=f"{CURRENT_DIR}/lookup_cache.json",
         cache_size=1_000,
+        lookup_debug=False
     ):
         self.callsign_exceptions = {}
         self.prefixes = {}
@@ -33,6 +34,7 @@ class CallsignLookup:
         self.cq_zones_geojson_path = cq_zones_geojson_path
         self.cache_file = cache_file
         self.cache_size = cache_size
+        self.lookup_debug = lookup_debug
 
         self.sorted_prefixes = []
         self.cache = OrderedDict()
@@ -396,7 +398,9 @@ class CallsignLookup:
             if callsign in self.invalid_operations:
                 for inv_data in self.invalid_operations[callsign]:
                     if self.is_valid_for_date(inv_data, date):
-                        log.debug(f"{callsign} is invalid for date {date}")
+                        if self.lookup_debug:
+                            if self.lookup_debug:
+                                log.debug(f"{callsign} is invalid for date {date}")
                         return {}
 
             if callsign in self.callsign_exceptions:
@@ -417,7 +421,8 @@ class CallsignLookup:
                     break
 
             if not result:
-                log.debug(f"No information found for {callsign}.")
+                if self.lookup_debug:
+                    log.debug(f"No information found for {callsign}.")
                 result = {}
 
             if grid and result:
