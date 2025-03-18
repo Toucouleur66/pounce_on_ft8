@@ -479,11 +479,11 @@ class SettingsDialog(QtWidgets.QDialog):
         row = 0
         col = 0
 
-        for band_name in list(AMATEUR_BANDS.keys())[:-1]:
-            btn = CustomButton(band_name)
+        for amateur_band in list(AMATEUR_BANDS.keys())[:-1]:
+            btn = CustomButton(amateur_band)
             btn.setCheckable(True)         
-            btn.toggled.connect(lambda checked, btn=btn, name=band_name: self.on_band_toggled(btn, name, checked))
-            self.band_buttons[band_name] = btn
+            btn.toggled.connect(lambda checked, btn=btn, name=amateur_band: self.on_band_toggled(btn, name, checked))
+            self.band_buttons[amateur_band] = btn
             marathon_layout.addWidget(btn, row, col)
             
             col += 1

@@ -704,20 +704,20 @@ class MainApp(QtWidgets.QMainWindow):
             }
         ]
 
-        for band in AMATEUR_BANDS.keys():
+        for amateur_band in AMATEUR_BANDS.keys():
             tab_content = QtWidgets.QWidget()
             layout = QtWidgets.QGridLayout(tab_content)
 
-            band_params = params.get(band, {})
+            band_params = params.get(amateur_band, {})
 
             for idx, variable_info in enumerate(sought_variables):
                 line_edit = QtWidgets.QLineEdit()
                 line_edit.setFont(CUSTOM_FONT)
                 line_edit.setPlaceholderText(variable_info['placeholder'])
 
-                wanted_dict[variable_info['name']][band] = line_edit
+                wanted_dict[variable_info['name']][amateur_band] = line_edit
 
-                tooltip_wanted_dict[variable_info['name']][band] = ToolTip(line_edit)
+                tooltip_wanted_dict[variable_info['name']][amateur_band] = ToolTip(line_edit)
 
                 line_edit.setText(band_params.get(variable_info['name'], ""))
 
@@ -735,8 +735,8 @@ class MainApp(QtWidgets.QMainWindow):
                 line_edit.textChanged.connect(variable_info['on_changed_method'])
 
             tab_content.setLayout(layout)
-            self.band_content_widgets[band] = tab_content
-            tab_widget.addTab(tab_content, band)
+            self.band_content_widgets[amateur_band] = tab_content
+            tab_widget.addTab(tab_content, amateur_band)
 
         tab_widget.tabClicked.connect(self.on_tab_clicked)     
 
@@ -1126,7 +1126,7 @@ class MainApp(QtWidgets.QMainWindow):
         
     def apply_band_change(self, band):
         if band != 'Invalid' and band != self.operating_band:    
-            self.restore_slave_settings(blocSignals=True)
+            self.restore_settings(blocSignals=True)
 
             self.operating_band = band
             self.monitoring_settings.set_wanted_callsigns(self.wanted_callsigns_vars[self.operating_band].text())
@@ -1217,7 +1217,7 @@ class MainApp(QtWidgets.QMainWindow):
                         message.get('status')
                     )          
             elif message_type == 'master_slave_settings':
-                self.apply_master_settings(message.get('settings'))                  
+                self.apply_instance_settings(message.get('settings'))                  
             elif message_type == 'update_frequency':
                 self.frequency = message.get('frequency')                
                 if self.frequency != self.last_frequency:
@@ -1319,19 +1319,19 @@ class MainApp(QtWidgets.QMainWindow):
         else:
             pass
 
-    def apply_master_settings(self, master_settings):
-        master_operating_band = master_settings.get('band')
-        if master_operating_band:
+    def apply_instance_settings(self, instance_settings):
+        band = instance_settings.get('band')
+        if band:
             """
                 Check if need to play sound if
             """
             play_sound = False
-            master_wanted_callsigns = master_settings.get('wanted_callsigns')
+            master_wanted_callsigns = instance_settings.get('wanted_callsigns')
 
             if(
                 self.global_sound_toggle.isChecked() and
                 has_significant_change(
-                    self.wanted_callsigns_vars[master_operating_band].text(),
+                    self.wanted_callsigns_vars[band].text(),
                     ",".join(master_wanted_callsigns)
                 )
             ):
@@ -1340,44 +1340,32 @@ class MainApp(QtWidgets.QMainWindow):
             """
                 Restore band and save wanted_callsigns_vars per band
             """
-            self.restore_slave_settings(blocSignals=True)
-            for band in AMATEUR_BANDS.keys():                
-                self.slave_wanted_callsigns[band] = self.wanted_callsigns_vars[band].text()   
+            self.restore_settings(blocSignals=True)
+            for amateur_band in AMATEUR_BANDS.keys():                
+                self.slave_wanted_callsigns[amateur_band] = self.wanted_callsigns_vars[amateur_band].text()   
           
             if not master_wanted_callsigns:
-                self.wanted_callsigns_vars[master_operating_band].clear()
+                self.wanted_callsigns_vars[band].clear()
             else:
-                self.wanted_callsigns_vars[master_operating_band].setText(", ".join(master_wanted_callsigns))
+                self.wanted_callsigns_vars[band].setText(", ".join(master_wanted_callsigns))
 
             if play_sound:
                 self.play_sound("updated_settings")     
 
-    """
-    def restore_slave_settings(self):
+    def restore_settings(self, blocSignals=False):
         if self._instance == SLAVE:            
-            for band in AMATEUR_BANDS.keys():
-                if self.slave_wanted_callsigns.get(band):
-                    slave_wanted_callsigns_band = self.slave_wanted_callsigns[band]
-                    if not slave_wanted_callsigns_band:
-                        self.wanted_callsigns_vars[band].clear()
-                    else:
-                        self.wanted_callsigns_vars[band].setText(slave_wanted_callsigns_band)  
-    """                              
-
-    def restore_slave_settings(self, blocSignals=False):
-        if self._instance == SLAVE:            
-            for band in AMATEUR_BANDS.keys():
+            for amateur_band in AMATEUR_BANDS.keys():
                 if blocSignals:
-                    self.wanted_callsigns_vars[band].blockSignals(True)
-                if self.slave_wanted_callsigns.get(band):
-                    slave_wanted_callsigns_band = self.slave_wanted_callsigns[band]                    
+                    self.wanted_callsigns_vars[amateur_band].blockSignals(True)
+                if self.slave_wanted_callsigns.get(amateur_band):
+                    slave_wanted_callsigns_band = self.slave_wanted_callsigns[amateur_band]                    
 
                     if not slave_wanted_callsigns_band:
-                        self.wanted_callsigns_vars[band].clear()
+                        self.wanted_callsigns_vars[amateur_band].clear()
                     else:
-                        self.wanted_callsigns_vars[band].setText(slave_wanted_callsigns_band)
+                        self.wanted_callsigns_vars[amateur_band].setText(slave_wanted_callsigns_band)
                 if blocSignals:
-                    self.wanted_callsigns_vars[band].blockSignals(False)
+                    self.wanted_callsigns_vars[amateur_band].blockSignals(False)
         
     def process_message_buffer(self):     
         if not self.message_buffer:
@@ -1539,6 +1527,15 @@ class MainApp(QtWidgets.QMainWindow):
         menu.addSeparator()
 
         """
+            Excluded Callsigns
+        """
+        if callsign not in self.excluded_callsigns_vars[context_menu_band].text():
+            actions['add_callsign_to_excluded'] = menu.addAction(f"Add {callsign} to Excluded Callsigns")
+        else:
+            actions['remove_callsign_from_excluded'] = menu.addAction(f"Remove {callsign} from Excluded Callsigns")
+        menu.addSeparator()
+
+        """
             Monitored Callsigns
         """
         if callsign not in self.monitored_callsigns_vars[context_menu_band].text():
@@ -1608,6 +1605,8 @@ class MainApp(QtWidgets.QMainWindow):
                 'replace_wanted_with_callsign'        : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], callsign, "replace"),
                 'add_callsign_to_monitored'           : lambda: self.update_var(self.monitored_callsigns_vars[context_menu_band], callsign),
                 'remove_callsign_from_monitored'      : lambda: self.update_var(self.monitored_callsigns_vars[context_menu_band], callsign, "remove"),
+                'add_callsign_to_excluded'            : lambda: self.update_var(self.excluded_callsigns_vars[context_menu_band], callsign),
+                'remove_callsign_from_excluded'      : lambda: self.update_var(self.excluded_callsigns_vars[context_menu_band], callsign, "remove"),
                 'add_directed_to_wanted'              : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], directed),
                 'remove_directed_from_wanted'         : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], directed, "remove"),
                 'replace_wanted_with_directed'        : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], directed, "replace"),
@@ -1814,7 +1813,7 @@ class MainApp(QtWidgets.QMainWindow):
                 self._instance == SLAVE and
                 status == MASTER
             ):
-                self.restore_slave_settings()
+                self.restore_settings()
 
         self._instance = status    
         self.update_tab_widget_labels_style()            
@@ -1949,7 +1948,7 @@ class MainApp(QtWidgets.QMainWindow):
         if sys.platform == 'darwin':
             self.pobjc_timer.stop() 
 
-        self.restore_slave_settings()  
+        self.restore_settings()  
                     
     def on_resume_connection(self):
         log.warning("Resume connection")
@@ -2011,7 +2010,7 @@ class MainApp(QtWidgets.QMainWindow):
         log.debug("Quit")
 
     def restart_application(self):
-        self.restore_slave_settings()
+        self.restore_settings()
         self.save_window_position()
 
         self.save_band_settings()
@@ -2423,15 +2422,15 @@ class MainApp(QtWidgets.QMainWindow):
             color: {EVEN_COLOR};
         """
 
-        for band in AMATEUR_BANDS.keys():
-            content_widget = self.tab_widget.get_content_widget(band)
+        for amateur_band in AMATEUR_BANDS.keys():
+            content_widget = self.tab_widget.get_content_widget(amateur_band)
             layout = content_widget.layout()
 
             for idx, (bg_color, fg_color) in enumerate(styles, start=1):
                 label_widget = layout.itemAtPosition(idx, 0).widget()
                 input_widget = layout.itemAtPosition(idx, 1).widget()
 
-                if band == self.operating_band and self._running:
+                if amateur_band == self.operating_band and self._running:
                     label_widget.setStyleSheet(active_style_template.format(bg_color=bg_color, fg_color=fg_color))
                     if idx == 1 and self._instance == SLAVE:
                         input_widget.setEnabled(False)
@@ -2698,14 +2697,14 @@ class MainApp(QtWidgets.QMainWindow):
     def save_band_settings(self):
         params = self.load_params()
 
-        for band in AMATEUR_BANDS.keys():
-            wanted_callsigns                    = self.wanted_callsigns_vars[band].text()
-            monitored_callsigns                 = self.monitored_callsigns_vars[band].text()
-            monitored_cq_zones                  = self.monitored_cq_zones_vars[band].text()
-            excluded_callsigns                  = self.excluded_callsigns_vars[band].text()
-            excluded_cq_zones                   = self.excluded_cq_zones_vars[band].text()
+        for amateur_band in AMATEUR_BANDS.keys():
+            wanted_callsigns                    = self.wanted_callsigns_vars[amateur_band].text()
+            monitored_callsigns                 = self.monitored_callsigns_vars[amateur_band].text()
+            monitored_cq_zones                  = self.monitored_cq_zones_vars[amateur_band].text()
+            excluded_callsigns                  = self.excluded_callsigns_vars[amateur_band].text()
+            excluded_cq_zones                   = self.excluded_cq_zones_vars[amateur_band].text()
             
-            params.setdefault(band, {}).update({
+            params.setdefault(amateur_band, {}).update({
                 "monitored_callsigns"           : monitored_callsigns,
                 "monitored_cq_zones"            : monitored_cq_zones,
                 "excluded_callsigns"            : excluded_callsigns,
@@ -2872,7 +2871,7 @@ class MainApp(QtWidgets.QMainWindow):
             self._running            = False       
 
             self.update_tab_widget_labels_style()
-            self.restore_slave_settings()
+            self.restore_settings()
 
             self._instance = MASTER
             self.operating_band      = None

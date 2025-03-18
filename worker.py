@@ -48,7 +48,7 @@ class Worker(QObject):
 
         self.update_listener_settings_signal.connect(self.update_listener_settings)
         self.synch_settings_signal.connect(self.synch_settings)
-        self.reset_settings_signal.connect(self.reset_slave_settings)
+        self.reset_settings_signal.connect(self.reset_synched_settings)
 
         self.listener = None
         self.stop_event = stop_event
@@ -158,6 +158,6 @@ class Worker(QObject):
         if self.listener is not None:
             self.listener.synch_settings()
 
-    def reset_slave_settings(self):
+    def reset_synched_settings(self):
         if self.listener is not None:
-            self.listener.reset_slave_settings()
+            self.listener.reset_synched_settings()

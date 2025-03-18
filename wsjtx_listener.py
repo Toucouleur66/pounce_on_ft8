@@ -83,6 +83,7 @@ class Listener:
 
         self.decode_packet_count        = 0
         self.last_decode_packet_time    = None
+        self.last_status_packet_time    = None
         self.last_heartbeat_time        = None
 
         self.packet_store               = {}
@@ -173,10 +174,9 @@ class Listener:
         self._running                       = True
         
         self._instance                      = None
-        self.master_slave_settings          = None
-        self.last_master_slave_settings     = None
-        self.master_operating_band          = None
-        self.last_synch_time                = datetime.now()        
+        self.synched_band                   = None
+        self.synched_settings               = None        
+        self.synch_time                = datetime.now()        
         
         self.packet_queue = queue.Queue(maxsize=1000)
         self.receiver_thread                = QThread()
@@ -350,9 +350,9 @@ class Listener:
         self.monitored_callsigns    = self.monitoring_settings.get_monitored_callsigns()
         self.monitored_cq_zones     = self.monitoring_settings.get_monitored_cq_zones()
         self.excluded_cq_zones      = self.monitoring_settings.get_excluded_cq_zones()
-        self.master_operating_band  = self.monitoring_settings.get_operating_band()
+        self.synched_band  = self.monitoring_settings.get_operating_band()
 
-        self.last_synch_time        = datetime.now()
+        self.synch_time             = datetime.now()
         
         log_output = []
         log_output.append(f"Updated settings (~{CURRENT_VERSION_NUMBER}):")
@@ -382,19 +382,16 @@ class Listener:
             try:
                 request_setting_packet = pywsjtx.RequestSettingPacket.Builder(
                     self.the_packet.wsjtx_id,
-                    self.last_synch_time.isoformat()                   
+                    self.synch_time.isoformat()                   
                 )
                 self.s.send_packet(self.origin_addr_port, request_setting_packet)
                 log.info(f"RequestSettingPacket sent to {self.origin_addr_port}.")      
             except Exception as e:
                 log.error(f"Failed to request Master settings: {e}\n{traceback.format_exc()}")
 
-    def reset_slave_settings(self):
-        if self._instance == SLAVE:
-            log.debug(f"Reset Slave settings.")      
-            self.master_slave_settings = None
-            self.master_operating_band = None
-
+    def reset_synched_settings(self):
+        self.synched_settings = None
+        
     def synch_settings(self):
         if (
             self._instance == MASTER and
@@ -421,7 +418,7 @@ class Listener:
             settings_packet = pywsjtx.SettingPacket.Builder(
                 to_wsjtx_id="WSJT-X",
                 settings_dict=settings,
-                synch_time=self.last_synch_time.isoformat()
+                synch_time=self.synch_time.isoformat()
             )
 
             self.s.send_packet((
@@ -438,7 +435,7 @@ class Listener:
     def stop(self):
         self._running = False
         self._instance = MASTER
-        self.master_slave_settings = False
+        self.synched_settings = False
 
         try:
             self.s.sock.close()
@@ -464,7 +461,7 @@ class Listener:
         if self._instance == SLAVE: 
             if self.last_heartbeat_time:        
                 if (datetime.now(timezone.utc) - self.last_heartbeat_time).total_seconds() > HEARTBEAT_TIMEOUT_THRESHOLD:
-                    self.master_slave_settings = False                
+                    self.synched_settings = False                
             return    
             
         max_schema = max(self.the_packet.max_schema, 3)
@@ -506,7 +503,7 @@ class Listener:
                     self.last_band = self.band
                     self.last_band_time_change = datetime.now()
                     self.reset_targeted_call()
-                    self.reset_slave_settings()
+                    self.synched_settings = None
 
                 if self.message_callback:
                     self.message_callback({
@@ -515,20 +512,21 @@ class Listener:
                     })       
 
             """
-                If we are running Listerner as a slave instance we have to request master_slave_settings
+                If we are running Listerner as a slave instance we have to request settings
             """
             if (
                 (
                     self._instance == SLAVE and
-                    not self.master_slave_settings
+                    not self.synched_settings
                 ) or 
                 (
-                    self.master_slave_settings and 
-                    (datetime.now() - self.last_synch_time).total_seconds() > 60
+                    self.synched_settings and 
+                    self.last_status_packet_time is not None and 
+                    (datetime.now() - self.last_status_packet_time).total_seconds() > 60
                 )
             ):
-                self.send_request_setting_packet()                       
-            
+                self.send_request_setting_packet()                  
+
             if self.targeted_call is not None:
                 """
                 if self.enable_gap_finder:
@@ -567,6 +565,8 @@ class Listener:
                     self.message_callback({
                         'type': 'error_occurred',                
                     })
+
+                self.last_status_packet_time = datetime.now()
                 
         except Exception as e:
             log.error("Caught an error on status handler: error {}\n{}".format(e, traceback.format_exc()))   
@@ -628,7 +628,7 @@ class Listener:
 
     def handle_request_setting_packet(self):
         log.debug('Received RequestSettingPacket method')  
-        if self.last_synch_time.isoformat() != datetime.fromisoformat(self.the_packet.synch_time):
+        if self.synch_time.isoformat() != datetime.fromisoformat(self.the_packet.synch_time):
             self.synch_settings()       
             
     def callback_stop_monitoring(self):
@@ -733,28 +733,28 @@ class Listener:
         if (
             self._instance == SLAVE and
             self.band is not None and 
-            self.master_operating_band == self.band
+            self.synched_band == self.band
         ):
             try:         
                 log.info(f"SettingPacket received")             
                 synch_time = datetime.fromisoformat(self.the_packet.synch_time)
                 if (
-                    self.last_master_slave_settings is None or 
-                    self.last_synch_time is None or 
-                    self.last_synch_time < synch_time
+                    self.synched_settings is None or 
+                    self.synch_time is None or 
+                    self.synch_time < synch_time
                 ):
-                    self.last_synch_time = synch_time
-                    self.last_master_slave_settings = json.loads(self.the_packet.settings_json)
+                    self.synch_time = synch_time
+                    self.synched_settings = json.loads(self.the_packet.settings_json)
                     if self.message_callback:
                         self.message_callback({
                             'type'     : 'master_slave_settings',
-                            'settings' : self.last_master_slave_settings
+                            'settings' : self.synched_settings
                         })   
                     log.info(f"SettingPacket has been processed")                        
             except Exception as e:
                 log.error(f"Error processing SettingPacket: {e}")          
         else:
-            self.master_slave_settings = None
+            self.synched_settings = None
             log.error(f"Can't handle SettingPacket yet.")     
 
     def handle_decode_packet(self):        
@@ -1023,7 +1023,7 @@ class Listener:
                         reply_to_packet = True
                         message_type = 'wanted_callsign_being_called'  
                 # We need to end this 
-                elif self.rst_sent.get(self.call_ready_to_log):
+                elif self.call_ready_to_log == callsign and self.rst_sent.get(self.call_ready_to_log):
                     reply_to_packet = True
             elif wanted is True: 
                 reply_to_packet = True

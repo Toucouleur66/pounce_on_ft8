@@ -257,9 +257,9 @@ def get_mode_interval(mode):
         return 15
     
 def get_amateur_band(frequency):   
-    for band, (lower_bound, upper_bound) in AMATEUR_BANDS.items():
+    for amateur_band, (lower_bound, upper_bound) in AMATEUR_BANDS.items():
         if lower_bound <= frequency <= upper_bound:
-            return band
+            return amateur_band
     
     return 'Invalid'   
 

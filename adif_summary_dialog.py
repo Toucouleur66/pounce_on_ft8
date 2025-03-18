@@ -65,15 +65,15 @@ class AdifSummaryDialog(QDialog):
 
         # Remplir le tableau
         years = sorted(parsed_data.keys())
-        bands = list(AMATEUR_BANDS.keys())
+        amateur_bands = list(AMATEUR_BANDS.keys())
 
         for row, year in enumerate(years):
             year_item = QTableWidgetItem(str(year))
             year_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             table.setItem(row, 0, year_item)
 
-            for col, band in enumerate(bands, start=1):
-                count = len(parsed_data[year].get(band, set()))
+            for col, amateur_band in enumerate(amateur_bands, start=1):
+                count = len(parsed_data[year].get(amateur_band, set()))
                 count_item = QTableWidgetItem(str(count))
                 count_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 table.setItem(row, col, count_item)
