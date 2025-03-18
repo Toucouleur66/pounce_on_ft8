@@ -1338,8 +1338,9 @@ class MainApp(QtWidgets.QMainWindow):
                 play_sound = True
 
             """
-                Save settings per band
+                Restore band and save wanted_callsigns_vars per band
             """
+            self.restore_slave_settings(blocSignals=True)
             for band in AMATEUR_BANDS.keys():                
                 self.slave_wanted_callsigns[band] = self.wanted_callsigns_vars[band].text()   
           
@@ -1369,7 +1370,8 @@ class MainApp(QtWidgets.QMainWindow):
                 if blocSignals:
                     self.wanted_callsigns_vars[band].blockSignals(True)
                 if self.slave_wanted_callsigns.get(band):
-                    slave_wanted_callsigns_band = self.slave_wanted_callsigns[band]
+                    slave_wanted_callsigns_band = self.slave_wanted_callsigns[band]                    
+
                     if not slave_wanted_callsigns_band:
                         self.wanted_callsigns_vars[band].clear()
                     else:

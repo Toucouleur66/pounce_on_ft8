@@ -351,6 +351,8 @@ class Listener:
         self.excluded_cq_zones      = self.monitoring_settings.get_excluded_cq_zones()
         self.master_operating_band  = self.monitoring_settings.get_operating_band()
 
+        self.last_synch_time        = datetime.now().isoformat()
+
         log_output = []
         log_output.append(f"Updated settings (~{CURRENT_VERSION_NUMBER}):")
         log_output.append(f"Instance={self._instance}")
@@ -401,7 +403,7 @@ class Listener:
         ):    
             settings = {             
                 'band'                  : self.band,
-                'synch_time'            : datetime.now().isoformat(),
+                'synch_time'            : self.last_synch_time,
                 'wanted_callsigns'      : self.wanted_callsigns,
                 'excluded_callsigns'    : self.excluded_callsigns,
                 'monitored_callsigns'   : self.monitored_callsigns,
