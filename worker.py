@@ -129,8 +129,8 @@ class Worker(QObject):
             )
             self.listener.listen()
             self.listener_started.emit()
-            
-            self.timer.start(100)  
+        
+            QTimer.singleShot(100, self.check_stop_event)
             
         except Exception as e:
             error_message = f"{e}\n{traceback.format_exc()}"

@@ -391,7 +391,7 @@ class Listener:
 
     def reset_synched_settings(self):
         self.synched_settings = None
-        
+
     def synch_settings(self):
         if (
             self._instance == MASTER and
@@ -525,18 +525,12 @@ class Listener:
                     (datetime.now() - self.last_status_packet_time).total_seconds() > 60
                 )
             ):
+                time_since_last_status_packet_time = (datetime.now() - self.last_status_packet_time).total_seconds() if self.last_status_packet_time else "Not set"
+                log.debug(f"SettingPacket required.\n\tInstance={self._instance}\n\tSynchedSettings={self.synched_settings}\n\tLastStatusPacketTime={self.last_status_packet_time}\n\tTimeSinceLasStatusPacketTime={time_since_last_status_packet_time}")
+
                 self.send_request_setting_packet()                  
 
             if self.targeted_call is not None:
-                """
-                if self.enable_gap_finder:
-                    log.warning('Used frequencies: {}\n\tSuggested frequency ({}): {}Hz'.format(
-                        self.used_frequencies,
-                        self.targeted_call_period,
-                        self.get_frequency_suggestion(self.targeted_call_period)
-                    ))
-                """
-
                 status_had_time_to_update = (datetime.now(timezone.utc) - self.reply_to_packet_time).total_seconds() > 30 if self.reply_to_packet_time else None 
                 if (
                     status_had_time_to_update and
