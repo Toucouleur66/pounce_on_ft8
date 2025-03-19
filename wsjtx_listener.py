@@ -525,10 +525,26 @@ class Listener:
                     (datetime.now() - self.last_status_packet_time).total_seconds() > 60
                 )
             ):
-                time_since_last_status_packet_time = (datetime.now() - self.last_status_packet_time).total_seconds() if self.last_status_packet_time else "Not set"
-                log.debug(f"SettingPacket required.\n\tInstance={self._instance}\n\tSynchedSettings={self.synched_settings}\n\tLastStatusPacketTime={self.last_status_packet_time}\n\tTimeSinceLasStatusPacketTime={time_since_last_status_packet_time}")
+                time_since_last_status_packet_time = str(round(
+                    (
+                        datetime.now() - self.last_status_packet_time
+                    ).total_seconds()
+                )) + " seconds" if self.last_status_packet_time else None
 
-                self.send_request_setting_packet()                  
+                last_status_packet_time = self.last_status_packet_time.strftime('%Y-%m-%d %H:%M:%S') if self.last_status_packet_time else None
+                
+                log_output = []
+                log_output.append(f"SettingPacket required.")
+                log_output.append(f"Instance={self._instance}")         
+                log_output.append(f"LastStatusPacketTime={last_status_packet_time}")   
+                log_output.append(f"TimeSinceLasStatusPacketTime={time_since_last_status_packet_time}")
+                log_output.append(f"SynchedSettings={self.synched_settings}")
+
+                log.info(f"\n\t".join(log_output))
+
+                self.send_request_setting_packet()   
+
+            self.last_status_packet_time = datetime.now()
 
             if self.targeted_call is not None:
                 status_had_time_to_update = (datetime.now(timezone.utc) - self.reply_to_packet_time).total_seconds() > 30 if self.reply_to_packet_time else None 
@@ -559,8 +575,6 @@ class Listener:
                     self.message_callback({
                         'type': 'error_occurred',                
                     })
-
-                self.last_status_packet_time = datetime.now()
                 
         except Exception as e:
             log.error("Caught an error on status handler: error {}\n{}".format(e, traceback.format_exc()))   
