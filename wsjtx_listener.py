@@ -434,7 +434,7 @@ class Listener:
 
             self.s.send_packet(
                 self.origin_addr_port,
-                self.add_master_header() + settings_packet
+                settings_packet
             )
             log.info(f"SettingPacket sent.")        
         except Exception as e:
