@@ -136,8 +136,7 @@ class Listener:
         self.origin_addr_port               = None
         self._instance                      = None
         self.synched_band                   = None
-        self.synched_settings               = None      
-        self.requester_addr_port            = None  
+        self.synched_settings               = None       
         self.synch_time                     = datetime.now()   
 
         self.primary_udp_server_address     = primary_udp_server_address or get_local_ip_address()
@@ -401,33 +400,34 @@ class Listener:
     def reset_synched_settings(self):
         self.synched_settings = None
 
-    def synch_settings(self):
+    def synch_settings(self, requester_addr_port=None):
         if (
-            (
                 self._instance == MASTER and
                 self.band and 
                 self.enable_secondary_udp_server and 
-                self.requester_addr_port is not None
-            ) or (
+                requester_addr_port is not None
+        ):
+            addr_port = requester_addr_port
+        elif (
                 self._instance == SLAVE and
                 self.synched_settings is not None
-            )
-        ):    
-            settings = {             
-                'band'                  : self.band,
-                'wanted_callsigns'      : self.wanted_callsigns,
-                'excluded_callsigns'    : self.excluded_callsigns,
-                'monitored_callsigns'   : self.monitored_callsigns,
-                'monitored_cq_zones'    : self.monitored_cq_zones,
-                'excluded_cq_zones'     : self.excluded_cq_zones,
-            }
-            self.send_settings_packet(settings)
+            ):  
+            addr_port = self.origin_addr_port
+
+        self.send_settings_packet({             
+            'band'                  : self.band,
+            'wanted_callsigns'      : self.wanted_callsigns,
+            'excluded_callsigns'    : self.excluded_callsigns,
+            'monitored_callsigns'   : self.monitored_callsigns,
+            'monitored_cq_zones'    : self.monitored_cq_zones,
+            'excluded_cq_zones'     : self.excluded_cq_zones,
+        }, addr_port)
         
-    def send_settings_packet(self, settings):
+    def send_settings_packet(self, settings_dict, addr_port):
         try:
             settings_packet = pywsjtx.SettingPacket.Builder(
                 to_wsjtx_id="WSJT-X",
-                settings_dict=settings,
+                settings_dict=settings_dict,
                 synch_time=self.synch_time.isoformat()
             )
 
@@ -435,10 +435,10 @@ class Listener:
                 settings_packet = self.add_master_header() + settings_packet
 
             self.s.send_packet(
-                self.requester_addr_port,
+                addr_port,
                 settings_packet
             )
-            log.info(f"SettingPacket sent to {self.requester_addr_port}.")        
+            log.info(f"SettingPacket sent to {addr_port}.")        
         except Exception as e:
             log.error(f"Failed to send SettingPacket: {e}")    
 
@@ -647,11 +647,10 @@ class Listener:
                 'transmitting'              : self.transmitting
             })
 
-    def handle_request_setting_packet(self):
-        self.requester_addr_port = self.origin_addr_port
-        log.debug(f"Received RequestSettingPacket method from {self.requester_addr_port}.")  
+    def handle_request_setting_packet(self):    
+        log.debug(f"Received RequestSettingPacket method from {self.origin_addr_port}.")  
         if self.synch_time.isoformat() != datetime.fromisoformat(self.the_packet.synch_time):
-            self.synch_settings()       
+            self.synch_settings(self.origin_addr_port)       
             
     def callback_stop_monitoring(self):
         log.debug("Received ClosePacket method")
