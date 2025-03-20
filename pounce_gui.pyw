@@ -191,7 +191,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.clublog_manager     = ClubLogManager(self) 
         self.status_menu_agent   = None
 
-        self.updater             = Updater()
+        self.updater             = UpdateManager()
         params                   = self.load_params()  
 
         """

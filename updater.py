@@ -31,7 +31,7 @@ from constants import (
 )
 
 class Updater(QThread):
-    update_available = pyqtSignal(dict)
+    update_info_fetched = pyqtSignal(dict)
     update_check_failed = pyqtSignal(str)
 
     def __init__(self, parent=None):
@@ -45,9 +45,8 @@ class Updater(QThread):
                 update_info = response.json().get(platform.system().lower(), {})
                 self.latest_version = update_info.get('version')
 
-                if version.parse(self.latest_version) > version.parse(CURRENT_VERSION_NUMBER):
-                    log.warning(f"Last known version available: {self.latest_version}")
-                    self.update_available.emit(update_info)
+                log.warning(f"Last known version available: {self.latest_version}")
+                self.update_info_fetched.emit(update_info)
         except requests.RequestException as e:
             log.error(f"Can't fetch data to get update: {e}")
             self.update_check_failed.emit(f"Error checking updates: {e}")
@@ -58,17 +57,27 @@ class UpdateManager:
         self.latest_version = None
         self.updater_thread = Updater()
 
-        self.updater_thread.update_available.connect(self.show_update_dialog)
+        self.updater_thread.update_info_fetched.connect(self.handle_update_info)
         self.updater_thread.update_check_failed.connect(self.handle_update_error)
+
+    def handle_update_info(self, update_info):
+        remote_version_str = update_info.get('version')
+        
+        if not remote_version_str:
+            if self.force_show_dialog:
+                self.show_update_dialog(update_info)
+            return
+
+        if version.parse(remote_version_str) > version.parse(CURRENT_VERSION_NUMBER):
+            self.show_update_dialog(update_info)
+        else:
+            if self.force_show_dialog:
+                self.show_update_dialog(update_info)
 
     def check_expiration_or_update(self, force_show_dialog=False):
         self.check_expiration()
-
-        if force_show_dialog:
-            self.updater_thread.update_available.connect(self.show_update_dialog)
-            self.updater_thread.start()
-        else:
-            self.updater_thread.start()
+        self.force_show_dialog = force_show_dialog
+        self.updater_thread.start()
 
     def handle_update_error(self, error_message):
         log.error(error_message)
@@ -111,9 +120,9 @@ class UpdateManager:
         button_layout.addStretch()
 
         if update_info.get('version') and version.parse(update_info.get('version')) > version.parse(CURRENT_VERSION_NUMBER):
-            download_button = CustomButton("Start download")
-            download_button.clicked.connect(lambda: self.handle_download(update_info))
-            button_layout.addWidget(download_button)
+            sourceforge_button = CustomButton("Download from SourceForge")
+            sourceforge_button.clicked.connect(self.open_sourceforge_link)
+            button_layout.addWidget(sourceforge_button)
 
         quit_button = CustomButton("Quit")
         quit_button.setFixedWidth(80)
@@ -125,36 +134,9 @@ class UpdateManager:
 
         dialog.exec()
 
-    def handle_download(self, update_info):
-        download_url = update_info.get('download_url')
-        if download_url:
-            save_filename = os.path.basename(download_url)
-            save_path = os.path.join(os.path.expanduser("~"), "Downloads", save_filename)
-
-            dialog = DownloadDialog(download_url, save_path)
-            if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
-                self.install_update(save_path)
-            else:
-                QtWidgets.QMessageBox.warning(
-                    None,
-                    "Download cancelled",
-                    "The update download has been cancelled."
-                )
-        else:
-            QtWidgets.QMessageBox.critical(None, "Error", "Download URL not available")
-
-    def install_update(self, save_path):
-        try:
-            if platform.system().lower() == "windows":
-                os.startfile(save_path)
-            elif platform.system().lower() == "darwin":
-                subprocess.call(["open", save_path])
-            else:
-                subprocess.call(["xdg-open", save_path])
-            sys.exit()
-        except Exception as e:
-            log.error(f"Can't update program: {e}")
-            QtWidgets.QMessageBox.critical(None, "Error", "Try to manually update the program")
+    def open_sourceforge_link(self):
+        import webbrowser
+        webbrowser.open("https://sourceforge.net/projects/wait-and-pounce-ft8/")        
 
     def check_expiration(self):
         current_date = datetime.now()
