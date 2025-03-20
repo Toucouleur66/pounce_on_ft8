@@ -401,6 +401,10 @@ class Listener:
         self.synched_settings = None
 
     def synch_settings(self, requester_addr_port=None):
+        """
+            We don't send any sending if addr_port is None
+        """
+        addr_port = None
         if (
                 self._instance == MASTER and
                 self.band and 
@@ -414,7 +418,7 @@ class Listener:
             ):  
             addr_port = self.origin_addr_port
 
-        if addr_port:
+        if addr_port is not None:
             self.send_settings_packet({             
                 'band'                  : self.band,
                 'wanted_callsigns'      : self.wanted_callsigns,
