@@ -266,6 +266,11 @@ class Listener:
 
                     _instance = MASTER    
 
+                """
+                    self.origin_addr_port can be used to store
+                    the UDP address and port from WSJT-X/JTDX
+                    or a Slave instance
+                """
                 self.origin_addr_port = origin_addr_port
 
                 if _instance and _instance != self._instance:
@@ -320,7 +325,7 @@ class Listener:
                 self.packet_queue.task_done()
         log.info("Processor thread stopped")
 
-    def add_header(self, address=None, port=None):
+    def add_master_header(self, address=None, port=None):
         if address is None:
             address = self.primary_udp_server_address
         if port is None:
@@ -334,7 +339,7 @@ class Listener:
     def forward_packet(self, packet):
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as send_sock:
-                send_sock.sendto(self.add_header() + packet, (
+                send_sock.sendto(self.add_master_header() + packet, (
                     self.secondary_udp_server_address,
                     self.secondary_udp_server_port
                 ))
@@ -350,7 +355,7 @@ class Listener:
         self.monitored_callsigns    = self.monitoring_settings.get_monitored_callsigns()
         self.monitored_cq_zones     = self.monitoring_settings.get_monitored_cq_zones()
         self.excluded_cq_zones      = self.monitoring_settings.get_excluded_cq_zones()
-        self.synched_band  = self.monitoring_settings.get_operating_band()
+        self.synched_band           = self.monitoring_settings.get_operating_band()
 
         self.synch_time             = datetime.now()
         
@@ -384,7 +389,10 @@ class Listener:
                     self.the_packet.wsjtx_id,
                     self.synch_time.isoformat()                   
                 )
-                self.s.send_packet(self.origin_addr_port, request_setting_packet)
+                self.s.send_packet(
+                    self.origin_addr_port,
+                    request_setting_packet
+                )
                 log.info(f"RequestSettingPacket sent to {self.origin_addr_port}.")      
             except Exception as e:
                 log.error(f"Failed to request Master settings: {e}\n{traceback.format_exc()}")
@@ -394,10 +402,14 @@ class Listener:
 
     def synch_settings(self):
         if (
-            self._instance == MASTER and
-            self.band and 
-            self.enable_secondary_udp_server and 
-            self.secondary_udp_server_address != self.primary_udp_server_address
+            (
+                self._instance == MASTER and
+                self.band and 
+                self.enable_secondary_udp_server 
+            ) or (
+                self._instance == SLAVE and
+                self.synched_settings is not None
+            )
         ):    
             settings = {             
                 'band'                  : self.band,
@@ -407,13 +419,9 @@ class Listener:
                 'monitored_cq_zones'    : self.monitored_cq_zones,
                 'excluded_cq_zones'     : self.excluded_cq_zones,
             }
-            self.send_settings_packet(
-                settings,
-                self.secondary_udp_server_address,
-                self.secondary_udp_server_port
-            )
+            self.send_settings_packet(settings)
         
-    def send_settings_packet(self, settings, server_address, server_port):
+    def send_settings_packet(self, settings):
         try:
             settings_packet = pywsjtx.SettingPacket.Builder(
                 to_wsjtx_id="WSJT-X",
@@ -421,10 +429,13 @@ class Listener:
                 synch_time=self.synch_time.isoformat()
             )
 
-            self.s.send_packet((
-                server_address,
-                server_port
-            ), self.add_header() + settings_packet)
+            if self._instance == MASTER:
+                settings_packet = self.add_master_header() + settings_packet
+
+            self.s.send_packet(
+                self.origin_addr_port,
+                self.add_master_header() + settings_packet
+            )
             log.info(f"SettingPacket sent.")        
         except Exception as e:
             log.error(f"Failed to send SettingPacket: {e}")    
