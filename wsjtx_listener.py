@@ -137,6 +137,7 @@ class Listener:
         self._instance                      = None
         self.synched_band                   = None
         self.synched_settings               = None       
+        self.requester_addr_port            = None
         self.synch_time                     = datetime.now()   
 
         self.primary_udp_server_address     = primary_udp_server_address or get_local_ip_address()
@@ -402,6 +403,11 @@ class Listener:
 
     def synch_settings(self, requester_addr_port=None):
         """
+            Save requester_addr_port for later synch
+        """
+        if requester_addr_port:
+            self.requester_addr_port = requester_addr_port
+        """
             We don't send any sending if addr_port is None
         """
         addr_port = None
@@ -409,9 +415,9 @@ class Listener:
                 self._instance == MASTER and
                 self.band and 
                 self.enable_secondary_udp_server and 
-                requester_addr_port is not None
+                self.requester_addr_port is not None
         ):
-            addr_port = requester_addr_port
+            addr_port = self.requester_addr_port
         elif (
                 self._instance == SLAVE and
                 self.synched_settings is not None
