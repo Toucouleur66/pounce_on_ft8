@@ -414,14 +414,15 @@ class Listener:
             ):  
             addr_port = self.origin_addr_port
 
-        self.send_settings_packet({             
-            'band'                  : self.band,
-            'wanted_callsigns'      : self.wanted_callsigns,
-            'excluded_callsigns'    : self.excluded_callsigns,
-            'monitored_callsigns'   : self.monitored_callsigns,
-            'monitored_cq_zones'    : self.monitored_cq_zones,
-            'excluded_cq_zones'     : self.excluded_cq_zones,
-        }, addr_port)
+        if addr_port:
+            self.send_settings_packet({             
+                'band'                  : self.band,
+                'wanted_callsigns'      : self.wanted_callsigns,
+                'excluded_callsigns'    : self.excluded_callsigns,
+                'monitored_callsigns'   : self.monitored_callsigns,
+                'monitored_cq_zones'    : self.monitored_cq_zones,
+                'excluded_cq_zones'     : self.excluded_cq_zones,
+            }, addr_port)
         
     def send_settings_packet(self, settings_dict, addr_port):
         try:
