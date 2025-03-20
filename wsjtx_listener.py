@@ -87,7 +87,6 @@ class Listener:
         self.last_heartbeat_time        = None
 
         self.packet_store               = {}
-        self.origin_addr_port           = None
         self.packet_counter             = 0        
         self.reply_message_buffer       = deque()
 
@@ -123,6 +122,24 @@ class Listener:
 
         self.reply_attempts             = {}
 
+        self.enable_sending_reply           = enable_sending_reply
+        self.enable_log_all_valid_contact   = enable_log_all_valid_contact
+        self.enable_gap_finder               = enable_gap_finder
+        self.enable_watchdog_bypass         = enable_watchdog_bypass
+        self.enable_debug_output            = enable_debug_output
+        self.enable_pounce_log              = enable_pounce_log 
+        self.enable_log_packet_data         = enable_log_packet_data
+        self.enable_marathon                = enable_marathon
+
+        self.max_reply_attemps_to_callsign  = max_reply_attemps_to_callsign
+
+        self.origin_addr_port               = None
+        self._instance                      = None
+        self.synched_band                   = None
+        self.synched_settings               = None      
+        self.requester_addr_port            = None  
+        self.synch_time                     = datetime.now()   
+
         self.primary_udp_server_address     = primary_udp_server_address or get_local_ip_address()
         self.primary_udp_server_port        = primary_udp_server_port or 2237
 
@@ -135,17 +152,6 @@ class Listener:
         self.logging_udp_server_port        = logging_udp_server_port or 2237
 
         self.enable_logging_udp_server      = enable_logging_udp_server or False
-
-        self.enable_sending_reply           = enable_sending_reply
-        self.enable_log_all_valid_contact   = enable_log_all_valid_contact
-        self.enable_gap_finder               = enable_gap_finder
-        self.enable_watchdog_bypass         = enable_watchdog_bypass
-        self.enable_debug_output            = enable_debug_output
-        self.enable_pounce_log              = enable_pounce_log 
-        self.enable_log_packet_data         = enable_log_packet_data
-        self.enable_marathon                = enable_marathon
-
-        self.max_reply_attemps_to_callsign  = max_reply_attemps_to_callsign
 
         """
             Convert minutes to seconds from max_working_delay
@@ -171,14 +177,9 @@ class Listener:
 
         self.adif_data                      = {}        
 
-        self._running                       = True
+        self._running                       = True     
         
-        self._instance                      = None
-        self.synched_band                   = None
-        self.synched_settings               = None        
-        self.synch_time                = datetime.now()        
-        
-        self.packet_queue = queue.Queue(maxsize=1000)
+        self.packet_queue                   = queue.Queue(maxsize=1000)
         self.receiver_thread                = QThread()
         self.processor_thread               = QThread()
 
@@ -405,7 +406,8 @@ class Listener:
             (
                 self._instance == MASTER and
                 self.band and 
-                self.enable_secondary_udp_server 
+                self.enable_secondary_udp_server and 
+                self.requester_addr_port is not None
             ) or (
                 self._instance == SLAVE and
                 self.synched_settings is not None
@@ -433,10 +435,10 @@ class Listener:
                 settings_packet = self.add_master_header() + settings_packet
 
             self.s.send_packet(
-                self.origin_addr_port,
+                self.requester_addr_port,
                 settings_packet
             )
-            log.info(f"SettingPacket sent to {self.origin_addr_port}.")        
+            log.info(f"SettingPacket sent to {self.requester_addr_port}.")        
         except Exception as e:
             log.error(f"Failed to send SettingPacket: {e}")    
 
@@ -646,7 +648,8 @@ class Listener:
             })
 
     def handle_request_setting_packet(self):
-        log.debug('Received RequestSettingPacket method')  
+        self.requester_addr_port = self.origin_addr_port
+        log.debug(f"Received RequestSettingPacket method from {self.requester_addr_port}.")  
         if self.synch_time.isoformat() != datetime.fromisoformat(self.the_packet.synch_time):
             self.synch_settings()       
             
