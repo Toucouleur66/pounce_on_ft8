@@ -436,7 +436,7 @@ class Listener:
                 self.origin_addr_port,
                 settings_packet
             )
-            log.info(f"SettingPacket sent.")        
+            log.info(f"SettingPacket sent to {self.origin_addr_port}.")        
         except Exception as e:
             log.error(f"Failed to send SettingPacket: {e}")    
 
