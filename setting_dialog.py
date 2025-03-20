@@ -101,7 +101,7 @@ class SettingsDialog(QtWidgets.QDialog):
         jtdx_notice_label.setStyleSheet(SETTING_QSS)
         jtdx_notice_label.setAutoFillBackground(True)
 
-        primary_group = QtWidgets.QGroupBox("Master UDP instance")
+        primary_group = QtWidgets.QGroupBox("Main UDP instance (the one set as Primary UDP Server on JTDX)")
         primary_layout = QtWidgets.QGridLayout()
 
         self.primary_udp_server_address = QtWidgets.QLineEdit()
@@ -116,13 +116,13 @@ class SettingsDialog(QtWidgets.QDialog):
 
         primary_group.setLayout(primary_layout)
 
-        secondary_group = QtWidgets.QGroupBox("Slave UDP instance (used to forward from Master to Slave)")
+        secondary_group = QtWidgets.QGroupBox("Secondary UDP Server (used to forward UDP packets)")
         secondary_layout = QtWidgets.QGridLayout()
 
         self.secondary_udp_server_address = QtWidgets.QLineEdit()
         self.secondary_udp_server_port = QtWidgets.QLineEdit()
 
-        self.enable_secondary_udp_server = QtWidgets.QCheckBox("Enable forwarding to Slave instance")
+        self.enable_secondary_udp_server = QtWidgets.QCheckBox("Enable forwarding to Secondary UDP Server")
         self.enable_secondary_udp_server.setChecked(DEFAULT_SECONDARY_UDP_SERVER)
 
         secondary_layout.addWidget(QtWidgets.QLabel("UDP Server:"), 0, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
