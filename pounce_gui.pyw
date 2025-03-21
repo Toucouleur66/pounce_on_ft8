@@ -1872,7 +1872,10 @@ class MainApp(QtWidgets.QMainWindow):
             not connection_lost and
             self._synched_addr_port is not None
         ):
-            status_text_array.append(f"{self._instance} ~ {self._synched_addr_port[0]}:{self._synched_addr_port[1]}")
+            connected_to_str = f"{self._instance} "
+            connected_to_str+= f"◂ {MASTER}" if self._instance == SLAVE else f"▸ {SLAVE}"
+            connected_to_str+= f" ({self._synched_addr_port[0]}:{self._synched_addr_port[1]})"
+            status_text_array.append(connected_to_str)
 
         decoded_packet_text = f"Message Packet #{self.output_model.rowCount()} {self.get_size_of_output_model()}"
         if self.last_targeted_call:
