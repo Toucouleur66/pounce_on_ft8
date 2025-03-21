@@ -345,7 +345,7 @@ class Listener:
                     self.secondary_udp_server_port
                 ))
         except Exception as e:
-            error_message = f"Can't forward packet: {e}\n{traceback.format_exc()}"
+            error_message = f"Can't forward packet: {e}"
             log.info(error_message)
             if self.message_callback:
                 self.message_callback(error_message)    
