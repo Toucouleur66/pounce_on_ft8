@@ -6,6 +6,7 @@ import traceback
 import socket
 import bisect
 import json
+import inspect
 
 from datetime import datetime, timezone
 from collections import deque
@@ -401,7 +402,7 @@ class Listener:
     def reset_synched_settings(self):
         self.synched_settings = None
 
-    def synch_settings(self, requester_addr_port=None):
+    def synch_settings(self, requester_addr_port=None):        
         """
             Save requester_addr_port for later synch
         """
@@ -425,6 +426,14 @@ class Listener:
             addr_port = self.origin_addr_port
 
         if addr_port is not None:
+            frame = inspect.currentframe()
+            try:
+                caller = frame.f_back
+                co_name = caller.f_code.co_name        
+                log.warning(f"Synch settings: {co_name} from {caller} ({requester_addr_port})")
+            finally:
+                del frame
+
             self.send_settings_packet({             
                 'band'                  : self.band,
                 'wanted_callsigns'      : self.wanted_callsigns,
