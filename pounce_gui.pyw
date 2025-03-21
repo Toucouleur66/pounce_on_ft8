@@ -1872,8 +1872,8 @@ class MainApp(QtWidgets.QMainWindow):
             not connection_lost and
             self._synched_addr_port is not None
         ):
-            connected_to_str = f"{self._instance} "
-            connected_to_str+= f"◂ {MASTER}" if self._instance == SLAVE else f"▸ {SLAVE}"
+            connected_to_str = f"{self._instance} ~ "
+            connected_to_str+= MASTER if self._instance == SLAVE else SLAVE
             connected_to_str+= f" ({self._synched_addr_port[0]}:{self._synched_addr_port[1]})"
             status_text_array.append(connected_to_str)
 

@@ -785,14 +785,19 @@ class Listener:
                     self.synch_time is None or 
                     self.synch_time < synch_time
                 ):
-                    self.synch_time = synch_time
                     self.synched_settings = json.loads(self.the_packet.settings_json)
-                    if self.message_callback:
-                        self.message_callback({
-                            'type'     : 'instance_settings',
-                            'settings' : self.synched_settings
-                        })   
-                    log.info(f"SettingPacket has been processed")     
+                    wanted_callsigns = self.synched_settings.get('wanted_callsigns')
+                    """
+                        Make sure to set synch_time after we checked if wanted_callsigns is valid
+                    """
+                    if wanted_callsigns and isinstance(wanted_callsigns, (list, tuple)):
+                        self.synch_time = synch_time
+                        if self.message_callback:
+                            self.message_callback({
+                                'type'     : 'instance_settings',
+                                'settings' : self.synched_settings
+                            })   
+                        log.info(f"SettingPacket has been processed")     
             except Exception as e:
                 log.error(f"Error processing SettingPacket: {e}")          
         else:
