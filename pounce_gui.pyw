@@ -254,6 +254,9 @@ class MainApp(QtWidgets.QMainWindow):
         self._running                           = False
         self._instance                          = None
         self._connected                         = True
+        self._synch_signal                      = True
+
+        self.before_synch_wanted_callsigns      = {}
 
         self.decode_packet_count                = 0
         self.last_decode_packet_time            = None
@@ -1192,7 +1195,7 @@ class MainApp(QtWidgets.QMainWindow):
     def send_worker_signal(self):
         if self.worker is not None:            
             self.worker.update_listener_settings_signal.emit()
-            if self._instance is not None:
+            if self._instance is not None and self._synch_signal:
                 self.worker.synch_settings_signal.emit()  
             
     @QtCore.pyqtSlot(object)
@@ -1342,12 +1345,17 @@ class MainApp(QtWidgets.QMainWindow):
             """
             self.restore_settings(blocSignals=True)
             for amateur_band in AMATEUR_BANDS.keys():                
-                self.slave_wanted_callsigns[amateur_band] = self.wanted_callsigns_vars[amateur_band].text()   
+                self.before_synch_wanted_callsigns[amateur_band] = self.wanted_callsigns_vars[amateur_band].text()   
           
+            # To block signal 
+            self._synch_signal = False
             if not master_wanted_callsigns:
                 self.wanted_callsigns_vars[band].clear()
             else:
                 self.wanted_callsigns_vars[band].setText(", ".join(master_wanted_callsigns))
+
+            # Unblock signal 
+            self._synch_signal = True
 
             if play_sound:
                 self.play_sound("updated_settings")     
@@ -1357,13 +1365,13 @@ class MainApp(QtWidgets.QMainWindow):
             for amateur_band in AMATEUR_BANDS.keys():
                 if blocSignals:
                     self.wanted_callsigns_vars[amateur_band].blockSignals(True)
-                if self.slave_wanted_callsigns.get(amateur_band):
-                    slave_wanted_callsigns_band = self.slave_wanted_callsigns[amateur_band]                    
+                if self.before_synch_wanted_callsigns.get(amateur_band):
+                    before_synch_wanted_callsigns_band = self.before_synch_wanted_callsigns[amateur_band]                    
 
-                    if not slave_wanted_callsigns_band:
+                    if not before_synch_wanted_callsigns_band:
                         self.wanted_callsigns_vars[amateur_band].clear()
                     else:
-                        self.wanted_callsigns_vars[amateur_band].setText(slave_wanted_callsigns_band)
+                        self.wanted_callsigns_vars[amateur_band].setText(before_synch_wanted_callsigns_band)
                 if blocSignals:
                     self.wanted_callsigns_vars[amateur_band].blockSignals(False)
         
@@ -1806,7 +1814,7 @@ class MainApp(QtWidgets.QMainWindow):
                 self._instance in (MASTER, None) and
                 status == SLAVE
             ):                
-                self.slave_wanted_callsigns = {}
+                self.before_synch_wanted_callsigns = {}
 
             if (
                 self._instance == SLAVE and

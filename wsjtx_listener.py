@@ -638,8 +638,11 @@ class Listener:
 
     def can_forward_packet(self):    
         if (
-            not self.enable_secondary_udp_server or 
-            self.secondary_udp_server_address == self.primary_udp_server_address
+            not self.enable_secondary_udp_server or
+            (
+                self.secondary_udp_server_address == self.primary_udp_server_address and
+                self.secondary_udp_server_port == self.primary_udp_server_port
+            )
         ):                    
             return False
         elif isinstance(self.the_packet, pywsjtx.RequestSettingPacket):
@@ -783,7 +786,7 @@ class Listener:
                             'type'     : 'master_slave_settings',
                             'settings' : self.synched_settings
                         })   
-                    log.info(f"SettingPacket has been processed")                        
+                    log.info(f"SettingPacket has been processed")     
             except Exception as e:
                 log.error(f"Error processing SettingPacket: {e}")          
         else:
