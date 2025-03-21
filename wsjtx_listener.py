@@ -280,7 +280,7 @@ class Listener:
                     self._instance = _instance                 
                     if self.message_callback:
                         self.message_callback({
-                            'type'      : 'master_status',
+                            'type'      : 'instance_status',
                             'status'    : self._instance,
                             'addr_port' : addr_port
                         })
@@ -772,7 +772,7 @@ class Listener:
             self.synched_band == self.band
         ):
             try:         
-                log.info(f"SettingPacket received")             
+                log.info(f"SettingPacket received from {self.origin_addr_port}")             
                 synch_time = datetime.fromisoformat(self.the_packet.synch_time)
                 if (
                     self.synched_settings is None or 
@@ -783,7 +783,7 @@ class Listener:
                     self.synched_settings = json.loads(self.the_packet.settings_json)
                     if self.message_callback:
                         self.message_callback({
-                            'type'     : 'master_slave_settings',
+                            'type'     : 'instance_settings',
                             'settings' : self.synched_settings
                         })   
                     log.info(f"SettingPacket has been processed")     

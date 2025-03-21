@@ -85,7 +85,9 @@ from constants import (
     BG_COLOR_BLACK_ON_PURPLE,
     FG_COLOR_BLACK_ON_PURPLE,
     BG_COLOR_BLACK_ON_CYAN,
-    FG_COLOR_BLACK_ON_CYAN,    
+    FG_COLOR_BLACK_ON_CYAN, 
+    BG_COLOR_WHITE_ON_BLUE_VIOLET,   
+    FG_COLOR_WHITE_ON_BLUE_VIOLET,
     # Status buttons
     STATUS_MONITORING_COLOR,
     STATUS_DECODING_COLOR,
@@ -1214,12 +1216,12 @@ class MainApp(QtWidgets.QMainWindow):
 
             if message_type == 'update_mode':
                 self.mode = message.get('mode')          
-            elif message_type == 'master_status':
+            elif message_type == 'instance_status':
                 self.check_instance(
                         message.get('addr_port'),
                         message.get('status')
                     )          
-            elif message_type == 'master_slave_settings':
+            elif message_type == 'instance_settings':
                 self.apply_instance_settings(message.get('settings'))                  
             elif message_type == 'update_frequency':
                 self.frequency = message.get('frequency')                
@@ -1521,12 +1523,8 @@ class MainApp(QtWidgets.QMainWindow):
         """
         if callsign not in self.wanted_callsigns_vars[context_menu_band].text():
             actions['add_callsign_to_wanted'] = menu.addAction(f"Add {callsign} to Wanted Callsigns")
-            # if self._instance == SLAVE:
-            #       actions['add_callsign_to_wanted'].setEnabled(False)
         else:
             actions['remove_callsign_from_wanted'] = menu.addAction(f"Remove {callsign} from Wanted Callsigns")
-            # if self._instance == SLAVE:
-            #       actions['remove_callsign_from_wanted'].setEnabled(False)
 
         if callsign != self.wanted_callsigns_vars[context_menu_band].text():
             actions['replace_wanted_with_callsign'] = menu.addAction(f"Make {callsign} your only Wanted Callsign")
@@ -1822,8 +1820,8 @@ class MainApp(QtWidgets.QMainWindow):
             ):
                 self.restore_settings()
         
-        self.synched_addr_port = addr_port
-        self._instance = status    
+        self.synched_addr_port  = addr_port
+        self._instance          = status    
         self.update_tab_widget_labels_style()            
 
     def check_connection_status(
@@ -1870,8 +1868,8 @@ class MainApp(QtWidgets.QMainWindow):
         else:
             status_text_array.append("No HeartBeat received yet.")
 
-        if self._instance == SLAVE and not connection_lost and self.synched_addr_port:
-            status_text_array.append(f"Slave connected ~ {self.synched_addr_port[0]}:{self.synched_addr_port[1]}")
+        if self._instance and not connection_lost and self.synched_addr_port:
+            status_text_array.append(f"{self._instance} connected ~ {self.synched_addr_port[0]}:{self.synched_addr_port[1]}")
 
         decoded_packet_text = f"Message Packet #{self.output_model.rowCount()} {self.get_size_of_output_model()}"
         if self.last_targeted_call:
@@ -1925,7 +1923,7 @@ class MainApp(QtWidgets.QMainWindow):
             if not self._connected:  
                 self.on_resume_connection()
             if self._instance == SLAVE:
-                self.update_status_label_style(FG_TIMER_COLOR, EVEN_COLOR)
+                self.update_status_label_style(BG_COLOR_WHITE_ON_BLUE_VIOLET, FG_COLOR_WHITE_ON_BLUE_VIOLET)
             else:
                 self.update_status_label_style(BG_COLOR_BLACK_ON_YELLOW, FG_COLOR_BLACK_ON_CYAN)
 
@@ -1945,6 +1943,7 @@ class MainApp(QtWidgets.QMainWindow):
 
     def on_lost_connection(self):
         log.warning("Lost connection")
+        
         self._connected = False
         self.operating_band = None
         
@@ -1956,11 +1955,11 @@ class MainApp(QtWidgets.QMainWindow):
         if sys.platform == 'darwin':
             self.pobjc_timer.stop() 
 
+        self.worker.reset_settings_signal.emit()
         self.restore_settings()  
                     
     def on_resume_connection(self):
         log.warning("Resume connection")
-        self.worker.reset_settings_signal.emit()   
         self._connected = True    
         self.activity_bar_timer.start(100)
         self.enforce_size_limit_timer.start(60_000) 
@@ -2018,7 +2017,7 @@ class MainApp(QtWidgets.QMainWindow):
         log.debug("Quit")
 
     def restart_application(self):
-        self.restore_settings()
+        self.restore_settings(blocSignals=True)
         self.save_window_position()
 
         self.save_band_settings()
@@ -2879,7 +2878,7 @@ class MainApp(QtWidgets.QMainWindow):
             self._running            = False       
 
             self.update_tab_widget_labels_style()
-            self.restore_settings()
+            self.restore_settings(blocSignals=True)
 
             self._instance           = None
             self.operating_band      = None
