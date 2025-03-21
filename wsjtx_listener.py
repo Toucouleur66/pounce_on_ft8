@@ -444,11 +444,17 @@ class Listener:
 
             if self._instance == MASTER:
                 settings_packet = self.add_master_header() + settings_packet
+                if self.message_callback:
+                    self.message_callback({
+                        'type'      : 'instance_synched',
+                        'addr_port' : addr_port
+                    })
 
             self.s.send_packet(
                 addr_port,
                 settings_packet
             )
+
             log.info(f"SettingPacket sent to {addr_port}.")        
         except Exception as e:
             log.error(f"Failed to send SettingPacket: {e}")    

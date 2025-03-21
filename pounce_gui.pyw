@@ -257,6 +257,7 @@ class MainApp(QtWidgets.QMainWindow):
         self._instance                          = None
         self._connected                         = True
         self._synch_signal                      = True
+        self._synched_addr_port                 = None
 
         self.before_synch_wanted_callsigns      = {}
 
@@ -1223,6 +1224,8 @@ class MainApp(QtWidgets.QMainWindow):
                     )          
             elif message_type == 'instance_settings':
                 self.apply_instance_settings(message.get('settings'))                  
+            elif message_type == 'instance_synched':
+                self._synched_addr_port = message.get('addr_port')
             elif message_type == 'update_frequency':
                 self.frequency = message.get('frequency')                
                 if self.frequency != self.last_frequency:
@@ -1808,20 +1811,15 @@ class MainApp(QtWidgets.QMainWindow):
         status      = None
     ):        
         if status != self._instance:
-            if (
-                self._instance in (MASTER, None) and
-                status == SLAVE
-            ):                
+            if self._instance in (MASTER, None) and status == SLAVE:                
                 self.before_synch_wanted_callsigns = {}
+                self._synched_addr_port = addr_port 
 
-            if (
-                self._instance == SLAVE and
-                status == MASTER
-            ):
+            if self._instance == SLAVE and status == MASTER:
                 self.restore_settings()
-        
-        self.synched_addr_port  = addr_port
-        self._instance          = status    
+                self._synched_addr_port = None 
+
+        self._instance          = status           
         self.update_tab_widget_labels_style()            
 
     def check_connection_status(
@@ -1868,8 +1866,13 @@ class MainApp(QtWidgets.QMainWindow):
         else:
             status_text_array.append("No HeartBeat received yet.")
 
-        if self._instance and not connection_lost and self.synched_addr_port:
-            status_text_array.append(f"{self._instance} connected ~ {self.synched_addr_port[0]}:{self.synched_addr_port[1]}")
+        if (
+            self._instance and
+            self._running and 
+            not connection_lost and
+            self._synched_addr_port is not None
+        ):
+            status_text_array.append(f"{self._instance} ~ {self._synched_addr_port[0]}:{self._synched_addr_port[1]}")
 
         decoded_packet_text = f"Message Packet #{self.output_model.rowCount()} {self.get_size_of_output_model()}"
         if self.last_targeted_call:
