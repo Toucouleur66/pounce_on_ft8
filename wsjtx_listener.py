@@ -644,6 +644,8 @@ class Listener:
             return False
         elif isinstance(self.the_packet, pywsjtx.RequestSettingPacket):
             return False
+        elif isinstance(self.the_packet, pywsjtx.SettingPacket):
+            return False
         else:
             return True
                
@@ -763,7 +765,6 @@ class Listener:
     
     def handle_setting_packet(self):
         if (
-            self._instance == SLAVE and
             self.band is not None and 
             self.synched_band == self.band
         ):

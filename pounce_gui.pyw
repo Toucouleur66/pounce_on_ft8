@@ -252,7 +252,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.network_check_status.timeout.connect(self.check_connection_status)
 
         self._running                           = False
-        self._instance                          = MASTER
+        self._instance                          = None
         self._connected                         = True
 
         self.decode_packet_count                = 0
@@ -1192,7 +1192,7 @@ class MainApp(QtWidgets.QMainWindow):
     def send_worker_signal(self):
         if self.worker is not None:            
             self.worker.update_listener_settings_signal.emit()
-            if self._instance == MASTER:
+            if self._instance is not None:
                 self.worker.synch_settings_signal.emit()  
             
     @QtCore.pyqtSlot(object)
@@ -1513,12 +1513,12 @@ class MainApp(QtWidgets.QMainWindow):
         """
         if callsign not in self.wanted_callsigns_vars[context_menu_band].text():
             actions['add_callsign_to_wanted'] = menu.addAction(f"Add {callsign} to Wanted Callsigns")
-            if self._instance == SLAVE:
-                actions['add_callsign_to_wanted'].setEnabled(False)
+            # if self._instance == SLAVE:
+            #       actions['add_callsign_to_wanted'].setEnabled(False)
         else:
             actions['remove_callsign_from_wanted'] = menu.addAction(f"Remove {callsign} from Wanted Callsigns")
-            if self._instance == SLAVE:
-                actions['remove_callsign_from_wanted'].setEnabled(False)
+            # if self._instance == SLAVE:
+            #       actions['remove_callsign_from_wanted'].setEnabled(False)
 
         if callsign != self.wanted_callsigns_vars[context_menu_band].text():
             actions['replace_wanted_with_callsign'] = menu.addAction(f"Make {callsign} your only Wanted Callsign")
@@ -1803,18 +1803,18 @@ class MainApp(QtWidgets.QMainWindow):
     ):        
         if status != self._instance:
             if (
-                self._instance == MASTER and
+                self._instance in (MASTER, None) and
                 status == SLAVE
-            ):
-                self.master_slave_addr_port     = addr_port     
-                self.slave_wanted_callsigns     = {}
+            ):                
+                self.slave_wanted_callsigns = {}
 
             if (
                 self._instance == SLAVE and
                 status == MASTER
             ):
                 self.restore_settings()
-
+        
+        self.synched_addr_port = addr_port
         self._instance = status    
         self.update_tab_widget_labels_style()            
 
@@ -1862,8 +1862,8 @@ class MainApp(QtWidgets.QMainWindow):
         else:
             status_text_array.append("No HeartBeat received yet.")
 
-        if self._instance == SLAVE and not connection_lost:
-            status_text_array.append(f"Slave connected ~ {self.master_slave_addr_port[0]}:{self.master_slave_addr_port[1]}")
+        if self._instance == SLAVE and not connection_lost and self.synched_addr_port:
+            status_text_array.append(f"Slave connected ~ {self.synched_addr_port[0]}:{self.synched_addr_port[1]}")
 
         decoded_packet_text = f"Message Packet #{self.output_model.rowCount()} {self.get_size_of_output_model()}"
         if self.last_targeted_call:
@@ -2666,7 +2666,7 @@ class MainApp(QtWidgets.QMainWindow):
         thanks_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(thanks_label)
 
-        thanks_names = CustomQLabel("Rick, DU6/PE1NSQ, Vincent F4BKV, Juan TG9AJR, Neil G0JHC")
+        thanks_names = CustomQLabel("Rick, DU6/PE1NSQ, Vincent F4BKV,<br />Juan TG9AJR, Neil G0JHC")
         thanks_names.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(thanks_names)
 
@@ -2873,7 +2873,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.update_tab_widget_labels_style()
             self.restore_settings()
 
-            self._instance = MASTER
+            self._instance           = None
             self.operating_band      = None
             self.transmitting        = False
             
