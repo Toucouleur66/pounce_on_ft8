@@ -1952,6 +1952,8 @@ class MainApp(QtWidgets.QMainWindow):
         
         self._connected = False
         self.operating_band = None
+
+        self.check_connection_status()
         
         self.stop_blinking_status_button()  
         self.activity_bar_timer.stop()
@@ -2118,16 +2120,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.save_params(params)  
 
     def save_params(self, params):
-        """
-        frame = inspect.currentframe()
-        try:
-            caller = frame.f_back
-            co_name = caller.f_code.co_name        
-            log.warning(f"save_params: '{co_name}' from '{caller}'")
-        finally:
-            del frame
-        """
-
         with open(PARAMS_FILE, "wb") as f:
             pickle.dump(params, f)
 
@@ -2857,7 +2849,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.tray_icon = None
 
     def stop_monitoring(self):
-        self.network_check_status.stop()
+        self.network_check_status.stop()        
         self.activity_bar.setValue(0) 
         self.hide_status_menu()
 
@@ -2895,6 +2887,8 @@ class MainApp(QtWidgets.QMainWindow):
 
             self.tab_widget.set_selected_tab(self.band_indices.get(self.operating_band))
             self.tab_widget.set_operating_tab(None)
+
+            self.check_connection_status()
 
             self.update_status_label_style(STATUS_COLOR_LABEL_SELECTED, "white")
             self.update_status_button(STATUS_BUTTON_LABEL_START, STATUS_TRX_COLOR)

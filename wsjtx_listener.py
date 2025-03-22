@@ -1053,9 +1053,7 @@ class Listener:
 
                     if callsign in self.wanted_callsigns:
                         self.wanted_callsigns.remove(callsign)   
-                    elif reply_to_packet:
-                        reply_to_packet = False                     
-     
+                    
                 elif self.targeted_call is not None:
                     log.error(f"Received |{msg}| from [ {callsign} ] but ongoing callsign is [ {self.targeted_call} ]")
                     message_type = 'error_occurred'   
@@ -1120,6 +1118,7 @@ class Listener:
                     'callsign'          : callsign,
                     'directed'          : directed,
                     'marathon'          : marathon,
+                    'wkb4_year'         : wkb4_year,
                     'grid'              : grid,
                     'cqing'             : cqing,
                     'msg'               : msg
@@ -1189,12 +1188,18 @@ class Listener:
                     filtered_message['priority']-= 1
 
         """
-            Select highest priority message to reply.
-            If same prioity, select first received DecodePacket 
+            Selects the message with the highest priority
         """       
         selected_message = max(
             filtered_messages,
-            key=lambda message: (message['priority'], -message['packet_id']),
+            key=lambda message: (
+                # First select highest priority
+                message['priority'],
+                # If wkb4_year is None, return inf, which ranks this message before those with a numerical year
+                float('inf') if message.get('wkb4_year') is None else -message['wkb4_year'],
+                # In case of a tie on the first two criteria, the message with the lowest packet_id (the first received) is selected
+                -message['packet_id']
+            ),
             default=None
         )
 
