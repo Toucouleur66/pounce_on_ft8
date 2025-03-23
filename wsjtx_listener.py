@@ -1164,6 +1164,16 @@ class Listener(QObject):
         except Exception as e:
             log.error("Caught an error parsing packet: {}; error {}\n{}".format(
                 self.the_packet.message, e, traceback.format_exc()))   
+            
+    def get_sorted_keys(self):
+        return lambda message: (
+            # First select highest priority
+            message['priority'],
+            # If wkb4_year is None, return inf, which ranks this message before those with a numerical year
+            float('inf') if message.get('wkb4_year') is None else -message['wkb4_year'],
+            # In case of a tie on the first two criteria, the message with the lowest packet_id (the first received) is selected
+            -message['packet_id']
+        )
 
     def process_reply_packet_buffer(self, message):         
         """
@@ -1195,18 +1205,8 @@ class Listener(QObject):
 
         """
             Selects the message with the highest priority
-        """       
-
-        sort_key = lambda message: (
-            # First select highest priority
-            message['priority'],
-            # If wkb4_year is None, return inf, which ranks this message before those with a numerical year
-            float('inf') if message.get('wkb4_year') is None else -message['wkb4_year'],
-            # In case of a tie on the first two criteria, the message with the lowest packet_id (the first received) is selected
-            -message['packet_id']
-        )
-
-        selected_message = max(filtered_messages, key=sort_key, default=None)
+        """      
+        selected_message = max(filtered_messages, key=self.get_sorted_keys(), default=None)
                 
         """
             Clear buffer
@@ -1231,28 +1231,30 @@ class Listener(QObject):
             self._reply_timer = threading.Timer(
                 DELAY_REPLY_PROCESS,
                 self.process_pending_reply,
-                args=[selected_message] 
+                args=[selected_message, filtered_messages] 
             )
             self._reply_timer.start()
 
             # Log filtered messages
-            log.info(f"FilteredMessages ({len(filtered_messages)}):\n\t{"\n\t".join([
-                log_format_message(m) for m in sorted(filtered_messages, key=sort_key)
-            ])}")
+            
 
             # Return priority for GUI callback
             return selected_message['priority']
         else:
             return -1 
                 
-    def process_pending_reply(self, selected_message):    
+    def process_pending_reply(self, selected_message, filtered_messages):    
+        if filtered_messages:
+            log.info(f"FilteredMessages ({len(filtered_messages)}):\n\t{"\n\t".join([
+                log_format_message(m) for m in sorted(filtered_messages, key=self.get_sorted_keys(), reverse=True)
+            ])}")
+
         callsign        = selected_message.get('callsign')
         packet_id       = selected_message.get('packet_id')
         
         callsign_packet = self.packet_store[packet_id]
 
-        if self.targeted_call is None:
-            self.targeted_call = callsign
+        self.targeted_call = callsign
 
         if callsign not in self.reply_attempts:
             self.reply_attempts[callsign] = []

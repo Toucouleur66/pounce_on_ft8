@@ -514,25 +514,26 @@ def save_marathon_wanted_data(file, marathon_data):
 def log_format_message(message):
     decode_time = message.get('decode_time')
     if hasattr(decode_time, 'strftime'):
-        decode_time_str = decode_time.strftime("%H:%M:%S")
+        decode_time_str = decode_time.strftime("%H%M%S")
     else:
         decode_time_str = str(decode_time)
 
     if message.get('directed') is not None:
-        directed_or_grid = f"directed:{message.get('directed')}"
+        directed_or_grid = message.get('directed')
     else:
-        directed_or_grid = f"grid:{message.get('grid')}" if message.get('grid') is not None else ''           
+        if message.get('cqing'):
+            directed_or_grid = "CQ"
+        else:
+            directed_or_grid = message.get('grid') if message.get('grid') is not None else ''         
 
-    msg = message.get('msg', None)
-    if not msg and message.get('cqing'):
-        msg = "CQ"
+    if message.get('wkb4_year') is not None:
+        wkb4_year = f"b4y:{message.get('wkb4_year')}"
+    else:
+        wkb4_year = ""
 
     return (            
-        f"Message from packet_id #{message.get('packet_id'):<10}"
-        f"\n\tpriority:{message.get('priority'):<10}"
-        f"\tcallsign:{message.get('callsign'):<13}"
-        f"\t{directed_or_grid}"                        
-        f"\n\tdecode_time:{decode_time_str:<10}"                        
-        f"\tcqing:{message.get('cqing'):<13}"
-        f"\tmsg:{msg}"
+        f"#{message.get('packet_id'):<6}{decode_time_str} [{message.get('priority')}]:"
+        f"{message.get('callsign'):<10}"
+        f"\t{directed_or_grid:<4}" 
+        f"\t{wkb4_year}"                                           
     )        
