@@ -21,7 +21,6 @@ from logger import get_logger
 
 from utils import get_local_ip_address, get_mode_interval, get_amateur_band, parse_wsjtx_message
 from utils import get_wkb4_year, get_clean_rst
-from utils import log_format_message
 from utils import load_marathon_wanted_data, save_marathon_wanted_data
 
 from callsign_lookup import CallsignLookup
@@ -1245,8 +1244,8 @@ class Listener(QObject):
                 
     def process_pending_reply(self, selected_message, filtered_messages):    
         if filtered_messages:
-            log.info(f"FilteredMessages ({len(filtered_messages)}):\n\t{"\n\t".join([
-                log_format_message(m) for m in sorted(filtered_messages, key=self.get_sorted_keys(), reverse=True)
+            log.info(f"Selected messages ({len(filtered_messages)}):\n\t{"\n\t".join([
+                self.format_log_message(message) for message in sorted(filtered_messages, key=self.get_sorted_keys(), reverse=True)
             ])}")
 
         callsign        = selected_message.get('callsign')
@@ -1434,3 +1433,34 @@ class Listener(QObject):
         if self.adif_data.get('entity') and self.band:
             log.info(sorted(self.adif_data.get('entity').get(str(datetime.now().year)).get(self.band)))
     """
+
+    def format_log_message(self, message):
+        decode_time = message.get('decode_time')
+        if hasattr(decode_time, 'strftime'):
+            decode_time_str = decode_time.strftime("%H%M%S")
+        else:
+            decode_time_str = str(decode_time)
+
+        if message.get('directed') is not None:
+            directed_or_grid = message.get('directed')
+
+            if message.get('directed') == self.my_call:
+                directed_or_grid+= ""
+        else:
+            if message.get('cqing'):
+                directed_or_grid = "CQ"
+            else:
+                directed_or_grid = message.get('grid') if message.get('grid') is not None else ''         
+
+        if message.get('wkb4_year') is not None:
+            wkb4_year = f"wkb4y:{message.get('wkb4_year')}"
+        else:
+            wkb4_year = ""
+
+        return (            
+            f"[ {message.get('priority')} ] {decode_time_str} "
+            f"de:{message.get('callsign'):<10}"
+            f"\tdir:{directed_or_grid:<4}" 
+            f"\tpid:{message.get('packet_id'):<6}"
+            f"\t{wkb4_year}"                                           
+        )        

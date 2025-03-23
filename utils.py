@@ -511,7 +511,7 @@ def save_marathon_wanted_data(file, marathon_data):
     except Exception as e:
         pass
 
-def log_format_message(message):
+def log_format_message(message, my_call):
     decode_time = message.get('decode_time')
     if hasattr(decode_time, 'strftime'):
         decode_time_str = decode_time.strftime("%H%M%S")
@@ -532,8 +532,9 @@ def log_format_message(message):
         wkb4_year = ""
 
     return (            
-        f"#{message.get('packet_id'):<6}{decode_time_str} [{message.get('priority')}]:"
-        f"{message.get('callsign'):<10}"
-        f"\t{directed_or_grid:<4}" 
+        f"[ {message.get('priority')} ] {decode_time_str} "
+        f"de:{message.get('callsign'):<10}"
+        f"\tdir:{directed_or_grid:<4}" 
+        f"\tpid:{message.get('packet_id'):<6}"
         f"\t{wkb4_year}"                                           
     )        
