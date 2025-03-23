@@ -37,6 +37,7 @@ from constants import (
     ODD,
     MASTER,
     SLAVE,
+    DELAY_REPLY_PROCESS,
     HEARTBEAT_TIMEOUT_THRESHOLD,
     MODE_FOX_HOUND,
     MODE_NORMAL,
@@ -1206,13 +1207,7 @@ class Listener(QObject):
         )
 
         selected_message = max(filtered_messages, key=sort_key, default=None)
-        
-        log_output = "FilteredMessages:\n\t".join(
-            [
-                log_format_message(m) for m in sorted(filtered_messages, key=sort_key)
-            ]
-        )
-
+                
         """
             Clear buffer
         """
@@ -1229,27 +1224,28 @@ class Listener(QObject):
             selected_message['priority'] > self.last_selected_message['priority'] or
             selected_message['packet_id'] != self.last_selected_message['packet_id']
         ):
-            """
-                Process to reply
-            """
+            # Handle a timer to avoid multiple call for self.process_pending_reply
             if hasattr(self, '_reply_timer') and self._reply_timer:
                 self._reply_timer.cancel()
 
             self._reply_timer = threading.Timer(
-                0.3,
+                DELAY_REPLY_PROCESS,
                 self.process_pending_reply,
-                args=[selected_message, log_output] 
+                args=[selected_message] 
             )
             self._reply_timer.start()
-  
+
+            # Log filtered messages
+            log.info(f"FilteredMessages ({len(filtered_messages)}):\n\t{"\n\t".join([
+                log_format_message(m) for m in sorted(filtered_messages, key=sort_key)
+            ])}")
+
+            # Return priority for GUI callback
             return selected_message['priority']
         else:
             return -1 
                 
-    def process_pending_reply(self, selected_message, log_output = None):    
-        if log_output:
-            log.info(log_output) 
-
+    def process_pending_reply(self, selected_message):    
         callsign        = selected_message.get('callsign')
         packet_id       = selected_message.get('packet_id')
         
@@ -1268,7 +1264,6 @@ class Listener(QObject):
                 log.warning(f"{count_attempts} attempts for [ {callsign} ]") 
 
         self.reply_to_packet(callsign_packet) 
-
         self.last_selected_message = selected_message
 
     def halt_packet(self):

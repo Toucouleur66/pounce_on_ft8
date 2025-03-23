@@ -309,6 +309,7 @@ class MainApp(QtWidgets.QMainWindow):
         
         self.enable_pounce_log                  = params.get('enable_pounce_log', True)
         self.enable_filter_gui                   = params.get('enable_filter_gui', False)        
+        self.enable_minimized_gui               = False
         self.enable_global_sound                = params.get('enable_global_sound', True)
         self.datetime_column_setting            = params.get('datetime_column_setting', DATE_COLUMN_DATETIME)
         self.enable_show_all_decoded            = params.get('enable_show_all_decoded', DEFAULT_SHOW_ALL_DECODED)
@@ -547,7 +548,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         outer_layout.addWidget(self.activity_bar)
 
-        spacer = QtWidgets.QSpacerItem(0, 10, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)        
+        spacer = QtWidgets.QSpacerItem(0, 5, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)        
 
         """
             Main layout
@@ -556,8 +557,8 @@ class MainApp(QtWidgets.QMainWindow):
 
         worked_history_layout.addWidget(self.worked_history_callsigns_label)
         worked_history_layout.addWidget(self.wait_pounce_history_table, 1)  
-        main_layout.addLayout(top_layout, 0, 0, 1, 5) 
         
+        main_layout.addLayout(top_layout, 0, 0, 1, 5)         
         main_layout.addWidget(self.tab_widget, 2, 0, 4, 3)                
         main_layout.addLayout(worked_history_layout, 2, 3, 5, 2)
         main_layout.addLayout(status_layout, 8, 1, 1, 1)
@@ -567,7 +568,6 @@ class MainApp(QtWidgets.QMainWindow):
         main_layout.addWidget(self.output_table, 10, 0, 1, 5)
         main_layout.addWidget(self.filter_widget, 11, 0, 1, 5)
         main_layout.addWidget(bottom_widget, 12, 0, 1, 5)
-        
 
         self.file_handler = None
         if self.enable_pounce_log:
@@ -933,7 +933,12 @@ class MainApp(QtWidgets.QMainWindow):
         if self.enable_filter_gui != checked:
             self.enable_filter_gui = checked
             self.filter_gui_toggle.setChecked(checked)
-            self.save_unique_param('enable_filter_gui', checked)        
+            self.save_unique_param('enable_filter_gui', checked)     
+
+    def toggle_minimize_gui(self):    
+        visible = self.output_table.isVisible()
+        self.output_table.setVisible(not visible)      
+        self.enable_minimized_gui = not visible
 
     def toggle_wkb4_column_visibility(self):
         if self.worked_before_preference == WKB4_REPLY_MODE_ALWAYS:
@@ -2534,6 +2539,19 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.window_menu.addSeparator()
 
+        """
+        toggle_minimize_action = QtGui.QAction("Minimize Windows", self)
+        toggle_minimize_action.setCheckable(True)  
+        toggle_minimize_action.setChecked(self.enable_minimized_gui)  
+        toggle_minimize_action.triggered.connect(self.toggle_minimize_gui)
+
+        self.toggle_minimize_action = toggle_minimize_action
+        
+        self.window_menu.addAction(toggle_minimize_action)
+
+        self.window_menu.addSeparator()
+        """
+        
         clear_filters_action = QtGui.QAction("Clear Filters", self)
         clear_filters_action.setShortcut(QtGui.QKeySequence("Ctrl+W")) 
         clear_filters_action.triggered.connect(self.clear_filters)  
