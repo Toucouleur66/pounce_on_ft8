@@ -7,6 +7,7 @@ import socket
 import bisect
 import json
 import inspect
+import threading
 
 from datetime import datetime, timezone
 from collections import deque
@@ -14,7 +15,7 @@ from collections import deque
 from receiver_worker import ReceiverWorker
 from processor_worker import ProcessorWorker
 
-from PyQt6.QtCore import QThread
+from PyQt6.QtCore import QObject, QThread, QTimer
 
 from logger import get_logger
 
@@ -48,7 +49,7 @@ from constants import (
     MARATHON_FILE
 )
 
-class Listener:
+class Listener(QObject):
     def __init__(
             self,
             primary_udp_server_address,
@@ -77,6 +78,7 @@ class Listener:
             worked_before_preference,
             message_callback=None
         ):
+        super().__init__()
 
         self.my_call                    = None
         self.my_grid                    = None
@@ -91,9 +93,9 @@ class Listener:
         self.packet_counter             = 0        
         self.reply_message_buffer       = deque()
 
+        self.last_selected_message      = None
         self.reply_to_packet_time       = None
-        self.last_message_replied       = None
-        
+
         self.call_ready_to_log          = None
         self.last_logged_call           = None
         self.targeted_call              = None
@@ -158,7 +160,6 @@ class Listener:
             Convert minutes to seconds from max_working_delay
         """
         self.max_working_delay_seconds      = max_working_delay * 60
-
         self.monitoring_settings            = monitoring_settings
 
         self.wanted_callsigns               = None
@@ -726,7 +727,11 @@ class Listener:
             log.error(f"Error collecting frequency usage: {e}\n{traceback.format_exc()}")
 
     def get_period_index(self):
-        if not self.the_packet or not self.the_packet.time:
+        if (
+            not self.the_packet or 
+            not hasattr(self.the_packet, 'time') or
+            not self.the_packet.time
+        ):
             log.error("Packet time is not available.")
             return None
 
@@ -1190,27 +1195,23 @@ class Listener:
         """
             Selects the message with the highest priority
         """       
-        selected_message = max(
-            filtered_messages,
-            key=lambda message: (
-                # First select highest priority
-                message['priority'],
-                # If wkb4_year is None, return inf, which ranks this message before those with a numerical year
-                float('inf') if message.get('wkb4_year') is None else -message['wkb4_year'],
-                # In case of a tie on the first two criteria, the message with the lowest packet_id (the first received) is selected
-                -message['packet_id']
-            ),
-            default=None
+
+        sort_key = lambda message: (
+            # First select highest priority
+            message['priority'],
+            # If wkb4_year is None, return inf, which ranks this message before those with a numerical year
+            float('inf') if message.get('wkb4_year') is None else -message['wkb4_year'],
+            # In case of a tie on the first two criteria, the message with the lowest packet_id (the first received) is selected
+            -message['packet_id']
         )
 
-        if len(filtered_messages) > 0:
-            filtered_log_output = []        
-            for filtered_message in sorted(
-                filtered_messages,
-                key=lambda message: (message['priority'], -message['packet_id'])
-            ):                
-                filtered_log_output.append(log_format_message(filtered_message))
-            log.info(f"\n\t".join(filtered_log_output))                
+        selected_message = max(filtered_messages, key=sort_key, default=None)
+        
+        log_output = "FilteredMessages:\n\t".join(
+            [
+                log_format_message(m) for m in sorted(filtered_messages, key=sort_key)
+            ]
+        )
 
         """
             Clear buffer
@@ -1224,24 +1225,34 @@ class Listener:
             Proceed with selected message
         """
         if selected_message and (
-            self.last_message_replied is None or
-            selected_message['priority'] > self.last_message_replied['priority'] or
-            selected_message['packet_id'] != self.last_message_replied['packet_id']
+            self.last_selected_message is None or
+            selected_message['priority'] > self.last_selected_message['priority'] or
+            selected_message['packet_id'] != self.last_selected_message['packet_id']
         ):
-            self.last_message_replied = selected_message
             """
                 Process to reply
             """
-            self.handle_reply_to_callsign(
-                selected_message['callsign'],
-                selected_message['packet_id']
-            )
+            if hasattr(self, '_reply_timer') and self._reply_timer:
+                self._reply_timer.cancel()
 
+            self._reply_timer = threading.Timer(
+                0.3,
+                self.process_pending_reply,
+                args=[selected_message, log_output] 
+            )
+            self._reply_timer.start()
+  
             return selected_message['priority']
         else:
             return -1 
                 
-    def handle_reply_to_callsign(self, callsign, packet_id):
+    def process_pending_reply(self, selected_message, log_output = None):    
+        if log_output:
+            log.info(log_output) 
+
+        callsign        = selected_message.get('callsign')
+        packet_id       = selected_message.get('packet_id')
+        
         callsign_packet = self.packet_store[packet_id]
 
         if self.targeted_call is None:
@@ -1257,6 +1268,8 @@ class Listener:
                 log.warning(f"{count_attempts} attempts for [ {callsign} ]") 
 
         self.reply_to_packet(callsign_packet) 
+
+        self.last_selected_message = selected_message
 
     def halt_packet(self):
         if self._instance == SLAVE:
@@ -1386,9 +1399,9 @@ class Listener:
 
             log_pkt = pywsjtx.QSOLoggedPacket.Builder(
                 self.the_packet.wsjtx_id,
-                self.qso_time_off[self.call_ready_to_log],
+                self.qso_time_off.get(self.call_ready_to_log),
                 self.call_ready_to_log,
-                self.grid_being_called[self.call_ready_to_log],
+                self.grid_being_called.get(self.call_ready_to_log),
                 self.frequency,
                 self.mode,
                 awaited_rst_sent,
@@ -1396,7 +1409,7 @@ class Listener:
                 empty_string, 
                 empty_string,
                 empty_string,
-                self.qso_time_on[self.call_ready_to_log],
+                self.qso_time_on.get(self.call_ready_to_log),
                 empty_string,
                 self.my_call,
                 self.my_grid,
