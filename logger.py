@@ -1,9 +1,12 @@
 # logger.py
 
 import logging
+import os
 import sys
 
+from logging.handlers import TimedRotatingFileHandler
 from colorama import init, Back, Fore, Style
+from utils import get_app_data_dir
 
 from constants import (
     GUI_LABEL_VERSION
@@ -56,6 +59,27 @@ def add_file_handler(filename):
     root_logger.addHandler(file_handler)
     root_logger.info(f"FileHandler set:{filename}")
     return file_handler
+
+def add_timed_file_handler():
+    log_dir = get_app_data_dir()
+    log_filename = os.path.join(log_dir, "pounce.log")
+    
+    handler = TimedRotatingFileHandler(
+        log_filename,
+        when='midnight',
+        interval=1,
+        backupCount=7,
+        encoding='utf-8'
+    )
+    handler.suffix = "%y%m%d"
+    
+    file_formatter = logging.Formatter(LOG_FORMAT, datefmt="%y%m%d_%H%M%S")
+    handler.setFormatter(file_formatter)
+    
+    root_logger = logging.getLogger()
+    root_logger.addHandler(handler)
+    root_logger.info(f"TimedRotatingFileHandler set: {log_filename}")
+    return handler
 
 def remove_file_handler(file_handler):
     root_logger = logging.getLogger()

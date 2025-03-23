@@ -53,14 +53,14 @@ from raw_data_filter_proxy_model import RawDataFilterProxyModel
 if sys.platform == 'darwin':
     from status_menu import StatusMenuAgent
 
-from utils import get_local_ip_address, get_log_filename, matches_any
+from utils import get_local_ip_address, matches_any
 from utils import get_mode_interval, get_amateur_band, display_frequency
 from utils import force_input, focus_out_event, text_to_array, has_significant_change
 from utils import parse_adif
 
 from version import is_first_launch_or_new_version, save_current_version
 
-from logger import get_logger, add_file_handler, remove_file_handler
+from logger import get_logger, add_timed_file_handler, remove_file_handler
 
 from utils import(
     AMATEUR_BANDS
@@ -571,7 +571,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.file_handler = None
         if self.enable_pounce_log:
-            self.file_handler = add_file_handler(get_log_filename())
+            self.file_handler = add_timed_file_handler()
 
         """
             self.operating_band might be overided as soon as check_connection_status is used
@@ -1998,8 +1998,6 @@ class MainApp(QtWidgets.QMainWindow):
             params.update(new_params)
             self.save_params(params)
 
-            log_filename = get_log_filename()
-
             self.enable_sound_wanted_callsigns      = params.get('enable_sound_wanted_callsigns', True)
             self.enable_sound_directed_my_callsign  = params.get('enable_sound_directed_my_callsign', True)
             self.enable_sound_monitored_callsigns   = params.get('enable_sound_monitored_callsigns', True)
@@ -2010,7 +2008,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.toggle_wkb4_column_visibility()
 
             if self.enable_pounce_log and not previous_enable_pounce_log:
-                self.file_handler = add_file_handler(log_filename)
+                self.file_handler = add_timed_file_handler()
             elif not self.enable_pounce_log and previous_enable_pounce_log:
                 remove_file_handler(self.file_handler)
                 self.file_handler = None

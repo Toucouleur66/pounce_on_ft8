@@ -3,7 +3,7 @@ __pycache__/
 /build*
 
 cty_sample.xml
-
+pounce.log*
 *.log
 *.cer*
 *.csr

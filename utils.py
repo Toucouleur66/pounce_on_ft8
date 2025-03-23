@@ -61,9 +61,7 @@ def get_app_data_dir():
     return app_data_dir
 
 def get_log_filename():
-    today = datetime.now().strftime("%y%m%d")
-
-    return os.path.join(get_app_data_dir(), f"{today}_pounce.log")
+    return os.path.join(get_app_data_dir(), f"pounce.log")
 
 def parse_wsjtx_message(
         message,
