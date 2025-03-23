@@ -7,8 +7,7 @@ class SearchFilterInput(QtWidgets.QWidget):
         super().__init__()
 
     def create_search_field(self, placeholder_text):
-        line_edit = SearchLineEdit(placeholder_text)
-        line_edit.setFixedWidth(150)
+        line_edit = SearchLineEdit(placeholder_text)        
         line_edit.setFixedHeight(20)
         line_edit.setStyleSheet("""
             QLineEdit {
@@ -26,6 +25,14 @@ class SearchFilterInput(QtWidgets.QWidget):
         clear_action.triggered.connect(lambda: self.clear_line_edit(line_edit, clear_action))
         line_edit.clearRequested.connect(lambda: self.clear_line_edit(line_edit, clear_action))  
 
+        def force_upper(text):
+            upper_text = text.upper()
+            if text != upper_text:
+                line_edit.blockSignals(True)
+                line_edit.setText(upper_text)
+                line_edit.blockSignals(False)
+        line_edit.textChanged.connect(force_upper)
+        
         return line_edit
 
     def clear_line_edit(self, line_edit, clear_action):

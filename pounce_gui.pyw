@@ -879,7 +879,6 @@ class MainApp(QtWidgets.QMainWindow):
 
         for idx, (label_text, widget) in enumerate(fields):
             label = CustomQLabel(label_text)
-            label.setFont(CUSTOM_FONT_SMALL)
             label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
             inner_layout.addWidget(widget, 0, idx)
             inner_layout.addWidget(label, 1, idx)
@@ -1036,7 +1035,6 @@ class MainApp(QtWidgets.QMainWindow):
     def create_combo_box(self, values=None, default_value=None):
         combo_box = QtWidgets.QComboBox()
         combo_box.setEditable(False)
-        combo_box.setFixedWidth(150)
         combo_box.setFont(CUSTOM_FONT_SMALL)
         
         if default_value is None:
@@ -1050,6 +1048,7 @@ class MainApp(QtWidgets.QMainWindow):
         combo_box.setStyleSheet("""
                 QComboBox {
                     font-size: 11px;
+                    width: 90px;
                 }
             """)
         return combo_box
