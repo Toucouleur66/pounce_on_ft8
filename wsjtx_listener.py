@@ -1087,7 +1087,7 @@ class Listener(QObject):
                     reply_to_packet = True
                 elif self.rst_sent.get(callsign):
                     count_attempts = len(self.reply_attempts[callsign])
-                    log.warningf(f"Found unexpected message from callsign [ {callsign} ]")
+                    log.warning(f"Found unexpected message from callsign [ {callsign} ]")
                     if count_attempts < DEFAULT_REPLY_ATTEMPTS:
                         reply_to_packet = True    
             elif wanted is True: 
