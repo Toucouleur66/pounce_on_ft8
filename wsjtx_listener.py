@@ -406,10 +406,10 @@ class Listener(QObject):
 
     def synch_settings(self):        
         addr_port = None
-        
+
         if self._instance == SLAVE and self.synched_settings is not None:
             addr_port = self.origin_addr_port
-        else:
+        elif self._instance == MASTER:
             addr_port = self.requester_addr_port
         
         if addr_port:
@@ -417,7 +417,7 @@ class Listener(QObject):
             try:
                 caller = frame.f_back
                 co_name = caller.f_code.co_name        
-                log.warning(f"Synch settings: {co_name} from {caller} ({addr_port})")
+                log.warning(f"Synch settings ({self._instance}): {co_name} from {caller} ({addr_port})")
             finally:
                 del frame
 
