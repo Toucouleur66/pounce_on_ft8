@@ -1563,13 +1563,9 @@ class MainApp(QtWidgets.QMainWindow):
         if table.objectName() == 'output_table':
             if directed and directed != self.my_call:
                 if directed not in self.wanted_callsigns_vars[context_menu_band].text():
-                    actions['add_directed_to_wanted'] = menu.addAction(f"Add {directed} to Wanted Callsigns")
-                    if self._instance == SLAVE:
-                        actions['add_directed_to_wanted'].setEnabled(False)
+                    actions['add_directed_to_wanted'] = menu.addAction(f"Add {directed} to Wanted Callsigns")                    
                 else:
                     actions['remove_directed_from_wanted'] = menu.addAction(f"Remove {directed} from Wanted Callsigns")
-                    if self._instance == SLAVE:
-                        actions['remove_directed_from_wanted'].setEnabled(False)
 
                 if directed != self.wanted_callsigns_vars[context_menu_band].text():
                     actions['replace_wanted_with_directed'] = menu.addAction(f"Make {directed} your only Monitored Callsign")                

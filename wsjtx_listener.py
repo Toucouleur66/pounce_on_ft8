@@ -405,12 +405,19 @@ class Listener(QObject):
         self.synched_settings = None
 
     def synch_settings(self):        
-        if self.requester_addr_port is not None:
+        addr_port = None
+        
+        if self._instance == SLAVE and self.synched_settings is not None:
+            addr_port = self.origin_addr_port
+        else:
+            addr_port = self.requester_addr_port
+        
+        if addr_port:
             frame = inspect.currentframe()
             try:
                 caller = frame.f_back
                 co_name = caller.f_code.co_name        
-                log.warning(f"Synch settings: {co_name} from {caller} ({self.requester_addr_port})")
+                log.warning(f"Synch settings: {co_name} from {caller} ({addr_port})")
             finally:
                 del frame
 
@@ -421,7 +428,7 @@ class Listener(QObject):
                 'monitored_callsigns'   : self.monitored_callsigns,
                 'monitored_cq_zones'    : self.monitored_cq_zones,
                 'excluded_cq_zones'     : self.excluded_cq_zones,
-            }, self.requester_addr_port)
+            }, addr_port)
         
     def send_settings_packet(self, settings_dict, addr_port):
         try:
