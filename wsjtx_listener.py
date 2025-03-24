@@ -32,6 +32,7 @@ lookup  = CallsignLookup()
 from constants import (
     CURRENT_VERSION_NUMBER,
     BAND_CHANGE_WAITING_DELAY,
+    DEFAULT_REPLY_ATTEMPTS,
     EVEN,
     ODD,
     MASTER,
@@ -1084,6 +1085,11 @@ class Listener(QObject):
                 # We need to end this 
                 elif self.call_ready_to_log == callsign and self.rst_sent.get(self.call_ready_to_log):
                     reply_to_packet = True
+                elif self.rst_sent.get(callsign):
+                    count_attempts = len(self.reply_attempts[callsign])
+                    log.warningf(f"Found unexpected message from callsign [ {callsign} ]")
+                    if count_attempts < DEFAULT_REPLY_ATTEMPTS:
+                        reply_to_packet = True    
             elif wanted is True: 
                 reply_to_packet = True
                 message_type = 'wanted_callsign_detected'
