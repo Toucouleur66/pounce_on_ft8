@@ -106,7 +106,8 @@ ACTIVITY_BAR_MAX_VALUE          = 50
 
 HEARTBEAT_TIMEOUT_THRESHOLD     = 30
 DECODE_PACKET_TIMEOUT_THRESHOLD = 60
-DELAY_REPLY_PROCESS             = 200 / 1_000 # 200ms
+WAITING_TIME_BEFORE_REPLY       = 200 / 1_000 # = 200ms (0,2s)
+MAXIMUM_ALLOWED_DT              = 2
 
 CURRENT_DIR                     = os.path.dirname(os.path.realpath(__file__))
 CTY_XML                         = 'cty.xml'

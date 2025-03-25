@@ -63,7 +63,7 @@ def get_app_data_dir():
 def get_log_filename():
     return os.path.join(get_app_data_dir(), f"pounce.log")
 
-def parse_wsjtx_message(
+def parse_single_wsjtx_message(
         message,
         lookup              = None,
         wanted_callsigns    = set(),
@@ -232,6 +232,77 @@ def parse_wsjtx_message(
         'monitored'          : monitored,
         'monitored_cq_zone'  : monitored_cq_zone
     }
+
+def parse_wsjtx_message(
+    message,
+    lookup              = None,
+    wanted_callsigns    = set(),
+    worked_callsigns    = set(),
+    excluded_callsigns  = set(),
+    monitored_callsigns = set(),
+    monitored_cq_zones  = set(),
+    excluded_cq_zones   = set(),
+):
+    multi = parse_combined_wsjtx_message(message)
+    if multi is not None:
+        results = []
+        for sub_msg in multi:
+            parsed = parse_single_wsjtx_message(
+                sub_msg,
+                lookup             = lookup,
+                wanted_callsigns   = wanted_callsigns,
+                worked_callsigns   = worked_callsigns,
+                excluded_callsigns = excluded_callsigns,
+                monitored_callsigns= monitored_callsigns,
+                monitored_cq_zones = monitored_cq_zones,
+                excluded_cq_zones  = excluded_cq_zones
+            )
+            results.append(parsed)
+        return results
+
+    single_result = parse_single_wsjtx_message(
+        message,
+        lookup             = lookup,
+        wanted_callsigns   = wanted_callsigns,
+        worked_callsigns   = worked_callsigns,
+        excluded_callsigns = excluded_callsigns,
+        monitored_callsigns= monitored_callsigns,
+        monitored_cq_zones = monitored_cq_zones,
+        excluded_cq_zones  = excluded_cq_zones
+    )
+    return [single_result]
+
+def parse_combined_wsjtx_message(message):
+    """
+    Handle this combined message
+      "DG3NAB RR73; R3PJ <3B9DJ> -06"
+
+    then convert to
+      1) "DG3NAB 3B9DJ RR73"
+      2) "R3PJ 3B9DJ -06"
+
+    """
+    pattern = re.compile(
+        r"^"
+        r"([A-Z0-9/]*\d[A-Z0-9/]*)\s+([A-Z0-9+\-]+)"  # group(1)=directed1, group(2)=msg1
+        r"\s*;\s*"
+        r"([A-Z0-9/]*\d[A-Z0-9/]*)\s+<([A-Z0-9/]*\d[A-Z0-9/]*)>\s+([A-Z0-9+\-]+)"  # (3)=directed2, (4)=callsign, (5)=msg2
+        r"$"
+    )
+    m = pattern.match(message)
+    if not m:
+        return None
+
+    directed_1 = m.group(1)
+    msg_1      = m.group(2)
+    directed_2 = m.group(3)
+    callsign   = m.group(4)  # common part
+    msg_2      = m.group(5)
+
+    line_1 = f"{directed_1} {callsign} {msg_1}"
+    line_2 = f"{directed_2} {callsign} {msg_2}"
+
+    return [line_1, line_2]
 
 def matches_any(patterns, callsign):
     return any(fnmatch.fnmatch(callsign, pattern) for pattern in patterns)
@@ -494,7 +565,7 @@ def get_clean_rst(rst):
     Save marathon cache file
 """
 
-def load_marathon_wanted_data(file):
+def load_marathon_wanted_data(file):    
     if os.path.exists(file):
         try:
             with open(file, "r") as f:
@@ -511,30 +582,3 @@ def save_marathon_wanted_data(file, marathon_data):
     except Exception as e:
         pass
 
-def log_format_message(message, my_call):
-    decode_time = message.get('decode_time')
-    if hasattr(decode_time, 'strftime'):
-        decode_time_str = decode_time.strftime("%H%M%S")
-    else:
-        decode_time_str = str(decode_time)
-
-    if message.get('directed') is not None:
-        directed_or_grid = message.get('directed')
-    else:
-        if message.get('cqing'):
-            directed_or_grid = "CQ"
-        else:
-            directed_or_grid = message.get('grid') if message.get('grid') is not None else ''         
-
-    if message.get('wkb4_year') is not None:
-        wkb4_year = f"b4y:{message.get('wkb4_year')}"
-    else:
-        wkb4_year = ""
-
-    return (            
-        f"[ {message.get('priority')} ] {decode_time_str} "
-        f"de:{message.get('callsign'):<10}"
-        f"\tdir:{directed_or_grid:<4}" 
-        f"\tpid:{message.get('packet_id'):<6}"
-        f"\t{wkb4_year}"                                           
-    )        
