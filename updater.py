@@ -168,26 +168,27 @@ class DownloadDialog(QtWidgets.QDialog):
         self.start_download()
 
     def start_download(self):
-        request = QtNetwork.QNetworkRequest(self.url)
-
         try:
-            self.file = open(self.save_path, 'wb')
+            request = QtNetwork.QNetworkRequest(self.url)
+
+            try:
+                self.file = open(self.save_path, 'wb')
+            except Exception as e:
+                log.error(f"Can't open {self.save_path}: {str(e)}")
+                self.reject()
+                return
+
+            self.reply = self.network_manager.get(request)
+
+            self.reply.downloadProgress.connect(self.on_download_progress)
+            self.reply.finished.connect(self.on_download_finished)
+            self.reply.readyRead.connect(self.on_ready_read)
+
+            self.reply.errorOccurred.connect(self.on_error_occurred)
         except Exception as e:
-            log.error(f"Can't open {self.save_path}: {str(e)}")
-            QtWidgets.QMessageBox.critical(
-                self, "File Error",
-                f"Can't open file: {str(e)}"
-            )
+            log.error(f"Fail to download {self.url}")
             self.reject()
-            return
-
-        self.reply = self.network_manager.get(request)
-
-        self.reply.downloadProgress.connect(self.on_download_progress)
-        self.reply.finished.connect(self.on_download_finished)
-        self.reply.readyRead.connect(self.on_ready_read)
-
-        self.reply.errorOccurred.connect(self.on_error_occurred)
+            return            
 
     def on_download_progress(self, bytes_received, bytes_total):
         if bytes_total > 0:
