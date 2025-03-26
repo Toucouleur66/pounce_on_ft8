@@ -401,33 +401,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.tab_widget = self.init_tab_widget_ui(params)
 
         """
-            Status layout
-        """
-        status_layout = QtWidgets.QGridLayout()
-
-        status_static_label = CustomQLabel("Status:")
-        status_static_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
-        status_static_label.setStyleSheet("padding-right: 30px;")
-        status_static_label.setMinimumWidth(150)
-
-        self.status_label = QtWidgets.QLabel(STATUS_BUTTON_LABEL_NOTHING_YET)
-        self.status_label.setFont(CUSTOM_FONT_MONO)
-        self.status_label.setStyleSheet(f"""
-            background-color: {STATUS_COLOR_LABEL_SELECTED}; 
-            border-radius: 5px;
-            color: white;
-            padding: 5px;
-        """)
-        self.status_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Preferred)
-        self.status_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
-        
-        status_layout.addWidget(status_static_label, 0, 0) 
-        status_layout.addWidget(self.status_label, 0, 1, 1, 3) 
-
-        status_layout.setColumnStretch(0, 0) 
-        status_layout.setColumnStretch(1, 1) 
-
-        """
             Status bar
         """
         self.status_bar_label_heartbeat     = QtWidgets.QLabel()
@@ -631,17 +604,17 @@ class MainApp(QtWidgets.QMainWindow):
             ):
                 label.setFont(CUSTOM_FONT_MONO)
                 label.setStyleSheet("""
-                    border-top: 1px solid #6f6f6f;
-                    border-left: 1px solid #6f6f6f;
+                    border-bottom: 1px solid #bfbfbf;
+                    border-right: 1px solid #bfbfbf;
                     padding-left: 5px;
                     padding-right: 5px;
                 """)
-                self.status_bar.addWidget(self.status_bar_label_decode_packet, 1)
-                self.status_bar.addWidget(self.status_bar_label_heartbeat, 1)
-                self.status_bar.addWidget(self.status_bar_label_connection, 1)
-                self.status_bar.addWidget(self.status_bar_label_packet, 1)
+            self.status_bar.addWidget(self.status_bar_label_decode_packet, 1)
+            self.status_bar.addWidget(self.status_bar_label_heartbeat, 1)
+            self.status_bar.addWidget(self.status_bar_label_connection, 1)
+            self.status_bar.addWidget(self.status_bar_label_packet, 1)
 
-                self.status_bar.setContentsMargins(10, 0, 10, 0)
+            self.status_bar.setContentsMargins(10, 1, 10, 2)
 
     @QtCore.pyqtSlot()
     def on_status_menu_clicked(self):
@@ -1737,10 +1710,15 @@ class MainApp(QtWidgets.QMainWindow):
             background-color: {background_color};
             color: {text_color};         
         """
-        self.status_bar.setStyleSheet(style)       
-        self.status_label.setStyleSheet(style)            
 
-    def set_notice_to_focus_value_label(self, notice_message, fg_color_hex=FG_COLOR_BLACK_ON_WHITE, bg_color_hex=STATUS_TRX_COLOR):           
+        self.status_bar.setStyleSheet(style)           
+
+    def set_notice_to_focus_value_label(
+            self,
+            notice_message,
+            fg_color_hex=FG_COLOR_BLACK_ON_WHITE,
+            bg_color_hex=STATUS_TRX_COLOR
+        ):           
         self.message_buffer = deque()                 
         self.update_status_menu_message(notice_message, bg_color_hex, fg_color_hex)
         self.output_table.scrollToBottom()
@@ -1950,9 +1928,6 @@ class MainApp(QtWidgets.QMainWindow):
 
             self.status_bar_label_decode_packet.setText(status_text_array[-1])
         
-        self.status_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
-        self.status_label.setText('<br>'.join(status_text_array))
-
         if connection_lost:            
             self.reset_window_title()
             self.update_status_label_style("red", "white")
@@ -2776,6 +2751,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update_mode_timer)
         self.timer.start(200)
+
+        self.init_status_bar()
 
         self.is_status_button_label_visible = True
         self.is_status_button_label_blinking = False
