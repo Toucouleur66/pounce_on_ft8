@@ -1,7 +1,7 @@
 # pounce_gui.pyw
 
 from PyQt6 import QtWidgets, QtCore, QtGui
-from PyQt6.QtWidgets import QTableWidgetItem
+from PyQt6.QtWidgets import QTableWidgetItem, QStatusBar
 from PyQt6.QtCore import QPropertyAnimation
 from PyQt6.QtCore import QThread
 from PyQt6.QtWidgets import QHeaderView
@@ -428,6 +428,16 @@ class MainApp(QtWidgets.QMainWindow):
         status_layout.setColumnStretch(1, 1) 
 
         """
+            Status bar
+        """
+        self.status_bar_label_heartbeat     = QtWidgets.QLabel()
+        self.status_bar_label_connection    = QtWidgets.QLabel()
+        self.status_bar_label_packet        = QtWidgets.QLabel()
+        self.status_bar_label_decode_packet = QtWidgets.QLabel()
+
+        self.init_status_bar()
+
+        """
             Main output table
         """
         self.output_table          = self.init_output_table_ui()
@@ -561,7 +571,7 @@ class MainApp(QtWidgets.QMainWindow):
         main_layout.addLayout(top_layout, 0, 0, 1, 5)         
         main_layout.addWidget(self.tab_widget, 2, 0, 4, 3)                
         main_layout.addLayout(worked_history_layout, 2, 3, 5, 2)
-        main_layout.addLayout(status_layout, 8, 1, 1, 1)
+        # main_layout.addLayout(status_layout, 8, 1, 1, 1)
         main_layout.addWidget(self.status_button, 8, 3)
         main_layout.addWidget(self.stop_button, 8, 4)
         main_layout.addItem(spacer, 9, 0, 1, 5)
@@ -608,10 +618,30 @@ class MainApp(QtWidgets.QMainWindow):
     """
         For debugging purpose only
     """
-    def add_border_to_widgets(widget, color="red"):
-        for child in widget.findChildren(QtWidgets.QWidget):
-            current_style = child.styleSheet()
-            child.setStyleSheet(f"{current_style}; border: 1px solid {color};")
+    def init_status_bar(self):
+            self.status_bar = QStatusBar()
+            self.setStatusBar(self.status_bar)
+
+            # Appliquer la police à chaque label
+            for label in (
+                self.status_bar_label_heartbeat,
+                self.status_bar_label_connection,
+                self.status_bar_label_packet,
+                self.status_bar_label_decode_packet
+            ):
+                label.setFont(CUSTOM_FONT_MONO)
+                label.setStyleSheet("""
+                    border-top: 1px solid #6f6f6f;
+                    border-left: 1px solid #6f6f6f;
+                    padding-left: 5px;
+                    padding-right: 5px;
+                """)
+                self.status_bar.addWidget(self.status_bar_label_decode_packet, 1)
+                self.status_bar.addWidget(self.status_bar_label_heartbeat, 1)
+                self.status_bar.addWidget(self.status_bar_label_connection, 1)
+                self.status_bar.addWidget(self.status_bar_label_packet, 1)
+
+                self.status_bar.setContentsMargins(10, 0, 10, 0)
 
     @QtCore.pyqtSlot()
     def on_status_menu_clicked(self):
@@ -1705,11 +1735,9 @@ class MainApp(QtWidgets.QMainWindow):
     def update_status_label_style(self, background_color, text_color):
         style = f"""
             background-color: {background_color};
-            color: {text_color};            
-            border-radius: 5px;
-            padding: 5px;
+            color: {text_color};         
         """
-
+        self.status_bar.setStyleSheet(style)       
         self.status_label.setStyleSheet(style)            
 
     def set_notice_to_focus_value_label(self, notice_message, fg_color_hex=FG_COLOR_BLACK_ON_WHITE, bg_color_hex=STATUS_TRX_COLOR):           
@@ -1862,9 +1890,11 @@ class MainApp(QtWidgets.QMainWindow):
                 connection_lost = True
             else:
                 last_heartbeat_str = self.last_heartbeat_time.strftime('%Y-%m-%d <u>%H:%M:%S</u>')
-                status_text_array.append(f"Last HeartBeat @ {last_heartbeat_str}")
+                status_text_array.append(f"HeartBeat: {last_heartbeat_str}")
         else:
             status_text_array.append("No HeartBeat received yet.")
+
+        self.status_bar_label_heartbeat.setText(status_text_array[-1])
 
         if (
             self._instance and
@@ -1874,14 +1904,18 @@ class MainApp(QtWidgets.QMainWindow):
         ):
             connected_to_str = f"{self._instance} ~ "
             connected_to_str+= MASTER if self._instance == SLAVE else SLAVE
-            connected_to_str+= f" ({self._synched_addr_port[0]}:{self._synched_addr_port[1]})"
+            connected_to_str+= f" ({self._synched_addr_port[0]})"
             status_text_array.append(connected_to_str)
 
-        decoded_packet_text = f"Message Packet #{self.output_model.rowCount()} {self.get_size_of_output_model()}"
+            self.status_bar_label_connection.setText(status_text_array[-1])
+
+        decoded_packet_text = f"Packet: #{self.output_model.rowCount()} {self.get_size_of_output_model()}"
         if self.last_targeted_call:
             decoded_packet_text += f" ~ Focus on <u>{self.last_targeted_call}</u>"
-        
+
         status_text_array.append(decoded_packet_text)
+
+        self.status_bar_label_packet.setText(status_text_array[-1])
 
         if self.last_decode_packet_time:
             time_since_last_decode = (current_time - self.last_decode_packet_time).total_seconds()
@@ -1903,7 +1937,9 @@ class MainApp(QtWidgets.QMainWindow):
                     time_since_last_decode_text = f"{int(time_since_last_decode)}s"                  
                     self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR) 
 
-                status_text_array.append(f"Last DecodePacket {status_mode_frequency}: {time_since_last_decode_text} ago")  
+                status_text_array.append(f"Last {status_mode_frequency}: {time_since_last_decode_text} ago")  
+
+                self.status_bar_label_decode_packet.setText(status_text_array[-1])
 
             # Update new interval if necessary
             if network_check_status_interval != self.network_check_status_interval:
@@ -1911,6 +1947,8 @@ class MainApp(QtWidgets.QMainWindow):
                 self.network_check_status.setInterval(self.network_check_status_interval)                               
         else:
             status_text_array.append("No DecodePacket received yet.")
+
+            self.status_bar_label_decode_packet.setText(status_text_array[-1])
         
         self.status_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
         self.status_label.setText('<br>'.join(status_text_array))
@@ -2841,7 +2879,7 @@ class MainApp(QtWidgets.QMainWindow):
             tray_icon_thread = threading.Thread(target=self.tray_icon.start, daemon=True)
             tray_icon_thread.start()
 
-        self.status_label.setText(WAITING_DATA_PACKETS_LABEL)    
+        self.status_bar_label_decode_packet.setText(WAITING_DATA_PACKETS_LABEL)    
         self.update_status_label_style("yellow", "black")
 
     def stop_worker(self):

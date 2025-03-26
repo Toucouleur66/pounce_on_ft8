@@ -215,7 +215,7 @@ def parse_single_wsjtx_message(
             is_excluded = True            
 
         wanted            = is_wanted and not is_excluded and not is_worked
-        monitored         = is_monitored and not is_excluded
+        monitored         = is_monitored
         monitored_cq_zone = is_monitored_cq_zone and not is_excluded
         excluded          = is_excluded
 

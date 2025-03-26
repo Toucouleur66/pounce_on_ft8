@@ -1124,6 +1124,7 @@ class Listener(QObject):
                         'decode_time'       : decode_time,
                         'callsign'          : callsign,
                         'directed'          : directed,
+                        'wanted'            : wanted,
                         'marathon'          : marathon,
                         'wkb4_year'         : wkb4_year,
                         'grid'              : grid,
@@ -1266,6 +1267,20 @@ class Listener(QObject):
             if count_attempts >= (self.max_reply_attemps_to_callsign - 1):
                 log.warning(f"{count_attempts} attempts for [ {callsign} ]") 
 
+        """
+            Update frequency if necessary 
+        """
+        if (
+            selected_message.get('wanted') and
+            self.enable_gap_finder and
+            self.suggested_frequency is None                
+        ):
+            self.targeted_call_period   = self.odd_or_even_period()
+            my_period                   = ODD if self.targeted_call_period == EVEN else EVEN
+            self.suggested_frequency    = self.get_frequency_suggestion(my_period)
+            if self.suggested_frequency is not None:
+                self.set_delta_f_packet(self.suggested_frequency)                
+
         self.reply_to_packet(callsign_packet) 
         self.last_selected_message = selected_message
 
@@ -1285,18 +1300,7 @@ class Listener(QObject):
             return        
         
         try:            
-            self.reply_to_packet_time    = datetime.now(timezone.utc)
-            self.targeted_call_period    = self.odd_or_even_period()
-            my_period                    = ODD if self.targeted_call_period == EVEN else EVEN
-
-            if (
-                self.enable_gap_finder and
-                self.suggested_frequency is None                
-            ):
-                self.suggested_frequency = self.get_frequency_suggestion(my_period)
-                if self.suggested_frequency is not None:
-                    self.set_delta_f_packet(self.suggested_frequency)
-
+            self.reply_to_packet_time    = datetime.now(timezone.utc)            
             reply_pkt = pywsjtx.ReplyPacket.Builder(callsign_packet)
             self.s.send_packet(self.origin_addr_port, reply_pkt)         
             log.debug(f"Sent ReplyPacket: {reply_pkt}")            
