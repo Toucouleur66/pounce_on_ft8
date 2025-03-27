@@ -407,6 +407,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.status_bar_label_mode          = QtWidgets.QLabel()
         self.status_bar_label_connection    = QtWidgets.QLabel()
         self.status_bar_label_packet        = QtWidgets.QLabel()
+        self.status_bar_label_reply         = QtWidgets.QLabel()
         self.status_bar_label_decode_packet = QtWidgets.QLabel()
 
         """
@@ -617,6 +618,7 @@ class MainApp(QtWidgets.QMainWindow):
                 self.status_bar_label_heartbeat,
                 self.status_bar_label_connection,
                 self.status_bar_label_packet,
+                self.status_bar_label_reply,
                 self.status_bar_label_decode_packet
             ):
                 label.setMouseTracking(True)
@@ -627,13 +629,15 @@ class MainApp(QtWidgets.QMainWindow):
                         font-size: {CUSTOM_FONT_SMALL.pointSize()}pt;            
                         padding-left: 5px;
                         padding-right: 5px;      
+                        border: none;
                     }}
                 """)
-            self.status_bar.addWidget(self.status_bar_label_decode_packet, 1)
-            self.status_bar.addWidget(self.status_bar_label_mode, 1)            
-            self.status_bar.addWidget(self.status_bar_label_heartbeat, 1)
-            self.status_bar.addWidget(self.status_bar_label_connection, 1)
+            self.status_bar.addWidget(self.status_bar_label_mode, 1)                     
+            self.status_bar.addWidget(self.status_bar_label_decode_packet, 2)       
+            self.status_bar.addWidget(self.status_bar_label_heartbeat, 2)
             self.status_bar.addWidget(self.status_bar_label_packet, 1)
+            self.status_bar.addWidget(self.status_bar_label_reply, 1)
+            self.status_bar.addWidget(self.status_bar_label_connection, 2)            
 
             self.status_bar.setContentsMargins(10, 3, 10, 3)
 
@@ -1734,8 +1738,16 @@ class MainApp(QtWidgets.QMainWindow):
 
     def update_status_bar_style(self, background_color, text_color):
         style = f"""
-            background-color: {background_color};
-            color: {text_color};         
+            QStatusBar::item {{
+                border: none;
+            }}           
+            QStatusBar {{
+                background-color: {background_color};                
+                border: none;
+            }}
+            QStatusBar QLabel {{
+                color: {text_color};
+            }}
         """
 
         self.status_bar.setStyleSheet(style)           
@@ -1884,7 +1896,7 @@ class MainApp(QtWidgets.QMainWindow):
                 self.apply_band_change(operating_band)
            
         if self.mode is not None:
-            current_mode = f"{self.mode}"
+            current_mode = f"Mode: {self.mode}"
             self.status_bar_label_mode.setText(current_mode)
 
         if self.last_heartbeat_time:
@@ -1910,12 +1922,13 @@ class MainApp(QtWidgets.QMainWindow):
             connection_str+= f" ({self._synched_addr_port[0]})"
 
             self.status_bar_label_connection.setText(connection_str)
+        else:
+            self.status_bar_label_connection.clear()
 
-        decoded_packet_str = f"Packet: #{self.output_model.rowCount()} {self.get_size_of_output_model()}"
+        self.status_bar_label_packet.setText(f"Packet: #{self.output_model.rowCount()} {self.get_size_of_output_model()}")
+
         if self.last_targeted_call:
-            decoded_packet_str += f" ~ Focus on <u>{self.last_targeted_call}</u>"
-
-        self.status_bar_label_packet.setText(decoded_packet_str)
+            self.status_bar_label_reply.setText(f"Last reply: {self.last_targeted_call}")
 
         if self.last_decode_packet_time:
             time_since_last_decode = (current_time - self.last_decode_packet_time).total_seconds()
@@ -1937,7 +1950,7 @@ class MainApp(QtWidgets.QMainWindow):
                     time_since_last_decode_text = f"{int(time_since_last_decode)}s"                  
                     self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR) 
 
-                decode_packet_str = f"Last on {status_mode_frequency}: {time_since_last_decode_text} ago"
+                decode_packet_str = f"Last decode on {status_mode_frequency}: {time_since_last_decode_text} ago"
 
                 if self.last_frequency:
                     self.status_bar_label_decode_packet.setText(decode_packet_str)
@@ -2884,7 +2897,7 @@ class MainApp(QtWidgets.QMainWindow):
             tray_icon_thread = threading.Thread(target=self.tray_icon.start, daemon=True)
             tray_icon_thread.start()
 
-        self.status_bar_label_decode_packet.setText(WAITING_DATA_PACKETS_LABEL)    
+        self.status_bar_label_mode.setText(WAITING_DATA_PACKETS_LABEL)    
         self.update_status_bar_style(STATUS_MONITORING_COLOR, "white")
 
     def stop_worker(self):
@@ -2932,10 +2945,13 @@ class MainApp(QtWidgets.QMainWindow):
             self.update_tab_widget_labels_style()
             self.restore_settings(blocSignals=True)
 
-            self._instance           = None
-            self.operating_band      = None
-            self.transmitting        = False
-            
+            self._instance               = None
+            self._synched_addr_port      = None
+            self.operating_band          = None
+            self.last_targeted_call      = None
+            self.last_decode_packet_time = None
+            self.transmitting            = False
+                        
             self.stop_tray_icon()
             self.stop_blinking_status_button()            
 
