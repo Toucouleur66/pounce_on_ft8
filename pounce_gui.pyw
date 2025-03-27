@@ -635,7 +635,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.status_bar.addWidget(self.status_bar_label_connection, 1)
             self.status_bar.addWidget(self.status_bar_label_packet, 1)
 
-            self.status_bar.setContentsMargins(10, 0, 10, 0)
+            self.status_bar.setContentsMargins(10, 3, 10, 3)
 
     @QtCore.pyqtSlot()
     def on_status_menu_clicked(self):
@@ -1939,7 +1939,8 @@ class MainApp(QtWidgets.QMainWindow):
 
                 decode_packet_str = f"Last on {status_mode_frequency}: {time_since_last_decode_text} ago"
 
-                self.status_bar_label_decode_packet.setText(decode_packet_str)
+                if self.last_frequency:
+                    self.status_bar_label_decode_packet.setText(decode_packet_str)
 
             # Update new interval if necessary
             if network_check_status_interval != self.network_check_status_interval:
@@ -1964,7 +1965,10 @@ class MainApp(QtWidgets.QMainWindow):
             if self._instance == SLAVE:
                 self.update_status_bar_style(BG_COLOR_WHITE_ON_BLUE_VIOLET, FG_COLOR_WHITE_ON_BLUE_VIOLET)
             else:
-                self.update_status_bar_style(BG_COLOR_BLACK_ON_YELLOW, FG_COLOR_BLACK_ON_CYAN)
+                if not self.last_decode_packet_time:
+                    self.update_status_bar_style(BG_COLOR_BLACK_ON_YELLOW, "black")
+                else:
+                    self.update_status_bar_style(STATUS_MONITORING_COLOR, "white")                
 
         """
             Handle change for status_button when transmitting
@@ -2881,7 +2885,7 @@ class MainApp(QtWidgets.QMainWindow):
             tray_icon_thread.start()
 
         self.status_bar_label_decode_packet.setText(WAITING_DATA_PACKETS_LABEL)    
-        self.update_status_bar_style("yellow", "black")
+        self.update_status_bar_style(STATUS_MONITORING_COLOR, "white")
 
     def stop_worker(self):
         if self.worker:
