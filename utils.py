@@ -204,6 +204,7 @@ def parse_single_wsjtx_message(
         is_excluded  = matches_any(excluded_callsigns, callsign)
         is_worked    = matches_any(worked_callsigns, callsign)
         is_monitored = matches_any(monitored_callsigns, callsign)
+        
         """
             Check if CQ Zone matches
         """

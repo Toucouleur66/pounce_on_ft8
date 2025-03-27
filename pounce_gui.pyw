@@ -2,8 +2,8 @@
 
 from PyQt6 import QtWidgets, QtCore, QtGui
 from PyQt6.QtWidgets import QTableWidgetItem, QStatusBar
-from PyQt6.QtCore import QPropertyAnimation
-from PyQt6.QtCore import QThread
+from PyQt6.QtCore import QPropertyAnimation, QThread
+from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import QHeaderView
 from PyQt6.QtMultimedia import QSoundEffect
 
@@ -34,6 +34,7 @@ from animated_toggle import AnimatedToggle
 from custom_tab_widget import CustomTabWidget
 from custom_button import CustomButton
 from custom_qlabel import CustomQLabel
+from custom_status_bar import CustomStatusBar
 from adif_summary_dialog import AdifSummaryDialog
 from time_ago_delegate import TimeAgoDelegate
 from color_row_delegate import ColorRowDelegate
@@ -352,10 +353,9 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.worked_history_callsigns_label = QtWidgets.QLabel()
         self.worked_history_callsigns_label.setAlignment(
-            QtCore.Qt.AlignmentFlag.AlignBottom | QtCore.Qt.AlignmentFlag.AlignLeft
+            QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignLeft
         )
-        self.worked_history_callsigns_label.setFont(CUSTOM_FONT)
-        self.worked_history_callsigns_label.setMinimumHeight(25)
+        self.worked_history_callsigns_label.setFont(CUSTOM_FONT_SMALL)
         """
             Top layout for focus_frame and timer_value_label
         """
@@ -404,11 +404,10 @@ class MainApp(QtWidgets.QMainWindow):
             Status bar
         """
         self.status_bar_label_heartbeat     = QtWidgets.QLabel()
+        self.status_bar_label_mode          = QtWidgets.QLabel()
         self.status_bar_label_connection    = QtWidgets.QLabel()
         self.status_bar_label_packet        = QtWidgets.QLabel()
         self.status_bar_label_decode_packet = QtWidgets.QLabel()
-
-        self.init_status_bar()
 
         """
             Main output table
@@ -506,7 +505,7 @@ class MainApp(QtWidgets.QMainWindow):
         """
         button_layout = QtWidgets.QHBoxLayout()
 
-        button_layout.addWidget(self.settings)
+        # button_layout.addWidget(self.settings)
         button_layout.addWidget(self.clear_button)
 
         if sys.platform == 'darwin':
@@ -537,20 +536,41 @@ class MainApp(QtWidgets.QMainWindow):
             Main layout
         """
         worked_history_layout = QtWidgets.QVBoxLayout()
+        worked_history_layout.setSpacing(0) 
+        worked_history_layout.setContentsMargins(0, 0, 0, 0)
+        worked_history_layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
 
-        worked_history_layout.addWidget(self.worked_history_callsigns_label)
-        worked_history_layout.addWidget(self.wait_pounce_history_table, 1)  
-        
+        worked_history_layout.addWidget(self.wait_pounce_history_table)
+
+        buttons_layout = QtWidgets.QHBoxLayout()
+        buttons_layout.addWidget(self.status_button)
+        buttons_layout.addWidget(self.stop_button)
+
+        buttons_widget = QtWidgets.QWidget()
+        buttons_widget.setLayout(buttons_layout)
+        buttons_widget.setFixedHeight(60)
+        buttons_widget.setFixedWidth(300) 
+        buttons_widget.setContentsMargins(0, 0, 0, 0)
+
+        worked_history_layout.addWidget(buttons_widget)
+
+        worked_history_widget = QtWidgets.QWidget()
+        worked_history_widget.setLayout(worked_history_layout)
+
         main_layout.addLayout(top_layout, 0, 0, 1, 5)         
-        main_layout.addWidget(self.tab_widget, 2, 0, 4, 3)                
-        main_layout.addLayout(worked_history_layout, 2, 3, 5, 2)
-        # main_layout.addLayout(status_layout, 8, 1, 1, 1)
-        main_layout.addWidget(self.status_button, 8, 3)
-        main_layout.addWidget(self.stop_button, 8, 4)
-        main_layout.addItem(spacer, 9, 0, 1, 5)
+        main_layout.addWidget(self.tab_widget, 1, 0, 4, 3)                
+        main_layout.addWidget(worked_history_widget, 1, 3, 5, 2)
+
+        main_layout.addItem(spacer, 2, 0, 1, 5)
         main_layout.addWidget(self.output_table, 10, 0, 1, 5)
         main_layout.addWidget(self.filter_widget, 11, 0, 1, 5)
         main_layout.addWidget(bottom_widget, 12, 0, 1, 5)
+
+        main_layout.setColumnStretch(0, 1)
+        main_layout.setColumnStretch(1, 1)
+        main_layout.setColumnStretch(2, 1)
+        main_layout.setColumnStretch(3, 0)
+        main_layout.setColumnStretch(4, 0)
 
         self.file_handler = None
         if self.enable_pounce_log:
@@ -586,35 +606,36 @@ class MainApp(QtWidgets.QMainWindow):
                 
         # Close event to save position
         self.closeEvent = self.on_close
-        # self.add_border_to_widgets(color="blue")
-
-    """
-        For debugging purpose only
-    """
+        
     def init_status_bar(self):
-            self.status_bar = QStatusBar()
+            self.status_bar = CustomStatusBar()
+            self.status_bar.clicked.connect(self.open_settings)
             self.setStatusBar(self.status_bar)
 
-            # Appliquer la police à chaque label
             for label in (
+                self.status_bar_label_mode,
                 self.status_bar_label_heartbeat,
                 self.status_bar_label_connection,
                 self.status_bar_label_packet,
                 self.status_bar_label_decode_packet
             ):
-                label.setFont(CUSTOM_FONT_MONO)
-                label.setStyleSheet("""
-                    border-bottom: 1px solid #bfbfbf;
-                    border-right: 1px solid #bfbfbf;
-                    padding-left: 5px;
-                    padding-right: 5px;
+                label.setMouseTracking(True)
+                label.setCursor(QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+                label.setStyleSheet(f"""
+                    QLabel {{
+                        font-family: {CUSTOM_FONT_SMALL.family()};
+                        font-size: {CUSTOM_FONT_SMALL.pointSize()}pt;            
+                        padding-left: 5px;
+                        padding-right: 5px;      
+                    }}
                 """)
             self.status_bar.addWidget(self.status_bar_label_decode_packet, 1)
+            self.status_bar.addWidget(self.status_bar_label_mode, 1)            
             self.status_bar.addWidget(self.status_bar_label_heartbeat, 1)
             self.status_bar.addWidget(self.status_bar_label_connection, 1)
             self.status_bar.addWidget(self.status_bar_label_packet, 1)
 
-            self.status_bar.setContentsMargins(10, 1, 10, 2)
+            self.status_bar.setContentsMargins(10, 0, 10, 0)
 
     @QtCore.pyqtSlot()
     def on_status_menu_clicked(self):
@@ -759,7 +780,7 @@ class MainApp(QtWidgets.QMainWindow):
         header_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)     
         wait_pounce_history_table.setHorizontalHeaderItem(0, header_item)            
 
-        header_item = QTableWidgetItem('Callsign')
+        header_item = QTableWidgetItem('Worked Callsigns')
         header_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)   
         wait_pounce_history_table.setHorizontalHeaderItem(1, header_item)            
 
@@ -797,6 +818,12 @@ class MainApp(QtWidgets.QMainWindow):
         wait_pounce_history_table.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
         wait_pounce_history_table.setObjectName("history_table")        
         wait_pounce_history_table.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
+
+        row_height = wait_pounce_history_table.verticalHeader().defaultSectionSize()  # ~24
+        header_height = wait_pounce_history_table.horizontalHeader().height()         # ~30 (variable)
+    
+        desired_height = 6 * row_height + header_height + 4
+        wait_pounce_history_table.setFixedHeight(desired_height)
 
         return wait_pounce_history_table
 
@@ -1705,7 +1732,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.status_button.setVisibleState(True)        
             self.is_status_button_label_visible = True
 
-    def update_status_label_style(self, background_color, text_color):
+    def update_status_bar_style(self, background_color, text_color):
         style = f"""
             background-color: {background_color};
             color: {text_color};         
@@ -1850,8 +1877,6 @@ class MainApp(QtWidgets.QMainWindow):
         connection_lost     = False
         nothing_to_decode   = False
 
-        status_text_array   = []
-
         # Check band and control used tab
         if frequency is not None:
             operating_band = get_amateur_band(frequency)     
@@ -1860,19 +1885,19 @@ class MainApp(QtWidgets.QMainWindow):
            
         if self.mode is not None:
             current_mode = f"{self.mode}"
+            self.status_bar_label_mode.setText(current_mode)
 
         if self.last_heartbeat_time:
             time_since_last_heartbeat = (current_time - self.last_heartbeat_time).total_seconds()
             if time_since_last_heartbeat > HEARTBEAT_TIMEOUT_THRESHOLD:
-                status_text_array.append(f"No HeartBeat for more than {HEARTBEAT_TIMEOUT_THRESHOLD} seconds.")
+                heartbeat_str = f"No HeartBeat for more than {HEARTBEAT_TIMEOUT_THRESHOLD} seconds."
                 connection_lost = True
-            else:
-                last_heartbeat_str = self.last_heartbeat_time.strftime('%Y-%m-%d <u>%H:%M:%S</u>')
-                status_text_array.append(f"HeartBeat: {last_heartbeat_str}")
+            else:            
+                heartbeat_str = f"HeartBeat: {self.last_heartbeat_time.strftime('%Y.%m.%d <u>%H:%M:%S</u>')}"
         else:
-            status_text_array.append("No HeartBeat received yet.")
+            heartbeat_str = "No HeartBeat received yet."
 
-        self.status_bar_label_heartbeat.setText(status_text_array[-1])
+        self.status_bar_label_heartbeat.setText(heartbeat_str)
 
         if (
             self._instance and
@@ -1880,29 +1905,26 @@ class MainApp(QtWidgets.QMainWindow):
             not connection_lost and
             self._synched_addr_port is not None
         ):
-            connected_to_str = f"{self._instance} ~ "
-            connected_to_str+= MASTER if self._instance == SLAVE else SLAVE
-            connected_to_str+= f" ({self._synched_addr_port[0]})"
-            status_text_array.append(connected_to_str)
+            connection_str = f"{self._instance} ~ "
+            connection_str+= MASTER if self._instance == SLAVE else SLAVE
+            connection_str+= f" ({self._synched_addr_port[0]})"
 
-            self.status_bar_label_connection.setText(status_text_array[-1])
+            self.status_bar_label_connection.setText(connection_str)
 
-        decoded_packet_text = f"Packet: #{self.output_model.rowCount()} {self.get_size_of_output_model()}"
+        decoded_packet_str = f"Packet: #{self.output_model.rowCount()} {self.get_size_of_output_model()}"
         if self.last_targeted_call:
-            decoded_packet_text += f" ~ Focus on <u>{self.last_targeted_call}</u>"
+            decoded_packet_str += f" ~ Focus on <u>{self.last_targeted_call}</u>"
 
-        status_text_array.append(decoded_packet_text)
-
-        self.status_bar_label_packet.setText(status_text_array[-1])
+        self.status_bar_label_packet.setText(decoded_packet_str)
 
         if self.last_decode_packet_time:
             time_since_last_decode = (current_time - self.last_decode_packet_time).total_seconds()
             network_check_status_interval = 5_000
 
-            status_mode_frequency = f"({current_mode} <u>{display_frequency(self.last_frequency)}</u>)"
+            status_mode_frequency = f"<u>{display_frequency(self.last_frequency)}Khz</u>"
 
             if time_since_last_decode > DECODE_PACKET_TIMEOUT_THRESHOLD:
-                status_text_array.append(f"No DecodePacket for more than {DECODE_PACKET_TIMEOUT_THRESHOLD} seconds {status_mode_frequency}.")
+                decode_packet_str = f"No DecodePacket for more than {DECODE_PACKET_TIMEOUT_THRESHOLD} seconds {status_mode_frequency}."
                 nothing_to_decode = True                
             else:      
                 if time_since_last_decode < 3:
@@ -1915,36 +1937,34 @@ class MainApp(QtWidgets.QMainWindow):
                     time_since_last_decode_text = f"{int(time_since_last_decode)}s"                  
                     self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR) 
 
-                status_text_array.append(f"Last {status_mode_frequency}: {time_since_last_decode_text} ago")  
+                decode_packet_str = f"Last on {status_mode_frequency}: {time_since_last_decode_text} ago"
 
-                self.status_bar_label_decode_packet.setText(status_text_array[-1])
+                self.status_bar_label_decode_packet.setText(decode_packet_str)
 
             # Update new interval if necessary
             if network_check_status_interval != self.network_check_status_interval:
                 self.network_check_status_interval = network_check_status_interval
                 self.network_check_status.setInterval(self.network_check_status_interval)                               
         else:
-            status_text_array.append("No DecodePacket received yet.")
-
-            self.status_bar_label_decode_packet.setText(status_text_array[-1])
+            self.status_bar_label_decode_packet.setText("No DecodePacket received yet.")
         
         if connection_lost:            
             self.reset_window_title()
-            self.update_status_label_style("red", "white")
+            self.update_status_bar_style("red", "white")
             if self._connected:
                 if self.global_sound_toggle.isChecked():      
                     self.play_sound("error_occurred")
                 self.on_lost_connection()
                 self.update_tab_widget_labels_style()
         elif nothing_to_decode: 
-            self.update_status_label_style("white", "black")
+            self.update_status_bar_style("white", "black")
         else:
             if not self._connected:  
                 self.on_resume_connection()
             if self._instance == SLAVE:
-                self.update_status_label_style(BG_COLOR_WHITE_ON_BLUE_VIOLET, FG_COLOR_WHITE_ON_BLUE_VIOLET)
+                self.update_status_bar_style(BG_COLOR_WHITE_ON_BLUE_VIOLET, FG_COLOR_WHITE_ON_BLUE_VIOLET)
             else:
-                self.update_status_label_style(BG_COLOR_BLACK_ON_YELLOW, FG_COLOR_BLACK_ON_CYAN)
+                self.update_status_bar_style(BG_COLOR_BLACK_ON_YELLOW, FG_COLOR_BLACK_ON_CYAN)
 
         """
             Handle change for status_button when transmitting
@@ -2187,8 +2207,12 @@ class MainApp(QtWidgets.QMainWindow):
         else:        
             self.worked_callsigns_history = []          
 
-    def update_worked_callsigns_history_counter(self):
-        self.worked_history_callsigns_label.setText(WORKED_CALLSIGNS_HISTORY_LABEL % len(self.worked_callsigns_history))
+    def update_worked_callsigns_history_counter(self):        
+        header_item = self.wait_pounce_history_table.horizontalHeaderItem(1)
+        if header_item and len(self.worked_callsigns_history) > 4:
+            header_text = WORKED_CALLSIGNS_HISTORY_LABEL
+            header_text+= f" ({len(self.worked_callsigns_history)})"
+            header_item.setText(header_text)
 
     def on_focus_value_label_clicked(self, event= None):
         message = self.focus_value_label.text()
@@ -2857,7 +2881,7 @@ class MainApp(QtWidgets.QMainWindow):
             tray_icon_thread.start()
 
         self.status_bar_label_decode_packet.setText(WAITING_DATA_PACKETS_LABEL)    
-        self.update_status_label_style("yellow", "black")
+        self.update_status_bar_style("yellow", "black")
 
     def stop_worker(self):
         if self.worker:
@@ -2916,7 +2940,7 @@ class MainApp(QtWidgets.QMainWindow):
 
             self.check_connection_status()
 
-            self.update_status_label_style(STATUS_COLOR_LABEL_SELECTED, "white")
+            self.update_status_bar_style("#E0E0E0", "#000000")
             self.update_status_button(STATUS_BUTTON_LABEL_START, STATUS_TRX_COLOR)
 
             self.status_button.resetStyle()

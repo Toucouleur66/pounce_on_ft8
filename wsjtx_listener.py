@@ -914,21 +914,20 @@ class Listener(QObject):
                     Check if wanted and is Worked b4
                 """
                 if self.adif_data.get('wkb4'):
-                    wkb4_year = get_wkb4_year(self.adif_data['wkb4'], callsign, self.band)
-                    if wanted:
-                        if (
-                            (
-                                wkb4_year is not None and 
-                                self.worked_before_preference == WKB4_REPLY_MODE_NEVER
-                            ) or 
-                            (
-                                wkb4_year == datetime.now().year and
-                                self.worked_before_preference == WKB4_REPLY_MODE_CURRENT_YEAR
-                            )
-                        ):
-                            wanted    = False
-                            worked_b4 = True
-                
+                    wkb4_year = get_wkb4_year(self.adif_data['wkb4'], callsign, self.band)                    
+                    if (
+                        (
+                            wkb4_year is not None and 
+                            self.worked_before_preference == WKB4_REPLY_MODE_NEVER
+                        ) or 
+                        (
+                            wkb4_year == datetime.now().year and
+                            self.worked_before_preference == WKB4_REPLY_MODE_CURRENT_YEAR
+                        )
+                    ):
+                        wanted    = False
+                        worked_b4 = True
+            
                 """
                     Check if entity code is needed for marathon
                 """
