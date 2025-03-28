@@ -94,6 +94,7 @@ from constants import (
     STATUS_DECODING_COLOR,
     STATUS_TRX_COLOR,
     STATUS_COLOR_LABEL_SELECTED,
+    STATUS_COLOR_LABEL_OFF,
     # Actions
     ACTION_RESTART,
     # Parameters
@@ -223,7 +224,7 @@ class MainApp(QtWidgets.QMainWindow):
         }
                 
         self.setGeometry(100, 100, 1_000, 700)
-        self.setMinimumSize(965, 600)
+        self.setMinimumSize(910, 550)
         self.setWindowTitle(self.base_title)      
 
         if platform.system() == 'Windows':
@@ -457,11 +458,11 @@ class MainApp(QtWidgets.QMainWindow):
         horizontal_layout.setContentsMargins(0, 0, 0, 0)
         horizontal_layout.setSpacing(0)  
 
-        horizontal_layout.addWidget(CustomQLabel("Sound Alerts"))
+        horizontal_layout.addWidget(CustomQLabel("Sounds"))
         
         horizontal_layout.addWidget(self.global_sound_toggle)
         horizontal_layout.addSpacing(20)
-        horizontal_layout.addWidget(CustomQLabel("View All Messages"))  
+        horizontal_layout.addWidget(CustomQLabel("View All"))  
         horizontal_layout.addWidget(self.show_all_decoded_toggle)
         horizontal_layout.addSpacing(20)
         horizontal_layout.addWidget(CustomQLabel("Filters"))  
@@ -535,15 +536,24 @@ class MainApp(QtWidgets.QMainWindow):
         """
             Main layout
         """
-        worked_history_layout = QtWidgets.QVBoxLayout()
+        worked_history_widget = QtWidgets.QWidget()
+        worked_history_widget.setContentsMargins(20, 15, 0, 0)
+
+        worked_history_layout = QtWidgets.QVBoxLayout(worked_history_widget)
         worked_history_layout.setSpacing(0) 
         worked_history_layout.setContentsMargins(0, 0, 0, 0)
         worked_history_layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
+
+        self.worked_callsign_label = QtWidgets.QLabel()
+        worked_history_layout.addWidget(self.worked_callsign_label)
+        worked_history_layout.addItem(QtWidgets.QSpacerItem(0, 10, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed))
         worked_history_layout.addWidget(self.wait_pounce_history_table)
+
+        worked_history_widget.setMaximumWidth(200)
 
         main_layout.addLayout(top_layout, 0, 0, 1, 5)         
         main_layout.addWidget(self.tab_widget, 1, 0, 4, 3)                
-        main_layout.addLayout(worked_history_layout, 1, 3, 5, 2)
+        main_layout.addWidget(worked_history_widget, 1, 3, 5, 2)
 
         main_layout.addItem(spacer, 2, 0, 1, 5)
         main_layout.addWidget(self.output_table, 10, 0, 1, 5)
@@ -618,7 +628,7 @@ class MainApp(QtWidgets.QMainWindow):
                 """)
             self.status_bar.addWidget(self.status_bar_label_mode, 1)       
             self.status_bar.addWidget(self.status_bar_label_freq, 1)                         
-            self.status_bar.addWidget(self.status_bar_label_packet, 1)            
+            self.status_bar.addWidget(self.status_bar_label_packet, 2)            
             self.status_bar.addWidget(self.status_bar_label_decode_packet, 2)               
             self.status_bar.addWidget(self.status_bar_label_heartbeat, 2)
             self.status_bar.addWidget(self.status_bar_label_reply, 1)
@@ -807,6 +817,8 @@ class MainApp(QtWidgets.QMainWindow):
         wait_pounce_history_table.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
         wait_pounce_history_table.setObjectName("history_table")        
         wait_pounce_history_table.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
+
+        wait_pounce_history_table.horizontalHeader().setVisible(False)
 
         row_height = wait_pounce_history_table.verticalHeader().defaultSectionSize()  # ~24
         header_height = wait_pounce_history_table.horizontalHeader().height()         # ~30 (variable)
@@ -1910,7 +1922,7 @@ class MainApp(QtWidgets.QMainWindow):
         else:
             self.status_bar_label_connection.clear()
 
-        self.status_bar_label_packet.setText(f"Decoded: {self.output_model.rowCount()} {self.get_size_of_output_model()}")
+        self.status_bar_label_packet.setText(f"Buffered messages: {self.output_model.rowCount()} {self.get_size_of_output_model()}")
 
         if self.last_targeted_call:
             self.status_bar_label_reply.setText(f"Last reply: {self.last_targeted_call}")
@@ -2113,6 +2125,7 @@ class MainApp(QtWidgets.QMainWindow):
                 background-color: {background_color};
                 gridline-color: {gridline_color}; 
                 border: none;
+                border-bottom: 1px solid palette(Mid);
             }}
             QTableView::item {{
                 padding: 5px;
@@ -2211,11 +2224,13 @@ class MainApp(QtWidgets.QMainWindow):
             self.worked_callsigns_history = []          
 
     def update_worked_callsigns_history_counter(self):        
+        counter_text = WORKED_CALLSIGNS_HISTORY_LABEL
+        counter_text+= f" ({len(self.worked_callsigns_history)}):"
+        
+        self.worked_callsign_label.setText(counter_text)
         header_item = self.wait_pounce_history_table.horizontalHeaderItem(1)
-        if header_item and len(self.worked_callsigns_history) > 4:
-            header_text = WORKED_CALLSIGNS_HISTORY_LABEL
-            header_text+= f" ({len(self.worked_callsigns_history)})"
-            header_item.setText(header_text)
+        if header_item and len(self.worked_callsigns_history) > 4:            
+            header_item.setText(counter_text)
 
     def on_focus_value_label_clicked(self, event= None):
         message = self.focus_value_label.text()
@@ -2440,12 +2455,12 @@ class MainApp(QtWidgets.QMainWindow):
                 self.status_button.updateStyle(text, bg_color, fg_color)
 
     def update_tab_widget_labels_style(self):
-        # Définition des styles de base
         styles = [
-            (BG_COLOR_BLACK_ON_YELLOW, FG_COLOR_BLACK_ON_YELLOW),
-            (BG_COLOR_BLACK_ON_PURPLE, FG_COLOR_BLACK_ON_PURPLE),
-            (BG_COLOR_BLACK_ON_CYAN, FG_COLOR_BLACK_ON_CYAN),
-            ("transparent", "palette(text)")
+            (BG_COLOR_BLACK_ON_YELLOW, FG_COLOR_BLACK_ON_YELLOW), # wanted    callsigns
+            (BG_COLOR_BLACK_ON_PURPLE, FG_COLOR_BLACK_ON_PURPLE), # monitored callsigns
+            (BG_COLOR_BLACK_ON_CYAN, FG_COLOR_BLACK_ON_CYAN),     # monitored CQ zones
+            ("transparent", "palette(text)"),                     # excluded  callsigns
+            ("transparent", "palette(text)")                      # excluded  CQ zones
         ]
 
         # Styles réutilisables
