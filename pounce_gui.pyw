@@ -224,7 +224,7 @@ class MainApp(QtWidgets.QMainWindow):
         }
                 
         self.setGeometry(100, 100, 1_000, 700)
-        self.setMinimumSize(910, 550)
+        self.setMinimumSize(780, 550)
         self.setWindowTitle(self.base_title)      
 
         if platform.system() == 'Windows':
@@ -490,7 +490,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.status_button = CustomButton(STATUS_BUTTON_LABEL_START)
         self.status_button.clicked.connect(self.start_monitoring)
         self.status_button.setFixedWidth(140)
-        self.status_button.setFixedHeight(40)
         self.status_button.setMinimumWidth(140)
         
         self.stop_button = CustomButton(STOP_BUTTON_LABEL)
@@ -512,7 +511,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         button_layout.addWidget(self.status_button)
         button_layout.addWidget(self.stop_button)
-        button_layout.addWidget(self.quit_button)
+        # button_layout.addWidget(self.quit_button)
 
         bottom_layout.addWidget(self.toggle_buttons_layout)
         bottom_layout.addStretch()  
@@ -537,23 +536,32 @@ class MainApp(QtWidgets.QMainWindow):
             Main layout
         """
         worked_history_widget = QtWidgets.QWidget()
-        worked_history_widget.setContentsMargins(20, 15, 0, 0)
+        worked_history_widget.setContentsMargins(0, 15, 0, 10)
 
         worked_history_layout = QtWidgets.QVBoxLayout(worked_history_widget)
         worked_history_layout.setSpacing(0) 
-        worked_history_layout.setContentsMargins(0, 0, 0, 0)
+        worked_history_layout.setContentsMargins(20, 0, 0, 0)
         worked_history_layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
 
         self.worked_callsign_label = QtWidgets.QLabel()
+        self.worked_callsign_label.setFont(CUSTOM_FONT_SMALL)
         worked_history_layout.addWidget(self.worked_callsign_label)
         worked_history_layout.addItem(QtWidgets.QSpacerItem(0, 10, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed))
         worked_history_layout.addWidget(self.wait_pounce_history_table)
-
+        worked_history_layout.addStretch()
         worked_history_widget.setMaximumWidth(200)
-
+        worked_history_widget.setObjectName("worked_history_widget") 
+        worked_history_widget.setStyleSheet(f"""
+            #worked_history_widget {{
+                border-left: 1px solid palette(Mid);
+            }}                                        
+        """)
+        worked_history_widget.setMaximumWidth(220)
+        worked_history_widget.setFixedHeight(220)
+       
         main_layout.addLayout(top_layout, 0, 0, 1, 5)         
         main_layout.addWidget(self.tab_widget, 1, 0, 4, 3)                
-        main_layout.addWidget(worked_history_widget, 1, 3, 5, 2)
+        main_layout.addWidget(worked_history_widget, 1, 3, 4, 2)
 
         main_layout.addItem(spacer, 2, 0, 1, 5)
         main_layout.addWidget(self.output_table, 10, 0, 1, 5)
@@ -661,7 +669,6 @@ class MainApp(QtWidgets.QMainWindow):
 
     def init_tab_widget_ui(self, params):
         tab_widget = CustomTabWidget()
-
         tab_widget.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
         
         self.wanted_callsigns_vars              = {}
@@ -819,12 +826,7 @@ class MainApp(QtWidgets.QMainWindow):
         wait_pounce_history_table.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
 
         wait_pounce_history_table.horizontalHeader().setVisible(False)
-
-        row_height = wait_pounce_history_table.verticalHeader().defaultSectionSize()  # ~24
-        header_height = wait_pounce_history_table.horizontalHeader().height()         # ~30 (variable)
-    
-        desired_height = 7 * row_height + header_height + 4
-        wait_pounce_history_table.setFixedHeight(desired_height)
+        wait_pounce_history_table.setFixedHeight(168)
 
         return wait_pounce_history_table
 
@@ -2785,6 +2787,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.save_params(params)               
 
     def start_monitoring(self):
+        if self._running:
+            return
+
         self._running = True   
         self.update_monitoring_action()   
 
@@ -2800,7 +2805,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.is_status_button_label_blinking = False
 
         self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR)
-        self.status_button.setEnabled(False)
         self.stop_button.setEnabled(True)
         
         self.blink_timer = QtCore.QTimer()

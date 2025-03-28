@@ -9,7 +9,8 @@ class CustomButton(QtWidgets.QPushButton):
     def __init__(self, text="", parent=None):
         super().__init__(text, parent)
         self.default_style = f"""
-            QPushButton {{
+            QPushButton,
+            QPushButton:enabled {{
                 background-color: #E0E0E0;
                 color: #000000;
                 font: {CUSTOM_FONT.pointSize()}pt '{CUSTOM_FONT.family() }';
@@ -31,6 +32,17 @@ class CustomButton(QtWidgets.QPushButton):
         self.current_text     = text
         self.current_bg_color = "#E0E0E0;"
         self.current_fg_color = "#000000;"
+
+        self.opacity_effect = QtWidgets.QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(self.opacity_effect)
+        self.opacity_effect.setOpacity(1.0)
+
+    def setEnabled(self, enabled: bool):
+        super().setEnabled(enabled)
+        if enabled:
+            self.opacity_effect.setOpacity(1.0)
+        else:
+            self.opacity_effect.setOpacity(0.6)
     
     def resetStyle(self):
         self.setStyleSheet(self.default_style)

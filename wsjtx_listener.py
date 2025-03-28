@@ -1299,13 +1299,14 @@ class Listener(QObject):
         if self._instance == SLAVE:
             return        
         
-        log.warning("Build HaltPacket")
-        try:
-            halt_pkt = pywsjtx.HaltTxPacket.Builder(self.the_packet)             
-            self.s.send_packet(self.origin_addr_port, halt_pkt)         
-            log.debug(f"Sent HaltPacket: {halt_pkt}")         
-        except Exception as e:
-            log.error(f"Error sending packets: {e}\n{traceback.format_exc()}")
+        if hasattr(self, "the_packet") and self.the_packet:        
+            log.warning("Build HaltPacket")
+            try:
+                halt_pkt = pywsjtx.HaltTxPacket.Builder(self.the_packet)             
+                self.s.send_packet(self.origin_addr_port, halt_pkt)         
+                log.debug(f"Sent HaltPacket: {halt_pkt}")         
+            except Exception as e:
+                log.error(f"Error sending packets: {e}\n{traceback.format_exc()}")
 
     def reply_to_packet(self, callsign_packet):
         if self._instance == SLAVE:
