@@ -1,4 +1,5 @@
 from PyQt6 import QtWidgets
+from PyQt6.QtWidgets import QSizePolicy
 
 from constants import (
     CUSTOM_FONT,

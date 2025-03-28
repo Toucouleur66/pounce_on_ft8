@@ -223,7 +223,7 @@ class MainApp(QtWidgets.QMainWindow):
         }
                 
         self.setGeometry(100, 100, 1_000, 700)
-        self.setMinimumSize(900, 600)
+        self.setMinimumSize(965, 600)
         self.setWindowTitle(self.base_title)      
 
         if platform.system() == 'Windows':
@@ -345,17 +345,10 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.wait_pounce_history_table = self.init_wait_pounce_history_table_ui()
         self.wait_pounce_history_table.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
-        #self.wait_pounce_history_table.setItemDelegate(ColorRowDelegate(self.wait_pounce_history_table))
 
         refresh_history_table_timer = QtCore.QTimer(self)
         refresh_history_table_timer.start(1_000)        
         refresh_history_table_timer.timeout.connect(lambda: self.wait_pounce_history_table.viewport().update())
-
-        self.worked_history_callsigns_label = QtWidgets.QLabel()
-        self.worked_history_callsigns_label.setAlignment(
-            QtCore.Qt.AlignmentFlag.AlignTop | QtCore.Qt.AlignmentFlag.AlignLeft
-        )
-        self.worked_history_callsigns_label.setFont(CUSTOM_FONT_SMALL)
         """
             Top layout for focus_frame and timer_value_label
         """
@@ -409,6 +402,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.status_bar_label_packet        = QtWidgets.QLabel()
         self.status_bar_label_reply         = QtWidgets.QLabel()
         self.status_bar_label_decode_packet = QtWidgets.QLabel()
+        self.status_bar_label_freq          = QtWidgets.QLabel()
 
         """
             Main output table
@@ -494,12 +488,14 @@ class MainApp(QtWidgets.QMainWindow):
         # Timer and start/stop buttons
         self.status_button = CustomButton(STATUS_BUTTON_LABEL_START)
         self.status_button.clicked.connect(self.start_monitoring)
-        self.status_button.setFixedWidth(150)
+        self.status_button.setFixedWidth(140)
+        self.status_button.setFixedHeight(40)
+        self.status_button.setMinimumWidth(140)
         
         self.stop_button = CustomButton(STOP_BUTTON_LABEL)
         self.stop_button.setEnabled(False)        
-        self.stop_button.clicked.connect(self.stop_monitoring)        
-        self.stop_button.setFixedWidth(100)
+        self.stop_button.clicked.connect(self.stop_monitoring)   
+        #self.status_button.setFixedWidth(100)     
         
         """
             Button layout
@@ -512,6 +508,9 @@ class MainApp(QtWidgets.QMainWindow):
         if sys.platform == 'darwin':
             button_layout.addWidget(self.restart_button)
 
+
+        button_layout.addWidget(self.status_button)
+        button_layout.addWidget(self.stop_button)
         button_layout.addWidget(self.quit_button)
 
         bottom_layout.addWidget(self.toggle_buttons_layout)
@@ -540,27 +539,11 @@ class MainApp(QtWidgets.QMainWindow):
         worked_history_layout.setSpacing(0) 
         worked_history_layout.setContentsMargins(0, 0, 0, 0)
         worked_history_layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
-
         worked_history_layout.addWidget(self.wait_pounce_history_table)
-
-        buttons_layout = QtWidgets.QHBoxLayout()
-        buttons_layout.addWidget(self.status_button)
-        buttons_layout.addWidget(self.stop_button)
-
-        buttons_widget = QtWidgets.QWidget()
-        buttons_widget.setLayout(buttons_layout)
-        buttons_widget.setFixedHeight(60)
-        buttons_widget.setFixedWidth(300) 
-        buttons_widget.setContentsMargins(0, 0, 0, 0)
-
-        worked_history_layout.addWidget(buttons_widget)
-
-        worked_history_widget = QtWidgets.QWidget()
-        worked_history_widget.setLayout(worked_history_layout)
 
         main_layout.addLayout(top_layout, 0, 0, 1, 5)         
         main_layout.addWidget(self.tab_widget, 1, 0, 4, 3)                
-        main_layout.addWidget(worked_history_widget, 1, 3, 5, 2)
+        main_layout.addLayout(worked_history_layout, 1, 3, 5, 2)
 
         main_layout.addItem(spacer, 2, 0, 1, 5)
         main_layout.addWidget(self.output_table, 10, 0, 1, 5)
@@ -619,7 +602,8 @@ class MainApp(QtWidgets.QMainWindow):
                 self.status_bar_label_connection,
                 self.status_bar_label_packet,
                 self.status_bar_label_reply,
-                self.status_bar_label_decode_packet
+                self.status_bar_label_decode_packet,
+                self.status_bar_label_freq
             ):
                 label.setMouseTracking(True)
                 label.setCursor(QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
@@ -632,10 +616,11 @@ class MainApp(QtWidgets.QMainWindow):
                         border: none;
                     }}
                 """)
-            self.status_bar.addWidget(self.status_bar_label_mode, 1)                     
-            self.status_bar.addWidget(self.status_bar_label_decode_packet, 2)       
+            self.status_bar.addWidget(self.status_bar_label_mode, 1)       
+            self.status_bar.addWidget(self.status_bar_label_freq, 1)                         
+            self.status_bar.addWidget(self.status_bar_label_packet, 1)            
+            self.status_bar.addWidget(self.status_bar_label_decode_packet, 2)               
             self.status_bar.addWidget(self.status_bar_label_heartbeat, 2)
-            self.status_bar.addWidget(self.status_bar_label_packet, 1)
             self.status_bar.addWidget(self.status_bar_label_reply, 1)
             self.status_bar.addWidget(self.status_bar_label_connection, 2)            
 
@@ -678,7 +663,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.tooltip_wanted_vars                = {}
         self.tooltip_monitored_vars             = {}
         self.tooltip_excluded_callsigns_vars    = {}
-        self.tooltip_excluded_cd_zones_vars      = {}
+        self.tooltip_excluded_cd_zones_vars     = {}
         self.tooltip_monitored_cq_zones_vars    = {}
 
         self.band_indices                       = {}
@@ -826,7 +811,7 @@ class MainApp(QtWidgets.QMainWindow):
         row_height = wait_pounce_history_table.verticalHeader().defaultSectionSize()  # ~24
         header_height = wait_pounce_history_table.horizontalHeader().height()         # ~30 (variable)
     
-        desired_height = 6 * row_height + header_height + 4
+        desired_height = 7 * row_height + header_height + 4
         wait_pounce_history_table.setFixedHeight(desired_height)
 
         return wait_pounce_history_table
@@ -1238,7 +1223,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.worker.update_listener_settings_signal.emit()
             if self._instance is not None and self._synch_signal:
                 self.worker.synch_settings_signal.emit()  
-            
+
     @QtCore.pyqtSlot(object)
     def on_message_received(self, message):        
         if isinstance(message, dict):
@@ -1925,7 +1910,7 @@ class MainApp(QtWidgets.QMainWindow):
         else:
             self.status_bar_label_connection.clear()
 
-        self.status_bar_label_packet.setText(f"Packet: #{self.output_model.rowCount()} {self.get_size_of_output_model()}")
+        self.status_bar_label_packet.setText(f"Decoded: {self.output_model.rowCount()} {self.get_size_of_output_model()}")
 
         if self.last_targeted_call:
             self.status_bar_label_reply.setText(f"Last reply: {self.last_targeted_call}")
@@ -1934,10 +1919,8 @@ class MainApp(QtWidgets.QMainWindow):
             time_since_last_decode = (current_time - self.last_decode_packet_time).total_seconds()
             network_check_status_interval = 5_000
 
-            status_mode_frequency = f"<u>{display_frequency(self.last_frequency)}Khz</u>"
-
             if time_since_last_decode > DECODE_PACKET_TIMEOUT_THRESHOLD:
-                decode_packet_str = f"No DecodePacket for more than {DECODE_PACKET_TIMEOUT_THRESHOLD} seconds {status_mode_frequency}."
+                decode_packet_str = f"No DecodePacket for more than {DECODE_PACKET_TIMEOUT_THRESHOLD} seconds"
                 nothing_to_decode = True                
             else:      
                 if time_since_last_decode < 3:
@@ -1950,10 +1933,12 @@ class MainApp(QtWidgets.QMainWindow):
                     time_since_last_decode_text = f"{int(time_since_last_decode)}s"                  
                     self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR) 
 
-                decode_packet_str = f"Last decode on {status_mode_frequency}: {time_since_last_decode_text} ago"
+                decode_packet_str = f"Last decoded: {time_since_last_decode_text} ago"
 
-                if self.last_frequency:
-                    self.status_bar_label_decode_packet.setText(decode_packet_str)
+                self.status_bar_label_decode_packet.setText(decode_packet_str)
+
+            if self.last_frequency:
+                self.status_bar_label_freq.setText(f"Freq: <u>{display_frequency(self.last_frequency)}</u>")
 
             # Update new interval if necessary
             if network_check_status_interval != self.network_check_status_interval:
@@ -2127,6 +2112,7 @@ class MainApp(QtWidgets.QMainWindow):
             QTableView {{ 
                 background-color: {background_color};
                 gridline-color: {gridline_color}; 
+                border: none;
             }}
             QTableView::item {{
                 padding: 5px;
@@ -2830,7 +2816,8 @@ class MainApp(QtWidgets.QMainWindow):
         enable_debug_output                 = params.get('enable_debug_output', DEFAULT_DEBUG_OUTPUT)
         enable_pounce_log                   = params.get('enable_pounce_log', DEFAULT_POUNCE_LOG)
         enable_log_packet_data              = params.get('enable_log_packet_data', DEFAULT_LOG_PACKET_DATA)
-        enable_log_all_valid_contact        = params.get('enable_log_all_valid_contact', DEFAULT_LOG_ALL_VALID_CONTACT)        
+        enable_log_all_valid_contact        = params.get('enable_log_all_valid_contact', DEFAULT_LOG_ALL_VALID_CONTACT) 
+        enable_reply_to_valid_callsign       = params.get('enable_reply_to_valid_callsign', DEFAULT_LOG_ALL_VALID_CONTACT)        
 
         self.adif_file_path                  = params.get('adif_file_path', None)
         self.adif_worked_backup_file_path           = params.get('adif_worked_backup_file_path', None)
@@ -2857,6 +2844,7 @@ class MainApp(QtWidgets.QMainWindow):
             max_reply_attemps_to_callsign,
             max_working_delay,
             enable_log_all_valid_contact,
+            enable_reply_to_valid_callsign,
             enable_gap_finder,
             enable_watchdog_bypass,
             enable_debug_output,
@@ -2921,11 +2909,11 @@ class MainApp(QtWidgets.QMainWindow):
         self.hide_status_menu()
 
         if self.worker:
+            self.worker.stop()  
+
             self.worker.finished.disconnect()
             self.worker.error.disconnect()
             self.worker.message.disconnect()
-
-            self.worker.stop()  
             self.worker = None
 
         if self.thread:
@@ -2939,7 +2927,6 @@ class MainApp(QtWidgets.QMainWindow):
         if self._running:
             self.stop_event.set()
 
-            self.worker              = None
             self._running            = False       
 
             self.update_tab_widget_labels_style()

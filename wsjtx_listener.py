@@ -66,6 +66,7 @@ class Listener(QObject):
             max_reply_attemps_to_callsign,
             max_working_delay,
             enable_log_all_valid_contact,
+            enable_reply_to_valid_callsign,
             enable_gap_finder,
             enable_watchdog_bypass,
             enable_debug_output,
@@ -129,6 +130,7 @@ class Listener(QObject):
 
         self.enable_sending_reply           = enable_sending_reply
         self.enable_log_all_valid_contact   = enable_log_all_valid_contact
+        self.enable_reply_to_valid_callsign  = enable_reply_to_valid_callsign
         self.enable_gap_finder               = enable_gap_finder
         self.enable_watchdog_bypass         = enable_watchdog_bypass
         self.enable_debug_output            = enable_debug_output
@@ -972,6 +974,16 @@ class Listener(QObject):
                                 
                     if marathon:
                         wanted = True
+
+                """
+                    Ignore if callsign is not valid
+                """
+                if (
+                    self.enable_reply_to_valid_callsign and 
+                    entity_code is None and
+                    wanted
+                ):
+                    wanted = False
 
                 """
                     Callsign already logged, we can move over new Wanted callsign

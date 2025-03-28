@@ -32,6 +32,7 @@ class Worker(QObject):
             max_reply_attemps_to_callsign, 
             max_working_delay,
             enable_log_all_valid_contact, 
+            enable_reply_to_valid_callsign,
             enable_gap_finder, 
             enable_watchdog_bypass,
             enable_debug_output, 
@@ -71,6 +72,7 @@ class Worker(QObject):
         self.max_reply_attemps_to_callsign = max_reply_attemps_to_callsign
         self.max_working_delay = max_working_delay
         self.enable_log_all_valid_contact = enable_log_all_valid_contact
+        self.enable_reply_to_valid_callsign = enable_reply_to_valid_callsign
         self.enable_gap_finder = enable_gap_finder
         self.enable_watchdog_bypass = enable_watchdog_bypass
         self.enable_debug_output = enable_debug_output
@@ -108,6 +110,8 @@ class Worker(QObject):
                 max_working_delay               = self.max_working_delay,
                 
                 enable_log_all_valid_contact    = self.enable_log_all_valid_contact,
+                enable_reply_to_valid_callsign  = self.enable_reply_to_valid_callsign,
+
                 enable_gap_finder                = self.enable_gap_finder,
                 enable_watchdog_bypass          = self.enable_watchdog_bypass,
                 enable_debug_output             = self.enable_debug_output,
@@ -147,6 +151,8 @@ class Worker(QObject):
             self.finished.emit()
 
     def stop(self):
+        if self.listener is not None:
+            self.listener.halt_packet()            
         self.stop_event.set()  
         self.check_stop_event()
 
