@@ -519,8 +519,8 @@ class MainApp(QtWidgets.QMainWindow):
 
         bottom_widget = QtWidgets.QWidget()
         bottom_widget.setLayout(bottom_layout)
-        bottom_layout.setContentsMargins(0, 0, 0, 0)
-        bottom_widget.setFixedHeight(40)    
+        bottom_layout.setContentsMargins(0, 10, 0, 0)
+        bottom_widget.setFixedHeight(50)    
 
         """
             Activity Bar
@@ -535,10 +535,10 @@ class MainApp(QtWidgets.QMainWindow):
         """
             Main layout
         """
-        worked_history_widget = QtWidgets.QWidget()
-        worked_history_widget.setContentsMargins(0, 15, 0, 10)
+        self.worked_history_widget = QtWidgets.QWidget()
+        self.worked_history_widget.setContentsMargins(0, 15, 0, 10)
 
-        worked_history_layout = QtWidgets.QVBoxLayout(worked_history_widget)
+        worked_history_layout = QtWidgets.QVBoxLayout(self.worked_history_widget)
         worked_history_layout.setSpacing(0) 
         worked_history_layout.setContentsMargins(20, 0, 0, 0)
         worked_history_layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
@@ -549,24 +549,25 @@ class MainApp(QtWidgets.QMainWindow):
         worked_history_layout.addItem(QtWidgets.QSpacerItem(0, 10, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed))
         worked_history_layout.addWidget(self.wait_pounce_history_table)
         worked_history_layout.addStretch()
-        worked_history_widget.setMaximumWidth(200)
-        worked_history_widget.setObjectName("worked_history_widget") 
-        worked_history_widget.setStyleSheet(f"""
-            #worked_history_widget {{
-                border-left: 1px solid palette(Mid);
-            }}                                        
-        """)
-        worked_history_widget.setMaximumWidth(220)
-        worked_history_widget.setFixedHeight(220)
+        self.worked_history_widget.setMaximumWidth(200)
+        self.worked_history_widget.setObjectName("worked_history_widget") 
+        self.worked_history_widget.setMaximumWidth(220)
+        self.worked_history_widget.setFixedHeight(220)
        
-        main_layout.addLayout(top_layout, 0, 0, 1, 5)         
-        main_layout.addWidget(self.tab_widget, 1, 0, 4, 3)                
-        main_layout.addWidget(worked_history_widget, 1, 3, 4, 2)
+        main_layout.setSpacing(0) 
 
-        main_layout.addItem(spacer, 2, 0, 1, 5)
+        container_tab = QtWidgets.QWidget()
+        container_layout = QtWidgets.QVBoxLayout(container_tab)
+        container_layout.setContentsMargins(0, 10, 10, 0)  
+        container_layout.setSpacing(0)
+        container_layout.addWidget(self.tab_widget)
+
+        main_layout.addLayout(top_layout, 0, 0, 1, 5)         
+        main_layout.addWidget(container_tab, 1, 0, 4, 3)    
+        main_layout.addWidget(self.worked_history_widget, 1, 3, 4, 2)
         main_layout.addWidget(self.output_table, 10, 0, 1, 5)
-        main_layout.addWidget(self.filter_widget, 11, 0, 1, 5)
-        main_layout.addWidget(bottom_widget, 12, 0, 1, 5)
+        main_layout.addWidget(self.filter_widget, 11, 0, 1, 5)      
+        main_layout.addWidget(bottom_widget, 13, 0, 1, 5)
 
         main_layout.setColumnStretch(0, 1)
         main_layout.setColumnStretch(1, 1)
@@ -2094,6 +2095,12 @@ class MainApp(QtWidgets.QMainWindow):
             qt_bg_color = "#181818"
         else:
             qt_bg_color = "#E0E0E0"
+
+        self.worked_history_widget.setStyleSheet(f"""
+            #worked_history_widget {{
+                border-left: 1px solid palette(Mid);
+            }}                                        
+        """)            
         
         self.filter_widget.setStyleSheet(f"""
             QWidget#FilterWidget {{
@@ -2839,7 +2846,7 @@ class MainApp(QtWidgets.QMainWindow):
         enable_reply_to_valid_callsign       = params.get('enable_reply_to_valid_callsign', DEFAULT_LOG_ALL_VALID_CONTACT)        
 
         self.adif_file_path                  = params.get('adif_file_path', None)
-        self.adif_worked_backup_file_path           = params.get('adif_worked_backup_file_path', None)
+        self.adif_worked_backup_file_path    = params.get('adif_worked_backup_file_path', None)
         self.worked_before_preference       = params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS)
         self.marathon_preference            = params.get('marathon_preference', {})
         
