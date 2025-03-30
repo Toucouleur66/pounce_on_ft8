@@ -1,7 +1,8 @@
 # pounce_gui.pyw
 
 from PyQt6 import QtWidgets, QtCore, QtGui
-from PyQt6.QtWidgets import QTableWidgetItem, QStatusBar
+from PyQt6.QtWidgets import QTableWidgetItem
+from PyQt6.QtWidgets import QGraphicsOpacityEffect
 from PyQt6.QtCore import QPropertyAnimation, QThread
 from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import QHeaderView
@@ -1728,16 +1729,23 @@ class MainApp(QtWidgets.QMainWindow):
         # log.error("Stop blinking status button")
         if self.is_status_button_label_blinking is True:
             self.is_status_button_label_blinking = False
-            self.blink_timer.stop()
-            self.status_button.setVisibleState(True)        
+            self.blink_timer.stop()            
+            effect = QGraphicsOpacityEffect(self.status_button)
+            effect.setOpacity(1)
+            self.status_button.setGraphicsEffect(effect)
+            self.is_status_button_label_visible = True
 
     @QtCore.pyqtSlot()
     def toggle_label_visibility(self):
         if self.is_status_button_label_visible:
-            self.status_button.setVisibleState(False)                    
+            effect = QGraphicsOpacityEffect(self.status_button)
+            effect.setOpacity(0)
+            self.status_button.setGraphicsEffect(effect)
             self.is_status_button_label_visible = False
-        else:                    
-            self.status_button.setVisibleState(True)        
+        else:
+            effect = QGraphicsOpacityEffect(self.status_button)
+            effect.setOpacity(1)
+            self.status_button.setGraphicsEffect(effect)
             self.is_status_button_label_visible = True
 
     def update_status_bar_style(self, background_color, text_color):
