@@ -93,8 +93,6 @@ from constants import (
     STATUS_MONITORING_COLOR,
     STATUS_DECODING_COLOR,
     STATUS_TRX_COLOR,
-    STATUS_COLOR_LABEL_SELECTED,
-    STATUS_COLOR_LABEL_OFF,
     # Actions
     ACTION_RESTART,
     # Parameters
@@ -108,7 +106,6 @@ from constants import (
     STATUS_BUTTON_LABEL_DECODING,
     STATUS_BUTTON_LABEL_START,
     STATUS_BUTTON_LABEL_TRX,
-    STATUS_BUTTON_LABEL_NOTHING_YET,
     STOP_BUTTON_LABEL,
     WAITING_DATA_PACKETS_LABEL,
     WORKED_CALLSIGNS_HISTORY_LABEL,
@@ -131,6 +128,7 @@ from constants import (
     DEFAULT_SECONDARY_UDP_SERVER,
     DEFAULT_SENDING_REPLY,
     # Default settings
+    DEFAULT_AUTO_START_MONITORING,
     DEFAULT_GAP_FINDER,
     DEFAULT_WATCHDOG_BYPASS,
     DEFAULT_DEBUG_OUTPUT,
@@ -147,7 +145,6 @@ from constants import (
     CONTEXT_MENU_HEADER_QSS,
     # Fonts
     CUSTOM_FONT,
-    CUSTOM_FONT_MONO,
     CUSTOM_FONT_MONO_LG,
     CUSTOM_FONT_SMALL,
     MENU_FONT,
@@ -320,6 +317,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.worked_before_preference           = params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS)
         self.enable_marathon                    = params.get('enable_marathon', False)
         self.marathon_preference                = params.get('marathon_preference', {})
+
+        self.enable_auto_start_monitoring       = params.get('enable_auto_start_monitoring', DEFAULT_AUTO_START_MONITORING)
         
         # Get sound configuration
         self.enable_sound_wanted_callsigns      = params.get('enable_sound_wanted_callsigns', True)
@@ -609,6 +608,9 @@ class MainApp(QtWidgets.QMainWindow):
                 
         # Close event to save position
         self.closeEvent = self.on_close
+
+        if self.enable_auto_start_monitoring:
+            self.start_monitoring()
         
     def init_status_bar(self):
             self.status_bar = CustomStatusBar()
@@ -638,7 +640,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.status_bar.addWidget(self.status_bar_label_mode, 1)       
             self.status_bar.addWidget(self.status_bar_label_freq, 1)                         
             self.status_bar.addWidget(self.status_bar_label_packet, 2)    
-            self.status_bar_label_packet.setFixedWidth(190)         
+            self.status_bar_label_packet.setFixedWidth(150)         
             self.status_bar.addWidget(self.status_bar_label_decode_packet, 2)          
             self.status_bar_label_decode_packet.setFixedWidth(180)     
             self.status_bar.addWidget(self.status_bar_label_heartbeat, 2)
@@ -1927,7 +1929,7 @@ class MainApp(QtWidgets.QMainWindow):
         else:
             self.status_bar_label_connection.clear()
 
-        self.status_bar_label_packet.setText(f"Buffered messages: {self.output_model.rowCount()} {self.get_size_of_output_model()}")
+        self.status_bar_label_packet.setText(f"Buffered: {self.output_model.rowCount()} {self.get_size_of_output_model()}")
 
         if self.last_targeted_call:
             # self.status_bar_label_reply.setText(f"Last reply: {self.last_targeted_call}")

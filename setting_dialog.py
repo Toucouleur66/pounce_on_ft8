@@ -37,6 +37,7 @@ from constants import (
     FREQ_MAXIMUM_SUPER_FOX,
     # UDP related
     DEFAULT_UDP_PORT,
+    DEFAULT_AUTO_START_MONITORING,
     DEFAULT_SECONDARY_UDP_SERVER,
     DEFAULT_SENDING_REPLY,
     DEFAULT_GAP_FINDER,
@@ -107,10 +108,14 @@ class SettingsDialog(QtWidgets.QDialog):
         self.primary_udp_server_address = QtWidgets.QLineEdit()
         self.primary_udp_server_port = QtWidgets.QLineEdit()
 
+        self.enable_auto_start_monitoring = QtWidgets.QCheckBox("Enable auto start monitoring when program launched")
+        self.enable_auto_start_monitoring.setChecked(DEFAULT_AUTO_START_MONITORING)
+
         primary_layout.addWidget(QtWidgets.QLabel("UDP Server:"), 0, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
         primary_layout.addWidget(self.primary_udp_server_address, 0, 1)
         primary_layout.addWidget(QtWidgets.QLabel("UDP Server port number:"), 1, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
         primary_layout.addWidget(self.primary_udp_server_port, 1, 1)
+        primary_layout.addWidget(self.enable_auto_start_monitoring, 2, 0, 1, 2)
         primary_layout.setColumnMinimumWidth(0, 200)
         primary_layout.setColumnStretch(0, 0)
 
@@ -697,6 +702,9 @@ class SettingsDialog(QtWidgets.QDialog):
         self.primary_udp_server_port.setText(
             str(self.params.get('primary_udp_server_port') or DEFAULT_UDP_PORT)
         )
+        self.enable_auto_start_monitoring.setChecked(
+            self.params.get('enable_auto_start_monitoring', DEFAULT_AUTO_START_MONITORING)
+        )
         self.secondary_udp_server_address.setText(
             self.params.get('secondary_udp_server_address') or local_ip_address
         )
@@ -821,6 +829,7 @@ class SettingsDialog(QtWidgets.QDialog):
         return {
             'primary_udp_server_address'                 : self.primary_udp_server_address.text(),
             'primary_udp_server_port'                    : self.primary_udp_server_port.text(),
+            'enable_auto_start_monitoring'                    : self.enable_auto_start_monitoring.isChecked(),
             'secondary_udp_server_address'               : self.secondary_udp_server_address.text(),
             'secondary_udp_server_port'                  : self.secondary_udp_server_port.text(),
             'enable_secondary_udp_server'                : self.enable_secondary_udp_server.isChecked(),
@@ -829,7 +838,7 @@ class SettingsDialog(QtWidgets.QDialog):
             'enable_logging_udp_server'                  : self.enable_logging_udp_server.isChecked(),
             'enable_sending_reply'                       : self.enable_sending_reply.isChecked(),
             'enable_log_all_valid_contact'               : self.enable_log_all_valid_contact.isChecked(),
-            'enable_reply_to_valid_callsign'              : self.enable_reply_to_valid_callsign.isChecked(),
+            'enable_reply_to_valid_callsign'             : self.enable_reply_to_valid_callsign.isChecked(),
             'max_reply_attemps_to_callsign'              : max_reply_attemps,
             'max_waiting_delay'                          : max_waiting_delay,
             'enable_gap_finder'                           : self.enable_gap_finder.isChecked(),
@@ -842,7 +851,7 @@ class SettingsDialog(QtWidgets.QDialog):
             'enable_sound_monitored_callsigns'           : self.enable_sound_monitored_callsigns.isChecked(),
             'delay_between_sound_for_monitored'          : self.delay_between_sound_for_monitored.text(),
             'adif_file_path'                              : self.adif_file_path.text(),      
-            'adif_worked_backup_file_path'                       : self.show_backup_file_path.text(),
+            'adif_worked_backup_file_path'                : self.show_backup_file_path.text(),
             'freq_range_mode'                            : freq_range_mode,
             'worked_before_preference'                   : worked_before_preference,
             'marathon_preference'                        : marathon_preference            

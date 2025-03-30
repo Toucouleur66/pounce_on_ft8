@@ -114,6 +114,7 @@ CTY_XML                         = 'cty.xml'
 CTY_XML_URL                     = 'https://cdn.clublog.org/cty.php?api=efc2af7050308f03a22275cf51f3fd7749582d66'
 
 DEFAULT_SECONDARY_UDP_SERVER    = False
+DEFAULT_AUTO_START_MONITORING   = False
 DEFAULT_SENDING_REPLY           = True
 DEFAULT_GAP_FINDER              = True
 DEFAULT_WATCHDOG_BYPASS         = False
