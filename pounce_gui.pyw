@@ -326,19 +326,11 @@ class MainApp(QtWidgets.QMainWindow):
         self.enable_sound_directed_my_callsign  = params.get('enable_sound_directed_my_callsign', True)
         self.enable_sound_monitored_callsigns   = params.get('enable_sound_monitored_callsigns', True)
         self.delay_between_sound_for_monitored  = params.get('delay_between_sound_for_monitored', DEFAULT_DELAY_BETWEEN_SOUND)
-       
-        """
-            Central, Outer and Main Layout
-        """
-        central_widget = QtWidgets.QWidget()
-        self.setCentralWidget(central_widget)
 
-        outer_layout = QtWidgets.QHBoxLayout()
-        central_widget.setLayout(outer_layout)
-
-        main_layout = QtWidgets.QGridLayout()
-        outer_layout.addLayout(main_layout)
-
+        self.file_handler = None
+        if self.enable_pounce_log:
+            self.file_handler = add_timed_file_handler()
+              
         """
             Wait and Pounce History
         """
@@ -501,13 +493,13 @@ class MainApp(QtWidgets.QMainWindow):
             Button layout
         """
         button_layout = QtWidgets.QHBoxLayout()
+        button_layout.setSpacing(15) 
 
         # button_layout.addWidget(self.settings)
         button_layout.addWidget(self.clear_button)
 
         if sys.platform == 'darwin':
             button_layout.addWidget(self.restart_button)
-
 
         button_layout.addWidget(self.status_button)
         button_layout.addWidget(self.stop_button)
@@ -523,20 +515,27 @@ class MainApp(QtWidgets.QMainWindow):
         bottom_widget.setFixedHeight(50)    
 
         """
-            Activity Bar
+            Spacer
         """
-        self.activity_bar = ActivityBar(max_value=ACTIVITY_BAR_MAX_VALUE)
-        self.activity_bar.setFixedWidth(30)
-
-        outer_layout.addWidget(self.activity_bar)
-
         spacer = QtWidgets.QSpacerItem(0, 5, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)        
 
+        """
+            Central, Outer and Main Layout
+        """
+        central_widget = QtWidgets.QWidget()
+        self.setCentralWidget(central_widget)
+
+        outer_layout = QtWidgets.QHBoxLayout()
+        central_widget.setLayout(outer_layout)
+
+        main_layout = QtWidgets.QGridLayout()
+        outer_layout.addLayout(main_layout)
+        
         """
             Main layout
         """
         self.worked_history_widget = QtWidgets.QWidget()
-        self.worked_history_widget.setContentsMargins(0, 15, 0, 10)
+        self.worked_history_widget.setContentsMargins(0, 15, 0, 0)
 
         worked_history_layout = QtWidgets.QVBoxLayout(self.worked_history_widget)
         worked_history_layout.setSpacing(0) 
@@ -554,30 +553,31 @@ class MainApp(QtWidgets.QMainWindow):
         self.worked_history_widget.setMaximumWidth(220)
         self.worked_history_widget.setFixedHeight(220)
        
-        main_layout.setSpacing(0) 
-
         container_tab = QtWidgets.QWidget()
-        container_layout = QtWidgets.QVBoxLayout(container_tab)
-        container_layout.setContentsMargins(0, 10, 10, 0)  
-        container_layout.setSpacing(0)
-        container_layout.addWidget(self.tab_widget)
+        container_layout = QtWidgets.QHBoxLayout(container_tab)
+        container_layout.setContentsMargins(0, 10, 0, 20)  
+        container_layout.setSpacing(10)
+        container_layout.addWidget(self.tab_widget) 
+        container_layout.addWidget(self.worked_history_widget) 
 
-        main_layout.addLayout(top_layout, 0, 0, 1, 5)         
-        main_layout.addWidget(container_tab, 1, 0, 4, 3)    
-        main_layout.addWidget(self.worked_history_widget, 1, 3, 4, 2)
-        main_layout.addWidget(self.output_table, 10, 0, 1, 5)
-        main_layout.addWidget(self.filter_widget, 11, 0, 1, 5)      
-        main_layout.addWidget(bottom_widget, 13, 0, 1, 5)
+        main_layout.setSpacing(0) 
+        main_layout.addLayout(top_layout, 0, 0, 1, 1)
+        
+        main_layout.addWidget(container_tab, 1, 0)
+        main_layout.addWidget(self.output_table, 2, 0)
+        main_layout.setRowStretch(2, 1)
+        main_layout.addWidget(self.filter_widget, 3, 0)
+        main_layout.addWidget(bottom_widget, 4, 0)
 
-        main_layout.setColumnStretch(0, 1)
-        main_layout.setColumnStretch(1, 1)
-        main_layout.setColumnStretch(2, 1)
-        main_layout.setColumnStretch(3, 0)
-        main_layout.setColumnStretch(4, 0)
+        main_layout.setContentsMargins(5, 0, 5, 0)  
 
-        self.file_handler = None
-        if self.enable_pounce_log:
-            self.file_handler = add_timed_file_handler()
+        """
+            Activity Bar
+        """
+        self.activity_bar = ActivityBar(max_value=ACTIVITY_BAR_MAX_VALUE)
+        self.activity_bar.setFixedWidth(30)
+
+        outer_layout.addWidget(self.activity_bar)
 
         """
             self.operating_band might be overided as soon as check_connection_status is used
@@ -637,10 +637,12 @@ class MainApp(QtWidgets.QMainWindow):
                 """)
             self.status_bar.addWidget(self.status_bar_label_mode, 1)       
             self.status_bar.addWidget(self.status_bar_label_freq, 1)                         
-            self.status_bar.addWidget(self.status_bar_label_packet, 2)            
-            self.status_bar.addWidget(self.status_bar_label_decode_packet, 2)               
+            self.status_bar.addWidget(self.status_bar_label_packet, 2)    
+            self.status_bar_label_packet.setFixedWidth(190)         
+            self.status_bar.addWidget(self.status_bar_label_decode_packet, 2)          
+            self.status_bar_label_decode_packet.setFixedWidth(180)     
             self.status_bar.addWidget(self.status_bar_label_heartbeat, 2)
-            self.status_bar.addWidget(self.status_bar_label_reply, 1)
+            # self.status_bar.addWidget(self.status_bar_label_reply, 1)
             self.status_bar.addWidget(self.status_bar_label_connection, 2)            
 
             self.status_bar.setContentsMargins(10, 3, 10, 3)
@@ -1928,7 +1930,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.status_bar_label_packet.setText(f"Buffered messages: {self.output_model.rowCount()} {self.get_size_of_output_model()}")
 
         if self.last_targeted_call:
-            self.status_bar_label_reply.setText(f"Last reply: {self.last_targeted_call}")
+            # self.status_bar_label_reply.setText(f"Last reply: {self.last_targeted_call}")
+            pass
 
         if self.last_decode_packet_time:
             time_since_last_decode = (current_time - self.last_decode_packet_time).total_seconds()
@@ -2133,8 +2136,7 @@ class MainApp(QtWidgets.QMainWindow):
             QTableView {{ 
                 background-color: {background_color};
                 gridline-color: {gridline_color}; 
-                border: none;
-                border-bottom: 1px solid palette(Mid);
+                border: 1px solid palette(Mid);
             }}
             QTableView::item {{
                 padding: 5px;
