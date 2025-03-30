@@ -420,7 +420,7 @@ class Listener(QObject):
             try:
                 caller = frame.f_back
                 co_name = caller.f_code.co_name        
-                log.warning(f"Synch settings ({self._instance}): {co_name} from {caller} ({addr_port})")
+                log.warning(f"Synch settings ({self._instance}): {co_name} from {caller} {addr_port}")
             finally:
                 del frame
 
@@ -669,8 +669,9 @@ class Listener(QObject):
             })
 
     def handle_request_setting_packet(self):    
-        log.debug(f"Received RequestSettingPacket method from {self.origin_addr_port}.")  
-        self.requester_addr_port = self.origin_addr_port
+        addr_port = self.origin_addr_port
+        log.debug(f"Received RequestSettingPacket method from {addr_port}.")  
+        self.requester_addr_port = addr_port
         if self.synch_time.isoformat() != datetime.fromisoformat(self.the_packet.synch_time):
             self.synch_settings()       
             
@@ -909,7 +910,7 @@ class Listener(QObject):
                     Ignore if DT is above normal values
                 """
                 if abs(delta_t) > MAXIMUM_ALLOWED_DT:
-                    log.error(f"DT is above normal for [ {callsign } ]. DT: [ {delta_t}s ]")
+                    log.error(f"DT is above normal for [ {callsign } ]. DT: [ {round(delta_t, 1)}s ]")
                     return
 
                 """
@@ -1299,7 +1300,7 @@ class Listener(QObject):
         if self._instance == SLAVE:
             return        
         
-        if hasattr(self, "the_packet") and self.the_packet:        
+        if self.rst_sent:        
             log.warning("Build HaltPacket")
             try:
                 halt_pkt = pywsjtx.HaltTxPacket.Builder(self.the_packet)             
