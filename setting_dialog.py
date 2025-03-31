@@ -185,7 +185,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_log_all_valid_contact = QtWidgets.QCheckBox("Log all valid contacts (not only from Wanted)")
         self.enable_log_all_valid_contact.setChecked(True)
 
-        self.enable_reply_to_valid_callsign = QtWidgets.QCheckBox("Ignore callsign if country is not set")
+        self.enable_reply_to_valid_callsign = QtWidgets.QCheckBox("Ignore callsign if prefix is invalid")
         self.enable_reply_to_valid_callsign.setChecked(True)
 
         general_settings_layout.addWidget(self.enable_sending_reply, 0, 0, 1, 2)

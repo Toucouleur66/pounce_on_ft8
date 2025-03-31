@@ -2963,6 +2963,9 @@ class MainApp(QtWidgets.QMainWindow):
             self.timer_value_label.setText(DEFAULT_MODE_TIMER_VALUE)        
 
         if self._running:
+            self.status_button.setEnabled(True)
+            self.stop_button.setEnabled(False)
+
             self.stop_event.set()
 
             self._running            = False       
@@ -2989,8 +2992,6 @@ class MainApp(QtWidgets.QMainWindow):
             self.update_status_button(STATUS_BUTTON_LABEL_START, STATUS_TRX_COLOR)
 
             self.status_button.resetStyle()
-            self.status_button.setEnabled(True)
-            self.stop_button.setEnabled(False)
 
             # Update Windows menu            
             self.update_monitoring_action()   
