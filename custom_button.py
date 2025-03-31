@@ -33,17 +33,6 @@ class CustomButton(QtWidgets.QPushButton):
         self.current_bg_color = "#E0E0E0;"
         self.current_fg_color = "#000000;"
 
-        self.opacity_effect = QtWidgets.QGraphicsOpacityEffect(self)
-        self.setGraphicsEffect(self.opacity_effect)
-        self.opacity_effect.setOpacity(1.0)
-
-    def setEnabled(self, enabled: bool):
-        super().setEnabled(enabled)
-        if enabled:
-            self.opacity_effect.setOpacity(1.0)
-        else:
-            self.opacity_effect.setOpacity(0.6)
-    
     def resetStyle(self):
         self.setStyleSheet(self.default_style)
     
