@@ -62,7 +62,7 @@ from utils import parse_adif
 
 from version import is_first_launch_or_new_version, save_current_version
 
-from logger import get_logger, add_timed_file_handler, remove_file_handler
+from logger import get_logger, add_timed_file_handler, remove_file_handler, cleanup_old_logs
 
 from utils import(
     AMATEUR_BANDS
@@ -3045,10 +3045,14 @@ def on_about_to_quit(window):
 def main():
     app             = QtWidgets.QApplication(sys.argv)    
     window          = MainApp()
-    update_timer    = QtCore.QTimer()
 
     window.updater  = UpdateManager()
     window.updater.check_expiration_or_update()
+    
+    cleanup_old_logs()
+    cleanup_timer   = QtCore.QTimer()
+    cleanup_timer.timeout.connect(cleanup_old_logs)
+    cleanup_timer.start(60 * 60 * 1_000)
 
     window.show()
     window.update_status_menu_message((f'{GUI_LABEL_VERSION}').upper(), BG_COLOR_REGULAR_FOCUS, FG_COLOR_REGULAR_FOCUS)   

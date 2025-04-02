@@ -3,10 +3,12 @@
 import logging
 import os
 import sys
+import re
 
 from logging.handlers import TimedRotatingFileHandler
 from colorama import init, Back, Fore, Style
 from utils import get_app_data_dir
+from datetime import datetime, timedelta
 
 from constants import (
     GUI_LABEL_VERSION
@@ -59,6 +61,26 @@ def add_file_handler(filename):
     root_logger.addHandler(file_handler)
     root_logger.info(f"FileHandler set:{filename}")
     return file_handler
+
+def cleanup_old_logs():
+    log_dir = get_app_data_dir() 
+    now = datetime.now()
+    pattern = re.compile(r'pounce\.log\.(\d{6})')  
+    
+    for filename in os.listdir(log_dir):
+        match = pattern.match(filename)
+        if match:
+            date_str = match.group(1)
+            try:
+                file_date = datetime.strptime(date_str, "%y%m%d")
+            except ValueError:
+                continue
+            if now - file_date > timedelta(days=7):
+                file_path = os.path.join(log_dir, filename)
+                try:
+                    os.remove(file_path)                    
+                except Exception as e:
+                    pass
 
 def add_timed_file_handler():
     log_dir = get_app_data_dir()
