@@ -2947,12 +2947,15 @@ class MainApp(QtWidgets.QMainWindow):
         self.hide_status_menu()
 
         if self.worker:
-            self.worker.stop()  
-
-            self.worker.finished.disconnect()
-            self.worker.error.disconnect()
-            self.worker.message.disconnect()
-            self.worker = None
+            if self.worker:
+                self.worker.stop()  
+                try:
+                    self.worker.finished.disconnect()
+                    self.worker.error.disconnect()
+                    self.worker.message.disconnect()
+                except RuntimeError:
+                    pass
+                self.worker = None
 
         if self.thread:
             self.thread.started.disconnect()
