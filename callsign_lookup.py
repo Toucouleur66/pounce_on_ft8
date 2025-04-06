@@ -258,8 +258,8 @@ class CallsignLookup:
                     end = self.parse_date(end_elem.text) if end_elem is not None else None
 
                     entity_data = {
-                        "name": name,
-                        "prefix": prefix_str,
+                        "entity": name,
+                        "adif": adif,
                         "deleted": deleted,
                         "cqz": cqz,
                         "cont": cont,
