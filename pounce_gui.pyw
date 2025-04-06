@@ -644,7 +644,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.status_bar_label_packet.setFixedWidth(150)         
             self.status_bar.addWidget(self.status_bar_label_decode_packet, 2)          
             self.status_bar_label_decode_packet.setFixedWidth(180)     
-            self.status_bar.addWidget(self.status_bar_label_heartbeat, 2)
+            self.status_bar.addWidget(self.status_bar_label_heartbeat, 1)
             # self.status_bar.addWidget(self.status_bar_label_reply, 1)
             self.status_bar.addWidget(self.status_bar_label_connection, 2)            
 
@@ -1695,8 +1695,10 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.message_buffer = deque()
 
-    def update_window_title(self):
-            self.window_title = f"{self.base_title} - Connected to {self.my_wsjtx_id}"
+    def update_window_title(self):            
+            self.window_title = f"{self.base_title}"
+            if self.my_wsjtx_id:
+                self.window_title += f"- Connected to {self.my_wsjtx_id}"
             if self._instance and self._instance == SLAVE:
                 self.window_title+= f" - Running as {self._instance}"
             self.setWindowTitle(self.window_title)
@@ -1874,10 +1876,11 @@ class MainApp(QtWidgets.QMainWindow):
 
             if self._instance == SLAVE and status == MASTER:
                 self.restore_settings()
-                self._synched_addr_port = None 
+                self._synched_addr_port = None             
 
         self._instance          = status           
-        self.update_tab_widget_labels_style()            
+        self.update_tab_widget_labels_style()  
+        self.update_window_title()          
 
     def check_connection_status(
         self,
@@ -1917,7 +1920,8 @@ class MainApp(QtWidgets.QMainWindow):
                 heartbeat_str = f"No HeartBeat for more than {HEARTBEAT_TIMEOUT_THRESHOLD} seconds."
                 connection_lost = True
             else:            
-                heartbeat_str = f"HeartBeat: {self.last_heartbeat_time.strftime('%Y.%m.%d <u>%H:%M:%S</u>')}"
+                # heartbeat_str = f"HeartBeat: {self.last_heartbeat_time.strftime('%Y.%m.%d <u>%H:%M:%S</u>')}"
+                heartbeat_str = f"HeartBeat: {self.last_heartbeat_time.astimezone().strftime('<u>%H:%M:%S</u>')}"
         else:
             heartbeat_str = "No HeartBeat received yet."
 
@@ -1948,8 +1952,10 @@ class MainApp(QtWidgets.QMainWindow):
             network_check_status_interval = 5_000
 
             if time_since_last_decode > DECODE_PACKET_TIMEOUT_THRESHOLD:
-                decode_packet_str = f"No DecodePacket for more than {DECODE_PACKET_TIMEOUT_THRESHOLD} seconds"
-                nothing_to_decode = True                
+
+                minutes_elapsed = time_since_last_decode / 60
+                nothing_to_decode = True
+                time_since_last_decode_text = f"{round(minutes_elapsed)} minutes"                
             else:      
                 if time_since_last_decode < 3:
                     network_check_status_interval = 500
@@ -1961,9 +1967,7 @@ class MainApp(QtWidgets.QMainWindow):
                     time_since_last_decode_text = f"{int(time_since_last_decode)}s"                  
                     self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR) 
 
-                decode_packet_str = f"Last decoded: {time_since_last_decode_text} ago"
-
-                self.status_bar_label_decode_packet.setText(decode_packet_str)
+            self.status_bar_label_decode_packet.setText(f"Last decoded: {time_since_last_decode_text} ago")
 
             if self.last_frequency:
                 self.status_bar_label_freq.setText(f"Freq: <u>{display_frequency(self.last_frequency)}</u>")

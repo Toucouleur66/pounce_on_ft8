@@ -112,6 +112,7 @@ class Listener(QObject):
         self.qso_time_off               = {}
         self.rst_sent                   = {}
         self.mode                       = None
+        self.special_op_mode            = None
         self.last_mode                  = None
         self.transmitting               = None
 
@@ -508,6 +509,7 @@ class Listener(QObject):
             self.tx_df                  = self.the_packet.tx_df       
             self.rx_df                  = self.the_packet.rx_df  
             self.mode                   = self.the_packet.mode            
+            self.special_op_mode        = int(self.the_packet.special_op_mode)
             self.frequency              = self.the_packet.dial_frequency     
             self.band                   = get_amateur_band(self.frequency)    
             self.transmitting           = int(self.the_packet.transmitting)  
@@ -1062,7 +1064,11 @@ class Listener(QObject):
                         """  
                         self.call_ready_to_log = None
                         if msg in {'RR73', 'RRR'}:
-                            reply_to_packet = True
+                            # 7 = Hound mode
+                            if self.special_op_mode == 7:
+                                pass
+                            else:
+                                reply_to_packet = True
                         elif msg == '73':
                             self.reset_targeted_call()
 
