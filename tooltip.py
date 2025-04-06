@@ -9,10 +9,11 @@ from constants import (
 )
 
 class ToolTip(QtWidgets.QWidget):
-    def __init__(self, widget, text=''):
+    def __init__(self, widget, source_widget=None, default_text=''):
         super().__init__()
         self.widget = widget
-        self.text = text
+        self.source_widget = source_widget if source_widget is not None else widget
+        self.default_text = default_text
         self.tooltip_window = None
         self.widget.installEventFilter(self)
 
@@ -28,14 +29,17 @@ class ToolTip(QtWidgets.QWidget):
         return super().eventFilter(obj, event)
 
     def show_tooltip(self):
-        raw_text = self.widget.text()
+        if hasattr(self.source_widget, 'text'):
+            raw_text = self.source_widget.text()
+        else:
+            raw_text = self.default_text
+        
         if not raw_text:
             return
-        
+
         text_parts = [part.strip() for part in raw_text.split(",") if part.strip()]
-        self.text = "<br/>".join(sorted(text_parts))
-        
-        QtWidgets.QToolTip.showText(QtGui.QCursor.pos(), self.text, self.widget)
+        tooltip_text = "<br/>".join(sorted(text_parts))
+        QtWidgets.QToolTip.showText(QtGui.QCursor.pos(), tooltip_text, self.widget)
 
     def hide_tooltip(self):
         QtWidgets.QToolTip.hideText()

@@ -759,7 +759,7 @@ class MainApp(QtWidgets.QMainWindow):
 
                 wanted_dict[variable_info['name']][amateur_band] = line_edit
 
-                tooltip_wanted_dict[variable_info['name']][amateur_band] = ToolTip(line_edit)
+                #tooltip_wanted_dict[variable_info['name']][amateur_band] = ToolTip(line_edit)
 
                 line_edit.setText(band_params.get(variable_info['name'], ""))
 
@@ -767,7 +767,7 @@ class MainApp(QtWidgets.QMainWindow):
                 line_label.setStyleSheet("border-radius: 6px; padding: 3px;")
                 line_label.setMinimumWidth(100)
 
-                ToolTip(line_label, CALLSIGN_NOTICE_LABEL)
+                tooltip_wanted_dict[variable_info['name']][amateur_band] = ToolTip(line_label, source_widget=line_edit, default_text=CALLSIGN_NOTICE_LABEL)
 
                 layout.addWidget(line_label, idx+1, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
                 layout.addWidget(line_edit, idx+1, 1)
@@ -1175,7 +1175,7 @@ class MainApp(QtWidgets.QMainWindow):
         
     def apply_band_change(self, band):
         if band != 'Invalid' and band != self.operating_band:    
-            self.restore_settings(blocSignals=True)
+            self.restore_settings()
 
             self.operating_band = band
             self.monitoring_settings.set_wanted_callsigns(self.wanted_callsigns_vars[self.operating_band].text())
@@ -1391,7 +1391,7 @@ class MainApp(QtWidgets.QMainWindow):
             """
                 Restore band and save wanted_callsigns_vars per band
             """
-            self.restore_settings(blocSignals=True)
+            self.restore_settings()
             for amateur_band in AMATEUR_BANDS.keys():                
                 self.before_synch_wanted_callsigns[amateur_band] = self.wanted_callsigns_vars[amateur_band].text()   
           
@@ -1408,11 +1408,11 @@ class MainApp(QtWidgets.QMainWindow):
             if play_sound:
                 self.play_sound("updated_settings")     
 
-    def restore_settings(self, blocSignals=False):
+    def restore_settings(self):
         if self._instance == SLAVE:            
             for amateur_band in AMATEUR_BANDS.keys():
-                if blocSignals:
-                    self.wanted_callsigns_vars[amateur_band].blockSignals(True)
+                self.wanted_callsigns_vars[amateur_band].blockSignals(True)
+                
                 if self.before_synch_wanted_callsigns.get(amateur_band):
                     before_synch_wanted_callsigns_band = self.before_synch_wanted_callsigns[amateur_band]                    
 
@@ -1420,8 +1420,8 @@ class MainApp(QtWidgets.QMainWindow):
                         self.wanted_callsigns_vars[amateur_band].clear()
                     else:
                         self.wanted_callsigns_vars[amateur_band].setText(before_synch_wanted_callsigns_band)
-                if blocSignals:
-                    self.wanted_callsigns_vars[amateur_band].blockSignals(False)
+                
+                self.wanted_callsigns_vars[amateur_band].blockSignals(False)
         
     def process_message_buffer(self):     
         if not self.message_buffer:
@@ -2090,7 +2090,7 @@ class MainApp(QtWidgets.QMainWindow):
         log.debug("Quit")
 
     def restart_application(self):
-        self.restore_settings(blocSignals=True)
+        self.restore_settings()
         self.save_window_position()
 
         self.save_band_settings()
@@ -2978,7 +2978,7 @@ class MainApp(QtWidgets.QMainWindow):
             self._running            = False       
 
             self.update_tab_widget_labels_style()
-            self.restore_settings(blocSignals=True)
+            self.restore_settings()
 
             self._instance               = None
             self._synched_addr_port      = None

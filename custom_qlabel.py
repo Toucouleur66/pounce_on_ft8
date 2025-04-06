@@ -7,6 +7,6 @@ from constants import (
 class CustomQLabel(QtWidgets.QLabel):
     def __init__(self, text="", parent=None):
         super().__init__(text, parent)
-        
+        self.setMouseTracking(True)
         self.setFont(CUSTOM_FONT)
         self.setStyleSheet(f"font: {CUSTOM_FONT.pointSize()}pt '{CUSTOM_FONT.family()}';")
