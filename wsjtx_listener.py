@@ -146,7 +146,6 @@ class Listener(QObject):
         self._instance                      = None
         self.synched_band                   = None
         self.synched_settings               = None       
-        self.requester_addr_port            = None
         self.synch_time                     = datetime.now()   
 
         self.primary_udp_server_address     = primary_udp_server_address or get_local_ip_address()
@@ -322,7 +321,7 @@ class Listener(QObject):
 
             try:
                 self.the_packet = pywsjtx.WSJTXPacketClassFactory.from_udp_packet(addr_port, packet)
-                self.assign_packet()  
+                self.assign_packet(addr_port)  
                 if self.can_forward_packet():
                     self.forward_packet(packet)                          
             except Exception as e:
@@ -409,14 +408,15 @@ class Listener(QObject):
     def reset_synched_settings(self):
         self.synched_settings = None
 
-    def synch_settings(self):        
-        addr_port = None
-
-        if self._instance == SLAVE and self.synched_settings is not None:
+    def synch_settings(self, addr_port=None):        
+        if (
+            addr_port is None and
+            self._instance == SLAVE and
+            self.synched_settings is not None
+        ):
+            # Do not proceed for synch unless we set synched_settings
             addr_port = self.origin_addr_port
-        elif self._instance == MASTER:
-            addr_port = self.requester_addr_port
-        
+           
         if addr_port:
             frame = inspect.currentframe()
             try:
@@ -611,7 +611,7 @@ class Listener(QObject):
         except Exception as e:
             log.error("Caught an error on status handler: error {}\n{}".format(e, traceback.format_exc()))   
 
-    def assign_packet(self):
+    def assign_packet(self, addr_port=None):
         status_update = True
 
         if isinstance(self.the_packet, pywsjtx.HeartBeatPacket):
@@ -634,9 +634,9 @@ class Listener(QObject):
         elif isinstance(self.the_packet, pywsjtx.ClosePacket):
             self.callback_stop_monitoring()
         elif isinstance(self.the_packet, pywsjtx.RequestSettingPacket):
-            self.handle_request_setting_packet()                      
+            self.handle_request_setting_packet(addr_port)                      
         elif isinstance(self.the_packet, pywsjtx.SettingPacket):
-            self.handle_setting_packet()      
+            self.handle_setting_packet(addr_port)      
         else:
             status_update = False
             log.error('Unknown packet type {}; {}'.format(type(self.the_packet),self.the_packet))
@@ -671,12 +671,10 @@ class Listener(QObject):
                 'transmitting'              : self.transmitting
             })
 
-    def handle_request_setting_packet(self):    
-        addr_port = self.origin_addr_port
+    def handle_request_setting_packet(self, addr_port):    
         log.debug(f"Received RequestSettingPacket method from {addr_port}.")  
-        self.requester_addr_port = addr_port
         if self.synch_time.isoformat() != datetime.fromisoformat(self.the_packet.synch_time):
-            self.synch_settings()       
+            self.synch_settings(addr_port)       
             
     def callback_stop_monitoring(self):
         log.debug("Received ClosePacket method")
@@ -780,13 +778,13 @@ class Listener(QObject):
 
         return int(suggested_freq)
     
-    def handle_setting_packet(self):
+    def handle_setting_packet(self, addr_port):
         if (
             self.band is not None and 
             self.synched_band == self.band
         ):
             try:         
-                log.info(f"SettingPacket received from {self.origin_addr_port}")             
+                log.info(f"SettingPacket received from {addr_port}")             
                 synch_time = datetime.fromisoformat(self.the_packet.synch_time)
                 if (
                     self.synched_settings is None or 
@@ -1163,6 +1161,7 @@ class Listener(QObject):
                     'packet_id'         : packet_id,     
                     'decode_time'       : decode_time,              
                     'decode_time_str'   : decode_time_str,
+                    'excluded'          : excluded,
                     'callsign'          : callsign,
                     'callsign_info'     : callsign_info,
                     'directed'          : directed,
