@@ -1410,8 +1410,16 @@ class MainApp(QtWidgets.QMainWindow):
 
     def restore_settings(self):
         if self._instance == SLAVE:            
+            frame = inspect.currentframe()
+            try:
+                caller = frame.f_back
+                co_name = caller.f_code.co_name        
+                log.warning(f"Restore settings: {co_name} from {caller}")
+            finally:
+                del frame
+            
             for amateur_band in AMATEUR_BANDS.keys():
-                self.wanted_callsigns_vars[amateur_band].blockSignals(True)
+                self._synch_signal = False
                 
                 if self.before_synch_wanted_callsigns.get(amateur_band):
                     before_synch_wanted_callsigns_band = self.before_synch_wanted_callsigns[amateur_band]                    
@@ -1421,7 +1429,7 @@ class MainApp(QtWidgets.QMainWindow):
                     else:
                         self.wanted_callsigns_vars[amateur_band].setText(before_synch_wanted_callsigns_band)
                 
-                self.wanted_callsigns_vars[amateur_band].blockSignals(False)
+                self._synch_signal = True
         
     def process_message_buffer(self):     
         if not self.message_buffer:
@@ -1450,7 +1458,8 @@ class MainApp(QtWidgets.QMainWindow):
                 elif message_type == 'wanted_callsign_being_called' and self.enable_sound_wanted_callsigns:
                     play_sound = True                    
                 elif message_type == 'directed_to_my_call' and self.enable_sound_directed_my_callsign:
-                    play_sound = True
+                    if not selected_message.get('excluded'):
+                        play_sound = True
                 elif message_type == 'ready_to_log' and self.enable_sound_directed_my_callsign:
                     play_sound = True
                 elif message_type == 'error_occurred':
