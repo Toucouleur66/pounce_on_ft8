@@ -1242,8 +1242,9 @@ class MainApp(QtWidgets.QMainWindow):
         if self.worker is not None:            
             self.worker.update_listener_settings_signal.emit()
             if self._instance is not None and self._synch_signal:
-                log.debug("send_worker_signal: self.worker.synch_settings_signal.emit")
-                self.worker.synch_settings_signal.emit()  
+                log.debug(f"synch_settings_signal: Sent with self._instance:{self._instance} and self._synch_signal={self._synch_signal}")
+            else:
+                log.warning(f"synch_settings_signal: Not sent with self._instance:{self._instance} and self._synch_signal={self._synch_signal}")
 
     @QtCore.pyqtSlot(object)
     def on_message_received(self, message):        
