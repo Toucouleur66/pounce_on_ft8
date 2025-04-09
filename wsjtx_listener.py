@@ -408,32 +408,37 @@ class Listener(QObject):
     def reset_synched_settings(self):
         self.synched_settings = None
 
-    def synch_settings(self, addr_port=None):        
-        if (
-            addr_port is None and
-            self._instance == SLAVE and
-            self.synched_settings is not None
-        ):
-            # Do not proceed for synch unless we set synched_settings
-            addr_port = self.origin_addr_port
-           
-        if addr_port:
-            frame = inspect.currentframe()
-            try:
-                caller = frame.f_back
-                co_name = caller.f_code.co_name        
-                log.warning(f"Synch settings ({self._instance}): {co_name} from {caller} {addr_port}")
-            finally:
-                del frame
+    def synch_settings(self, addr_port=None):       
+        try: 
+            if addr_port is None:
+                # Do not proceed for synch unless we set synched_settings
+                if self._instance == SLAVE and self.synched_settings is not None:
+                    addr_port = self.origin_addr_port
+                elif self._instance == MASTER and self.enable_secondary_udp_server:
+                    addr_port = (
+                        self.secondary_udp_server_address,
+                        self.secondary_udp_server_port
+                    )
+            
+            if addr_port:
+                frame = inspect.currentframe()
+                try:
+                    caller = frame.f_back
+                    co_name = caller.f_code.co_name        
+                    log.warning(f"Synch settings ({self._instance}): {co_name} from {caller} {addr_port}")
+                finally:
+                    del frame
 
-            self.send_settings_packet({             
-                'band'                  : self.band,
-                'wanted_callsigns'      : self.wanted_callsigns,
-                'excluded_callsigns'    : self.excluded_callsigns,
-                'monitored_callsigns'   : self.monitored_callsigns,
-                'monitored_cq_zones'    : self.monitored_cq_zones,
-                'excluded_cq_zones'     : self.excluded_cq_zones,
-            }, addr_port)
+                self.send_settings_packet({             
+                    'band'                  : self.band,
+                    'wanted_callsigns'      : self.wanted_callsigns,
+                    'excluded_callsigns'    : self.excluded_callsigns,
+                    'monitored_callsigns'   : self.monitored_callsigns,
+                    'monitored_cq_zones'    : self.monitored_cq_zones,
+                    'excluded_cq_zones'     : self.excluded_cq_zones,
+                }, addr_port)
+        except Exception as e:
+            log.error(f"Failed to synch settings: {e}\n{traceback.format_exc()}")
         
     def send_settings_packet(self, settings_dict, addr_port):
         try:
