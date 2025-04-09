@@ -947,9 +947,7 @@ class Listener(QObject):
                     """
                         Callsign already checked and wanted for
                     """
-                    if (
-                        callsign in self.wanted_callsigns_per_entity.get(self.band, {}).get(entity_code, {})
-                    ):                                    
+                    if callsign in self.wanted_callsigns_per_entity.get(self.band, {}).get(entity_code, {}):
                         marathon = True
                     elif entity_code not in self.adif_data.get('entity', {}).get(current_year, {}).get(self.band, {}):
                         marathon = True

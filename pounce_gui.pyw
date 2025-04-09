@@ -1242,6 +1242,7 @@ class MainApp(QtWidgets.QMainWindow):
         if self.worker is not None:            
             self.worker.update_listener_settings_signal.emit()
             if self._instance is not None and self._synch_signal:
+                log.debug("send_worker_signal: self.worker.synch_settings_signal.emit")
                 self.worker.synch_settings_signal.emit()  
 
     @QtCore.pyqtSlot(object)
@@ -1418,8 +1419,8 @@ class MainApp(QtWidgets.QMainWindow):
             finally:
                 del frame
             
+            self._synch_signal = False
             for amateur_band in AMATEUR_BANDS.keys():
-                self._synch_signal = False
                 
                 if self.before_synch_wanted_callsigns.get(amateur_band):
                     before_synch_wanted_callsigns_band = self.before_synch_wanted_callsigns[amateur_band]                    
@@ -1429,7 +1430,7 @@ class MainApp(QtWidgets.QMainWindow):
                     else:
                         self.wanted_callsigns_vars[amateur_band].setText(before_synch_wanted_callsigns_band)
                 
-                self._synch_signal = True
+            self._synch_signal = True
         
     def process_message_buffer(self):     
         if not self.message_buffer:
@@ -1483,7 +1484,7 @@ class MainApp(QtWidgets.QMainWindow):
                 ):
                     self.last_targeted_call = None    
 
-            if message_type:
+            if message_type and message_type != 'lost_targeted_callsign':                
                 self.set_message_to_focus_value_label(selected_message)          
 
         """
