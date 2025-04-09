@@ -1952,6 +1952,9 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.status_bar_label_packet.setText(f"Buffered: {self.output_model.rowCount()} {self.get_size_of_output_model()}")
 
+        if self.last_frequency:
+            self.status_bar_label_freq.setText(f"Freq: <u>{display_frequency(self.last_frequency)}</u>")
+
         if self.last_targeted_call:
             # self.status_bar_label_reply.setText(f"Last reply: {self.last_targeted_call}")
             pass
@@ -1977,9 +1980,6 @@ class MainApp(QtWidgets.QMainWindow):
                     self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR) 
 
             self.status_bar_label_decode_packet.setText(f"Last decoded: {time_since_last_decode_text} ago")
-
-            if self.last_frequency:
-                self.status_bar_label_freq.setText(f"Freq: <u>{display_frequency(self.last_frequency)}</u>")
 
             # Update new interval if necessary
             if network_check_status_interval != self.network_check_status_interval:
