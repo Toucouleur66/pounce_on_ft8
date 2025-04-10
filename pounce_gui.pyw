@@ -235,7 +235,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.stop_event = threading.Event()
         self.error_occurred.connect(self.set_notice_to_focus_value_label)
-        self.message_received.connect(self.on_message_received)
+        self.message_received.connect(self.handle_message_received)
 
         self.message_times = deque()
         
@@ -671,7 +671,7 @@ class MainApp(QtWidgets.QMainWindow):
 
     def hide_status_menu(self):
         if self.status_menu_agent:
-            self.status_menu_agent.hide_status_bar()
+            self.status_menu_agent.hide_status_menu_agent()
 
     def init_tab_widget_ui(self, params):
         tab_widget = CustomTabWidget()
@@ -1245,7 +1245,7 @@ class MainApp(QtWidgets.QMainWindow):
                 self.worker.synch_settings_signal.emit()  
 
     @QtCore.pyqtSlot(object)
-    def on_message_received(self, message):        
+    def handle_message_received(self, message):        
         if isinstance(message, dict):
             if (
                 self.window_title is None and 
@@ -1258,7 +1258,10 @@ class MainApp(QtWidgets.QMainWindow):
 
             message_type = message.get('type', None)
 
-            if message_type == 'update_mode':
+            if message_type == 'gui_alert':
+                self.set_message_to_focus_value_label(message)    
+                self.stop_monitoring()   
+            elif message_type == 'update_mode':
                 self.mode = message.get('mode')          
             elif message_type == 'instance_status':
                 self.check_instance(
@@ -1792,10 +1795,14 @@ class MainApp(QtWidgets.QMainWindow):
         self.focus_value_label.setText(formatted_message)
 
         contains_my_call = message.get('directed') == message.get('my_call')
-
-        if contains_my_call:
+        contains_alert = message.get('type') == 'gui_alert'
+        
+        if contains_alert:
+            bg_color_hex = FG_COLOR_FOCUS_MY_CALL
+            fg_color_hex = FG_COLOR_BLACK_ON_WHITE
+        elif contains_my_call:
             bg_color_hex = BG_COLOR_FOCUS_MY_CALL
-            fg_color_hex = FG_COLOR_FOCUS_MY_CALL
+            fg_color_hex = FG_COLOR_FOCUS_MY_CALL            
         else:
             bg_color_hex = BG_COLOR_REGULAR_FOCUS
             fg_color_hex = FG_COLOR_REGULAR_FOCUS
@@ -2921,7 +2928,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.worker.error.connect(self.set_notice_to_focus_value_label)
         self.worker.error.connect(self.handle_worker_error)
 
-        self.worker.message.connect(self.on_message_received)
+        self.worker.message.connect(self.handle_message_received)
 
         self.thread.start()   
 
@@ -3033,7 +3040,7 @@ class MainApp(QtWidgets.QMainWindow):
     
     def status_menu_agent_cleaner(self):
         if sys.platform == 'darwin':
-            self.status_menu_agent.hide_status_bar()
+            self.status_menu_agent.hide_status_menu_agent()
             self.status_menu_agent.deleteLater()       
 
 def on_about_to_quit(window):

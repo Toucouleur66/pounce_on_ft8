@@ -215,7 +215,7 @@ class AppDelegate(NSObject):
         if self.view:
             self.view.setTextAndColors(text, bg_color, fg_color)
 
-    def hide_status_bar(self):
+    def hide_status_menu_agent(self):
         if self.statusItem:
             NSStatusBar.systemStatusBar().removeStatusItem_(self.statusItem)
             self.statusItem = None
@@ -253,5 +253,5 @@ class StatusMenuAgent(QtCore.QObject):
         else:
             self.delegate.show_status_bar(text, bg_color, fg_color)
 
-    def hide_status_bar(self):
-        self.delegate.hide_status_bar()
+    def hide_status_menu_agent(self):
+        self.delegate.hide_status_menu_agent()

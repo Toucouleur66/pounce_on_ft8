@@ -236,7 +236,14 @@ class Listener(QObject):
             if self.s.sock is not None:
                 self.s.sock.settimeout(1.0)
             else:
-                log.error(f"Can't open socket for {self.primary_udp_server_address}:{self.primary_udp_server_port}")
+                message = f"Can't open socket for {self.primary_udp_server_address} using port {self.primary_udp_server_port}"
+                log.error(message)
+                if self.message_callback:
+                    self.message_callback({
+                        'type'              : 'gui_alert',
+                        'formatted_message' : message
+                    })
+                self.stop()
         except socket.error as e:
             log.error(f"Error binding primary server to {self.primary_udp_server_address}:{self.primary_udp_server_port} - {e}")
             if e.errno == 49:  
