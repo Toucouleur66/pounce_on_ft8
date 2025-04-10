@@ -100,7 +100,7 @@ def add_timed_file_handler():
     
     root_logger = logging.getLogger()
     root_logger.addHandler(handler)
-    root_logger.info(f"TimedRotatingFileHandler set: {log_filename}")
+    root_logger.info(f"TimedRotatingLog set: {log_filename}")
     return handler
 
 def remove_file_handler(file_handler):

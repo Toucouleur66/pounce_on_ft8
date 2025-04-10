@@ -233,9 +233,10 @@ class Listener(QObject):
                 self.primary_udp_server_address,
                 self.primary_udp_server_port
             )
-            self.s.sock.settimeout(1.0)
-            log.info(f"Primary server running on {self.primary_udp_server_address}:{self.primary_udp_server_port}")
-
+            if self.s.sock is not None:
+                self.s.sock.settimeout(1.0)
+            else:
+                log.error(f"Can't open socket for {self.primary_udp_server_address}:{self.primary_udp_server_port}")
         except socket.error as e:
             log.error(f"Error binding primary server to {self.primary_udp_server_address}:{self.primary_udp_server_port} - {e}")
             if e.errno == 49:  
@@ -282,7 +283,7 @@ class Listener(QObject):
                 self.origin_addr_port = origin_addr_port
 
                 if _instance and _instance != self._instance:
-                    log.error(f'Set instance [ {_instance} ] with [ {type(pywsjtx.WSJTXPacketClassFactory.from_udp_packet(self.origin_addr_port, pkt)).__name__} ] from {self.origin_addr_port}')
+                    log.debug(f'Set instance [ {_instance} ] with [ {type(pywsjtx.WSJTXPacketClassFactory.from_udp_packet(self.origin_addr_port, pkt)).__name__} ] from {self.origin_addr_port}')
 
                     self._instance = _instance                 
                     if self.message_callback:
@@ -486,12 +487,6 @@ class Listener(QObject):
     def listen(self):
         self.receiver_thread.start()
         self.processor_thread.start()
-
-        display_message = f"Listener started on {self.primary_udp_server_address}:{self.primary_udp_server_port} (mode: {self.freq_range_mode})"
-        log.info(display_message)
-        
-        if self.enable_debug_output and self.message_callback:
-            self.message_callback(display_message)
 
     def send_heartbeat_packet(self):
         if self._instance == SLAVE: 

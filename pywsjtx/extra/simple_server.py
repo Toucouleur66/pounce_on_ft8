@@ -5,6 +5,10 @@ import ipaddress
 import select
 import traceback
 
+from logger import get_logger
+
+log = get_logger(__name__)
+
 class SimpleServer(object):
     MAX_BUFFER_SIZE = pywsjtx.GenericWSJTXPacket.MAXIMUM_NETWORK_MESSAGE_SIZE
     DEFAULT_UDP_PORT = 2237
@@ -24,7 +28,7 @@ class SimpleServer(object):
 
             the_address = ipaddress.ip_address(self.ip_address)
             if not the_address.is_multicast:
-                print(f"Starting with non-multicast: {self.ip_address}")
+                log.info(f"Starting with non-multicast: {self.ip_address}:{self.udp_port}")
                 self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
@@ -35,7 +39,7 @@ class SimpleServer(object):
             if self.timeout is not None:
                 self.sock.settimeout(self.timeout)
         except socket.error as e:
-            print(f"Error creating UDP socket: {e}")
+            log.error(f"Error creating UDP socket: {e}")
             self.sock = None
 
     def close_socket(self):
@@ -47,7 +51,7 @@ class SimpleServer(object):
             self.sock = None
 
     def multicast_setup(self, group, port):
-        print(f"Starting with multicast setup")
+        log.debug(f"Starting with multicast setup")
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind(('', port))
@@ -61,13 +65,13 @@ class SimpleServer(object):
                 pkt, addr_port = self.sock.recvfrom(self.MAX_BUFFER_SIZE)
                 return pkt, addr_port
         except socket.timeout:
-            print("rx_packet: socket.timeout")
+            log.warning("rx_packet: socket.timeout")
         except OSError as e:
             if e.errno == 10038:
-                print("Invalid socket so try to create_socket")
+                log.warning("Invalid socket so try to create_socket")
                 self.create_socket()
             else:
-                print(f"Exception in rx_packet: {e}\n{traceback.format_exc()}")
+                log.warning(f"Exception in rx_packet: {e}\n{traceback.format_exc()}")
         return None, None
 
     def send_packet(self, addr_port, pkt):
@@ -75,4 +79,4 @@ class SimpleServer(object):
             if self.sock:
                 self.sock.sendto(pkt, addr_port)
         except OSError as e:
-            print(f"Exception in send_packet: {e}\n{traceback.format_exc()}")
+            log.error(f"Exception in send_packet: {e}\n{traceback.format_exc()}")
