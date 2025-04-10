@@ -228,6 +228,7 @@ class Listener(QObject):
             ODD                             : deque([set()], maxlen=2)
         }
 
+        server_message_error                = None
         try:
             self.s = pywsjtx.extra.simple_server.SimpleServer(
                 self.primary_udp_server_address,
@@ -236,25 +237,21 @@ class Listener(QObject):
             if self.s.sock is not None:
                 self.s.sock.settimeout(1.0)
             else:
-                message = f"Can't open socket for {self.primary_udp_server_address} using port {self.primary_udp_server_port}"
-                log.error(message)
-                if self.message_callback:
-                    self.message_callback({
-                        'type'              : 'gui_alert',
-                        'formatted_message' : message
-                    })
+                server_message_error = f"Can't open socket for {self.primary_udp_server_address} using port {self.primary_udp_server_port}"
+                log.error(server_message_error)                
                 self.stop()
         except socket.error as e:
-            log.error(f"Error binding primary server to {self.primary_udp_server_address}:{self.primary_udp_server_port} - {e}")
+            server_message_error = f"Error binding server to {self.primary_udp_server_address} using port {self.primary_udp_server_port}"
+            log.error(f'{server_message_error} - {e}')
             if e.errno == 49:  
-                custom_message = (
-                    f"Can't create server - {self.primary_udp_server_address}:{self.primary_udp_server_port}.\n"
-                    "Please check your network settings or Primary UDP Server address."
-                )
-                log.error(custom_message)
-                if self.message_callback:
-                    self.message_callback(custom_message)
+                pass
             raise
+
+        if self.message_callback and server_message_error:
+            self.message_callback({
+                'type'              : 'gui_alert',
+                'formatted_message' : server_message_error
+            })
 
     def receive_packets(self):
         while self._running:
