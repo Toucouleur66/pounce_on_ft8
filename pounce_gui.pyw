@@ -2961,7 +2961,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.network_check_status.stop()        
         self.activity_bar.setValue(0) 
         self.hide_status_menu()
-        self.restore_settings()
 
         if self.worker:
             if self.worker:
@@ -3012,7 +3011,8 @@ class MainApp(QtWidgets.QMainWindow):
             self.update_status_button(STATUS_BUTTON_LABEL_START, STATUS_TRX_COLOR)
 
             self.status_button.resetStyle()
-
+            self.restore_settings()
+            
             # Update Windows menu            
             self.update_monitoring_action()   
             self.reset_window_title()
