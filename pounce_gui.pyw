@@ -1421,7 +1421,6 @@ class MainApp(QtWidgets.QMainWindow):
             finally:
                 del frame
             
-            self._synch_signal = False
             for amateur_band in AMATEUR_BANDS.keys():
                 
                 if self.before_synch_wanted_callsigns.get(amateur_band):
@@ -1431,8 +1430,6 @@ class MainApp(QtWidgets.QMainWindow):
                         self.wanted_callsigns_vars[amateur_band].clear()
                     else:
                         self.wanted_callsigns_vars[amateur_band].setText(before_synch_wanted_callsigns_band)
-                
-            self._synch_signal = True
         
     def process_message_buffer(self):     
         if not self.message_buffer:
@@ -2047,7 +2044,6 @@ class MainApp(QtWidgets.QMainWindow):
             self.pobjc_timer.stop() 
 
         self.worker.reset_settings_signal.emit()
-        self.restore_settings()  
                     
     def on_resume_connection(self):
         log.warning("Resume connection")
@@ -2965,6 +2961,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.network_check_status.stop()        
         self.activity_bar.setValue(0) 
         self.hide_status_menu()
+        self.restore_settings()
 
         if self.worker:
             if self.worker:

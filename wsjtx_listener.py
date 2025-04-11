@@ -909,14 +909,7 @@ class Listener(QObject):
                 current_year      = str(datetime.now().year)
 
                 wkb4_year         = None
-                entity_code       = callsign_info.get('entity') if callsign_info else None
-
-                """
-                    Ignore if DT is above normal values
-                """
-                if abs(delta_t) > MAXIMUM_ALLOWED_DT:
-                    log.error(f"DT is above normal for [ {callsign } ]. DT: [ {round(delta_t, 1)}s ]")
-                    return
+                entity_code       = callsign_info.get('entity') if callsign_info else None                
 
                 """
                     Check if wanted and is Worked b4
@@ -1133,6 +1126,13 @@ class Listener(QObject):
                         log.warning(f"Lost focus for callsign [ {self.targeted_call} ]")        
                         self.targeted_call = None  
                         self.halt_packet()
+
+                """
+                    Ignore if DT is above normal values
+                """
+                if abs(delta_t) > MAXIMUM_ALLOWED_DT and reply_to_packet:
+                    log.error(f"DT is above normal for [ {callsign } ]. DT: [ {round(delta_t, 1)}s ]")
+                    return                        
                 
                 """
                     Check priority
