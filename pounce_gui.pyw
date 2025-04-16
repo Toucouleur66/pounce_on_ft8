@@ -287,22 +287,24 @@ class MainApp(QtWidgets.QMainWindow):
         self.sound_timer.timeout.connect(self.play_next_sound)
         self.currently_playing = False
 
-        self.wanted_callsign_detected_sound     = QSoundEffect()
-        self.wanted_callsign_being_called_sound = QSoundEffect()
-        self.directed_to_my_call_sound          = QSoundEffect()
-        self.ready_to_log_sound                 = QSoundEffect()
-        self.error_occurred_sound               = QSoundEffect()
-        self.band_change_sound                  = QSoundEffect()
-        self.updated_settings                   = QSoundEffect()
-        self.monitored_callsign_detected_sound  = QSoundEffect()
-        self.enabled_global_sound               = QSoundEffect()
+        self.wanted_callsign_first_time_decoded_sound = QSoundEffect()
+        self.wanted_callsign_decoded_sound           = QSoundEffect()
+        self.wanted_callsign_being_called_sound      = QSoundEffect()
+        self.directed_to_my_call_sound               = QSoundEffect()
+        self.ready_to_log_sound                      = QSoundEffect()
+        self.error_occurred_sound                    = QSoundEffect()
+        self.band_change_sound                       = QSoundEffect()
+        self.updated_settings                        = QSoundEffect()
+        self.monitored_callsign_decoded_sound        = QSoundEffect()
+        self.enabled_global_sound                    = QSoundEffect()
 
-        self.wanted_callsign_detected_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/495650__matrixxx__supershort-ping-or-short-notification.wav"))
+        self.wanted_callsign_first_time_decoded_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/709060__scottyd0es__aeroce-proximity-notification.wav"))
+        self.wanted_callsign_decoded_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/495650__matrixxx__supershort-ping-or-short-notification.wav"))
         self.wanted_callsign_being_called_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/716444__scottyd0es__tone12_alert_5.wav"))
         self.directed_to_my_call_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/716445__scottyd0es__tone12_error.wav"))
         self.ready_to_log_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/709072__scottyd0es__aeroce-dualtone-5.wav"))
         self.error_occurred_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/142608__autistic-lucario__error.wav"))
-        self.monitored_callsign_detected_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/716442__scottyd0es__tone12_alert_3.wav"))
+        self.monitored_callsign_decoded_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/716442__scottyd0es__tone12_alert_3.wav"))
         self.band_change_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/342759__rhodesmas__score-counter-01.wav"))
         self.updated_settings.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/342757__rhodesmas__searching-03.wav"))
         self.enabled_global_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/342754__rhodesmas__searching-01.wav"))
@@ -1175,8 +1177,6 @@ class MainApp(QtWidgets.QMainWindow):
         
     def apply_band_change(self, band):
         if band != 'Invalid' and band != self.operating_band:    
-            self.restore_settings()
-
             self.operating_band = band
             self.monitoring_settings.set_wanted_callsigns(self.wanted_callsigns_vars[self.operating_band].text())
             self.monitoring_settings.set_monitored_callsigns(self.monitored_callsigns_vars[self.operating_band].text())
@@ -1394,12 +1394,12 @@ class MainApp(QtWidgets.QMainWindow):
             """
                 Restore band and save wanted_callsigns_vars per band
             """
+            self._synch_signal = False
             self.restore_settings()
             for amateur_band in AMATEUR_BANDS.keys():                
                 self.before_synch_wanted_callsigns[amateur_band] = self.wanted_callsigns_vars[amateur_band].text()   
           
             # To block signal 
-            self._synch_signal = False
             if not master_wanted_callsigns:
                 self.wanted_callsigns_vars[band].clear()
             else:
@@ -1452,8 +1452,10 @@ class MainApp(QtWidgets.QMainWindow):
             play_sound = False
             message_type = selected_message.get('message_type')
 
-            if self.global_sound_toggle.isChecked():      
-                if message_type == 'wanted_callsign_detected' and self.enable_sound_wanted_callsigns:
+            if self.global_sound_toggle.isChecked():     
+                if message_type == 'wanted_callsign_first_time_decoded' and self.enable_sound_wanted_callsigns:
+                    play_sound = True 
+                if message_type == 'wanted_callsign_decoded' and self.enable_sound_wanted_callsigns:
                     play_sound = True
                 elif message_type == 'wanted_callsign_being_called' and self.enable_sound_wanted_callsigns:
                     play_sound = True                    
@@ -1465,7 +1467,7 @@ class MainApp(QtWidgets.QMainWindow):
                 elif message_type == 'error_occurred':
                     play_sound = True
                 elif (
-                    message_type == 'monitored_callsign_detected' 
+                    message_type == 'monitored_callsign_decoded' 
                 ) and self.enable_sound_monitored_callsigns:
                     delay = int(self.delay_between_sound_for_monitored)                   
                     if (current_time - self.last_sound_played_time).total_seconds() > delay:                                                 
@@ -1819,15 +1821,16 @@ class MainApp(QtWidgets.QMainWindow):
     def play_sound(self, sound_name):
         try:           
             sound_mapping = {
-                'wanted_callsign_detected'      : self.wanted_callsign_detected_sound,
-                'wanted_callsign_being_called'  : self.wanted_callsign_being_called_sound,
-                'directed_to_my_call'           : self.directed_to_my_call_sound,
-                'monitored_callsign_detected'   : self.monitored_callsign_detected_sound,
-                'ready_to_log'                  : self.ready_to_log_sound,
-                'band_change'                   : self.band_change_sound,
-                'updated_settings'              : self.updated_settings,
-                'error_occurred'                : self.error_occurred_sound,
-                'enable_global_sound'           : self.enabled_global_sound
+                'wanted_callsign_first_time_decoded' : self.wanted_callsign_first_time_decoded_sound,
+                'wanted_callsign_decoded'           : self.wanted_callsign_decoded_sound,
+                'wanted_callsign_being_called'      : self.wanted_callsign_being_called_sound,
+                'directed_to_my_call'               : self.directed_to_my_call_sound,
+                'monitored_callsign_decoded'        : self.monitored_callsign_decoded_sound,
+                'ready_to_log'                      : self.ready_to_log_sound,
+                'band_change'                       : self.band_change_sound,
+                'updated_settings'                  : self.updated_settings,
+                'error_occurred'                    : self.error_occurred_sound,
+                'enable_global_sound'               : self.enabled_global_sound
             }
 
             sound = sound_mapping.get(sound_name)
@@ -2031,7 +2034,6 @@ class MainApp(QtWidgets.QMainWindow):
         log.warning("Lost connection")
         
         self._connected = False
-        self.operating_band = None
 
         self.check_connection_status()
         
@@ -2102,7 +2104,9 @@ class MainApp(QtWidgets.QMainWindow):
         log.debug("Quit")
 
     def restart_application(self):
-        self.restore_settings()
+        if self._running:
+                self.stop_monitoring()
+            
         self.save_window_position()
 
         self.save_band_settings()
@@ -3012,7 +3016,7 @@ class MainApp(QtWidgets.QMainWindow):
 
             self.status_button.resetStyle()
             self.restore_settings()
-            
+
             # Update Windows menu            
             self.update_monitoring_action()   
             self.reset_window_title()

@@ -104,6 +104,7 @@ class Listener(QObject):
         self.last_logged_call           = None
         self.targeted_call              = None
         self.targeted_call_frequencies  = set()
+        self.first_time_decoded          = deque([set()], maxlen=10)
         self.targeted_call_period       = None
         self.grid_being_called          = {}
         self.rst_rcvd_from_being_called = {}
@@ -419,7 +420,7 @@ class Listener(QObject):
                 # Do not proceed for synch unless we set synched_settings
                 if self._instance == SLAVE and self.synched_settings is not None:
                     addr_port = self.origin_addr_port
-                elif self._instance == MASTER and self.enable_secondary_udp_server:
+                elif self.enable_secondary_udp_server:
                     addr_port = (
                         self.secondary_udp_server_address,
                         self.secondary_udp_server_port
@@ -1100,7 +1101,11 @@ class Listener(QObject):
                             reply_to_packet = True    
                 elif wanted is True: 
                     reply_to_packet = True
-                    message_type = 'wanted_callsign_detected'
+                    
+                    message_type = 'wanted_callsign_decoded'
+                    if callsign not in self.first_time_decoded:
+                        self.first_time_decoded.append(callsign)
+                        message_type = 'wanted_callsign_first_time_decoded'
 
                     if self.enable_gap_finder:
                         self.targeted_call_frequencies.add(delta_f)     
@@ -1116,7 +1121,7 @@ class Listener(QObject):
                         self.message_callback(debug_message)
 
                 elif monitored or monitored_cq_zone:
-                    message_type = 'monitored_callsign_detected'   
+                    message_type = 'monitored_callsign_decoded'   
                 elif self.targeted_call is not None:
                     if (
                         self.reply_attempts.get(self.targeted_call) and
