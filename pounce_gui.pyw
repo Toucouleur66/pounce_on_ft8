@@ -222,7 +222,7 @@ class MainApp(QtWidgets.QMainWindow):
         }
                 
         self.setGeometry(100, 100, 1_000, 700)
-        self.setMinimumSize(780, 550)
+        self.setMinimumSize(780, 500)
         self.setWindowTitle(self.base_title)      
 
         if platform.system() == 'Windows':
@@ -350,6 +350,7 @@ class MainApp(QtWidgets.QMainWindow):
         top_layout = QtWidgets.QHBoxLayout()
         top_layout.setContentsMargins(0, 0, 0, 5)
         top_layout.setSpacing(0)
+        
         self.focus_frame = QtWidgets.QFrame()
         self.focus_frame_layout = QtWidgets.QHBoxLayout()
         self.focus_frame_layout.setContentsMargins(0, 0, 0, 0)
@@ -996,13 +997,13 @@ class MainApp(QtWidgets.QMainWindow):
         self.animate_layout_height(self.filter_widget, target_height=60)  
         QtCore.QTimer.singleShot(0, self.callsign_input.setFocus)
 
-    def animate_layout_height(self, widget, target_height):
+    def animate_layout_height(self, widget, target_height, duration=300):
         widget.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
         widget.setMinimumHeight(0)
         widget.setMaximumHeight(widget.height())
 
         animation = QPropertyAnimation(widget, b"maximumHeight")
-        animation.setDuration(300)
+        animation.setDuration(duration)
         animation.setEasingCurve(QtCore.QEasingCurve.Type.InOutCubic)
 
         animation.setStartValue(widget.height())
@@ -1123,13 +1124,15 @@ class MainApp(QtWidgets.QMainWindow):
     def add_new_items_to_combo(self, combo, new_items, default_value=DEFAULT_FILTER_VALUE):
         combo.blockSignals(True)
 
-        existing_items      = [combo.itemText(i) for i in range(combo.count()) if combo.itemText(i) != default_value]
-        combined_items      = set(existing_items).union(new_items)
+        existing_items = [combo.itemText(i) for i in range(combo.count()) if combo.itemText(i) != default_value]
+        combined_items = set(existing_items).union(new_items)
 
-        numeric_items       = sorted((item for item in combined_items if item.isdigit()), key=int)
-        non_numeric_items   = sorted(item for item in combined_items if not item.isdigit())
-
-        sorted_items        = [default_value] + numeric_items + non_numeric_items
+        if combo == self.band_combo:
+            sorted_items = [default_value] + sorted(combined_items, key=lambda x: int(x[:-1]) if x[:-1].isdigit() else float('inf'))
+        else:
+            numeric_items = sorted((item for item in combined_items if item.isdigit()), key=int)
+            non_numeric_items = sorted(item for item in combined_items if not item.isdigit())
+            sorted_items = [default_value] + numeric_items + non_numeric_items
 
         combo.clear()
         combo.addItems(sorted_items)
@@ -1309,6 +1312,7 @@ class MainApp(QtWidgets.QMainWindow):
                 monitored           = message.get('monitored')
                 monitored_cq_zone   = message.get('monitored_cq_zone')
                 wkb4_year           = message.get('wkb4_year')
+                entity_wkb4         = message.get('entity_wkb4')
 
                 empty_str           = ''
                 entity              = empty_str
@@ -1336,13 +1340,20 @@ class MainApp(QtWidgets.QMainWindow):
                     message_color      = "white_on_blue"
                 else:
                     message_color      = None
+
                 
                 if callsign_info:
-                    entity    = (callsign_info.get("entity") or callsign_info.get("name", "Unknown")).title()
-                    cq_zone   = callsign_info.get("cqz")
-                    continent = callsign_info.get("cont")
+                    entity      = (callsign_info.get("entity") or callsign_info.get("name", "Unknown")).title()
+                    cq_zone     = callsign_info.get("cqz")
+                    continent   = callsign_info.get("cont")
+                    entity_wkb4 = message.get('entity_wkb4')
+
                 elif callsign_info is None:
-                    entity    = "Where?"
+                    entity      = "Where?"
+
+                if entity_wkb4:
+                    if wkb4_year is None:
+                        wkb4_year = '⋆'
                  
                 self.update_model_data(
                     wanted,

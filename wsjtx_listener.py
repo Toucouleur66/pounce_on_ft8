@@ -891,7 +891,7 @@ class Listener(QObject):
                 directed          = parsed_message['directed']
                 callsign          = parsed_message['callsign']
                 callsign_info     = parsed_message['callsign_info']
-                worked_b4         = False
+                callsign_wkb4     = False
                 marathon          = False
                 priority          = 0
 
@@ -910,7 +910,9 @@ class Listener(QObject):
                 current_year      = str(datetime.now().year)
 
                 wkb4_year         = None
-                entity_code       = callsign_info.get('entity') if callsign_info else None                
+
+                entity_code       = callsign_info.get('entity') if callsign_info else None       
+                entity_wkb4       = False         
 
                 """
                     Check if wanted and is Worked b4
@@ -927,8 +929,20 @@ class Listener(QObject):
                             self.worked_before_preference == WKB4_REPLY_MODE_CURRENT_YEAR
                         )
                     ):
-                        wanted    = False
-                        worked_b4 = True
+                        wanted        = False
+                        callsign_wkb4 = True
+
+                """
+                    Check if entity code is already worked for marathon
+                """
+                if (
+                    self.adif_data.get('entity') and
+                    self.enable_marathon and 
+                    self.marathon_preference.get(self.band) and
+                    entity_code
+                ):                
+                    if entity_code in self.adif_data.get('entity', {}).get(current_year, {}).get(self.band, {}):
+                        entity_wkb4 = True
             
                 """
                     Check if entity code is needed for marathon
@@ -937,11 +951,11 @@ class Listener(QObject):
                     self.enable_marathon and 
                     self.marathon_preference.get(self.band) and
                     self.adif_data.get('entity') and 
-                    wanted is False and
-                    not excluded and                
-                    not worked_b4 and
+                    wanted is False and                              
+                    not callsign_wkb4 and
+                    not excluded and 
                     entity_code
-                ):
+                ):                    
                     """
                         Callsign already checked and wanted for
                     """
@@ -968,8 +982,8 @@ class Listener(QObject):
                                 'type'          : 'update_wanted_callsign',
                                 'callsign'      : callsign,
                                 'action'        : 'add'
-                            })    
-                                
+                            })   
+                            
                     if marathon:
                         wanted = True
 
@@ -1176,6 +1190,7 @@ class Listener(QObject):
                     'monitored'         : monitored,
                     'monitored_cq_zone' : monitored_cq_zone,
                     'wkb4_year'         : wkb4_year,
+                    'entity_wkb4'       : entity_wkb4,
                     'delta_time'        : delta_t,
                     'delta_freq'        : delta_f,
                     'snr'               : snr,                
