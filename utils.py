@@ -128,7 +128,6 @@ def parse_single_wsjtx_message(
                 cqing    = True
                 callsign = match.group(1)
                 grid     = match.group(2)
-
             else:
                 # 4) Handle "directed" <callsign> 
                 #
@@ -188,8 +187,9 @@ def parse_single_wsjtx_message(
         else:
             pass
 
-    if callsign and lookup:    
-        if cqing and not grid:
+    if callsign and lookup:            
+        # Also check if exact match
+        if cqing and not grid and callsign not in wanted_callsigns:
             pass
         else:     
             callsign_info = lookup.lookup_callsign(callsign, grid)    
