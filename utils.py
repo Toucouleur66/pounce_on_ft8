@@ -212,7 +212,7 @@ def parse_single_wsjtx_message(
         if cq_zone and cq_zone in monitored_cq_zones:
             is_monitored_cq_zone = True
 
-        if cq_zone and cq_zone in excluded_cq_zones:
+        if cq_zone and cq_zone in excluded_cq_zones and callsign not in wanted_callsigns:
             is_excluded = True            
 
         wanted            = is_wanted and not is_excluded and not is_worked

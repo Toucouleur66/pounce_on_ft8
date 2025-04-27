@@ -903,6 +903,7 @@ class Listener(QObject):
                 excluded          = parsed_message['excluded']
                 monitored         = parsed_message['monitored']
                 monitored_cq_zone = parsed_message['monitored_cq_zone']
+                
                 """
                     Might need to handle in priority callsign set rather than callsign
                     automatically added
