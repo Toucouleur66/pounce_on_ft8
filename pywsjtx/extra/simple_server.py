@@ -50,13 +50,21 @@ class SimpleServer(object):
                 pass
             self.sock = None
 
-    def multicast_setup(self, group, port):
-        log.debug(f"Starting with multicast setup")
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.sock.bind(('', port))
-        mreq = struct.pack("4sl", socket.inet_aton(group), socket.INADDR_ANY)
-        self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+    def multicast_setup(self, group, port, interface_ip="0.0.0.0"):
+        try:
+            if not ipaddress.ip_address(group).is_multicast:
+                raise ValueError(f"{group} is not a valid multicast address")
+            log.debug(f"Starting with multicast setup on group {group}, port {port}, interface {interface_ip}")
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.sock.bind(('', port))
+            mreq = struct.pack("4s4s", socket.inet_aton(group), socket.inet_aton(interface_ip))
+            self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 2**16) 
+            self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1)  
+        except (socket.error, ValueError) as e:
+            log.error(f"Error during multicast setup: {e}")
+            self.sock = None
 
     def rx_packet(self):
         try:
