@@ -20,7 +20,7 @@ from PyQt6.QtCore import QObject, QThread, QTimer
 from logger import get_logger
 
 from utils import get_local_ip_address, get_mode_interval, get_amateur_band, parse_wsjtx_message
-from utils import get_wkb4_year, get_clean_rst
+from utils import get_wkb4_year, is_entity_worked_b4, get_clean_rst
 from utils import load_marathon_wanted_data, save_marathon_wanted_data
 
 from callsign_lookup import CallsignLookup
@@ -38,6 +38,7 @@ from constants import (
     ODD,
     MASTER,
     SLAVE,
+    MARATHON_UNLIMITED,
     WAITING_TIME_BEFORE_REPLY,
     HEARTBEAT_TIMEOUT_THRESHOLD,
     MODE_FOX_HOUND,
@@ -386,7 +387,10 @@ class Listener(QObject):
         log_output.append(f"ExcludedZones={self.excluded_cq_zones}")
         
         if self.enable_marathon:
-            log_output.append(f"Marathon={self.marathon_preference.get(self.band)}")
+            marathon_preference = self.marathon_preference.get(self.band)
+            if not marathon_preference:
+                marathon_preference = MARATHON_UNLIMITED                
+            log_output.append(f"Marathon={marathon_preference}")
 
         log.warning(f"\n\t".join(log_output))
 
@@ -939,10 +943,15 @@ class Listener(QObject):
                 if (
                     self.adif_data.get('entity') and
                     self.enable_marathon and 
-                    self.marathon_preference.get(self.band) and
                     entity_code
                 ):                
-                    if entity_code in self.adif_data.get('entity', {}).get(current_year, {}).get(self.band, {}):
+                    if (
+                        (
+                            self.marathon_preference.get(self.band) or
+                            self.marathon_preference.get(MARATHON_UNLIMITED)
+                        ) and
+                        entity_code in self.adif_data.get('entity', {}).get(current_year, {}).get(self.band, {})
+                    ):
                         entity_wkb4 = True
             
                 """
@@ -950,19 +959,21 @@ class Listener(QObject):
                 """
                 if (
                     self.enable_marathon and 
-                    self.marathon_preference.get(self.band) and
                     self.adif_data.get('entity') and 
                     wanted is False and                              
                     not callsign_wkb4 and
                     not excluded and 
                     entity_code
-                ):                    
-                    """
-                        Callsign already checked and wanted for
-                    """
+                ):                
                     if callsign in self.wanted_callsigns_per_entity.get(self.band, {}).get(entity_code, {}):
                         marathon = True
-                    elif entity_code not in self.adif_data.get('entity', {}).get(current_year, {}).get(self.band, {}):
+                    elif ((   
+                            self.marathon_preference.get(self.band) and
+                            entity_code not in self.adif_data.get('entity', {}).get(current_year, {}).get(self.band, {}) 
+                        ) or (
+                            self.marathon_preference.get(MARATHON_UNLIMITED) and 
+                            not is_entity_worked_b4(self.adif_data, entity_code, current_year)
+                        )):
                         marathon = True
 
                         if not self.wanted_callsigns_per_entity.get(self.band):
@@ -1229,19 +1240,20 @@ class Listener(QObject):
         ]
         
         """
-            Handle priority
+            Handle priority: Make sure to keep priority higher
+            than the one being used, for monitored messages
         """        
         for filtered_message in filtered_messages:
             if filtered_message['directed'] == self.my_call:
                 if filtered_message['callsign'] == self.targeted_call:
-                    filtered_message['priority'] = 4
+                    filtered_message['priority'] = 5
                 else:
-                    filtered_message['priority'] = 3
+                    filtered_message['priority'] = 4
             else:
                 if filtered_message.get('cqing'):
-                    filtered_message['priority'] = 2
+                    filtered_message['priority'] = 3
                 else:
-                    filtered_message['priority'] = 1
+                    filtered_message['priority'] = 2
 
                 if filtered_message['marathon']:
                     filtered_message['priority']-= 1

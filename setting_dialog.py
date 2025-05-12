@@ -35,6 +35,8 @@ from constants import (
     FREQ_MAXIMUM,
     FREQ_MINIMUM_FOX_HOUND,
     FREQ_MAXIMUM_SUPER_FOX,
+    # Marathon
+    MARATHON_UNLIMITED,
     # UDP related
     DEFAULT_UDP_PORT,
     DEFAULT_AUTO_START_MONITORING,
@@ -487,7 +489,7 @@ class SettingsDialog(QtWidgets.QDialog):
         row = 0
         col = 0
 
-        for amateur_band in list(AMATEUR_BANDS.keys())[:-1]:
+        for amateur_band in list(AMATEUR_BANDS.keys())[:-2]:
             btn = CustomButton(amateur_band)
             btn.setCheckable(True)         
             btn.toggled.connect(lambda checked, btn=btn, name=amateur_band: self.on_band_toggled(btn, name, checked))
@@ -498,6 +500,12 @@ class SettingsDialog(QtWidgets.QDialog):
             if col >= max_cols:
                 col = 0
                 row += 1
+    
+        btn = CustomButton(MARATHON_UNLIMITED)        
+        btn.setCheckable(True)         
+        btn.toggled.connect(lambda checked, btn=btn, name=MARATHON_UNLIMITED: self.on_band_toggled(btn, MARATHON_UNLIMITED, checked))
+        self.band_buttons[MARATHON_UNLIMITED] = btn
+        marathon_layout.addWidget(btn, row, col)        
 
         self.marathon_group.setLayout(marathon_layout)
 
@@ -600,10 +608,30 @@ class SettingsDialog(QtWidgets.QDialog):
         self.tab_widget.currentChanged.connect(self.on_tab_changed)        
 
     def on_band_toggled(self, button, band_name, checked):
+        if not hasattr(self, "_previous_band_states"):
+            self._previous_band_states = {}
+
+        if band_name == MARATHON_UNLIMITED:
+            if checked:
+                self._previous_band_states = {
+                    name: btn.isChecked() for name, btn in self.band_buttons.items() if name != MARATHON_UNLIMITED
+                }
+                for name, btn in self.band_buttons.items():
+                    if name != MARATHON_UNLIMITED:
+                        btn.setChecked(False)
+            else:
+                for name, btn in self.band_buttons.items():
+                    if name != MARATHON_UNLIMITED and name in self._previous_band_states:
+                        btn.setChecked(self._previous_band_states[name])
+        else:
+            if checked:
+                self.band_buttons[MARATHON_UNLIMITED].setChecked(False)
+                self.band_buttons[MARATHON_UNLIMITED].setEnabled(True)
+
         if checked:
             button.updateStyle(band_name, STATUS_TRX_COLOR, "#FFFFFF")
         else:
-            button.resetStyle()        
+            button.resetStyle()
 
     def on_table_row_selected(self, row, column):
         button = self.mode_table_widget.cellWidget(row, 0)

@@ -18,6 +18,7 @@ import pyperclip
 import sys
 import threading
 import uuid
+import webbrowser
 
 """
     Not to be deleted because it allows for one-off debugging
@@ -1448,9 +1449,8 @@ class MainApp(QtWidgets.QMainWindow):
         else:
             max_decode_time_str = max(message['decode_time_str'] for message in self.message_buffer)            
             latest_messages = [message for message in self.message_buffer if message['decode_time_str'] == max_decode_time_str]
-            selected_message = max(latest_messages, key=lambda message: message['priority'], default=None)
 
-        # log.error(selected_message)
+            selected_message = max(latest_messages, key=lambda message: message['priority'], default=None)
 
         if (
             selected_message and
@@ -1575,6 +1575,9 @@ class MainApp(QtWidgets.QMainWindow):
 
             if len(callsign_bands[callsign]) > 1:
                 actions['remove_callsign_from_worked_history'] = menu.addAction(f"Remove {callsign} on all bands from Worked History ({", ".join(sorted(callsign_bands[callsign]))})")
+
+            actions['qrz_com_for_wanted_callsign'] = menu.addAction(f"Open QRZ.com for {callsign}")
+    
             menu.addSeparator()
 
         label = QtWidgets.QLabel(f"Apply to {context_menu_band}")
@@ -1597,8 +1600,8 @@ class MainApp(QtWidgets.QMainWindow):
         if callsign != self.wanted_callsigns_vars[context_menu_band].text():
             actions['replace_wanted_with_callsign'] = menu.addAction(f"Make {callsign} your only Wanted Callsign")
             if self._instance == SLAVE:
-                actions['replace_wanted_with_callsign'].setEnabled(False)
-        menu.addSeparator()
+                actions['replace_wanted_with_callsign'].setEnabled(False)        
+        
 
         """
             Excluded Callsigns
@@ -1608,7 +1611,7 @@ class MainApp(QtWidgets.QMainWindow):
         else:
             actions['remove_callsign_from_excluded'] = menu.addAction(f"Remove {callsign} from Excluded Callsigns")
         menu.addSeparator()
-
+       
         """
             Monitored Callsigns
         """
@@ -1617,6 +1620,10 @@ class MainApp(QtWidgets.QMainWindow):
         else:
             actions['remove_callsign_from_monitored'] = menu.addAction(f"Remove {callsign} from Monitored Callsigns")
         menu.addSeparator()
+
+        if table.objectName() != 'history_table':                
+            actions['qrz_com_for_wanted_callsign'] = menu.addAction(f"Open QRZ.com for {callsign}")
+            menu.addSeparator()
 
         """
             Directed Callsigns
@@ -1635,6 +1642,10 @@ class MainApp(QtWidgets.QMainWindow):
                     actions['add_directed_to_monitored'] = menu.addAction(f"Add {directed} to Monitored Callsigns")
                 else:
                     actions['remove_directed_from_monitored'] = menu.addAction(f"Remove {directed} from Monitored Callsigns")
+
+                if table.objectName() != 'history_table':    
+                    menu.addSeparator()            
+                    actions['qrz_com_for_directed_callsign'] = menu.addAction(f"Open QRZ.com for {directed}")    
                 menu.addSeparator()
 
         """
@@ -1672,6 +1683,7 @@ class MainApp(QtWidgets.QMainWindow):
                 'remove_callsign_from_worked_history' : lambda: self.remove_worked_callsign(callsign),
                 'add_callsign_to_wanted'              : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], callsign),
                 'remove_callsign_from_wanted'         : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], callsign, "remove"),
+                'qrz_com_for_wanted_callsign'         : lambda: self.open_qrz_com(callsign),
                 'replace_wanted_with_callsign'        : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], callsign, "replace"),
                 'add_callsign_to_monitored'           : lambda: self.update_var(self.monitored_callsigns_vars[context_menu_band], callsign),
                 'remove_callsign_from_monitored'      : lambda: self.update_var(self.monitored_callsigns_vars[context_menu_band], callsign, "remove"),
@@ -1682,6 +1694,7 @@ class MainApp(QtWidgets.QMainWindow):
                 'replace_wanted_with_directed'        : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], directed, "replace"),
                 'add_directed_to_monitored'           : lambda: self.update_var(self.monitored_callsigns_vars[context_menu_band], directed),
                 'remove_directed_from_monitored'      : lambda: self.update_var(self.monitored_callsigns_vars[context_menu_band], directed, "remove"),
+                'qrz_com_for_directed_callsign'       : lambda: self.open_qrz_com(directed),
                 'add_to_cq_zone'                      : lambda: self.update_var(self.monitored_cq_zones_vars[context_menu_band], cq_zone),
                 'remove_from_cq_zone'                 : lambda: self.update_var(self.monitored_cq_zones_vars[context_menu_band], cq_zone, "remove"),
             }
@@ -1692,6 +1705,13 @@ class MainApp(QtWidgets.QMainWindow):
                     if update_func:
                         update_func()
                         break
+
+    def open_qrz_com(self, callsign):
+        if callsign:
+            qrz_url = f"https://www.qrz.com/db/{callsign}"
+            webbrowser.open(qrz_url)
+        else:
+            log.warning("No callsign provided to open QRZ.com")
 
     def update_var(self, var, value, action='add'):
         current_text = var.text()
@@ -1950,7 +1970,7 @@ class MainApp(QtWidgets.QMainWindow):
                 # heartbeat_str = f"HeartBeat: {self.last_heartbeat_time.strftime('%Y.%m.%d <u>%H:%M:%S</u>')}"
                 heartbeat_str = f"HeartBeat: {self.last_heartbeat_time.astimezone().strftime('<u>%H:%M:%S</u>')}"
         else:
-            heartbeat_str = "No HeartBeat received yet."
+            heartbeat_str = "No HeartBeat received."
 
         self.status_bar_label_heartbeat.setText(heartbeat_str)
 
@@ -2004,7 +2024,7 @@ class MainApp(QtWidgets.QMainWindow):
                 self.network_check_status_interval = network_check_status_interval
                 self.network_check_status.setInterval(self.network_check_status_interval)                               
         else:
-            self.status_bar_label_decode_packet.setText("No DecodePacket received yet.")
+            self.status_bar_label_decode_packet.setText("No DecodePacket received.")
         
         if connection_lost:            
             self.reset_window_title()

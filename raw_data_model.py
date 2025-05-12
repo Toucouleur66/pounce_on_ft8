@@ -24,7 +24,7 @@ from constants import (
     DATE_COLUMN_AGE
 )
 class RawDataModel(QtCore.QAbstractTableModel):
-    def __init__(self, data=None, max_size_bytes=10**7, max_num_rows=10_000):
+    def __init__(self, data=None, max_size_bytes=50**7, max_num_rows=50_000):
         super().__init__()
         self._data = data or []
         self._headers = [
@@ -186,17 +186,8 @@ class RawDataModel(QtCore.QAbstractTableModel):
             self._current_size_bytes = asizeof.asizeof(self._data)
         
         while len(self._data) > self._max_num_rows:
-            index_to_remove = None
-            for i, row_data in enumerate(self._data):                
-                if row_data.get('row_color') is None:
-                    index_to_remove = i
-                    break
-
-            if index_to_remove is None:
-                break
-
-            self.beginRemoveRows(QtCore.QModelIndex(), index_to_remove, index_to_remove)
-            del self._data[index_to_remove]
+            self.beginRemoveRows(QtCore.QModelIndex(), 0, 0)
+            del self._data[0]
             self.endRemoveRows()
 
     def remove_raw_data_at(self, index):

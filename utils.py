@@ -470,6 +470,7 @@ def parse_adif_record(record, lookup):
     band        = fields.get('BAND')
     qso_date    = fields.get('QSO_DATE')
     time_on     = fields.get('TIME_ON')
+    grid        = fields.get('GRIDSQUARE') 
     
     qso_datetime = None
     if qso_date and len(qso_date) >= 8:
@@ -492,6 +493,7 @@ def parse_adif_record(record, lookup):
             qso_datetime = None
 
     call = call.upper() if call else None
+    grid = grid.upper() if grid else None
     band = band.lower() if band else None
     year = qso_date[0:4] if qso_date and len(qso_date) >= 4 else None
 
@@ -502,12 +504,13 @@ def parse_adif_record(record, lookup):
         else:
             info = lookup.lookup_callsign(call)
 
-    return year, band, call, info
+    return year, band, grid, call, info
 
 def parse_adif(file_path, lookup=None):
     start_time = time.time()
 
     parsed_wkb4_data    = defaultdict(lambda: defaultdict(set))
+    parsed_grid_data    = defaultdict(lambda: defaultdict(set))
     parsed_entity_data  = defaultdict(lambda: defaultdict(set)) if lookup else None
 
     with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
@@ -519,18 +522,21 @@ def parse_adif(file_path, lookup=None):
         record = record.strip()
         if record:
             record = " ".join(record.split())
-            year, band, call, info = parse_adif_record(record, lookup)
+            year, band, grid, call, info = parse_adif_record(record, lookup)
 
             if lookup and year and band and info and info.get('entity'):
                 parsed_entity_data[year][band].add(info.get('entity'))
             if year and band and call:
                 parsed_wkb4_data[year][band].add(call)
+            if band and grid and call:
+                parsed_grid_data[band][grid].add(call)
 
     processing_time = time.time() - start_time
 
     return processing_time, {
         'wkb4'  : parsed_wkb4_data,
-        'entity': parsed_entity_data
+        'entity': parsed_entity_data,
+        'grid'  : parsed_grid_data
     }
 
 def is_worked_b4_year_band(data, callsign, year, band):
@@ -538,6 +544,13 @@ def is_worked_b4_year_band(data, callsign, year, band):
         return True
     else:
         return False
+    
+def is_entity_worked_b4(data, entity_code, year):
+    bands = data.get('entity', {}).get(year, {})
+    for band, entities in bands.items():
+        if entity_code in entities:
+            return True
+    return False
 
 def get_wkb4_year(data, callsign, band):
     worked_years = []    
@@ -582,4 +595,51 @@ def save_marathon_wanted_data(file, marathon_data):
             json.dump(marathon_data, f, indent=4)
     except Exception as e:
         pass
+
+def get_grid_square_polygon(grid):
+    try:
+        top_left     = grid_to_latlon(grid + 'AA')  
+        bottom_right = grid_to_latlon(grid + 'RR')  
+
+        top = top_left[0]
+        left = top_left[1]
+        bottom = bottom_right[0]
+        right = bottom_right[1]
+
+        return [
+            [top, left],
+            [top, right],
+            [bottom, right],
+            [bottom, left]
+        ]
+    except Exception as e:
+        return None
+
+def grid_to_latlon(grid):
+    grid = grid.upper()
+    if len(grid) < 2:
+        raise ValueError("Grid square invalid.")
+
+    lon = (ord(grid[0]) - ord('A')) * 20 - 180
+    lat = (ord(grid[1]) - ord('A')) * 10 - 90
+
+    if len(grid) >= 4:
+        lon += int(grid[2]) * 2
+        lat += int(grid[3]) * 1
+
+    if len(grid) >= 6:
+        lon += (ord(grid[4]) - ord('A')) * 5 / 60
+        lat += (ord(grid[5]) - ord('A')) * 2.5 / 60
+
+    if len(grid) == 2:
+        lon += 10
+        lat += 5
+    elif len(grid) == 4:
+        lon += 1
+        lat += 0.5
+    elif len(grid) == 6:
+        lon += 2.5 / 60
+        lat += 1.25 / 60
+
+    return (lat, lon)
 
