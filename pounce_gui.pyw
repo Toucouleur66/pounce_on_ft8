@@ -1576,8 +1576,6 @@ class MainApp(QtWidgets.QMainWindow):
             if len(callsign_bands[callsign]) > 1:
                 actions['remove_callsign_from_worked_history'] = menu.addAction(f"Remove {callsign} on all bands from Worked History ({", ".join(sorted(callsign_bands[callsign]))})")
 
-            actions['qrz_com_for_wanted_callsign'] = menu.addAction(f"Open QRZ.com for {callsign}")
-    
             menu.addSeparator()
 
         label = QtWidgets.QLabel(f"Apply to {context_menu_band}")
@@ -1621,9 +1619,6 @@ class MainApp(QtWidgets.QMainWindow):
             actions['remove_callsign_from_monitored'] = menu.addAction(f"Remove {callsign} from Monitored Callsigns")
         menu.addSeparator()
 
-        if table.objectName() != 'history_table':                
-            actions['qrz_com_for_wanted_callsign'] = menu.addAction(f"Open QRZ.com for {callsign}")
-            menu.addSeparator()
 
         """
             Directed Callsigns
@@ -1642,10 +1637,7 @@ class MainApp(QtWidgets.QMainWindow):
                     actions['add_directed_to_monitored'] = menu.addAction(f"Add {directed} to Monitored Callsigns")
                 else:
                     actions['remove_directed_from_monitored'] = menu.addAction(f"Remove {directed} from Monitored Callsigns")
-
-                if table.objectName() != 'history_table':    
-                    menu.addSeparator()            
-                    actions['qrz_com_for_directed_callsign'] = menu.addAction(f"Open QRZ.com for {directed}")    
+ 
                 menu.addSeparator()
 
         """
@@ -1660,12 +1652,21 @@ class MainApp(QtWidgets.QMainWindow):
             except ValueError:
                 pass 
         menu.addSeparator()
-
+        
+        """
+            QRZ.com
+        """
+        actions['qrz_com_for_wanted_callsign'] = menu.addAction(f"Open QRZ.com for {callsign}")
+        menu.addSeparator()
+    
         """
             Copy message
         """
         actions['copy_message'] = menu.addAction("Copy message to Clipboard")
 
+        """
+            Set menu
+        """
         action = menu.exec(table.viewport().mapToGlobal(position))
 
         if action is None:
@@ -2449,9 +2450,11 @@ class MainApp(QtWidgets.QMainWindow):
                 show_all_messages = True
             else:
                 self.filter_proxy_model.setFilter(key, default_value)
+                self.output_table.scrollToBottom() 
 
         if show_all_messages:
             self.filter_proxy_model.showAllData()
+            self.output_table.scrollToBottom() 
 
     def clear_output_and_filters(self):
         self.hide_focus_value_label(visible=False)
@@ -2459,6 +2462,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.clear_filters()
         self.filter_proxy_model.clearTableView()
         self.wait_pounce_history_table.scrollToBottom()  
+
         self.output_table.scrollToBottom() 
 
     def clear_filters(self):
@@ -2471,6 +2475,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.continent_combo.setCurrentIndex(0)
         self.band_combo.setCurrentIndex(0)
         self.color_combo.setCurrentIndex(0)    
+
+        self.output_table.scrollToBottom() 
 
     def save_window_position(self):
         position = self.geometry()
