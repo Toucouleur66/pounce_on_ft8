@@ -172,6 +172,7 @@ class Listener(QObject):
         self.wanted_callsigns               = None
         self.excluded_callsigns             = None
         self.monitored_callsigns            = None
+        self.wanted_cq_zones                = None
         self.monitored_cq_zones             = None
         self.excluded_cq_zones              = None
         self.worked_callsigns               = {}
@@ -368,6 +369,7 @@ class Listener(QObject):
         self.wanted_callsigns       = self.monitoring_settings.get_wanted_callsigns()
         self.excluded_callsigns     = self.monitoring_settings.get_excluded_callsigns()
         self.monitored_callsigns    = self.monitoring_settings.get_monitored_callsigns()
+        self.wanted_cq_zones        = self.monitoring_settings.get_wanted_cq_zones()
         self.monitored_cq_zones     = self.monitoring_settings.get_monitored_cq_zones()
         self.excluded_cq_zones      = self.monitoring_settings.get_excluded_cq_zones()
         self.synched_band           = self.monitoring_settings.get_operating_band()
@@ -383,6 +385,7 @@ class Listener(QObject):
         log_output.append(f"WantedCallsigns={self.wanted_callsigns}")
         log_output.append(f"MonitoredCallsigns={self.monitored_callsigns}")
         log_output.append(f"ExcludedCallsigns={self.excluded_callsigns}")
+        log_output.append(f"WantedZones={self.wanted_cq_zones}")
         log_output.append(f"MonitoredZones={self.monitored_cq_zones}")
         log_output.append(f"ExcludedZones={self.excluded_cq_zones}")
         
@@ -444,6 +447,7 @@ class Listener(QObject):
                     'wanted_callsigns'      : self.wanted_callsigns,
                     'excluded_callsigns'    : self.excluded_callsigns,
                     'monitored_callsigns'   : self.monitored_callsigns,
+                    'wanted_cq_zones'       : self.wanted_cq_zones,
                     'monitored_cq_zones'    : self.monitored_cq_zones,
                     'excluded_cq_zones'     : self.excluded_cq_zones,
                 }, addr_port)
@@ -887,6 +891,7 @@ class Listener(QObject):
                 self.worked_callsigns.get(self.band, {}),
                 self.excluded_callsigns,
                 self.monitored_callsigns,
+                self.wanted_cq_zones,
                 self.monitored_cq_zones,
                 self.excluded_cq_zones
             )
@@ -904,6 +909,7 @@ class Listener(QObject):
                 msg               = parsed_message['msg']
                 cqing             = parsed_message['cqing']
                 wanted            = parsed_message['wanted']
+                wanted_cq_zone    = parsed_message['wanted_cq_zone']
                 excluded          = parsed_message['excluded']
                 monitored         = parsed_message['monitored']
                 monitored_cq_zone = parsed_message['monitored_cq_zone']
@@ -918,6 +924,7 @@ class Listener(QObject):
 
                 entity_code       = callsign_info.get('entity') if callsign_info else None       
                 entity_wkb4       = False         
+                any_wanted        = wanted or wanted_cq_zone
 
                 """
                     Check if wanted and is Worked b4
@@ -934,8 +941,9 @@ class Listener(QObject):
                             self.worked_before_preference == WKB4_REPLY_MODE_CURRENT_YEAR
                         )
                     ):
-                        wanted        = False
-                        callsign_wkb4 = True
+                        wanted         = False
+                        wanted_cq_zone = False
+                        callsign_wkb4  = True
 
                 """
                     Check if entity code is already worked for marathon
@@ -960,7 +968,8 @@ class Listener(QObject):
                 if (
                     self.enable_marathon and 
                     self.adif_data.get('entity') and 
-                    wanted is False and                              
+                    wanted is False and       
+                    wanted_cq_zone is False and                              
                     not callsign_wkb4 and
                     not excluded and 
                     entity_code
@@ -1005,9 +1014,9 @@ class Listener(QObject):
                 if (
                     self.enable_reply_to_valid_callsign and 
                     entity_code is None and
-                    wanted
+                    any_wanted
                 ):
-                    wanted = False
+                    wanted = wanted_cq_zone = False
 
                 """
                     Callsign already logged, we can move over new Wanted callsign
@@ -1021,10 +1030,10 @@ class Listener(QObject):
                 """
                     Might reset values to focus on another wanted callsign
                 """
-                if (
-                    wanted is True and
+                if (                    
                     self.targeted_call is not None and
-                    callsign != self.targeted_call            
+                    callsign != self.targeted_call and
+                    any_wanted           
                 ):
                     if (
                         self.qso_time_on.get(self.targeted_call) and
@@ -1109,7 +1118,7 @@ class Listener(QObject):
                     if not self.grid_being_called.get(callsign):
                         self.grid_being_called[callsign]        = grid or '' 
 
-                    if wanted is True:    
+                    if any_wanted:    
                         focus_info = f"Report [ {report} ]" if report else f"Grid [ {grid} ]"
                         log.warning(f"Focus on callsign [ {callsign} ]\t{focus_info}")
                         # We can't use self.the_packet.mode as it returns "~"
@@ -1125,7 +1134,7 @@ class Listener(QObject):
                         log.warning(f"Found unexpected message from callsign [ {callsign} ]")
                         if count_attempts < DEFAULT_REPLY_ATTEMPTS:
                             reply_to_packet = True    
-                elif wanted is True: 
+                elif any_wanted: 
                     reply_to_packet = True
                     
                     message_type = 'wanted_callsign_decoded'
@@ -1175,6 +1184,7 @@ class Listener(QObject):
                         'callsign'          : callsign,
                         'directed'          : directed,
                         'wanted'            : wanted,
+                        'wanted_cq_zone'    : wanted_cq_zone,
                         'marathon'          : marathon,
                         'wkb4_year'         : wkb4_year,
                         'grid'              : grid,
@@ -1199,6 +1209,7 @@ class Listener(QObject):
                     'callsign_info'     : callsign_info,
                     'directed'          : directed,
                     'wanted'            : wanted,
+                    'wanted_cq_zone'    : wanted_cq_zone,
                     'monitored'         : monitored,
                     'monitored_cq_zone' : monitored_cq_zone,
                     'wkb4_year'         : wkb4_year,
@@ -1254,6 +1265,9 @@ class Listener(QObject):
                     filtered_message['priority'] = 3
                 else:
                     filtered_message['priority'] = 2
+
+                if filtered_message['wanted_cq_zone']:
+                    filtered_message['priority']-= 1                    
 
                 if filtered_message['marathon']:
                     filtered_message['priority']-= 1

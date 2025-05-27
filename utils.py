@@ -70,6 +70,7 @@ def parse_single_wsjtx_message(
         worked_callsigns    = set(),
         excluded_callsigns  = set(),
         monitored_callsigns = set(),
+        wanted_cq_zones     = set(),
         monitored_cq_zones  = set(),
         excluded_cq_zones   = set(),
     ):
@@ -83,6 +84,7 @@ def parse_single_wsjtx_message(
 
     cqing                   = False
     wanted                  = False
+    wanted_cq_zone          = False
     excluded                = False
     monitored               = False
     monitored_cq_zone       = False
@@ -208,7 +210,10 @@ def parse_single_wsjtx_message(
         """
             Check if CQ Zone matches
         """
-        is_monitored_cq_zone = False
+        is_wanted_cq_zone        = False
+        is_monitored_cq_zone     = False
+        if cq_zone and cq_zone in wanted_cq_zones:
+            is_wanted_cq_zone    = True
         if cq_zone and cq_zone in monitored_cq_zones:
             is_monitored_cq_zone = True
 
@@ -217,6 +222,7 @@ def parse_single_wsjtx_message(
 
         wanted            = is_wanted and not is_excluded and not is_worked
         monitored         = is_monitored
+        wanted_cq_zone    = is_wanted_cq_zone and not is_excluded and not is_worked
         monitored_cq_zone = is_monitored_cq_zone and not is_excluded
         excluded          = is_excluded
 
@@ -229,6 +235,7 @@ def parse_single_wsjtx_message(
         'msg'                : msg,
         'cqing'              : cqing,
         'wanted'             : wanted,
+        'wanted_cq_zone'     : wanted_cq_zone,
         'excluded'           : excluded,
         'monitored'          : monitored,
         'monitored_cq_zone'  : monitored_cq_zone
@@ -241,6 +248,7 @@ def parse_wsjtx_message(
     worked_callsigns    = set(),
     excluded_callsigns  = set(),
     monitored_callsigns = set(),
+    wanted_cq_zones     = set(),
     monitored_cq_zones  = set(),
     excluded_cq_zones   = set(),
 ):
@@ -250,26 +258,28 @@ def parse_wsjtx_message(
         for sub_msg in multi:
             parsed = parse_single_wsjtx_message(
                 sub_msg,
-                lookup             = lookup,
-                wanted_callsigns   = wanted_callsigns,
-                worked_callsigns   = worked_callsigns,
-                excluded_callsigns = excluded_callsigns,
-                monitored_callsigns= monitored_callsigns,
-                monitored_cq_zones = monitored_cq_zones,
-                excluded_cq_zones  = excluded_cq_zones
+                lookup              = lookup,
+                wanted_callsigns    = wanted_callsigns,
+                worked_callsigns    = worked_callsigns,
+                excluded_callsigns  = excluded_callsigns,
+                monitored_callsigns = monitored_callsigns,
+                wanted_cq_zones     = wanted_cq_zones,
+                monitored_cq_zones  = monitored_cq_zones,
+                excluded_cq_zones   = excluded_cq_zones
             )
             results.append(parsed)
         return results
 
     single_result = parse_single_wsjtx_message(
         message,
-        lookup             = lookup,
-        wanted_callsigns   = wanted_callsigns,
-        worked_callsigns   = worked_callsigns,
-        excluded_callsigns = excluded_callsigns,
-        monitored_callsigns= monitored_callsigns,
-        monitored_cq_zones = monitored_cq_zones,
-        excluded_cq_zones  = excluded_cq_zones
+        lookup              = lookup,
+        wanted_callsigns    = wanted_callsigns,
+        worked_callsigns    = worked_callsigns,
+        excluded_callsigns  = excluded_callsigns,
+        monitored_callsigns = monitored_callsigns,
+        wanted_cq_zones     = wanted_cq_zones,
+        monitored_cq_zones  = monitored_cq_zones,
+        excluded_cq_zones   = excluded_cq_zones
     )
     return [single_result]
 

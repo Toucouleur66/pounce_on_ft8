@@ -81,6 +81,7 @@ from constants import (
     BG_COLOR_FOCUS_MY_CALL,
     FG_COLOR_REGULAR_FOCUS,
     BG_COLOR_REGULAR_FOCUS,
+    BG_COLOR_BLACK_ON_SAUMON,
     BG_COLOR_BLACK_ON_YELLOW,
     FG_COLOR_BLACK_ON_YELLOW,
     BG_COLOR_WHITE_ON_BLUE,
@@ -684,12 +685,14 @@ class MainApp(QtWidgets.QMainWindow):
         self.wanted_callsigns_vars              = {}
         self.monitored_callsigns_vars           = {}
         self.excluded_callsigns_vars            = {}
+        self.wanted_cq_zones_vars               = {}
         self.monitored_cq_zones_vars            = {}
         self.excluded_cq_zones_vars             = {}        
 
         self.tooltip_wanted_vars                = {}
         self.tooltip_monitored_vars             = {}
         self.tooltip_excluded_callsigns_vars    = {}
+        self.tooltip_wanted_cq_zones_vars       = {}
         self.tooltip_excluded_cd_zones_vars     = {}
         self.tooltip_monitored_cq_zones_vars    = {}
 
@@ -699,6 +702,7 @@ class MainApp(QtWidgets.QMainWindow):
         wanted_dict = {
             'wanted_callsigns'      : self.wanted_callsigns_vars,
             'monitored_callsigns'   : self.monitored_callsigns_vars,            
+            'wanted_cq_zones'       : self.wanted_cq_zones_vars,
             'monitored_cq_zones'    : self.monitored_cq_zones_vars,
             'excluded_callsigns'    : self.excluded_callsigns_vars,            
             'excluded_cq_zones'     : self.excluded_cq_zones_vars,
@@ -707,6 +711,7 @@ class MainApp(QtWidgets.QMainWindow):
         tooltip_wanted_dict = {
             'wanted_callsigns'      : self.tooltip_wanted_vars,
             'monitored_callsigns'   : self.tooltip_monitored_vars,
+            'wanted_cq_zones'       : self.tooltip_wanted_cq_zones_vars,
             'monitored_cq_zones'    : self.tooltip_monitored_cq_zones_vars,
             'excluded_callsigns'    : self.tooltip_excluded_callsigns_vars,
             'excluded_cq_zones'     : self.tooltip_excluded_cd_zones_vars,
@@ -726,6 +731,13 @@ class MainApp(QtWidgets.QMainWindow):
                 'function'         : partial(force_input, mode="uppercase"),
                 'placeholder'      : CALLSIGN_NOTICE_LABEL,                
                 'on_changed_method': self.on_monitored_callsigns_changed,
+            },
+            {
+                'name'             : 'wanted_cq_zones',
+                'label'            : 'Wanted CQ Zone(s):',
+                'function'         : partial(force_input, mode="numbers"),
+                'placeholder'      : CQ_ZONE_NOTICE_LABEL,                
+                'on_changed_method': self.on_wanted_cq_zones_changed,
             },
             {
                 'name'             : 'monitored_cq_zones',
@@ -1151,6 +1163,7 @@ class MainApp(QtWidgets.QMainWindow):
         colors = [
             ("bright_for_my_call", BG_COLOR_FOCUS_MY_CALL),
             ("black_on_yellow",    BG_COLOR_BLACK_ON_YELLOW),
+            ("black_on_saumon",    BG_COLOR_BLACK_ON_SAUMON),
             ("black_on_purple",    BG_COLOR_BLACK_ON_PURPLE),
             ("white_on_blue",      BG_COLOR_WHITE_ON_BLUE),
             ("black_on_cyan",      BG_COLOR_BLACK_ON_CYAN),
@@ -1232,6 +1245,11 @@ class MainApp(QtWidgets.QMainWindow):
             self.monitoring_settings.set_excluded_callsigns(self.excluded_callsigns_vars[self.operating_band].text())
             self.send_worker_signal()
 
+    def on_wanted_cq_zones_changed(self):
+        if self.operating_band:
+            self.monitoring_settings.set_wanted_cq_zones(self.wanted_cq_zones_vars[self.operating_band].text())
+            self.send_worker_signal()
+
     def on_excluded_cq_zones_changed(self):
         if self.operating_band:
             self.monitoring_settings.set_excluded_cq_zones(self.excluded_cq_zones_vars[self.operating_band].text())
@@ -1310,6 +1328,7 @@ class MainApp(QtWidgets.QMainWindow):
                 directed            = message.get('directed')
                 my_call             = message.get('my_call')
                 wanted              = message.get('wanted')
+                wanted_cq_zone      = message.get('wanted_cq_zone')
                 monitored           = message.get('monitored')
                 monitored_cq_zone   = message.get('monitored_cq_zone')
                 wkb4_year           = message.get('wkb4_year')
@@ -1329,6 +1348,8 @@ class MainApp(QtWidgets.QMainWindow):
                     message_color      = "bright_for_my_call"
                 elif wanted is True:
                     message_color      = "black_on_yellow"
+                elif wanted_cq_zone is True:
+                    message_color      = "black_on_saumon"
                 elif monitored is True:
                     message_color      = "black_on_purple" 
                 elif monitored_cq_zone is True:
@@ -2536,6 +2557,7 @@ class MainApp(QtWidgets.QMainWindow):
         styles = [
             (BG_COLOR_BLACK_ON_YELLOW, FG_COLOR_BLACK_ON_YELLOW), # wanted    callsigns
             (BG_COLOR_BLACK_ON_PURPLE, FG_COLOR_BLACK_ON_PURPLE), # monitored callsigns
+            (BG_COLOR_BLACK_ON_SAUMON, FG_COLOR_BLACK_ON_YELLOW), # wanted    CQ zones
             (BG_COLOR_BLACK_ON_CYAN, FG_COLOR_BLACK_ON_CYAN),     # monitored CQ zones
             ("transparent", "palette(text)"),                     # excluded  callsigns
             ("transparent", "palette(text)")                      # excluded  CQ zones
@@ -2849,6 +2871,7 @@ class MainApp(QtWidgets.QMainWindow):
         for amateur_band in AMATEUR_BANDS.keys():
             wanted_callsigns                    = self.wanted_callsigns_vars[amateur_band].text()
             monitored_callsigns                 = self.monitored_callsigns_vars[amateur_band].text()
+            wanted_cq_zones                     = self.wanted_cq_zones_vars[amateur_band].text()
             monitored_cq_zones                  = self.monitored_cq_zones_vars[amateur_band].text()
             excluded_callsigns                  = self.excluded_callsigns_vars[amateur_band].text()
             excluded_cq_zones                   = self.excluded_cq_zones_vars[amateur_band].text()
@@ -2858,7 +2881,8 @@ class MainApp(QtWidgets.QMainWindow):
                 "monitored_cq_zones"            : monitored_cq_zones,
                 "excluded_callsigns"            : excluded_callsigns,
                 "excluded_cq_zones"             : excluded_cq_zones,
-                "wanted_callsigns"              : wanted_callsigns
+                "wanted_callsigns"              : wanted_callsigns,
+                "wanted_cq_zones"               : wanted_cq_zones,
             })
         self.save_params(params)               
 

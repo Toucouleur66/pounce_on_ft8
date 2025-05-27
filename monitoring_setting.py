@@ -11,6 +11,7 @@ class MonitoringSettings:
         self._monitored_callsigns   = set()
         self._wanted_callsigns      = set()
         self._excluded_callsigns    = set()
+        self._wanted_cq_zones       = set()
         self._monitored_cq_zones    = set()
         self._excluded_cq_zones     = set()
         self._operating_band        = None
@@ -30,6 +31,14 @@ class MonitoringSettings:
     def set_wanted_callsigns(self, callsigns):
         with self.lock:
             self._wanted_callsigns = text_to_array(callsigns)
+
+    def get_wanted_cq_zones(self):
+        with self.lock:
+            return sorted(self._wanted_cq_zones)
+
+    def set_wanted_cq_zones(self, cq_zones):
+        with self.lock:
+            self._wanted_cq_zones = int_to_array(cq_zones)
 
     def get_excluded_callsigns(self):
         with self.lock:

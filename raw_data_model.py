@@ -13,6 +13,8 @@ from constants import (
     BG_COLOR_FOCUS_MY_CALL,
     BG_COLOR_BLACK_ON_YELLOW,
     FG_COLOR_BLACK_ON_YELLOW,
+    BG_COLOR_BLACK_ON_SAUMON,
+    FG_COLOR_BLACK_ON_SAUMON,
     BG_COLOR_WHITE_ON_BLUE,
     FG_COLOR_WHITE_ON_BLUE,
     BG_COLOR_BLACK_ON_PURPLE,
@@ -210,6 +212,7 @@ class RawDataModel(QtCore.QAbstractTableModel):
         color_map = {
                     'bright_for_my_call'    : BG_COLOR_FOCUS_MY_CALL,
                     'black_on_yellow'       : BG_COLOR_BLACK_ON_YELLOW,
+                    'black_on_saumon'       : BG_COLOR_BLACK_ON_SAUMON,
                     'black_on_purple'       : BG_COLOR_BLACK_ON_PURPLE,
                     'white_on_blue'         : BG_COLOR_WHITE_ON_BLUE,
                     'black_on_cyan'         : BG_COLOR_BLACK_ON_CYAN,
@@ -220,6 +223,7 @@ class RawDataModel(QtCore.QAbstractTableModel):
         fg_color_map = {
                     'bright_for_my_call'    : FG_COLOR_FOCUS_MY_CALL,
                     'black_on_yellow'       : FG_COLOR_BLACK_ON_YELLOW,
+                    'black_on_yellow'       : FG_COLOR_BLACK_ON_SAUMON,
                     'black_on_purple'       : FG_COLOR_BLACK_ON_PURPLE,
                     'white_on_blue'         : FG_COLOR_WHITE_ON_BLUE,
                     'black_on_cyan'         : FG_COLOR_BLACK_ON_CYAN,
