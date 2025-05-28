@@ -1197,6 +1197,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.operating_band = band
             self.monitoring_settings.set_wanted_callsigns(self.wanted_callsigns_vars[self.operating_band].text())
             self.monitoring_settings.set_monitored_callsigns(self.monitored_callsigns_vars[self.operating_band].text())
+            self.monitoring_settings.set_wanted_cq_zones(self.wanted_cq_zones_vars[self.operating_band].text())
             self.monitoring_settings.set_excluded_callsigns(self.excluded_callsigns_vars[self.operating_band].text())
             self.monitoring_settings.set_monitored_cq_zones(self.monitored_cq_zones_vars[self.operating_band].text())
             self.monitoring_settings.set_excluded_cq_zones(self.excluded_cq_zones_vars[self.operating_band].text())
