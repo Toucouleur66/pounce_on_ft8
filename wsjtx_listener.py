@@ -923,9 +923,8 @@ class Listener(QObject):
                 wkb4_year         = None
 
                 entity_code       = callsign_info.get('entity') if callsign_info else None       
-                entity_wkb4       = False         
-                any_wanted        = wanted or wanted_cq_zone
-
+                entity_wkb4       = False        
+             
                 """
                     Check if wanted and is Worked b4
                 """
@@ -966,13 +965,12 @@ class Listener(QObject):
                     Check if entity code is needed for marathon
                 """
                 if (
-                    self.enable_marathon and 
-                    self.adif_data.get('entity') and 
-                    wanted is False and       
-                    wanted_cq_zone is False and                              
-                    not callsign_wkb4 and
-                    not excluded and 
-                    entity_code
+                    self.enable_marathon 
+                    and self.adif_data.get('entity')
+                    and not callsign_wkb4 
+                    and not excluded 
+                    and entity_code 
+                    and not (wanted and wanted_cq_zone)                    
                 ):                
                     if callsign in self.wanted_callsigns_per_entity.get(self.band, {}).get(entity_code, {}):
                         marathon = True
@@ -1012,9 +1010,9 @@ class Listener(QObject):
                     Ignore if callsign is not valid
                 """
                 if (
-                    self.enable_reply_to_valid_callsign and 
-                    entity_code is None and
-                    any_wanted
+                    self.enable_reply_to_valid_callsign 
+                    and entity_code is None
+                    and not (wanted and wanted_cq_zone)                    
                 ):
                     wanted = wanted_cq_zone = False
 
@@ -1031,9 +1029,9 @@ class Listener(QObject):
                     Might reset values to focus on another wanted callsign
                 """
                 if (                    
-                    self.targeted_call is not None and
-                    callsign != self.targeted_call and
-                    any_wanted           
+                    self.targeted_call is not None 
+                    and callsign != self.targeted_call 
+                    and not (wanted and wanted_cq_zone)
                 ):
                     if (
                         self.qso_time_on.get(self.targeted_call) and
@@ -1047,8 +1045,8 @@ class Listener(QObject):
                         self.reset_targeted_call()
 
                     if (
-                        directed == self.my_call and
-                        self.qso_time_on.get(self.targeted_call) is None
+                        directed == self.my_call 
+                        and self.qso_time_on.get(self.targeted_call) is None
                     ):
                         log.warning(f"No answer yet for [ {self.targeted_call} ] but we are about to switch on [ {callsign} ]")
                         self.reset_targeted_call()
@@ -1079,10 +1077,10 @@ class Listener(QObject):
                                 Update marathon data and clear all related Wanted callsigns
                             """
                             if (
-                                entity_code and
-                                self.enable_marathon and 
-                                self.adif_data.get('entity') and
-                                self.marathon_preference.get(self.band)
+                                entity_code 
+                                and self.enable_marathon 
+                                and self.adif_data.get('entity') 
+                                and self.marathon_preference.get(self.band)
                             ):
                                 self.clear_wanted_callsigns(entity_code)  
                         else:
@@ -1118,7 +1116,7 @@ class Listener(QObject):
                     if not self.grid_being_called.get(callsign):
                         self.grid_being_called[callsign]        = grid or '' 
 
-                    if any_wanted:    
+                    if wanted or wanted_cq_zone:    
                         focus_info = f"Report [ {report} ]" if report else f"Grid [ {grid} ]"
                         log.warning(f"Focus on callsign [ {callsign} ]\t{focus_info}")
                         # We can't use self.the_packet.mode as it returns "~"
@@ -1134,7 +1132,7 @@ class Listener(QObject):
                         log.warning(f"Found unexpected message from callsign [ {callsign} ]")
                         if count_attempts < DEFAULT_REPLY_ATTEMPTS:
                             reply_to_packet = True    
-                elif any_wanted: 
+                elif wanted or wanted_cq_zone: 
                     reply_to_packet = True
                     
                     message_type = 'wanted_callsign_decoded'
@@ -1194,6 +1192,8 @@ class Listener(QObject):
                 elif message_type:
                     priority = 1
                 
+                # log.debug(f"Priority for: {formatted_message} for {callsign:<15}\nEntityWkB4\t= {entity_wkb4}\nWanted\t\t= {wanted}\nWantedCQZone\t= {wanted_cq_zone}\nMarathon\t= {marathon}\nExcluded\t= {excluded}\nMonitored\t= {monitored}")
+
                 """
                     Send message to GUI
                 """                      
@@ -1257,20 +1257,22 @@ class Listener(QObject):
         for filtered_message in filtered_messages:
             if filtered_message['directed'] == self.my_call:
                 if filtered_message['callsign'] == self.targeted_call:
-                    filtered_message['priority'] = 5
+                    filtered_message['priority'] = 6
                 else:
-                    filtered_message['priority'] = 4
+                    filtered_message['priority'] = 5
             else:
                 if filtered_message.get('cqing'):
                     filtered_message['priority'] = 3
                 else:
-                    filtered_message['priority'] = 2
+                    filtered_message['priority'] = 2                    
 
-                if filtered_message['wanted_cq_zone']:
-                    filtered_message['priority']-= 1                    
-
-                if filtered_message['marathon']:
-                    filtered_message['priority']-= 1
+                if filtered_message['wanted']:
+                    filtered_message['priority']+= 1
+                else:
+                    if filtered_message['marathon']:
+                        filtered_message['priority']-= 1
+                    elif filtered_message['wanted_cq_zone']:   
+                        filtered_message['priority']-= 1
 
         """
             Selects the message with the highest priority
