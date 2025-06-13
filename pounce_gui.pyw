@@ -2443,7 +2443,8 @@ class MainApp(QtWidgets.QMainWindow):
         if add_to_history:
             self.worked_callsigns_history.append(raw_data)
             self.clear_worked_history_action.setEnabled(True)
-            self.update_worked_callsigns_history_counter()     
+            self.update_worked_callsigns_history_counter()   
+            self.save_worked_callsigns()  
 
         self.wait_pounce_history_table.scrollToBottom()    
 

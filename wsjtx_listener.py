@@ -645,7 +645,10 @@ class Listener(QObject):
         elif isinstance(self.the_packet, pywsjtx.ReplyPacket):
             log.debug("Received ReplyPacket method")            
         elif isinstance(self.the_packet, pywsjtx.ClosePacket):
-            self.callback_stop_monitoring()
+            pass 
+            """
+                self.callback_stop_monitoring()
+            """
         elif isinstance(self.the_packet, pywsjtx.RequestSettingPacket):
             self.handle_request_setting_packet(addr_port)                      
         elif isinstance(self.the_packet, pywsjtx.SettingPacket):
@@ -1272,7 +1275,7 @@ class Listener(QObject):
                     if filtered_message['marathon']:
                         filtered_message['priority']-= 1
                     elif filtered_message['wanted_cq_zone']:   
-                        filtered_message['priority']-= 1
+                        filtered_message['priority']-= 2
 
         """
             Selects the message with the highest priority
