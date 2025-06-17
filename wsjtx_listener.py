@@ -820,7 +820,7 @@ class Listener(QObject):
                         self.synch_time = synch_time
                         if self.message_callback:
                             self.message_callback({
-                                'type'     : '',
+                                'type'     : 'instance_settings',
                                 'settings' : self.synched_settings
                             })   
                         log.info(f"SettingPacket has been processed")     

@@ -1417,7 +1417,6 @@ class MainApp(QtWidgets.QMainWindow):
             play_sound = False
             master_wanted_callsigns = instance_settings.get('wanted_callsigns')
             master_wanted_cq_zones = instance_settings.get('wanted_cq_zones')
-
             if(
                 self.global_sound_toggle.isChecked() and
                 (
@@ -1450,8 +1449,8 @@ class MainApp(QtWidgets.QMainWindow):
 
             if not master_wanted_cq_zones:
                 self.wanted_cq_zones_vars[band].clear()
-            else:
-                self.wanted_cq_zones_vars[band].setText(", ".join(master_wanted_cq_zones))
+            else:  
+                self.wanted_cq_zones_vars[band].setText(", ".join(str(zone) for zone in master_wanted_cq_zones))
 
             # Unblock signal 
             self._synch_signal = True
@@ -2623,7 +2622,7 @@ class MainApp(QtWidgets.QMainWindow):
                         input_widget.setStyleSheet("")
                 else:
                     label_widget.setStyleSheet(default_style)
-                    if idx == 1:
+                    if idx == 1 or idx == 3:
                         input_widget.setEnabled(True)
                         input_widget.setStyleSheet("")
 
