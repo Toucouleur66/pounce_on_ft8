@@ -262,6 +262,7 @@ class MainApp(QtWidgets.QMainWindow):
         self._synched_addr_port                 = None
 
         self.before_synch_wanted_callsigns      = {}
+        self.before_synch_wanted_cq_zones       = {}
 
         self.decode_packet_count                = 0
         self.last_decode_packet_time            = None
@@ -1415,12 +1416,19 @@ class MainApp(QtWidgets.QMainWindow):
             """
             play_sound = False
             master_wanted_callsigns = instance_settings.get('wanted_callsigns')
+            master_wanted_cq_zones = instance_settings.get('wanted_cq_zones')
 
             if(
                 self.global_sound_toggle.isChecked() and
-                has_significant_change(
-                    self.wanted_callsigns_vars[band].text(),
-                    ",".join(master_wanted_callsigns)
+                (
+                    has_significant_change(
+                        self.wanted_callsigns_vars[band].text(),
+                        ",".join(master_wanted_callsigns)
+                    ) or
+                    has_significant_change(
+                        self.wanted_cq_zones_vars[band].text(),
+                        ",".join(master_wanted_cq_zones)
+                    )
                 )
             ):
                 play_sound = True
@@ -1432,12 +1440,18 @@ class MainApp(QtWidgets.QMainWindow):
             self.restore_settings()
             for amateur_band in AMATEUR_BANDS.keys():                
                 self.before_synch_wanted_callsigns[amateur_band] = self.wanted_callsigns_vars[amateur_band].text()   
+                self.before_synch_wanted_cq_zones[amateur_band] = self.wanted_cq_zones_vars[amateur_band].text()   
           
             # To block signal 
             if not master_wanted_callsigns:
                 self.wanted_callsigns_vars[band].clear()
             else:
                 self.wanted_callsigns_vars[band].setText(", ".join(master_wanted_callsigns))
+
+            if not master_wanted_cq_zones:
+                self.wanted_cq_zones_vars[band].clear()
+            else:
+                self.wanted_cq_zones_vars[band].setText(", ".join(master_wanted_cq_zones))
 
             # Unblock signal 
             self._synch_signal = True
@@ -1455,8 +1469,7 @@ class MainApp(QtWidgets.QMainWindow):
             finally:
                 del frame
             
-            for amateur_band in AMATEUR_BANDS.keys():
-                
+            for amateur_band in AMATEUR_BANDS.keys():                
                 if self.before_synch_wanted_callsigns.get(amateur_band):
                     before_synch_wanted_callsigns_band = self.before_synch_wanted_callsigns[amateur_band]                    
 
@@ -1464,6 +1477,14 @@ class MainApp(QtWidgets.QMainWindow):
                         self.wanted_callsigns_vars[amateur_band].clear()
                     else:
                         self.wanted_callsigns_vars[amateur_band].setText(before_synch_wanted_callsigns_band)
+
+                if self.before_synch_wanted_cq_zones.get(amateur_band): 
+                    before_synch_wanted_cq_zones_band = self.before_synch_wanted_cq_zones[amateur_band]                    
+
+                    if not before_synch_wanted_cq_zones_band:
+                        self.wanted_cq_zones_vars[amateur_band].clear()
+                    else:
+                        self.wanted_cq_zones_vars[amateur_band].setText(before_synch_wanted_cq_zones_band)
         
     def process_message_buffer(self):     
         if not self.message_buffer:
@@ -2592,7 +2613,9 @@ class MainApp(QtWidgets.QMainWindow):
 
                 if amateur_band == self.operating_band and self._running:
                     label_widget.setStyleSheet(active_style_template.format(bg_color=bg_color, fg_color=fg_color))
-                    if idx == 1 and self._instance == SLAVE:
+                    if self._instance == SLAVE and (
+                        idx == 1 or idx == 3
+                    ):
                         input_widget.setEnabled(False)
                         input_widget.setStyleSheet(slave_style)
                     else:

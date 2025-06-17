@@ -809,14 +809,18 @@ class Listener(QObject):
                 ):
                     self.synched_settings = json.loads(self.the_packet.settings_json)
                     wanted_callsigns = self.synched_settings.get('wanted_callsigns')
+                    wanted_cq_zones = self.synched_settings.get('wanted_cq_zones') 
                     """
                         Make sure to set synch_time after we checked if wanted_callsigns is valid
                     """
-                    if wanted_callsigns and isinstance(wanted_callsigns, (list, tuple)):
+                    if (
+                        wanted_callsigns and isinstance(wanted_callsigns, (list, tuple)) or
+                        wanted_cq_zones and isinstance(wanted_cq_zones, (list, tuple))
+                    ):
                         self.synch_time = synch_time
                         if self.message_callback:
                             self.message_callback({
-                                'type'     : 'instance_settings',
+                                'type'     : '',
                                 'settings' : self.synched_settings
                             })   
                         log.info(f"SettingPacket has been processed")     
