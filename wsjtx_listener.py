@@ -33,6 +33,7 @@ from constants import (
     CURRENT_VERSION_NUMBER,
     BAND_CHANGE_WAITING_DELAY,
     DEFAULT_REPLY_ATTEMPTS,
+    DEFAULT_POLITENESS_REPLY,
     MAXIMUM_ALLOWED_DT,
     EVEN,
     ODD,
@@ -64,6 +65,7 @@ class Listener(QObject):
             logging_udp_server_port,
             enable_logging_udp_server,            
             enable_sending_reply,
+            enable_politeness_reply,
             max_reply_attemps_to_callsign,
             max_working_delay,
             enable_log_all_valid_contact,
@@ -132,15 +134,16 @@ class Listener(QObject):
 
         self.reply_attempts             = {}
 
-        self.enable_sending_reply           = enable_sending_reply
-        self.enable_log_all_valid_contact   = enable_log_all_valid_contact
-        self.enable_reply_to_valid_callsign  = enable_reply_to_valid_callsign
-        self.enable_gap_finder               = enable_gap_finder
-        self.enable_watchdog_bypass         = enable_watchdog_bypass
-        self.enable_debug_output            = enable_debug_output
-        self.enable_pounce_log              = enable_pounce_log 
-        self.enable_log_packet_data         = enable_log_packet_data
-        self.enable_marathon                = enable_marathon
+        self.enable_sending_reply               = enable_sending_reply
+        self.enable_politeness_reply           = enable_politeness_reply
+        self.enable_log_all_valid_contact       = enable_log_all_valid_contact
+        self.enable_reply_to_valid_callsign     = enable_reply_to_valid_callsign
+        self.enable_gap_finder                   = enable_gap_finder
+        self.enable_watchdog_bypass             = enable_watchdog_bypass
+        self.enable_debug_output                = enable_debug_output
+        self.enable_pounce_log                  = enable_pounce_log 
+        self.enable_log_packet_data             = enable_log_packet_data
+        self.enable_marathon                    = enable_marathon
 
         self.max_reply_attemps_to_callsign  = max_reply_attemps_to_callsign
 
@@ -1133,12 +1136,15 @@ class Listener(QObject):
                             message_type = 'wanted_callsign_being_called'  
                     # We need to end this 
                     elif self.call_ready_to_log == callsign and self.rst_sent.get(self.call_ready_to_log):
-                        reply_to_packet = True
+                        if self.enable_politeness_reply:
+                            reply_to_packet = True
                     elif self.rst_sent.get(callsign):
                         count_attempts = len(self.reply_attempts.get(callsign, []))
                         log.warning(f"Found unexpected message from callsign [ {callsign} ]")
-                        if count_attempts < DEFAULT_REPLY_ATTEMPTS:
+                        if count_attempts < DEFAULT_REPLY_ATTEMPTS and self.enable_politeness_reply:
                             reply_to_packet = True    
+                    elif self.enable_politeness_reply:
+                        reply_to_packet = True
                 elif wanted or wanted_cq_zone: 
                     reply_to_packet = True
                     
@@ -1275,11 +1281,12 @@ class Listener(QObject):
 
                 if filtered_message['wanted']:
                     filtered_message['priority']+= 1
-                else:
-                    if filtered_message['marathon']:
-                        filtered_message['priority']-= 1
-                    elif filtered_message['wanted_cq_zone']:   
-                        filtered_message['priority']-= 2
+                elif filtered_message['marathon']:
+                    filtered_message['priority']-= 1
+                elif filtered_message['wanted_cq_zone']:   
+                    filtered_message['priority']-= 2
+
+                    # Make sure to reply if politeness is enabled
 
         """
             Selects the message with the highest priority

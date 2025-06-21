@@ -42,6 +42,7 @@ from constants import (
     DEFAULT_AUTO_START_MONITORING,
     DEFAULT_SECONDARY_UDP_SERVER,
     DEFAULT_SENDING_REPLY,
+    DEFAULT_POLITENESS_REPLY,
     DEFAULT_GAP_FINDER,
     DEFAULT_WATCHDOG_BYPASS,
     DEFAULT_DEBUG_OUTPUT,
@@ -178,6 +179,9 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_sending_reply = QtWidgets.QCheckBox("Enable reply")
         self.enable_sending_reply.setChecked(DEFAULT_SENDING_REPLY)
         
+        self.enable_politeness_reply = QtWidgets.QCheckBox("Enable politeness reply")
+        self.enable_politeness_reply.setChecked(DEFAULT_POLITENESS_REPLY)
+        
         self.enable_gap_finder = QtWidgets.QCheckBox("Enable frequencies offset updater")
         self.enable_gap_finder.setChecked(DEFAULT_GAP_FINDER)
 
@@ -191,10 +195,11 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_reply_to_valid_callsign.setChecked(True)
 
         general_settings_layout.addWidget(self.enable_sending_reply, 0, 0, 1, 2)
-        general_settings_layout.addWidget(self.enable_gap_finder, 1, 0, 1, 2)
-        general_settings_layout.addWidget(self.enable_watchdog_bypass, 2, 0, 1, 2)
-        general_settings_layout.addWidget(self.enable_log_all_valid_contact, 3, 0, 1, 2)
-        general_settings_layout.addWidget(self.enable_reply_to_valid_callsign, 4, 0, 1, 2)
+        general_settings_layout.addWidget(self.enable_politeness_reply, 1, 0, 1, 2)
+        general_settings_layout.addWidget(self.enable_gap_finder, 2, 0, 1, 2)
+        general_settings_layout.addWidget(self.enable_watchdog_bypass, 3, 0, 1, 2)
+        general_settings_layout.addWidget(self.enable_log_all_valid_contact, 4, 0, 1, 2)
+        general_settings_layout.addWidget(self.enable_reply_to_valid_callsign, 5, 0, 1, 2)
 
         max_reply_text = (
             "<p>When several Wanted callsigns are detected during the same sequence and if program starts to reply to one specific callsign, it has a limited <u>number of attempts</u> before moving on to the next detected callsign.</p><p>The maximum <u>waiting delay</u> is used to halt TX and stop calling a station that the program has started to call but is no longer decoded. However, if another Wanted callsign is detected, this setting has no effect.</p>"
@@ -754,6 +759,9 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_sending_reply.setChecked(
             self.params.get('enable_sending_reply', DEFAULT_SENDING_REPLY)
         )
+        self.enable_politeness_reply.setChecked(
+            self.params.get('enable_politeness_reply', DEFAULT_POLITENESS_REPLY)
+        )
         self.enable_gap_finder.setChecked(
             self.params.get('enable_gap_finder', DEFAULT_GAP_FINDER)
         )
@@ -865,6 +873,7 @@ class SettingsDialog(QtWidgets.QDialog):
             'logging_udp_server_port'                    : self.logging_udp_server_port.text(),
             'enable_logging_udp_server'                  : self.enable_logging_udp_server.isChecked(),
             'enable_sending_reply'                       : self.enable_sending_reply.isChecked(),
+            'enable_politeness_reply'            : self.enable_politeness_reply.isChecked(),
             'enable_log_all_valid_contact'               : self.enable_log_all_valid_contact.isChecked(),
             'enable_reply_to_valid_callsign'             : self.enable_reply_to_valid_callsign.isChecked(),
             'max_reply_attemps_to_callsign'              : max_reply_attemps,

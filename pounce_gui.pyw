@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import QGraphicsOpacityEffect
 from PyQt6.QtCore import QPropertyAnimation, QThread
 from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import QHeaderView
-from PyQt6.QtMultimedia import QSoundEffect
+from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 
 import platform
 import re
@@ -130,6 +130,7 @@ from constants import (
     DEFAULT_UDP_PORT,
     DEFAULT_SECONDARY_UDP_SERVER,
     DEFAULT_SENDING_REPLY,
+    DEFAULT_POLITENESS_REPLY,
     # Default settings
     DEFAULT_AUTO_START_MONITORING,
     DEFAULT_GAP_FINDER,
@@ -290,27 +291,27 @@ class MainApp(QtWidgets.QMainWindow):
         self.sound_timer.timeout.connect(self.play_next_sound)
         self.currently_playing = False
 
-        self.wanted_callsign_first_time_decoded_sound = QSoundEffect()
-        self.wanted_callsign_decoded_sound           = QSoundEffect()
-        self.wanted_callsign_being_called_sound      = QSoundEffect()
-        self.directed_to_my_call_sound               = QSoundEffect()
-        self.ready_to_log_sound                      = QSoundEffect()
-        self.error_occurred_sound                    = QSoundEffect()
-        self.band_change_sound                       = QSoundEffect()
-        self.updated_settings                        = QSoundEffect()
-        self.monitored_callsign_decoded_sound        = QSoundEffect()
-        self.enabled_global_sound                    = QSoundEffect()
+        # Initialize audio output for better macOS device handling
+        self.audio_output = QAudioOutput()
+        
+        # Create sound players with sources
+        self.sound_files = {
+            'wanted_callsign_first_time_decoded': f"{CURRENT_DIR}/sounds/709060__scottyd0es__aeroce-proximity-notification.wav",
+            'wanted_callsign_decoded': f"{CURRENT_DIR}/sounds/495650__matrixxx__supershort-ping-or-short-notification.wav",
+            'wanted_callsign_being_called': f"{CURRENT_DIR}/sounds/716444__scottyd0es__tone12_alert_5.wav",
+            'directed_to_my_call': f"{CURRENT_DIR}/sounds/716445__scottyd0es__tone12_error.wav",
+            'ready_to_log': f"{CURRENT_DIR}/sounds/709072__scottyd0es__aeroce-dualtone-5.wav",
+            'error_occurred': f"{CURRENT_DIR}/sounds/142608__autistic-lucario__error.wav",
+            'monitored_callsign_decoded': f"{CURRENT_DIR}/sounds/716442__scottyd0es__tone12_alert_3.wav",
+            'band_change': f"{CURRENT_DIR}/sounds/342759__rhodesmas__score-counter-01.wav",
+            'updated_settings': f"{CURRENT_DIR}/sounds/342757__rhodesmas__searching-03.wav",
+            'enable_global_sound': f"{CURRENT_DIR}/sounds/342754__rhodesmas__searching-01.wav"
+        }
+        
+        # Create media player for sound playback
+        self.media_player = QMediaPlayer()
+        self.media_player.setAudioOutput(self.audio_output)
 
-        self.wanted_callsign_first_time_decoded_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/709060__scottyd0es__aeroce-proximity-notification.wav"))
-        self.wanted_callsign_decoded_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/495650__matrixxx__supershort-ping-or-short-notification.wav"))
-        self.wanted_callsign_being_called_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/716444__scottyd0es__tone12_alert_5.wav"))
-        self.directed_to_my_call_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/716445__scottyd0es__tone12_error.wav"))
-        self.ready_to_log_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/709072__scottyd0es__aeroce-dualtone-5.wav"))
-        self.error_occurred_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/142608__autistic-lucario__error.wav"))
-        self.monitored_callsign_decoded_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/716442__scottyd0es__tone12_alert_3.wav"))
-        self.band_change_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/342759__rhodesmas__score-counter-01.wav"))
-        self.updated_settings.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/342757__rhodesmas__searching-03.wav"))
-        self.enabled_global_sound.setSource(QtCore.QUrl.fromLocalFile(f"{CURRENT_DIR}/sounds/342754__rhodesmas__searching-01.wav"))
         
         self.enable_pounce_log                  = params.get('enable_pounce_log', True)
         self.enable_filter_gui                   = params.get('enable_filter_gui', False)        
@@ -1426,10 +1427,10 @@ class MainApp(QtWidgets.QMainWindow):
                     ) or
                     has_significant_change(
                         self.wanted_cq_zones_vars[band].text(),
-                        ",".join(master_wanted_cq_zones)
+                        ",".join(str(zone) for zone in master_wanted_cq_zones)
                     )
                 )
-            ):
+            ):                                    
                 play_sound = True
 
             """
@@ -1893,24 +1894,10 @@ class MainApp(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot(object)
     def play_sound(self, sound_name):
-        try:           
-            sound_mapping = {
-                'wanted_callsign_first_time_decoded' : self.wanted_callsign_first_time_decoded_sound,
-                'wanted_callsign_decoded'           : self.wanted_callsign_decoded_sound,
-                'wanted_callsign_being_called'      : self.wanted_callsign_being_called_sound,
-                'directed_to_my_call'               : self.directed_to_my_call_sound,
-                'monitored_callsign_decoded'        : self.monitored_callsign_decoded_sound,
-                'ready_to_log'                      : self.ready_to_log_sound,
-                'band_change'                       : self.band_change_sound,
-                'updated_settings'                  : self.updated_settings,
-                'error_occurred'                    : self.error_occurred_sound,
-                'enable_global_sound'               : self.enabled_global_sound
-            }
-
-            sound = sound_mapping.get(sound_name)
-            if sound:
+        try:
+            if sound_name in self.sound_files:
                 log.debug(f"Queued sound: [{sound_name}]")
-                self.sound_queue.put(sound)
+                self.sound_queue.put(sound_name)
                 self.start_sound_queue()
             else:
                 log.error(f"Unknown sound: [{sound_name}]") 
@@ -1932,11 +1919,20 @@ class MainApp(QtWidgets.QMainWindow):
     def play_next_sound(self):
         if not self.sound_queue.empty():
             self.currently_playing = True
-            sound = self.sound_queue.get()
-            sound.play()
+            sound_name = self.sound_queue.get()
             
-            duration = sound.duration() if hasattr(sound, "duration") else 500
-            self.sound_timer.start(duration)
+            # Recreate audio output to handle device changes on macOS
+            if sys.platform == 'darwin':
+                self.audio_output = QAudioOutput()
+                self.media_player.setAudioOutput(self.audio_output)
+            
+            # Set source and play
+            sound_file = self.sound_files[sound_name]
+            self.media_player.setSource(QtCore.QUrl.fromLocalFile(sound_file))
+            self.media_player.play()
+            
+            # Use fixed duration since QMediaPlayer duration isn't immediately available
+            self.sound_timer.start(1000)
         else:
             self.currently_playing = False            
 
@@ -2952,6 +2948,7 @@ class MainApp(QtWidgets.QMainWindow):
         logging_udp_server_port             = int(params.get('logging_udp_server_port') or DEFAULT_UDP_PORT)
         enable_logging_udp_server           = params.get('enable_logging_udp_server', DEFAULT_SECONDARY_UDP_SERVER)
         enable_sending_reply                = params.get('enable_sending_reply', DEFAULT_SENDING_REPLY)
+        enable_politeness_reply            = params.get('enable_politeness_reply', DEFAULT_POLITENESS_REPLY)
         max_reply_attemps_to_callsign       = params.get('max_reply_attemps_to_callsign', DEFAULT_REPLY_ATTEMPTS)
         max_working_delay                   = params.get('max_working_delay', DEFAULT_MAX_WAITING_DELAY)
         enable_gap_finder                    = params.get('enable_gap_finder', DEFAULT_GAP_FINDER)
@@ -2984,6 +2981,7 @@ class MainApp(QtWidgets.QMainWindow):
             logging_udp_server_port,
             enable_logging_udp_server,            
             enable_sending_reply,
+            enable_politeness_reply,
             max_reply_attemps_to_callsign,
             max_working_delay,
             enable_log_all_valid_contact,

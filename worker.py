@@ -28,7 +28,8 @@ class Worker(QObject):
             logging_udp_server_address, 
             logging_udp_server_port,
             enable_logging_udp_server, 
-            enable_sending_reply, 
+            enable_sending_reply,
+            enable_politeness_reply, 
             max_reply_attemps_to_callsign, 
             max_working_delay,
             enable_log_all_valid_contact, 
@@ -69,6 +70,7 @@ class Worker(QObject):
         self.enable_logging_udp_server = enable_logging_udp_server
 
         self.enable_sending_reply = enable_sending_reply
+        self.enable_politeness_reply = enable_politeness_reply
         self.max_reply_attemps_to_callsign = max_reply_attemps_to_callsign
         self.max_working_delay = max_working_delay
         self.enable_log_all_valid_contact = enable_log_all_valid_contact
@@ -105,6 +107,7 @@ class Worker(QObject):
                 enable_logging_udp_server       = self.enable_logging_udp_server,                
                 
                 enable_sending_reply            = self.enable_sending_reply,
+                enable_politeness_reply = self.enable_politeness_reply,
                 
                 max_reply_attemps_to_callsign   = self.max_reply_attemps_to_callsign,
                 max_working_delay               = self.max_working_delay,
