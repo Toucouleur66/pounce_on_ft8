@@ -174,7 +174,15 @@ def parse_single_wsjtx_message(
                         callsign = match.group(2)
                         msg      = match.group(3)                        
                     else:
-                        pass
+                        # 6) Handle two callsigns without message (e.g., "F5UKW DU6/PE1NSQ")
+                        match = re.match(
+                            r"^([A-Z0-9/]*\d[A-Z0-9/]*)\s+([A-Z0-9/]*\d[A-Z0-9/]*)\s*$",
+                            message
+                        )
+                        if match:
+                            directed = match.group(1)
+                            callsign = match.group(2)
+                            msg = None
 
     if msg:
         # RRR / RR73 / 73
@@ -187,18 +195,10 @@ def parse_single_wsjtx_message(
         elif re.match(r"^(?:R[+\-]|[+\-])\d{2}$", msg):
             report = msg
         else:
-            pass
+            callsign = None
+            msg      = None
 
-    if callsign and lookup:            
-        # Also check if exact match
-        if cqing and not grid and callsign not in wanted_callsigns:
-            pass
-        else:     
-            callsign_info = lookup.lookup_callsign(callsign, grid)    
-
-        if callsign_info:            
-            cq_zone = callsign_info["cqz"]
-
+    if callsign:
         """
             Check if the callsign matches
         """
@@ -225,6 +225,16 @@ def parse_single_wsjtx_message(
         wanted_cq_zone    = is_wanted_cq_zone and not is_excluded and not is_worked
         monitored_cq_zone = is_monitored_cq_zone and not is_excluded
         excluded          = is_excluded
+
+    if callsign and lookup:            
+        # Also check if exact match
+        if cqing and not grid and callsign not in wanted_callsigns:
+            pass
+        else:     
+            callsign_info = lookup.lookup_callsign(callsign, grid)    
+
+        if callsign_info:            
+            cq_zone = callsign_info["cqz"]
 
     return {
         'directed'           : directed,
