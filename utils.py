@@ -198,6 +198,16 @@ def parse_single_wsjtx_message(
             callsign = None
             msg      = None
 
+    if callsign and lookup:            
+        # Also check if exact match
+        if cqing and not grid and callsign not in wanted_callsigns:
+            pass
+        else:     
+            callsign_info = lookup.lookup_callsign(callsign, grid)    
+
+        if callsign_info:            
+            cq_zone = callsign_info["cqz"]
+
     if callsign:
         """
             Check if the callsign matches
@@ -214,6 +224,7 @@ def parse_single_wsjtx_message(
         is_monitored_cq_zone     = False
         if cq_zone and cq_zone in wanted_cq_zones:
             is_wanted_cq_zone    = True
+
         if cq_zone and cq_zone in monitored_cq_zones:
             is_monitored_cq_zone = True
 
@@ -225,16 +236,6 @@ def parse_single_wsjtx_message(
         wanted_cq_zone    = is_wanted_cq_zone and not is_excluded and not is_worked
         monitored_cq_zone = is_monitored_cq_zone and not is_excluded
         excluded          = is_excluded
-
-    if callsign and lookup:            
-        # Also check if exact match
-        if cqing and not grid and callsign not in wanted_callsigns:
-            pass
-        else:     
-            callsign_info = lookup.lookup_callsign(callsign, grid)    
-
-        if callsign_info:            
-            cq_zone = callsign_info["cqz"]
 
     return {
         'directed'           : directed,
