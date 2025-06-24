@@ -419,6 +419,11 @@ class MainApp(QtWidgets.QMainWindow):
         self.filter_widget.setMinimumHeight(0)
 
         """
+            Compact mode
+        """
+        self.compact_mode_visible  = False
+
+        """
             Toggle buttons
         """
         self.clear_button = CustomButton("Erase")
@@ -560,8 +565,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.worked_history_widget.setMaximumWidth(220)
         self.worked_history_widget.setFixedHeight(220)
        
-        container_tab = QtWidgets.QWidget()
-        container_layout = QtWidgets.QHBoxLayout(container_tab)
+        self.container_tab = QtWidgets.QWidget()
+        container_layout = QtWidgets.QHBoxLayout(self.container_tab)
         container_layout.setContentsMargins(0, 10, 0, 20)  
         container_layout.setSpacing(10)
         container_layout.addWidget(self.tab_widget) 
@@ -570,7 +575,7 @@ class MainApp(QtWidgets.QMainWindow):
         main_layout.setSpacing(0) 
         main_layout.addLayout(top_layout, 0, 0, 1, 1)
         
-        main_layout.addWidget(container_tab, 1, 0)
+        main_layout.addWidget(self.container_tab, 1, 0)
         main_layout.addWidget(self.output_table, 2, 0)
         main_layout.setRowStretch(2, 1)
         main_layout.addWidget(self.filter_widget, 3, 0)
@@ -1011,6 +1016,20 @@ class MainApp(QtWidgets.QMainWindow):
         self.filter_widget_visible = True
         self.animate_layout_height(self.filter_widget, target_height=60)  
         QtCore.QTimer.singleShot(0, self.callsign_input.setFocus)
+
+    def toggle_compact_mode(self, checked):
+        if checked:
+            self.hide_container_tab()
+        else:
+            self.show_container_tab()
+
+    def hide_container_tab(self):
+        self.compact_mode_visible = False
+        self.animate_layout_height(self.container_tab, target_height=10)
+
+    def show_container_tab(self):
+        self.compact_mode_visible = True
+        self.animate_layout_height(self.container_tab, target_height=290)
 
     def animate_layout_height(self, widget, target_height, duration=300):
         widget.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
@@ -2687,6 +2706,14 @@ class MainApp(QtWidgets.QMainWindow):
         # Add Window menu
         self.window_menu = self.menu_bar.addMenu("Window")
 
+        compact_mode_action = QtGui.QAction("Compact mode", self)
+        compact_mode_action.setCheckable(True)
+        compact_mode_action.setChecked(False)
+        compact_mode_action.triggered.connect(self.toggle_compact_mode)
+        self.window_menu.addAction(compact_mode_action)
+
+        self.window_menu.addSeparator()
+
         show_all_messages_action = QtGui.QAction("Show All Messages", self)
         show_all_messages_action.setShortcut(QtGui.QKeySequence("Ctrl+T"))
         show_all_messages_action.setCheckable(True)  
@@ -2948,7 +2975,7 @@ class MainApp(QtWidgets.QMainWindow):
         logging_udp_server_port             = int(params.get('logging_udp_server_port') or DEFAULT_UDP_PORT)
         enable_logging_udp_server           = params.get('enable_logging_udp_server', DEFAULT_SECONDARY_UDP_SERVER)
         enable_sending_reply                = params.get('enable_sending_reply', DEFAULT_SENDING_REPLY)
-        enable_politeness_reply            = params.get('enable_politeness_reply', DEFAULT_POLITENESS_REPLY)
+        enable_politeness_reply             = params.get('enable_politeness_reply', DEFAULT_POLITENESS_REPLY)
         max_reply_attemps_to_callsign       = params.get('max_reply_attemps_to_callsign', DEFAULT_REPLY_ATTEMPTS)
         max_working_delay                   = params.get('max_working_delay', DEFAULT_MAX_WAITING_DELAY)
         enable_gap_finder                    = params.get('enable_gap_finder', DEFAULT_GAP_FINDER)
