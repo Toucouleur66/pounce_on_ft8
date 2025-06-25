@@ -7,8 +7,10 @@ import sys
 
 from PyQt6 import QtWidgets, QtCore
 from PyQt6.QtWidgets import QFileDialog, QTableWidgetItem
+from PyQt6.QtCore import Qt
 
 from custom_button import CustomButton
+from priority_table import PriorityTableWidget
 from adif_summary_dialog import AdifSummaryDialog
 
 from datetime import datetime
@@ -19,8 +21,8 @@ from utils import AMATEUR_BANDS
 
 from constants import (
     # Colors
-    BG_COLOR_BLACK_ON_PURPLE,
-    FG_COLOR_BLACK_ON_PURPLE,
+    SETTING_QSS,
+    TABLE_SETTING_QSS,
     STATUS_TRX_COLOR,
     # Labels
     GUI_LABEL_NAME,
@@ -181,6 +183,7 @@ class SettingsDialog(QtWidgets.QDialog):
         
         self.enable_politeness_reply = QtWidgets.QCheckBox("Enable politeness reply")
         self.enable_politeness_reply.setChecked(DEFAULT_POLITENESS_REPLY)
+        self.enable_politeness_reply.toggled.connect(self.populate_priority_list)
         
         self.enable_gap_finder = QtWidgets.QCheckBox("Enable frequencies offset updater")
         self.enable_gap_finder.setChecked(DEFAULT_GAP_FINDER)
@@ -303,7 +306,6 @@ class SettingsDialog(QtWidgets.QDialog):
         headers = ["", "Min Frequency", "Max Frequency", "Mode"]
         self.mode_table_widget.setHorizontalHeaderLabels(headers)
         self.mode_table_widget.horizontalHeader().setVisible(True)
-
         self.mode_table_widget.horizontalHeader().setDefaultAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
 
         self.mode_table_widget.setSizePolicy(
@@ -345,18 +347,7 @@ class SettingsDialog(QtWidgets.QDialog):
             }
         """)
 
-        self.mode_table_widget.setStyleSheet(f"""
-            QTableWidget {{
-                border: none;
-            }}
-            QTableWidget::item:selected {{
-                background-color: {BG_COLOR_BLACK_ON_PURPLE}; 
-                color: {FG_COLOR_BLACK_ON_PURPLE};
-            }}
-            QTableWidget::item {{
-                selection-background-color: transparent;  
-            }}
-        """)
+        self.mode_table_widget.setStyleSheet(TABLE_SETTING_QSS)
         self.mode_table_widget.verticalHeader().setVisible(False)
         self.mode_table_widget.cellClicked.connect(self.on_table_row_selected)
 
@@ -366,9 +357,45 @@ class SettingsDialog(QtWidgets.QDialog):
         self.freq_range_type_group.layout().setContentsMargins(0, 0, 0, 0)
         self.freq_range_type_group.layout().addWidget(udp_freq_range_type_widget)
 
+        # Priority Manager Group
+        self.priority_manager_group = QtWidgets.QGroupBox("Priority Manager")
+        priority_layout = QtWidgets.QVBoxLayout()
+        
+        priority_notice_text = (
+            "<p>Set the priority order for reply decisions. Drag and drop blocks to reorder them. The top block has the highest priority (1st), and the bottom block has the lowest priority (4th).</p>"
+        )
+        priority_notice_label = QtWidgets.QLabel(priority_notice_text)
+        priority_notice_label.setWordWrap(True)
+        priority_notice_label.setFont(CUSTOM_FONT_SMALL)
+        priority_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
+        priority_notice_label.setStyleSheet(SETTING_QSS)
+        priority_notice_label.setAutoFillBackground(True)
+        
+        self.priority_table = PriorityTableWidget()
+        self.priority_table.setColumnCount(2)
+        self.priority_table.setShowGrid(False)
+        self.priority_table.setHorizontalHeaderLabels(["Priority", "Feature"])
+        self.priority_table.setMaximumHeight(120)
+        self.priority_table.setAlternatingRowColors(True)
+        self.priority_table.verticalHeader().setVisible(False)
+        self.priority_table.horizontalHeader().setVisible(False)
+        self.priority_table.horizontalHeader().setStretchLastSection(True)
+        self.priority_table.horizontalHeader().setDefaultAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
+        self.priority_table.setColumnWidth(0, 80)
+        
+        self.priority_table.horizontalHeader().setFont(CUSTOM_FONT_SMALL)        
+        self.priority_table.setStyleSheet(TABLE_SETTING_QSS)
+        
+        self.priority_table.rowsMoved.connect(self.update_priority_labels)
+        
+        priority_layout.addWidget(priority_notice_label)
+        priority_layout.addWidget(self.priority_table)
+        self.priority_manager_group.setLayout(priority_layout)
+
         tab_2_layout.addWidget(max_reply_notice_label)
         tab_2_layout.addWidget(self.max_reply_group)        
         tab_2_layout.addWidget(general_settings_group)
+        tab_2_layout.addWidget(self.priority_manager_group)
         tab_2_layout.addWidget(self.freq_range_type_group)
 
         tab_2_layout.addStretch() 
@@ -612,6 +639,78 @@ class SettingsDialog(QtWidgets.QDialog):
         self.on_tab_changed(self.tab_widget.currentIndex())  
         self.tab_widget.currentChanged.connect(self.on_tab_changed)        
 
+    def get_ordinal(self, number):
+        if number == 0:
+            return "1st"
+        elif number == 1:
+            return "2nd"
+        elif number == 2:
+            return "3rd"
+        else:
+            return f"{number+1}th"
+    
+    def update_priority_labels(self):
+        for i in range(self.priority_table.rowCount()):
+            priority_item = QTableWidgetItem(self.get_ordinal(i))
+            priority_item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            priority_item.setFlags(priority_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            priority_item.setFont(CUSTOM_FONT_SMALL)
+            self.priority_table.setItem(i, 0, priority_item)
+    
+    def populate_priority_list(self):
+        if not hasattr(self, 'priority_table'):
+            return
+            
+        current_order = []
+        for i in range(self.priority_table.rowCount()):
+            feature_item = self.priority_table.item(i, 1)
+            if feature_item:
+                current_order.append(feature_item.text())
+        
+        if not current_order and hasattr(self, 'saved_priority_order'):
+            current_order = self.saved_priority_order.copy()
+        
+        available_items = []
+        if self.enable_sending_reply.isChecked():
+            available_items.extend(["Wanted", "Wanted CQ Zones", "Marathon"])
+            if self.enable_politeness_reply.isChecked():
+                available_items.append("Politeness reply")
+        
+        final_order = []
+        for item in current_order:
+            if item in available_items:
+                final_order.append(item)
+                available_items.remove(item)
+        final_order.extend(available_items)  
+        
+        self.priority_table.setRowCount(len(final_order))
+        
+        # Set row height to match frequency table
+        row_height = 22
+        for i, item_name in enumerate(final_order):
+            self.priority_table.setRowHeight(i, row_height)
+            
+            # Priority column
+            priority_item = QTableWidgetItem(self.get_ordinal(i))
+            priority_item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            priority_item.setFlags(priority_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            priority_item.setFont(CUSTOM_FONT_SMALL)
+            self.priority_table.setItem(i, 0, priority_item)
+            
+            # Feature column
+            feature_item = QTableWidgetItem(item_name)
+            feature_item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            feature_item.setFlags(feature_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            feature_item.setFont(CUSTOM_FONT_SMALL)
+            self.priority_table.setItem(i, 1, feature_item)
+    
+    def update_priority_manager_visibility(self):
+        if self.enable_sending_reply.isChecked():
+            self.priority_manager_group.setVisible(True)
+            self.populate_priority_list()
+        else:
+            self.priority_manager_group.setVisible(False)
+    
     def on_band_toggled(self, button, band_name, checked):
         if not hasattr(self, "_previous_band_states"):
             self._previous_band_states = {}
@@ -838,6 +937,10 @@ class SettingsDialog(QtWidgets.QDialog):
         for band_name, btn in self.band_buttons.items():
             checked = self.marathon_preference.get(band_name, False)
             btn.setChecked(checked)
+            
+        # Load priority order and populate the list
+        self.saved_priority_order = self.params.get('priority_order', ["Wanted", "Wanted CQ Zones", "Marathon", "Politeness reply"])
+        self.populate_priority_list()
     
     def get_result(self):
         freq_range_mode = MODE_NORMAL 
@@ -861,6 +964,13 @@ class SettingsDialog(QtWidgets.QDialog):
         marathon_preference = {}
         for band_name, btn in self.band_buttons.items():
             marathon_preference[band_name] = btn.isChecked()
+            
+        # Get priority order
+        priority_order = []
+        for i in range(self.priority_table.rowCount()):
+            feature_item = self.priority_table.item(i, 1)
+            if feature_item:
+                priority_order.append(feature_item.text())
 
         return {
             'primary_udp_server_address'                 : self.primary_udp_server_address.text(),
@@ -891,5 +1001,6 @@ class SettingsDialog(QtWidgets.QDialog):
             'adif_worked_backup_file_path'                : self.show_backup_file_path.text(),
             'freq_range_mode'                            : freq_range_mode,
             'worked_before_preference'                   : worked_before_preference,
-            'marathon_preference'                        : marathon_preference            
+            'marathon_preference'                        : marathon_preference,
+            'priority_order'                             : priority_order            
         }

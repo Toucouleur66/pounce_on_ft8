@@ -112,7 +112,7 @@ ACTIVITY_BAR_MAX_VALUE          = 50
 HEARTBEAT_TIMEOUT_THRESHOLD     = 30
 DECODE_PACKET_TIMEOUT_THRESHOLD = 60
 WAITING_TIME_BEFORE_REPLY       = 200 / 1_000 # = 200ms (0,2s)
-MAXIMUM_ALLOWED_DT              = 1.7
+MAXIMUM_ALLOWED_DT              = 1.9
 
 CURRENT_DIR                     = os.path.dirname(os.path.realpath(__file__))
 CTY_XML                         = 'cty.xml'
@@ -153,6 +153,20 @@ TOOLTIP_QSS                      = f"""
                 padding: 3px;
                 margin: 0px;
                 border-radius: 6px;
+            }}
+        """
+
+TABLE_SETTING_QSS               = f"""
+            QTableWidget {{
+                border: none;
+            }}
+            QTableWidget::item:selected {{
+                background-color: {BG_COLOR_BLACK_ON_PURPLE}; 
+                color: {FG_COLOR_BLACK_ON_PURPLE};
+            }}
+            QTableWidget::item {{
+                selection-background-color: transparent;
+                padding-left: 8px;
             }}
         """
 
