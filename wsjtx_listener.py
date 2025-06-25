@@ -33,7 +33,6 @@ from constants import (
     CURRENT_VERSION_NUMBER,
     BAND_CHANGE_WAITING_DELAY,
     DEFAULT_REPLY_ATTEMPTS,
-    DEFAULT_POLITENESS_REPLY,
     MAXIMUM_ALLOWED_DT,
     EVEN,
     ODD,
@@ -135,7 +134,7 @@ class Listener(QObject):
         self.reply_attempts             = {}
 
         self.enable_sending_reply               = enable_sending_reply
-        self.enable_politeness_reply           = enable_politeness_reply
+        self.enable_politeness_reply            = enable_politeness_reply
         self.enable_log_all_valid_contact       = enable_log_all_valid_contact
         self.enable_reply_to_valid_callsign     = enable_reply_to_valid_callsign
         self.enable_gap_finder                   = enable_gap_finder
@@ -1135,13 +1134,12 @@ class Listener(QObject):
                             reply_to_packet = True
                             message_type = 'wanted_callsign_being_called'  
                     # We need to end this 
-                    elif self.call_ready_to_log == callsign and self.rst_sent.get(self.call_ready_to_log):
-                        if self.enable_politeness_reply:
-                            reply_to_packet = True
+                    elif self.call_ready_to_log == callsign and self.rst_sent.get(self.call_ready_to_log):  
+                        reply_to_packet = True
                     elif self.rst_sent.get(callsign):
                         count_attempts = len(self.reply_attempts.get(callsign, []))
                         log.warning(f"Found unexpected message from callsign [ {callsign} ]")
-                        if count_attempts < DEFAULT_REPLY_ATTEMPTS and self.enable_politeness_reply:
+                        if count_attempts < DEFAULT_REPLY_ATTEMPTS:
                             reply_to_packet = True    
                     elif self.enable_politeness_reply:
                         reply_to_packet = True
@@ -1181,9 +1179,9 @@ class Listener(QObject):
                 """
                     Ignore if DT is above normal values
                 """
-                if abs(delta_t) > MAXIMUM_ALLOWED_DT and reply_to_packet:
+                if abs(delta_t) > MAXIMUM_ALLOWED_DT and reply_to_packet and callsign != self.targeted_call:
                     log.error(f"DT is above normal for [ {callsign } ]. DT: [ {round(delta_t, 1)}s ]")
-                    return                        
+                    return                            
                 
                 """
                     Check priority
@@ -1272,21 +1270,19 @@ class Listener(QObject):
                 if filtered_message['callsign'] == self.targeted_call:
                     filtered_message['priority'] = 6
                 else:
-                    filtered_message['priority'] = 5
+                    filtered_message['priority'] = 3
             else:
                 if filtered_message.get('cqing'):
-                    filtered_message['priority'] = 3
+                    filtered_message['priority'] = 2
                 else:
-                    filtered_message['priority'] = 2                    
+                    filtered_message['priority'] = 1                    
 
-                if filtered_message['wanted']:
-                    filtered_message['priority']+= 1
-                elif filtered_message['marathon']:
-                    filtered_message['priority']-= 1
-                elif filtered_message['wanted_cq_zone']:   
-                    filtered_message['priority']-= 2
-
-                    # Make sure to reply if politeness is enabled
+            if filtered_message['wanted']:
+                filtered_message['priority']+= 3
+            elif filtered_message['marathon']:
+                filtered_message['priority']+= 2
+            elif filtered_message['wanted_cq_zone']:   
+                filtered_message['priority']+= 1
 
         """
             Selects the message with the highest priority
@@ -1385,10 +1381,10 @@ class Listener(QObject):
             return        
         
         try:            
-            self.reply_to_packet_time    = datetime.now(timezone.utc)            
+            self.reply_to_packet_time = datetime.now(timezone.utc)            
             reply_pkt = pywsjtx.ReplyPacket.Builder(callsign_packet)
             self.s.send_packet(self.origin_addr_port, reply_pkt)         
-            log.debug(f"Sent ReplyPacket: {reply_pkt}")            
+            log.debug(f"[ {callsign_packet.wsjtx_id} ] Sent ReplyPacket: {reply_pkt}")            
         except Exception as e:
             log.error(f"Error sending packets: {e}\n{traceback.format_exc()}")
 
