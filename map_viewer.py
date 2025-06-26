@@ -500,9 +500,29 @@ class MapWidget(QWidget):
                 'center_lon': square_base_lon + 1.0
             }
     
+    def screen_to_lat_lon_stable(self, screen_x, screen_y):
+        center_screen_x = self.width() / 2
+        center_screen_y = self.height() / 2
+        
+        offset_x = screen_x - center_screen_x
+        offset_y = screen_y - center_screen_y
+        
+        world_size = 2 ** self.zoom * self.tile_size
+        center_world_x = (self.center_lon + 180) / 360 * world_size
+        center_world_y = (1 - math.asinh(math.tan(math.radians(self.center_lat))) / math.pi) / 2 * world_size
+        
+        mouse_world_x = center_world_x + offset_x
+        mouse_world_y = center_world_y + offset_y
+        
+        mouse_lon = (mouse_world_x / world_size * 360) - 180
+        lat_rad = math.atan(math.sinh(math.pi * (1 - 2 * mouse_world_y / world_size)))
+        mouse_lat = math.degrees(lat_rad)
+        
+        return mouse_lat, mouse_lon
+
     def get_visible_grid_squares(self):
-        top_left_lat, top_left_lon = self.screen_to_lat_lon(0, 0)
-        bottom_right_lat, bottom_right_lon = self.screen_to_lat_lon(self.width(), self.height())
+        top_left_lat, top_left_lon = self.screen_to_lat_lon_stable(0, 0)
+        bottom_right_lat, bottom_right_lon = self.screen_to_lat_lon_stable(self.width(), self.height())
         
         north = max(top_left_lat, bottom_right_lat)
         south = min(top_left_lat, bottom_right_lat)
@@ -532,8 +552,9 @@ class MapWidget(QWidget):
         start_lat_idx = math.floor((south - grid_base_lat) / unit_lat)
         end_lat_idx = math.ceil((north - grid_base_lat) / unit_lat) + 1
         
-        for lon_idx in range(start_lon_idx - 1, end_lon_idx + 1):
-            for lat_idx in range(start_lat_idx - 1, end_lat_idx + 1):
+        buffer = 2
+        for lon_idx in range(start_lon_idx - buffer, end_lon_idx + buffer):
+            for lat_idx in range(start_lat_idx - buffer, end_lat_idx + buffer):
                 square_sw_lon = grid_base_lon + lon_idx * unit_lon
                 square_sw_lat = grid_base_lat + lat_idx * unit_lat
                 square_ne_lon = square_sw_lon + unit_lon

@@ -248,6 +248,7 @@ class StatusMenuAgent(QtCore.QObject):
         CoreFoundation.CFRunLoopRunInMode(CoreFoundation.kCFRunLoopDefaultMode, 0.01, False)
 
     def set_text_and_colors(self, text, bg_color, fg_color):
+        text = text.strip()
         if hasattr(self.delegate, 'view') and self.delegate.view:
             self.delegate.view.setTextAndColors(text, bg_color, fg_color)
         else:
