@@ -39,6 +39,8 @@ from constants import (
     FREQ_MAXIMUM_SUPER_FOX,
     # Marathon
     MARATHON_UNLIMITED,
+    # Priority
+    PRIORITY_LIST,
     # UDP related
     DEFAULT_UDP_PORT,
     DEFAULT_AUTO_START_MONITORING,
@@ -661,21 +663,35 @@ class SettingsDialog(QtWidgets.QDialog):
         if not hasattr(self, 'priority_table'):
             return
             
+        # Get current order from table
         current_order = []
         for i in range(self.priority_table.rowCount()):
             feature_item = self.priority_table.item(i, 1)
             if feature_item:
                 current_order.append(feature_item.text())
         
-        if not current_order and hasattr(self, 'saved_priority_order'):
-            current_order = self.saved_priority_order.copy()
+        # Load from saved settings
+        if not current_order:
+            saved_order = self.params.get('priority_order', list(PRIORITY_LIST.values()))
+            reverse_mapping = {v: k for k, v in PRIORITY_LIST.items()}
+            for item in saved_order:
+                try:
+                    if item in reverse_mapping: 
+                        current_order.append(reverse_mapping[item])
+                    elif item in PRIORITY_LIST: 
+                        current_order.append(item)
+                except KeyError:
+                    pass
         
+        # Get available items based on checkboxes
         available_items = []
         if self.enable_sending_reply.isChecked():
-            available_items.extend(["Wanted", "Wanted CQ Zones", "Marathon"])
-            if self.enable_politeness_reply.isChecked():
-                available_items.append("Politeness reply")
+            available_items.extend(list(PRIORITY_LIST.keys()))
+            if not self.enable_politeness_reply.isChecked():
+                 if available_items: 
+                    available_items.pop()
         
+        # Build final order: current order first, then new items
         final_order = []
         for item in current_order:
             if item in available_items:
@@ -938,8 +954,6 @@ class SettingsDialog(QtWidgets.QDialog):
             checked = self.marathon_preference.get(band_name, False)
             btn.setChecked(checked)
             
-        # Load priority order and populate the list
-        self.saved_priority_order = self.params.get('priority_order', ["Wanted", "Wanted CQ Zones", "Marathon", "Politeness reply"])
         self.populate_priority_list()
     
     def get_result(self):
@@ -965,17 +979,19 @@ class SettingsDialog(QtWidgets.QDialog):
         for band_name, btn in self.band_buttons.items():
             marathon_preference[band_name] = btn.isChecked()
             
-        # Get priority order
+        # Get priority order - convert display names to property keys
         priority_order = []
         for i in range(self.priority_table.rowCount()):
             feature_item = self.priority_table.item(i, 1)
             if feature_item:
-                priority_order.append(feature_item.text())
+                display_name = feature_item.text()
+                property_key = PRIORITY_LIST.get(display_name, display_name)
+                priority_order.append(property_key)
 
         return {
             'primary_udp_server_address'                 : self.primary_udp_server_address.text(),
             'primary_udp_server_port'                    : self.primary_udp_server_port.text(),
-            'enable_auto_start_monitoring'                    : self.enable_auto_start_monitoring.isChecked(),
+            'enable_auto_start_monitoring'               : self.enable_auto_start_monitoring.isChecked(),
             'secondary_udp_server_address'               : self.secondary_udp_server_address.text(),
             'secondary_udp_server_port'                  : self.secondary_udp_server_port.text(),
             'enable_secondary_udp_server'                : self.enable_secondary_udp_server.isChecked(),
@@ -983,7 +999,7 @@ class SettingsDialog(QtWidgets.QDialog):
             'logging_udp_server_port'                    : self.logging_udp_server_port.text(),
             'enable_logging_udp_server'                  : self.enable_logging_udp_server.isChecked(),
             'enable_sending_reply'                       : self.enable_sending_reply.isChecked(),
-            'enable_politeness_reply'            : self.enable_politeness_reply.isChecked(),
+            'enable_politeness_reply'                    : self.enable_politeness_reply.isChecked(),
             'enable_log_all_valid_contact'               : self.enable_log_all_valid_contact.isChecked(),
             'enable_reply_to_valid_callsign'             : self.enable_reply_to_valid_callsign.isChecked(),
             'max_reply_attemps_to_callsign'              : max_reply_attemps,

@@ -2990,6 +2990,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.adif_worked_backup_file_path    = params.get('adif_worked_backup_file_path', None)
         self.worked_before_preference       = params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS)
         self.marathon_preference            = params.get('marathon_preference', {})
+        priority_order                      = params.get('priority_order', None)
         
         self.save_unique_param('freq_range_mode', freq_range_mode )        
 
@@ -3022,7 +3023,8 @@ class MainApp(QtWidgets.QMainWindow):
             self.adif_worked_backup_file_path,
             self.worked_before_preference,
             self.enable_marathon,
-            self.marathon_preference           
+            self.marathon_preference,
+            priority_order           
         )
         self.worker.moveToThread(self.thread)
 

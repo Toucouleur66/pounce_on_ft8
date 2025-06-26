@@ -145,7 +145,11 @@ class Listener(QObject):
         self.enable_pounce_log                  = enable_pounce_log 
         self.enable_log_packet_data             = enable_log_packet_data
         self.enable_marathon                    = enable_marathon
-        self.priority_order                     = priority_order or list(PRIORITY_LIST.keys())
+        # Convert display names to property keys if needed
+        if priority_order:
+            self.priority_order = [PRIORITY_LIST.get(name, name) for name in priority_order]
+        else:
+            self.priority_order = list(PRIORITY_LIST.values())
 
         self.max_reply_attemps_to_callsign  = max_reply_attemps_to_callsign
 
@@ -387,18 +391,13 @@ class Listener(QObject):
         log_output.append(f"MyCall={self.my_call}")
         log_output.append(f"EnableSendingReply={self.enable_sending_reply}")             
         log_output.append(f"Band={self.band}")   
-        if self.wanted_callsigns:
-            log_output.append(f"WantedCallsigns={", ".join(self.wanted_callsigns)}")
-        if self.monitored_callsigns:
-            log_output.append(f"MonitoredCallsigns={", ".join(self.monitored_callsigns)}")
-        if self.excluded_callsigns:
-            log_output.append(f"ExcludedCallsigns={", ".join(self.excluded_callsigns)}")
-        if self.wanted_cq_zones:
-            log_output.append(f"WantedZones={", ".join(str(zone) for zone in self.wanted_cq_zones)}")
-        if self.monitored_cq_zones:
-            log_output.append(f"MonitoredZones={", ".join(str(zone) for zone in self.monitored_cq_zones)}")
-        if self.excluded_cq_zones:
-            log_output.append(f"ExcludedZones={", ".join(str(zone) for zone in self.excluded_cq_zones)}")
+        log_output.append(f"WantedCallsigns={self.wanted_callsigns}")
+        log_output.append(f"MonitoredCallsigns={self.monitored_callsigns}")
+        log_output.append(f"ExcludedCallsigns={self.excluded_callsigns}")
+        log_output.append(f"WantedZones={self.wanted_cq_zones}")
+        log_output.append(f"MonitoredZones={self.monitored_cq_zones}")
+        log_output.append(f"ExcludedZones={self.excluded_cq_zones}")
+
         
         if self.enable_marathon:
             marathon_preference = self.marathon_preference.get(self.band)
@@ -406,7 +405,7 @@ class Listener(QObject):
                 marathon_preference = None                
             log_output.append(f"Marathon={marathon_preference}")
 
-        log_output.append(f"PriorityOrder={", ".join(self.priority_order)}")            
+        log_output.append(f"PriorityOrder={self.priority_order}")            
 
         log.warning(f"\n\t".join(log_output))
 
@@ -1255,9 +1254,8 @@ class Listener(QObject):
     def get_priority_bonus(self, filtered_message):
         priority_bonus = 0
         
-        for i, priority_name in enumerate(self.priority_order):
-            property_name = PRIORITY_LIST.get(priority_name)
-            if property_name and filtered_message.get(property_name, False):
+        for i, property_name in enumerate(self.priority_order):
+            if filtered_message.get(property_name, False):
                 priority_bonus = 4 - i
                 break
                 
