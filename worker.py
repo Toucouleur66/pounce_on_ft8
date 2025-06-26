@@ -43,7 +43,8 @@ class Worker(QObject):
             adif_worked_backup_file_path, 
             worked_before_preference,
             enable_marathon,
-            marathon_preference
+            marathon_preference,
+            priority_order=None
         ):
         
         super().__init__()
@@ -52,40 +53,41 @@ class Worker(QObject):
         self.synch_settings_signal.connect(self.synch_settings)
         self.reset_settings_signal.connect(self.reset_synched_settings)
 
-        self.listener = None
-        self.stop_event = stop_event
+        self.listener                           = None
+        self.stop_event                         = stop_event
 
-        self.mode = mode
-        self.monitoring_settings = monitoring_settings
+        self.mode                               = mode
+        self.monitoring_settings                = monitoring_settings
 
-        self.primary_udp_server_address = primary_udp_server_address
-        self.primary_udp_server_port = primary_udp_server_port
+        self.primary_udp_server_address         = primary_udp_server_address
+        self.primary_udp_server_port            = primary_udp_server_port
 
-        self.secondary_udp_server_address = secondary_udp_server_address
-        self.secondary_udp_server_port = secondary_udp_server_port
-        self.enable_secondary_udp_server = enable_secondary_udp_server
+        self.secondary_udp_server_address       = secondary_udp_server_address
+        self.secondary_udp_server_port          = secondary_udp_server_port
+        self.enable_secondary_udp_server        = enable_secondary_udp_server
 
-        self.logging_udp_server_address = logging_udp_server_address
-        self.logging_udp_server_port = logging_udp_server_port
-        self.enable_logging_udp_server = enable_logging_udp_server
+        self.logging_udp_server_address         = logging_udp_server_address
+        self.logging_udp_server_port            = logging_udp_server_port
+        self.enable_logging_udp_server          = enable_logging_udp_server
 
-        self.enable_sending_reply = enable_sending_reply
-        self.enable_politeness_reply = enable_politeness_reply
-        self.max_reply_attemps_to_callsign = max_reply_attemps_to_callsign
-        self.max_working_delay = max_working_delay
-        self.enable_log_all_valid_contact = enable_log_all_valid_contact
-        self.enable_reply_to_valid_callsign = enable_reply_to_valid_callsign
-        self.enable_gap_finder = enable_gap_finder
-        self.enable_watchdog_bypass = enable_watchdog_bypass
-        self.enable_debug_output = enable_debug_output
-        self.enable_pounce_log = enable_pounce_log
-        self.enable_log_packet_data = enable_log_packet_data
+        self.enable_sending_reply               = enable_sending_reply
+        self.enable_politeness_reply            = enable_politeness_reply
+        self.max_reply_attemps_to_callsign      = max_reply_attemps_to_callsign
+        self.max_working_delay                  = max_working_delay
+        self.enable_log_all_valid_contact       = enable_log_all_valid_contact
+        self.enable_reply_to_valid_callsign     = enable_reply_to_valid_callsign
+        self.enable_gap_finder                   = enable_gap_finder
+        self.enable_watchdog_bypass             = enable_watchdog_bypass
+        self.enable_debug_output                = enable_debug_output
+        self.enable_pounce_log                  = enable_pounce_log
+        self.enable_log_packet_data             = enable_log_packet_data
 
-        self.adif_file_path = adif_file_path
-        self.adif_worked_backup_file_path = adif_worked_backup_file_path
-        self.worked_before_preference = worked_before_preference
-        self.enable_marathon = enable_marathon
-        self.marathon_preference = marathon_preference
+        self.adif_file_path                      = adif_file_path
+        self.adif_worked_backup_file_path        = adif_worked_backup_file_path
+        self.worked_before_preference           = worked_before_preference
+        self.enable_marathon                    = enable_marathon
+        self.marathon_preference                = marathon_preference
+        self.priority_order                     = priority_order
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.check_stop_event)
@@ -107,7 +109,7 @@ class Worker(QObject):
                 enable_logging_udp_server       = self.enable_logging_udp_server,                
                 
                 enable_sending_reply            = self.enable_sending_reply,
-                enable_politeness_reply = self.enable_politeness_reply,
+                enable_politeness_reply         = self.enable_politeness_reply,
                 
                 max_reply_attemps_to_callsign   = self.max_reply_attemps_to_callsign,
                 max_working_delay               = self.max_working_delay,
@@ -131,6 +133,7 @@ class Worker(QObject):
                 adif_file_path                   = self.adif_file_path,
                 adif_worked_backup_file_path     = self.adif_worked_backup_file_path,                
                 worked_before_preference        = self.worked_before_preference,
+                priority_order                  = self.priority_order,
                 
                 message_callback                = self.message.emit
             )

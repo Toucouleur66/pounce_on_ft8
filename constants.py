@@ -137,6 +137,13 @@ BAND_CHANGE_WAITING_DELAY       = 10
 DEFAULT_SELECTED_BAND           = "6m"
 DEFAULT_FILTER_VALUE            = "All"
 
+PRIORITY_LIST                   = {
+    "Wanted Callsign(s)"        : "wanted",
+    "Wanted CQ Zone(s)"         : "wanted_cq_zone",
+    "Marathon"                  : "marathon",
+    "Politeness reply"          : "politeness_reply"
+}
+
 SETTING_QSS                     = f"""
                 background-color: #9DFFFE; 
                 color: #555BC2;
