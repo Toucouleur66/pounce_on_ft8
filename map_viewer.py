@@ -391,16 +391,9 @@ class MapWidget(QWidget):
             # Update zoom level
             self.zoom = new_zoom
             
-            # Calculate where the mouse point should be after zoom
-            new_mouse_x, new_mouse_y = self.lat_lon_to_screen(mouse_lat, mouse_lon)
-            
-            # Calculate how much to adjust the center
-            offset_x = new_mouse_x - mouse_x
-            offset_y = new_mouse_y - mouse_y
-            
-            # Adjust center by converting offset to lat/lon movement
-            if offset_x != 0 or offset_y != 0:
-                self.apply_pan_movement(-offset_x, -offset_y)
+            # Calculate what the new center should be so the mouse point stays at cursor
+            self.center_lat, self.center_lon = self.calculate_center_for_cursor_point(
+                mouse_x, mouse_y, mouse_lat, mouse_lon)
             
             # Reset pixel offsets and momentum
             self.center_pixel_offset_x = 0.0
@@ -412,24 +405,32 @@ class MapWidget(QWidget):
             self.update()
     
     def screen_to_lat_lon(self, screen_x, screen_y):
-        """Convert screen coordinates to lat/lon"""
+        """Convert screen coordinates to lat/lon using pixel coordinates"""
         # Get center position
         center_screen_x = self.width() / 2
         center_screen_y = self.height() / 2
         
-        # Calculate offset in pixels
-        offset_x = screen_x - center_screen_x + self.center_pixel_offset_x
-        offset_y = screen_y - center_screen_y + self.center_pixel_offset_y
+        # Calculate offset in pixels from screen center
+        offset_x = screen_x - center_screen_x
+        offset_y = screen_y - center_screen_y
         
-        # Convert to tile coordinates
-        center_tile_x, center_tile_y = self.deg2num(self.center_lat, self.center_lon, self.zoom)
+        # Add current pixel offset for sub-pixel accuracy
+        total_offset_x = offset_x + self.center_pixel_offset_x
+        total_offset_y = offset_y + self.center_pixel_offset_y
         
-        # Add pixel offset as tile fraction
-        mouse_tile_x = center_tile_x + (offset_x / self.tile_size)
-        mouse_tile_y = center_tile_y + (offset_y / self.tile_size)
+        # Convert center to world pixel coordinates
+        world_size = 2 ** self.zoom * self.tile_size
+        center_world_x = (self.center_lon + 180) / 360 * world_size
+        center_world_y = (1 - math.asinh(math.tan(math.radians(self.center_lat))) / math.pi) / 2 * world_size
         
-        # Convert to lat/lon
-        mouse_lat, mouse_lon = self.num2deg(mouse_tile_x, mouse_tile_y, self.zoom)
+        # Calculate mouse position in world coordinates
+        mouse_world_x = center_world_x + total_offset_x
+        mouse_world_y = center_world_y + total_offset_y
+        
+        # Convert back to lat/lon
+        mouse_lon = (mouse_world_x / world_size * 360) - 180
+        lat_rad = math.atan(math.sinh(math.pi * (1 - 2 * mouse_world_y / world_size)))
+        mouse_lat = math.degrees(lat_rad)
         
         return mouse_lat, mouse_lon
     
@@ -457,6 +458,36 @@ class MapWidget(QWidget):
         screen_y = center_screen_y + offset_y
         
         return screen_x, screen_y
+    
+    def calculate_center_for_cursor_point(self, cursor_x, cursor_y, target_lat, target_lon):
+        """Calculate what the map center should be so target point appears at cursor position"""
+        # Get screen center
+        center_screen_x = self.width() / 2
+        center_screen_y = self.height() / 2
+        
+        # Calculate offset from screen center to cursor
+        offset_x = cursor_x - center_screen_x
+        offset_y = cursor_y - center_screen_y
+        
+        # Convert target lat/lon to world pixel coordinates at current zoom
+        world_size = 2 ** self.zoom * self.tile_size
+        target_world_x = (target_lon + 180) / 360 * world_size
+        target_world_y = (1 - math.asinh(math.tan(math.radians(target_lat))) / math.pi) / 2 * world_size
+        
+        # Calculate what the center world coordinates should be
+        center_world_x = target_world_x - offset_x
+        center_world_y = target_world_y - offset_y
+        
+        # Convert back to lat/lon
+        center_lon = (center_world_x / world_size * 360) - 180
+        lat_rad = math.atan(math.sinh(math.pi * (1 - 2 * center_world_y / world_size)))
+        center_lat = math.degrees(lat_rad)
+        
+        # Apply boundary limits
+        center_lat = max(-85, min(85, center_lat))
+        center_lon = max(-180, min(180, center_lon))
+        
+        return center_lat, center_lon
     
     def mousePressEvent(self, event: QMouseEvent):
         """Start panning"""
