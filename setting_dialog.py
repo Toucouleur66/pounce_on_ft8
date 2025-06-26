@@ -46,7 +46,7 @@ from constants import (
     DEFAULT_AUTO_START_MONITORING,
     DEFAULT_SECONDARY_UDP_SERVER,
     DEFAULT_SENDING_REPLY,
-    DEFAULT_POLITENESS_REPLY,
+    DEFAULT_POLITE_REPLY,
     DEFAULT_GAP_FINDER,
     DEFAULT_WATCHDOG_BYPASS,
     DEFAULT_DEBUG_OUTPUT,
@@ -183,9 +183,9 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_sending_reply = QtWidgets.QCheckBox("Enable reply")
         self.enable_sending_reply.setChecked(DEFAULT_SENDING_REPLY)
         
-        self.enable_politeness_reply = QtWidgets.QCheckBox("Enable politeness reply")
-        self.enable_politeness_reply.setChecked(DEFAULT_POLITENESS_REPLY)
-        self.enable_politeness_reply.toggled.connect(self.populate_priority_list)
+        self.enable_polite_reply = QtWidgets.QCheckBox("Enable polite reply")
+        self.enable_polite_reply.setChecked(DEFAULT_POLITE_REPLY)
+        self.enable_polite_reply.toggled.connect(self.populate_priority_list)
         
         self.enable_gap_finder = QtWidgets.QCheckBox("Enable frequencies offset updater")
         self.enable_gap_finder.setChecked(DEFAULT_GAP_FINDER)
@@ -200,7 +200,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_reply_to_valid_callsign.setChecked(True)
 
         general_settings_layout.addWidget(self.enable_sending_reply, 0, 0, 1, 2)
-        general_settings_layout.addWidget(self.enable_politeness_reply, 1, 0, 1, 2)
+        general_settings_layout.addWidget(self.enable_polite_reply, 1, 0, 1, 2)
         general_settings_layout.addWidget(self.enable_gap_finder, 2, 0, 1, 2)
         general_settings_layout.addWidget(self.enable_watchdog_bypass, 3, 0, 1, 2)
         general_settings_layout.addWidget(self.enable_log_all_valid_contact, 4, 0, 1, 2)
@@ -345,7 +345,7 @@ class SettingsDialog(QtWidgets.QDialog):
             QHeaderView::section {
                 font-weight: normal; 
                 border: none; 
-                padding: 4px; 
+                padding: 10 4px 4px 4px; 
             }
         """)
 
@@ -364,26 +364,31 @@ class SettingsDialog(QtWidgets.QDialog):
         priority_layout = QtWidgets.QVBoxLayout()
         
         priority_notice_text = (
-            "<p>Set the priority order for reply decisions. Drag and drop blocks to reorder them. The top block has the highest priority (1st), and the bottom block has the lowest priority (4th).</p>"
+            "<p>Set the priority order for reply decisions when decoding several potential callsigns for a same period.</p><p>Drag and drop blocks to reorder them. The first row has the highest priority, and the last row refers to the lowest priority. </p>"
         )
         priority_notice_label = QtWidgets.QLabel(priority_notice_text)
         priority_notice_label.setWordWrap(True)
         priority_notice_label.setFont(CUSTOM_FONT_SMALL)
         priority_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
         priority_notice_label.setStyleSheet(SETTING_QSS)
-        priority_notice_label.setAutoFillBackground(True)
         
         self.priority_table = PriorityTableWidget()
         self.priority_table.setColumnCount(2)
         self.priority_table.setShowGrid(False)
-        self.priority_table.setHorizontalHeaderLabels(["Priority", "Feature"])
+        self.priority_table.setHorizontalHeaderLabels(["Priority", "Reply to"])
         self.priority_table.setMaximumHeight(120)
         self.priority_table.setAlternatingRowColors(True)
         self.priority_table.verticalHeader().setVisible(False)
-        self.priority_table.horizontalHeader().setVisible(False)
         self.priority_table.horizontalHeader().setStretchLastSection(True)
         self.priority_table.horizontalHeader().setDefaultAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
         self.priority_table.setColumnWidth(0, 80)
+        self.priority_table.horizontalHeader().setStyleSheet("""
+            QHeaderView::section {
+                font-weight: normal; 
+                border: none; 
+                padding: 10 4px 4px 10px; 
+            }
+        """)
         
         self.priority_table.horizontalHeader().setFont(CUSTOM_FONT_SMALL)        
         self.priority_table.setStyleSheet(TABLE_SETTING_QSS)
@@ -687,7 +692,7 @@ class SettingsDialog(QtWidgets.QDialog):
         available_items = []
         if self.enable_sending_reply.isChecked():
             available_items.extend(list(PRIORITY_LIST.keys()))
-            if not self.enable_politeness_reply.isChecked():
+            if not self.enable_polite_reply.isChecked():
                  if available_items: 
                     available_items.pop()
         
@@ -874,8 +879,8 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_sending_reply.setChecked(
             self.params.get('enable_sending_reply', DEFAULT_SENDING_REPLY)
         )
-        self.enable_politeness_reply.setChecked(
-            self.params.get('enable_politeness_reply', DEFAULT_POLITENESS_REPLY)
+        self.enable_polite_reply.setChecked(
+            self.params.get('enable_polite_reply', DEFAULT_POLITE_REPLY)
         )
         self.enable_gap_finder.setChecked(
             self.params.get('enable_gap_finder', DEFAULT_GAP_FINDER)
@@ -999,7 +1004,7 @@ class SettingsDialog(QtWidgets.QDialog):
             'logging_udp_server_port'                    : self.logging_udp_server_port.text(),
             'enable_logging_udp_server'                  : self.enable_logging_udp_server.isChecked(),
             'enable_sending_reply'                       : self.enable_sending_reply.isChecked(),
-            'enable_politeness_reply'                    : self.enable_politeness_reply.isChecked(),
+            'enable_polite_reply'                    : self.enable_polite_reply.isChecked(),
             'enable_log_all_valid_contact'               : self.enable_log_all_valid_contact.isChecked(),
             'enable_reply_to_valid_callsign'             : self.enable_reply_to_valid_callsign.isChecked(),
             'max_reply_attemps_to_callsign'              : max_reply_attemps,

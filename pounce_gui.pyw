@@ -130,7 +130,7 @@ from constants import (
     DEFAULT_UDP_PORT,
     DEFAULT_SECONDARY_UDP_SERVER,
     DEFAULT_SENDING_REPLY,
-    DEFAULT_POLITENESS_REPLY,
+    DEFAULT_POLITE_REPLY,
     # Default settings
     DEFAULT_AUTO_START_MONITORING,
     DEFAULT_GAP_FINDER,
@@ -2975,7 +2975,7 @@ class MainApp(QtWidgets.QMainWindow):
         logging_udp_server_port             = int(params.get('logging_udp_server_port') or DEFAULT_UDP_PORT)
         enable_logging_udp_server           = params.get('enable_logging_udp_server', DEFAULT_SECONDARY_UDP_SERVER)
         enable_sending_reply                = params.get('enable_sending_reply', DEFAULT_SENDING_REPLY)
-        enable_politeness_reply             = params.get('enable_politeness_reply', DEFAULT_POLITENESS_REPLY)
+        enable_polite_reply                 = params.get('enable_polite_reply', DEFAULT_POLITE_REPLY)
         max_reply_attemps_to_callsign       = params.get('max_reply_attemps_to_callsign', DEFAULT_REPLY_ATTEMPTS)
         max_working_delay                   = params.get('max_working_delay', DEFAULT_MAX_WAITING_DELAY)
         enable_gap_finder                    = params.get('enable_gap_finder', DEFAULT_GAP_FINDER)
@@ -3009,7 +3009,7 @@ class MainApp(QtWidgets.QMainWindow):
             logging_udp_server_port,
             enable_logging_udp_server,            
             enable_sending_reply,
-            enable_politeness_reply,
+            enable_polite_reply,
             max_reply_attemps_to_callsign,
             max_working_delay,
             enable_log_all_valid_contact,

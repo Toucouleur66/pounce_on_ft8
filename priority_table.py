@@ -14,6 +14,7 @@ class PriorityTableWidget(QTableWidget):
     
     def __init__(self):
         super().__init__()
+        
         self.setDragDropMode(QTableWidget.DragDropMode.InternalMove)
         self.setDefaultDropAction(Qt.DropAction.MoveAction)
         self.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)

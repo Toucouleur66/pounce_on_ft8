@@ -121,7 +121,7 @@ CTY_XML_URL                     = 'https://cdn.clublog.org/cty.php?api=efc2af705
 DEFAULT_SECONDARY_UDP_SERVER    = False
 DEFAULT_AUTO_START_MONITORING   = False
 DEFAULT_SENDING_REPLY           = True
-DEFAULT_POLITENESS_REPLY        = False
+DEFAULT_POLITE_REPLY            = False
 DEFAULT_GAP_FINDER              = True
 DEFAULT_WATCHDOG_BYPASS         = False
 DEFAULT_DEBUG_OUTPUT            = False
@@ -141,7 +141,7 @@ PRIORITY_LIST                   = {
     "Wanted Callsign(s)"        : "wanted",
     "Wanted CQ Zone(s)"         : "wanted_cq_zone",
     "Marathon"                  : "marathon",
-    "Politeness reply"          : "politeness_reply"
+    "Politeness reply"          : "polite_reply"
 }
 
 SETTING_QSS                     = f"""

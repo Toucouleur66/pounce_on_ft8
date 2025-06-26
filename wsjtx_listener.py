@@ -65,7 +65,7 @@ class Listener(QObject):
             logging_udp_server_port,
             enable_logging_udp_server,            
             enable_sending_reply,
-            enable_politeness_reply,
+            enable_polite_reply,
             max_reply_attemps_to_callsign,
             max_working_delay,
             enable_log_all_valid_contact,
@@ -136,7 +136,7 @@ class Listener(QObject):
         self.reply_attempts             = {}
 
         self.enable_sending_reply               = enable_sending_reply
-        self.enable_politeness_reply            = enable_politeness_reply
+        self.enable_polite_reply                = enable_polite_reply
         self.enable_log_all_valid_contact       = enable_log_all_valid_contact
         self.enable_reply_to_valid_callsign     = enable_reply_to_valid_callsign
         self.enable_gap_finder                   = enable_gap_finder
@@ -1151,7 +1151,7 @@ class Listener(QObject):
                         log.warning(f"Found unexpected message from callsign [ {callsign} ]")
                         if count_attempts < DEFAULT_REPLY_ATTEMPTS:
                             reply_to_packet = True    
-                    elif self.enable_politeness_reply:
+                    elif self.enable_polite_reply:
                         reply_to_packet = True
                 elif wanted or wanted_cq_zone: 
                     reply_to_packet = True
