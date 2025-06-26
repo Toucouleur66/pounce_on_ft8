@@ -365,71 +365,98 @@ class MapWidget(QWidget):
     
     def wheelEvent(self, event: QWheelEvent):
         """Handle zoom with mouse wheel centered on cursor"""
-        old_zoom = self.zoom
-        
-        # Calculate minimum zoom level for current window size
-        min_zoom = self.get_min_zoom_for_size(self.width(), self.height())
-        
         # Get mouse position
         mouse_pos = event.position()
         mouse_x = mouse_pos.x()
         mouse_y = mouse_pos.y()
         
-        # Calculate what geographic point is under the mouse before zoom
-        center_screen_x = self.width() / 2
-        center_screen_y = self.height() / 2
+        # Store old zoom for comparison
+        old_zoom = self.zoom
         
-        # Offset from center to mouse
-        offset_x = mouse_x - center_screen_x
-        offset_y = mouse_y - center_screen_y
+        # Calculate minimum zoom level for current window size
+        min_zoom = self.get_min_zoom_for_size(self.width(), self.height())
         
-        # Convert to world coordinates at current zoom
-        world_size = 2 ** old_zoom * self.tile_size
-        center_world_x = (self.center_lon + 180) / 360 * world_size
-        center_world_y = (1 - math.asinh(math.tan(math.radians(self.center_lat))) / math.pi) / 2 * world_size
+        # Determine new zoom level
+        zoom_delta = 1 if event.angleDelta().y() > 0 else -1
+        new_zoom = self.zoom + zoom_delta
         
-        # Mouse position in world coordinates
-        mouse_world_x = center_world_x + offset_x
-        mouse_world_y = center_world_y + offset_y
+        # Apply zoom limits
+        new_zoom = max(min_zoom, min(18, new_zoom))
         
-        # Zoom in/out with limits
-        if event.angleDelta().y() > 0:
-            self.zoom = min(18, self.zoom + 1)
-        else:
-            self.zoom = max(min_zoom, self.zoom - 1)
-        
-        if old_zoom != self.zoom:
-            # Scale factor between old and new zoom
-            scale_factor = 2 ** (self.zoom - old_zoom)
+        # Only proceed if zoom actually changed
+        if new_zoom != self.zoom:
+            # Get the lat/lon under the mouse cursor BEFORE zoom change
+            mouse_lat, mouse_lon = self.screen_to_lat_lon(mouse_x, mouse_y)
             
-            # New world size
-            new_world_size = 2 ** self.zoom * self.tile_size
+            # Update zoom level
+            self.zoom = new_zoom
             
-            # Scale mouse position to new zoom level
-            new_mouse_world_x = mouse_world_x * scale_factor
-            new_mouse_world_y = mouse_world_y * scale_factor
+            # Calculate where the mouse point should be after zoom
+            new_mouse_x, new_mouse_y = self.lat_lon_to_screen(mouse_lat, mouse_lon)
             
-            # Calculate new center so mouse stays at same screen position
-            new_center_world_x = new_mouse_world_x - offset_x
-            new_center_world_y = new_mouse_world_y - offset_y
+            # Calculate how much to adjust the center
+            offset_x = new_mouse_x - mouse_x
+            offset_y = new_mouse_y - mouse_y
             
-            # Convert back to lat/lon
-            self.center_lon = (new_center_world_x / new_world_size * 360) - 180
-            lat_rad = math.atan(math.sinh(math.pi * (1 - 2 * new_center_world_y / new_world_size)))
-            self.center_lat = math.degrees(lat_rad)
+            # Adjust center by converting offset to lat/lon movement
+            if offset_x != 0 or offset_y != 0:
+                self.apply_pan_movement(-offset_x, -offset_y)
             
-            # Clamp coordinates
-            self.center_lat = max(-85, min(85, self.center_lat))
-            self.center_lon = max(-180, min(180, self.center_lon))
-            
-            # Reset pixel offsets
+            # Reset pixel offsets and momentum
             self.center_pixel_offset_x = 0.0
             self.center_pixel_offset_y = 0.0
             self.pan_velocity = QPoint(0, 0)
             
-            # Clear memory cache for different zoom level (file cache remains)
+            # Clear memory cache
             self.memory_cache.clear()
             self.update()
+    
+    def screen_to_lat_lon(self, screen_x, screen_y):
+        """Convert screen coordinates to lat/lon"""
+        # Get center position
+        center_screen_x = self.width() / 2
+        center_screen_y = self.height() / 2
+        
+        # Calculate offset in pixels
+        offset_x = screen_x - center_screen_x + self.center_pixel_offset_x
+        offset_y = screen_y - center_screen_y + self.center_pixel_offset_y
+        
+        # Convert to tile coordinates
+        center_tile_x, center_tile_y = self.deg2num(self.center_lat, self.center_lon, self.zoom)
+        
+        # Add pixel offset as tile fraction
+        mouse_tile_x = center_tile_x + (offset_x / self.tile_size)
+        mouse_tile_y = center_tile_y + (offset_y / self.tile_size)
+        
+        # Convert to lat/lon
+        mouse_lat, mouse_lon = self.num2deg(mouse_tile_x, mouse_tile_y, self.zoom)
+        
+        return mouse_lat, mouse_lon
+    
+    def lat_lon_to_screen(self, lat, lon):
+        """Convert lat/lon to screen coordinates"""
+        # Convert to tile coordinates
+        tile_x, tile_y = self.deg2num(lat, lon, self.zoom)
+        
+        # Get center tile coordinates
+        center_tile_x, center_tile_y = self.deg2num(self.center_lat, self.center_lon, self.zoom)
+        
+        # Calculate offset in tiles
+        offset_tile_x = tile_x - center_tile_x
+        offset_tile_y = tile_y - center_tile_y
+        
+        # Convert to pixels
+        offset_x = offset_tile_x * self.tile_size - self.center_pixel_offset_x
+        offset_y = offset_tile_y * self.tile_size - self.center_pixel_offset_y
+        
+        # Convert to screen coordinates
+        center_screen_x = self.width() / 2
+        center_screen_y = self.height() / 2
+        
+        screen_x = center_screen_x + offset_x
+        screen_y = center_screen_y + offset_y
+        
+        return screen_x, screen_y
     
     def mousePressEvent(self, event: QMouseEvent):
         """Start panning"""
