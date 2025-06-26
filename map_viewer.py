@@ -329,7 +329,7 @@ class MapWidget(QWidget):
         zoom_delta = 1 if event.angleDelta().y() > 0 else -1
         new_zoom = self.zoom + zoom_delta
         
-        new_zoom = max(min_zoom, min(18, new_zoom))
+        new_zoom = max(min_zoom, min(16, new_zoom))
         
         if new_zoom != self.zoom:
             mouse_lat, mouse_lon = self.screen_to_lat_lon(mouse_x, mouse_y)
@@ -530,8 +530,8 @@ class MapWidget(QWidget):
         west = min(top_left_lon, bottom_right_lon)
         
         grid_squares = []
-        
-        if self.zoom >= 8:
+
+        if self.zoom >= 10:
             unit_lat = 1.0/24.0
             unit_lon = 2.0/24.0  # 2°/24
             grid_type = 'subsquare'
@@ -585,7 +585,7 @@ class MapWidget(QWidget):
         painter.setPen(pen)
         
         font = painter.font()
-        if self.zoom >= 8:
+        if self.zoom >= 16:
             font.setPointSize(8)
         elif self.zoom >= 5:
             font.setPointSize(10)
