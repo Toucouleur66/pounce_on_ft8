@@ -311,8 +311,6 @@ class MapWidget(QWidget):
                         self.tile_downloader.add_tile(self.zoom, tile_x, tile_y)
                         painter.fillRect(screen_x, screen_y, self.tile_size, self.tile_size, 
                                        Qt.GlobalColor.lightGray)
-                        # Optional: draw tile coordinates for debugging
-                        # painter.drawText(screen_x + 10, screen_y + 20, f"{tile_x},{tile_y}")
         
         if self.show_grid:
             self.draw_maidenhead_grid(painter)
@@ -341,10 +339,19 @@ class MapWidget(QWidget):
             
             self.center_pixel_offset_x = 0.0
             self.center_pixel_offset_y = 0.0
+            
+            center_tile_x, center_tile_y = self.deg2num(self.center_lat, self.center_lon, self.zoom)
+            self.center_lat, self.center_lon = self.num2deg(center_tile_x, center_tile_y, self.zoom)
             self.pan_velocity = QPoint(0, 0)
             
             self.memory_cache.clear()
+            
             self.update()
+            
+            from PyQt6.QtWidgets import QApplication
+            QApplication.processEvents()
+            
+            self.repaint()
     
     def screen_to_lat_lon(self, screen_x, screen_y):
         center_screen_x = self.width() / 2
@@ -533,15 +540,15 @@ class MapWidget(QWidget):
 
         if self.zoom >= 10:
             unit_lat = 1.0/24.0
-            unit_lon = 2.0/24.0  # 2°/24
+            unit_lon = 2.0/24.0
             grid_type = 'subsquare'
         elif self.zoom >= 5:
             unit_lat = 1.0
-            unit_lon = 2.0  # 2°
+            unit_lon = 2.0
             grid_type = 'square'
         else:
             unit_lat = 10.0
-            unit_lon = 20.0  # 20°
+            unit_lon = 20.0
             grid_type = 'field'
         
         grid_base_lon = -180.0
