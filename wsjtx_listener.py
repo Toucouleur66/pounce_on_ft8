@@ -1238,7 +1238,7 @@ class Listener(QObject):
                     'delta_time'        : delta_t,
                     'delta_freq'        : delta_f,
                     'snr'               : snr,                
-                    'message'           : f"{message:<21.21}".strip(),
+                    'message'           : message,
                     'message_type'      : message_type,
                     'priority'          : priority,
                     'formatted_message' : formatted_message
