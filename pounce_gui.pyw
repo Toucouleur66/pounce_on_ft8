@@ -2534,6 +2534,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.band_combo.setCurrentIndex(0)
         self.color_combo.setCurrentIndex(0)    
 
+        self.apply_filters
+
         self.output_table.scrollToBottom() 
 
     def save_window_position(self):
