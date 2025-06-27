@@ -799,7 +799,7 @@ class MapWidget(QWidget):
             self.blink_visible = True
             self.update()
     
-    def set_highlighted_squares(self, squares):
+    def set_highlighted_squares(self, squares, center_on_last=True):
         self.highlighted_squares = squares
         
         self.blink_timer.stop()
@@ -807,6 +807,15 @@ class MapWidget(QWidget):
         self.blink_visible = True
         
         if len(squares) > 0:
+            last_square = squares[-1]
+            grid_info = self.maidenhead_to_lat_lon(last_square)
+            if grid_info and center_on_last:
+                self.center_lat = grid_info['center_lat']
+                self.center_lon = grid_info['center_lon']
+                self.center_pixel_offset_x = 0.0
+                self.center_pixel_offset_y = 0.0
+                self.apply_pan_movement(0, 0)
+            
             self.blink_timer.start(83)
         
         self.update()
