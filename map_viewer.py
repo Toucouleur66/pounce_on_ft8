@@ -320,8 +320,6 @@ class MapWidget(QWidget):
         mouse_x = mouse_pos.x()
         mouse_y = mouse_pos.y()
         
-        old_zoom = self.zoom
-        
         min_zoom = self.get_min_zoom_for_size(self.width(), self.height())
         
         zoom_delta = 1 if event.angleDelta().y() > 0 else -1
@@ -538,66 +536,62 @@ class MapWidget(QWidget):
         
         grid_squares = []
 
-        if self.zoom >= 10:
-            unit_lat = 1.0/24.0
-            unit_lon = 2.0/24.0
-            grid_type = 'subsquare'
-        elif self.zoom >= 5:
-            unit_lat = 1.0
-            unit_lon = 2.0
-            grid_type = 'square'
-        else:
-            unit_lat = 10.0
-            unit_lon = 20.0
-            grid_type = 'field'
-        
-        grid_base_lon = -180.0
-        grid_base_lat = -90.0
-        
-        start_lon_idx = math.floor((west - grid_base_lon) / unit_lon)
-        end_lon_idx = math.ceil((east - grid_base_lon) / unit_lon) + 1
-        start_lat_idx = math.floor((south - grid_base_lat) / unit_lat)
-        end_lat_idx = math.ceil((north - grid_base_lat) / unit_lat) + 1
-        
-        buffer = 2
-        for lon_idx in range(start_lon_idx - buffer, end_lon_idx + buffer):
-            for lat_idx in range(start_lat_idx - buffer, end_lat_idx + buffer):
-                square_sw_lon = grid_base_lon + lon_idx * unit_lon
-                square_sw_lat = grid_base_lat + lat_idx * unit_lat
-                square_ne_lon = square_sw_lon + unit_lon
-                square_ne_lat = square_sw_lat + unit_lat
-                
-                if (-90 <= square_sw_lat < 90 and -180 <= square_sw_lon < 180 and
-                    square_ne_lon >= west and square_sw_lon <= east and
-                    square_ne_lat >= south and square_sw_lat <= north):
+        def add_grid_type(unit_lat, unit_lon, grid_type, show_labels=True, color='red'):
+            grid_base_lon = -180.0
+            grid_base_lat = -90.0
+            
+            start_lon_idx = math.floor((west - grid_base_lon) / unit_lon)
+            end_lon_idx = math.ceil((east - grid_base_lon) / unit_lon) + 1
+            start_lat_idx = math.floor((south - grid_base_lat) / unit_lat)
+            end_lat_idx = math.ceil((north - grid_base_lat) / unit_lat) + 1
+            
+            buffer = 2
+            for lon_idx in range(start_lon_idx - buffer, end_lon_idx + buffer):
+                for lat_idx in range(start_lat_idx - buffer, end_lat_idx + buffer):
+                    square_sw_lon = grid_base_lon + lon_idx * unit_lon
+                    square_sw_lat = grid_base_lat + lat_idx * unit_lat
+                    square_ne_lon = square_sw_lon + unit_lon
+                    square_ne_lat = square_sw_lat + unit_lat
                     
-                    grid_squares.append({
-                        'sw_lat': square_sw_lat,
-                        'sw_lon': square_sw_lon,
-                        'ne_lat': square_ne_lat,
-                        'ne_lon': square_ne_lon,
-                        'type': grid_type,
-                        'unit_lat': unit_lat,
-                        'unit_lon': unit_lon
-                    })
+                    if (-90 <= square_sw_lat < 90 and -180 <= square_sw_lon < 180 and
+                        square_ne_lon >= west and square_sw_lon <= east and
+                        square_ne_lat >= south and square_sw_lat <= north):
+                        
+                        grid_squares.append({
+                            'sw_lat': square_sw_lat,
+                            'sw_lon': square_sw_lon,
+                            'ne_lat': square_ne_lat,
+                            'ne_lon': square_ne_lon,
+                            'type': grid_type,
+                            'unit_lat': unit_lat,
+                            'unit_lon': unit_lon,
+                            'show_labels': show_labels,
+                            'color': color
+                        })
+
+        add_grid_type(1.0, 2.0, 'square', False, 'gray')
+        
+        if self.zoom >= 10:
+            add_grid_type(1.0/24.0, 2.0/24.0, 'subsquare', True, 'red')
+        elif self.zoom >= 6:
+            add_grid_type(1.0, 2.0, 'square', True, 'red')
+        else:
+            add_grid_type(10.0, 20.0, 'field', True, 'red')
             
         return grid_squares
     
     def draw_maidenhead_grid(self, painter):
         grid_squares = self.get_visible_grid_squares()
         
-        pen = painter.pen()
-        pen.setColor(self.grid_color)
-        pen.setWidth(1)
-        painter.setPen(pen)
-        
         font = painter.font()
         if self.zoom >= 16:
             font.setPointSize(8)
-        elif self.zoom >= 5:
+        elif self.zoom >= 10:
             font.setPointSize(10)
         else:
-            font.setPointSize(12)
+            font.setPointSize(16)
+
+        print(self.zoom)
         font.setBold(True)
         painter.setFont(font)
         
@@ -607,6 +601,17 @@ class MapWidget(QWidget):
             ne_lat = grid['ne_lat']
             ne_lon = grid['ne_lon']
             grid_type = grid['type']
+            show_labels = grid['show_labels']
+            color = grid['color']
+            
+            pen = painter.pen()
+            if color == 'gray':
+                pen.setColor(Qt.GlobalColor.gray)
+                pen.setWidth(1)
+            else:
+                pen.setColor(self.grid_color)
+                pen.setWidth(2)
+            painter.setPen(pen)
             
             try:
                 top_left_x, top_left_y = self.lat_lon_to_screen_stable(ne_lat, sw_lon)
@@ -624,38 +629,38 @@ class MapWidget(QWidget):
                     painter.drawLine(int(bottom_right_x), int(bottom_right_y), int(bottom_left_x), int(bottom_left_y))
                     painter.drawLine(int(bottom_left_x), int(bottom_left_y), int(top_left_x), int(top_left_y))
                     
-                    screen_center_x = (top_left_x + bottom_right_x) / 2.0
-                    screen_center_y = (top_left_y + bottom_right_y) / 2.0
-                    
-                    center_lat = (sw_lat + ne_lat) / 2.0
-                    center_lon = (sw_lon + ne_lon) / 2.0
-                    
-                    grid_label = self.get_grid_label(center_lat, center_lon, grid_type)
-                    
-                    if (grid_label and 
-                        10 <= screen_center_x <= self.width() - 10 and 
-                        10 <= screen_center_y <= self.height() - 10):
+                    if show_labels:
+                        screen_center_x = (top_left_x + bottom_right_x) / 2.0
+                        screen_center_y = (top_left_y + bottom_right_y) / 2.0
                         
-                        painter.setPen(self.grid_text_color)
+                        center_lat = (sw_lat + ne_lat) / 2.0
+                        center_lon = (sw_lon + ne_lon) / 2.0
                         
-                        font_metrics = painter.fontMetrics()
-                        text_width = font_metrics.horizontalAdvance(grid_label)
-                        text_height = font_metrics.height()
-                        text_ascent = font_metrics.ascent()
+                        grid_label = self.get_grid_label(center_lat, center_lon, grid_type)
                         
-                        text_x = int(screen_center_x - text_width / 2.0)
-                        text_y = int(screen_center_y - text_height / 2.0 + text_ascent)
-                        
-                        bg_margin = 2
-                        bg_x = int(screen_center_x - text_width / 2.0 - bg_margin)
-                        bg_y = int(screen_center_y - text_height / 2.0 - bg_margin)
-                        bg_width = text_width + 2 * bg_margin
-                        bg_height = text_height + 2 * bg_margin
-                        
-                        painter.fillRect(bg_x, bg_y, bg_width, bg_height, Qt.GlobalColor.white)
-                        
-                        painter.drawText(text_x, text_y, grid_label)
-                        painter.setPen(pen)
+                        if (grid_label and 
+                            10 <= screen_center_x <= self.width() - 10 and 
+                            10 <= screen_center_y <= self.height() - 10):
+                            
+                            painter.setPen(self.grid_text_color)
+                            
+                            font_metrics = painter.fontMetrics()
+                            text_width = font_metrics.horizontalAdvance(grid_label)
+                            text_height = font_metrics.height()
+                            text_ascent = font_metrics.ascent()
+                            
+                            text_x = int(screen_center_x - text_width / 2.0)
+                            text_y = int(screen_center_y - text_height / 2.0 + text_ascent)
+                            
+                            bg_margin = 2
+                            bg_x = int(screen_center_x - text_width / 2.0 - bg_margin)
+                            bg_y = int(screen_center_y - text_height / 2.0 - bg_margin)
+                            bg_width = text_width + 2 * bg_margin
+                            bg_height = text_height + 2 * bg_margin
+                            
+                            painter.fillRect(bg_x, bg_y, bg_width, bg_height, Qt.GlobalColor.white)
+                            
+                            painter.drawText(text_x, text_y, grid_label)
                         
             except Exception:
                 continue
