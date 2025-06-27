@@ -47,6 +47,7 @@ class GridMapWidget(QWidget):
         self.grid_text_color = Qt.GlobalColor.gray
         
         self.highlighted_squares = []
+        self.highlighted_grid_colors = []
         self.current_band = None
         self.adif_data = {}
         self.blink_timer = QTimer()
@@ -224,6 +225,11 @@ class GridMapWidget(QWidget):
                     self.fill_grid_square_wrapped(painter, square)
             else:
                 self.fill_grid_square_wrapped(painter, square)
+        
+        # Draw colored grid squares
+        for grid_color in self.highlighted_grid_colors:
+            if self.blink_visible:
+                self.fill_grid_square_with_color(painter, grid_color['grid'], grid_color['color'])
     
     def wheelEvent(self, event: QWheelEvent):
         mouse_pos = event.position()
@@ -692,6 +698,58 @@ class GridMapWidget(QWidget):
             except Exception:
                 pass
     
+    def fill_grid_square_with_color(self, painter, grid_square, color_name):
+        """Fill a grid square with a specific color based on message type"""
+        
+        # Color mapping from message types to QColor
+        color_map = {
+            "bright_for_my_call": QColor(204, 222, 170, 200),  # #CCDEAA with alpha
+            "black_on_yellow": QColor(255, 255, 0, 200),       # #FFFF00 with alpha  
+            "black_on_saumon": QColor(255, 223, 188, 200),     # #FFDFBC with alpha
+            "black_on_purple": QColor(255, 189, 255, 200),     # #FFBDFF with alpha
+            "white_on_blue": QColor(174, 180, 255, 200),       # #AEB4FF with alpha
+            "black_on_cyan": QColor(200, 240, 201, 200),       # #C8F0C9 with alpha
+        }
+        
+        fill_color = color_map.get(color_name, QColor(255, 0, 0, 128))  # Default to red
+        
+        grid_info = self.maidenhead_to_lat_lon(grid_square)
+        if not grid_info:
+            return
+            
+        min_lat = grid_info['min_lat']
+        max_lat = grid_info['max_lat']
+        min_lon = grid_info['min_lon']
+        max_lon = grid_info['max_lon']
+        
+        offsets = [0, 360, -360] if self.zoom >= 4 else [0]
+        
+        for offset in offsets:
+            offset_min_lon = min_lon + offset
+            offset_max_lon = max_lon + offset
+            
+            try:
+                top_left_x, top_left_y = self.lat_lon_to_screen_stable(max_lat, offset_min_lon)
+                top_right_x, top_right_y = self.lat_lon_to_screen_stable(max_lat, offset_max_lon)
+                bottom_left_x, bottom_left_y = self.lat_lon_to_screen_stable(min_lat, offset_min_lon)
+                bottom_right_x, bottom_right_y = self.lat_lon_to_screen_stable(min_lat, offset_max_lon)
+                
+                if (max(top_left_x, top_right_x, bottom_left_x, bottom_right_x) >= -50 and
+                    min(top_left_x, top_right_x, bottom_left_x, bottom_right_x) <= self.width() + 50 and
+                    max(top_left_y, top_right_y, bottom_left_y, bottom_right_y) >= -50 and
+                    min(top_left_y, top_right_y, bottom_left_y, bottom_right_y) <= self.height() + 50):
+                    
+                    brush = QBrush(fill_color)
+                    
+                    rect_x = int(min(top_left_x, top_right_x, bottom_left_x, bottom_right_x))
+                    rect_y = int(min(top_left_y, top_right_y, bottom_left_y, bottom_right_y))
+                    rect_width = int(max(top_left_x, top_right_x, bottom_left_x, bottom_right_x) - rect_x) + 1
+                    rect_height = int(max(top_left_y, top_right_y, bottom_left_y, bottom_right_y) - rect_y) + 1
+                    
+                    painter.fillRect(rect_x, rect_y, rect_width, rect_height, brush)
+            except Exception:
+                pass
+    
     def blink_update(self):
         self.blink_visible = not self.blink_visible
         self.blink_count += 1
@@ -738,6 +796,28 @@ class GridMapWidget(QWidget):
                 self.center_pixel_offset_y = 0.0
                 self.apply_pan_movement(0, 0)
             
+            self.blink_timer.start(83)
+        
+        self.update()
+    
+    def set_highlighted_grids(self, grid_colors, center_on_last=False):
+        self.highlighted_grid_colors = grid_colors
+        
+        self.blink_timer.stop()
+        self.blink_count = 0
+        self.blink_visible = True
+        
+        if len(grid_colors) > 0 and center_on_last:
+            last_grid = grid_colors[-1]['grid']
+            grid_info = self.maidenhead_to_lat_lon(last_grid)
+            if grid_info:
+                self.center_lat = grid_info['center_lat']
+                self.center_lon = grid_info['center_lon']
+                self.center_pixel_offset_x = 0.0
+                self.center_pixel_offset_y = 0.0
+                self.apply_pan_movement(0, 0)
+        
+        if grid_colors:
             self.blink_timer.start(83)
         
         self.update()

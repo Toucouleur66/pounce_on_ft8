@@ -1230,6 +1230,7 @@ class Listener(QObject):
                     'excluded'          : excluded,
                     'callsign'          : callsign,
                     'callsign_info'     : callsign_info,
+                    'grid'              : grid,
                     'directed'          : directed,
                     'wanted'            : wanted,
                     'wanted_cq_zone'    : wanted_cq_zone,

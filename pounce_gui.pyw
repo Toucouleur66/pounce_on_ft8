@@ -60,7 +60,7 @@ if sys.platform == 'darwin':
 from utils import get_local_ip_address, matches_any
 from utils import get_mode_interval, get_amateur_band, display_frequency
 from utils import force_input, focus_out_event, text_to_array, has_significant_change
-from utils import parse_adif
+from utils import parse_adif, grid_to_latlon, latlon_to_grid
 
 from version import is_first_launch_or_new_version, save_current_version
 
@@ -1049,6 +1049,54 @@ class MainApp(QtWidgets.QMainWindow):
         self.map_window = None
         event.accept()
 
+    def update_map_with_new_grids(self, latest_messages):
+        if not latest_messages:
+            return
+            
+        grid_colors = []
+        
+        for message in latest_messages:            
+            grid = message.get('grid')            
+
+            log.error(f"Grid: {grid}// {message.get('callsign')}")
+            
+            if not grid:
+                continue
+                
+            directed            = message.get('directed')
+            my_call             = message.get('my_call')
+            wanted              = message.get('wanted')
+            wanted_cq_zone      = message.get('wanted_cq_zone')
+            monitored           = message.get('monitored')
+            monitored_cq_zone   = message.get('monitored_cq_zone')
+            
+            color = None
+            if directed == my_call:
+                color = "bright_for_my_call"
+            elif wanted is True:
+                color = "black_on_yellow"
+            elif wanted_cq_zone is True:
+                color = "black_on_saumon"
+            elif monitored is True:
+                color = "black_on_purple"
+            elif monitored_cq_zone is True:
+                color = "black_on_cyan"
+            elif (
+                directed is not None and 
+                self.operating_band and 
+                matches_any(text_to_array(self.wanted_callsigns_vars[self.operating_band].text()), directed)
+            ):
+                color = "white_on_blue"
+            
+            if color:
+                grid_colors.append({
+                    'grid'  : grid,
+                    'color' : color
+                })
+        
+        if grid_colors:
+            self.map_window.map_widget.set_highlighted_grids(grid_colors)
+
     def hide_container_tab(self):
         self.compact_mode_visible = False
         self.animate_layout_height(self.container_tab, target_height=10)
@@ -1387,6 +1435,7 @@ class MainApp(QtWidgets.QMainWindow):
                 monitored_cq_zone   = message.get('monitored_cq_zone')
                 wkb4_year           = message.get('wkb4_year')
                 entity_wkb4         = message.get('entity_wkb4')
+                grid                = message.get('grid')
 
                 empty_str           = ''
                 entity              = empty_str
@@ -1593,6 +1642,12 @@ class MainApp(QtWidgets.QMainWindow):
             if message_type and message_type != 'lost_targeted_callsign':                
                 self.set_message_to_focus_value_label(selected_message)          
 
+        """
+            Update map with new grid squares
+        """
+        if self.map_window is not None:
+            self.update_map_with_new_grids(latest_messages)
+        
         """
             Clear buffer
         """

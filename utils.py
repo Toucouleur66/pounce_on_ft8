@@ -217,6 +217,17 @@ def parse_single_wsjtx_message(
         is_excluded  = matches_any(excluded_callsigns, callsign)
         is_worked    = matches_any(worked_callsigns, callsign)
         is_monitored = matches_any(monitored_callsigns, callsign)
+
+        """
+            Check if no grid is provided
+        """
+        if (
+            not grid and 
+            callsign_info and
+            callsign_info.get('lat') and
+            callsign_info.get('long')
+        ):
+            grid = latlon_to_grid(callsign_info.get('lat'), callsign_info.get('long'))[:4]    
         
         """
             Check if CQ Zone matches
@@ -665,3 +676,38 @@ def grid_to_latlon(grid):
 
     return (lat, lon)
 
+def latlon_to_grid(lat, lon, precision=4):    
+    if not (-90 <= lat <= 90):
+        raise 
+    if not (-180 <= lon <= 180):
+        raise 
+    if precision not in [2, 4, 6]:
+        raise 
+    
+    adj_lat = lat + 90
+    adj_lon = lon + 180
+    
+    grid = ""
+    
+    field_lon = int(adj_lon / 20)
+    field_lat = int(adj_lat / 10)
+    grid += chr(ord('A') + field_lon)
+    grid += chr(ord('A') + field_lat)
+    
+    if precision == 2:
+        return grid
+    
+    square_lon = int((adj_lon % 20) / 2)
+    square_lat = int((adj_lat % 10) / 1)
+    grid += str(square_lon)
+    grid += str(square_lat)
+    
+    if precision == 4:
+        return grid
+    
+    subsquare_lon = int(((adj_lon % 20) % 2) / (5/60))
+    subsquare_lat = int(((adj_lat % 10) % 1) / (2.5/60))
+    grid += chr(ord('A') + subsquare_lon)
+    grid += chr(ord('A') + subsquare_lat)
+    
+    return grid
