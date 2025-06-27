@@ -578,7 +578,7 @@ class MapWidget(QWidget):
             start_lat_idx = math.floor((south - grid_base_lat) / unit_lat)
             end_lat_idx = math.ceil((north - grid_base_lat) / unit_lat) + 1
             
-            buffer = 2
+            buffer = 1 if self.zoom <= 3 else 2
             
             extended_west = west - 360
             extended_east = east + 360
@@ -591,7 +591,9 @@ class MapWidget(QWidget):
                     if not (-90 <= square_sw_lat < 90 and square_ne_lat >= south and square_sw_lat <= north):
                         continue
                     
-                    for offset in [0, 360, -360]:
+                    offsets = [0, 360, -360] if self.zoom >= 4 else [0]
+                    
+                    for offset in offsets:
                         square_sw_lon = grid_base_lon + lon_idx * unit_lon + offset
                         square_ne_lon = square_sw_lon + unit_lon
                         
@@ -761,7 +763,9 @@ class MapWidget(QWidget):
         min_lon = grid_info['min_lon']
         max_lon = grid_info['max_lon']
         
-        for offset in [0, 360, -360]:
+        offsets = [0, 360, -360] if self.zoom >= 4 else [0]
+        
+        for offset in offsets:
             offset_min_lon = min_lon + offset
             offset_max_lon = max_lon + offset
             
