@@ -209,24 +209,23 @@ class RawDataModel(QtCore.QAbstractTableModel):
         return -1
 
     def get_color(self, row_color):
-        color_map = {
-                    'bright_for_my_call'    : BG_COLOR_FOCUS_MY_CALL,
-                    'black_on_yellow'       : BG_COLOR_BLACK_ON_YELLOW,
-                    'black_on_saumon'       : BG_COLOR_BLACK_ON_SAUMON,
-                    'black_on_purple'       : BG_COLOR_BLACK_ON_PURPLE,
-                    'white_on_blue'         : BG_COLOR_WHITE_ON_BLUE,
-                    'black_on_cyan'         : BG_COLOR_BLACK_ON_CYAN,
-                }
-        return QColor(color_map.get(row_color, "#FFFFFF"))
+        # row_color is now the hex color string directly from constants
+        return QColor(row_color)
 
     def get_foreground_color(self, row_color):
-        fg_color_map = {
-                    'bright_for_my_call'    : FG_COLOR_FOCUS_MY_CALL,
-                    'black_on_yellow'       : FG_COLOR_BLACK_ON_YELLOW,
-                    'black_on_saumon'       : FG_COLOR_BLACK_ON_SAUMON,
-                    'black_on_purple'       : FG_COLOR_BLACK_ON_PURPLE,
-                    'white_on_blue'         : FG_COLOR_WHITE_ON_BLUE,
-                    'black_on_cyan'         : FG_COLOR_BLACK_ON_CYAN,
-                }
-        return QColor(fg_color_map.get(row_color, "#000000"))
+        # Map background colors to their corresponding foreground colors
+        if row_color == BG_COLOR_FOCUS_MY_CALL:
+            return QColor(FG_COLOR_FOCUS_MY_CALL)
+        elif row_color == BG_COLOR_BLACK_ON_YELLOW:
+            return QColor(FG_COLOR_BLACK_ON_YELLOW)
+        elif row_color == BG_COLOR_BLACK_ON_SAUMON:
+            return QColor(FG_COLOR_BLACK_ON_SAUMON)
+        elif row_color == BG_COLOR_BLACK_ON_PURPLE:
+            return QColor(FG_COLOR_BLACK_ON_PURPLE)
+        elif row_color == BG_COLOR_WHITE_ON_BLUE:
+            return QColor(FG_COLOR_WHITE_ON_BLUE)
+        elif row_color == BG_COLOR_BLACK_ON_CYAN:
+            return QColor(FG_COLOR_BLACK_ON_CYAN)
+        else:
+            return QColor(FG_COLOR_BLACK_ON_CYAN)  
     

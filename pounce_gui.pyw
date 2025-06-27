@@ -1068,17 +1068,17 @@ class MainApp(QtWidgets.QMainWindow):
             
             color = None
             if directed == my_call:
-                color = "bright_for_my_call"
+                color = BG_COLOR_FOCUS_MY_CALL
             elif wanted is True:
-                color = "black_on_yellow"
+                color = BG_COLOR_BLACK_ON_YELLOW
             elif wanted_cq_zone is True:
-                color = "black_on_saumon"
+                color = BG_COLOR_BLACK_ON_SAUMON
             elif monitored is True:
-                color = "black_on_purple"
+                color = BG_COLOR_BLACK_ON_PURPLE
             elif monitored_cq_zone is True:
-                color = "black_on_cyan"
+                color = BG_COLOR_BLACK_ON_CYAN
             else:
-                color = "white_on_blue"
+                color = BG_COLOR_WHITE_ON_BLUE
             
             if color:
                 grids.append({
@@ -1246,21 +1246,21 @@ class MainApp(QtWidgets.QMainWindow):
 
         color_combo.addItem(DEFAULT_FILTER_VALUE, userData=None)
 
-        # Liste des couleurs et noms associés
+        # Liste des couleurs
         colors = [
-            ("bright_for_my_call", BG_COLOR_FOCUS_MY_CALL),
-            ("black_on_yellow",    BG_COLOR_BLACK_ON_YELLOW),
-            ("black_on_saumon",    BG_COLOR_BLACK_ON_SAUMON),
-            ("black_on_purple",    BG_COLOR_BLACK_ON_PURPLE),
-            ("white_on_blue",      BG_COLOR_WHITE_ON_BLUE),
-            ("black_on_cyan",      BG_COLOR_BLACK_ON_CYAN),
+            BG_COLOR_FOCUS_MY_CALL,
+            BG_COLOR_BLACK_ON_YELLOW,
+            BG_COLOR_BLACK_ON_SAUMON,
+            BG_COLOR_BLACK_ON_PURPLE,
+            BG_COLOR_WHITE_ON_BLUE,
+            BG_COLOR_BLACK_ON_CYAN,
         ]
 
-        for row_color, bg_color in colors:
+        for bg_color in colors:
             pixmap = QtGui.QPixmap(120, 10)  
             pixmap.fill(QtGui.QColor(bg_color))
             icon = QtGui.QIcon(pixmap)
-            color_combo.addItem(icon, "", userData=row_color)
+            color_combo.addItem(icon, "", userData=bg_color)
 
         color_combo.setEditable(False)
         color_combo.currentIndexChanged.connect(self.apply_filters)
@@ -1293,6 +1293,7 @@ class MainApp(QtWidgets.QMainWindow):
             
             if self.map_window is not None:
                 self.map_window.map_widget.update_current_band(band)
+                self.map_window.map_widget.clear_highlighted_grids()
             
             self.update_tab_widget_labels_style()
         
@@ -1440,21 +1441,21 @@ class MainApp(QtWidgets.QMainWindow):
                 self.message_times.append(datetime.now())    
 
                 if directed == my_call:
-                    message_color      = "bright_for_my_call"
+                    message_color      = BG_COLOR_FOCUS_MY_CALL
                 elif wanted is True:
-                    message_color      = "black_on_yellow"
+                    message_color      = BG_COLOR_BLACK_ON_YELLOW
                 elif wanted_cq_zone is True:
-                    message_color      = "black_on_saumon"
+                    message_color      = BG_COLOR_BLACK_ON_SAUMON
                 elif monitored is True:
-                    message_color      = "black_on_purple" 
+                    message_color      = BG_COLOR_BLACK_ON_PURPLE 
                 elif monitored_cq_zone is True:
-                    message_color      = "black_on_cyan"
+                    message_color      = BG_COLOR_BLACK_ON_CYAN
                 elif (
                     directed is not None and 
                     self.operating_band and 
                     matches_any(text_to_array(self.wanted_callsigns_vars[self.operating_band].text()), directed)
                 ):                    
-                    message_color      = "white_on_blue"
+                    message_color      = BG_COLOR_WHITE_ON_BLUE
                 else:
                     message_color      = None
 

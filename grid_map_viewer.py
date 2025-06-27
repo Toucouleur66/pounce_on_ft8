@@ -9,7 +9,13 @@ import threading
 
 from constants import (
     CUSTOM_FONT,
-    GUI_LABEL_VERSION
+    GUI_LABEL_VERSION,
+    BG_COLOR_FOCUS_MY_CALL,
+    BG_COLOR_BLACK_ON_YELLOW,
+    BG_COLOR_BLACK_ON_SAUMON,
+    BG_COLOR_BLACK_ON_PURPLE,
+    BG_COLOR_WHITE_ON_BLUE,
+    BG_COLOR_BLACK_ON_CYAN
 )
 
 from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget
@@ -697,20 +703,9 @@ class GridMapWidget(QWidget):
             except Exception:
                 pass
     
-    def fill_grid_square_with_color(self, painter, grid_square, color_name):
-        """Fill a grid square with a specific color based on message type"""
-        
-        # Color mapping from message types to QColor
-        color_map = {
-            "bright_for_my_call": QColor(204, 222, 170, 200),  # #CCDEAA with alpha
-            "black_on_yellow": QColor(255, 255, 0, 200),       # #FFFF00 with alpha  
-            "black_on_saumon": QColor(255, 223, 188, 200),     # #FFDFBC with alpha
-            "black_on_purple": QColor(255, 189, 255, 200),     # #FFBDFF with alpha
-            "white_on_blue": QColor(174, 180, 255, 200),       # #AEB4FF with alpha
-            "black_on_cyan": QColor(200, 240, 201, 200),       # #C8F0C9 with alpha
-        }
-        
-        fill_color = color_map.get(color_name, QColor(255, 0, 0, 128))  # Default to red
+    def fill_grid_square_with_color(self, painter, grid_square, color_hex):        
+        fill_color = QColor(color_hex)
+        fill_color.setAlpha(255)
         
         grid_info = self.maidenhead_to_lat_lon(grid_square)
         if not grid_info:
@@ -750,24 +745,12 @@ class GridMapWidget(QWidget):
                 pass
     
     def draw_highlighted_grids_block(self, painter):
-        """Draw all highlighted grid squares as one unified block"""
-        
-        # Color mapping from message types to QColor
-        color_map = {
-            "bright_for_my_call": QColor(204, 222, 170, 200),  # #CCDEAA with alpha
-            "black_on_yellow": QColor(255, 255, 0, 200),       # #FFFF00 with alpha  
-            "black_on_saumon": QColor(255, 223, 188, 200),     # #FFDFBC with alpha
-            "black_on_purple": QColor(255, 189, 255, 200),     # #FFBDFF with alpha
-            "white_on_blue": QColor(174, 180, 255, 200),       # #AEB4FF with alpha
-            "black_on_cyan": QColor(200, 240, 201, 200),       # #C8F0C9 with alpha
-        }
-        
-        # Draw all grid squares in one pass
         for grid_color in self.highlighted_grids:
             grid_square = grid_color['grid']
-            color_name = grid_color['color']
+            color_hex = grid_color['color']
             
-            fill_color = color_map.get(color_name, QColor(255, 0, 0, 128))  # Default to red
+            fill_color = QColor(color_hex)
+            fill_color.setAlpha(255) 
             
             grid_info = self.maidenhead_to_lat_lon(grid_square)
             if not grid_info:
@@ -811,7 +794,7 @@ class GridMapWidget(QWidget):
         self.blink_count += 1
         self.update()
         
-        if self.blink_count >= 6:
+        if self.blink_count >= 20:
             self.blink_timer.stop()
             self.blink_count = 0
             self.blink_visible = True
@@ -887,6 +870,9 @@ class GridMapWidget(QWidget):
             self.blink_timer.start(300)  # Changed from 83ms to 300ms
         
         self.update()
+    
+    def clear_highlighted_grids(self):
+        self.set_highlighted_grids([])
     
     def keyPressEvent(self, event: QKeyEvent):
         if event.key() == Qt.Key.Key_G:
