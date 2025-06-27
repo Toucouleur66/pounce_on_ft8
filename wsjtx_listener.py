@@ -1012,7 +1012,7 @@ class Listener(QObject):
 
                         if callsign not in self.wanted_callsigns_per_entity[self.band][entity_code]:
                             self.wanted_callsigns_per_entity[self.band][entity_code].append(callsign)
-                            save_marathon_wanted_data(MARATHON_FILE, self.wanted_callsigns_per_entity)
+                            # save_marathon_wanted_data(MARATHON_FILE, self.wanted_callsigns_per_entity)
 
                             log.info(f"Entity Code Wanted={entity_code} ({self.band}/{current_year})\n\tAdding Wanted Callsign={callsign}\n\tWorked ({self.band}/{current_year}):{self.adif_data.get('entity', {}).get(current_year, {}).get(self.band, {})}")
 
@@ -1438,8 +1438,7 @@ class Listener(QObject):
         
         if entity_code in self.wanted_callsigns_per_entity.get(self.band, {}):
             del self.wanted_callsigns_per_entity[self.band][entity_code]     
-            save_marathon_wanted_data(MARATHON_FILE, self.wanted_callsigns_per_entity)           
-            log.info(f"Wanted Callsigns per entity cleared ({self.band})={self.wanted_callsigns_per_entity}")         
+            # save_marathon_wanted_data(MARATHON_FILE, self.wanted_callsigns_per_entity)                
                                 
     def log_qso_to_adif(self):
         if self.last_logged_call == self.call_ready_to_log:
