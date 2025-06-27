@@ -52,6 +52,7 @@ from setting_dialog import SettingsDialog
 from updater import Updater, UpdateManager
 from raw_data_model import RawDataModel
 from raw_data_filter_proxy_model import RawDataFilterProxyModel
+from map_viewer import MapWindow
 
 if sys.platform == 'darwin':
     from status_menu import StatusMenuAgent
@@ -191,6 +192,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.worker              = None
         self.timer               = None
         self.tray_icon           = None
+        self.map_window          = None
 
         self.monitoring_settings = MonitoringSettings()       
         self.clublog_manager     = ClubLogManager(self) 
@@ -1022,6 +1024,24 @@ class MainApp(QtWidgets.QMainWindow):
             self.hide_container_tab()
         else:
             self.show_container_tab()
+
+    def toggle_grid_monitoring(self, checked):
+        if checked:
+            if self.map_window is None:
+                self.map_window = MapWindow()
+                self.map_window.closeEvent = self.on_map_window_closed
+            self.map_window.show()
+            self.map_window.raise_()
+            self.map_window.activateWindow()
+        else:
+            if self.map_window is not None:
+                self.map_window.close()
+                self.map_window = None
+
+    def on_map_window_closed(self, event):
+        self.grid_monitoring_action.setChecked(False)
+        self.map_window = None
+        event.accept()
 
     def hide_container_tab(self):
         self.compact_mode_visible = False
@@ -2735,6 +2755,14 @@ class MainApp(QtWidgets.QMainWindow):
         self.filter_visibility_action = filter_visibility_action
         
         self.window_menu.addAction(filter_visibility_action)
+
+        grid_monitoring_action = QtGui.QAction("Grid Monitoring", self)
+        grid_monitoring_action.setCheckable(True)
+        grid_monitoring_action.setChecked(False)
+        grid_monitoring_action.triggered.connect(self.toggle_grid_monitoring)
+        
+        self.grid_monitoring_action = grid_monitoring_action
+        self.window_menu.addAction(grid_monitoring_action)
 
         self.window_menu.addSeparator()
 

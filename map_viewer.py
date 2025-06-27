@@ -630,9 +630,9 @@ class MapWidget(QWidget):
         grid_squares = self.get_visible_grid_squares()
         
         font = CUSTOM_FONT
-        if self.zoom >= 16:
-            font.setPointSize(8)
-            font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 2)
+        if self.zoom >= 12:
+            font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 4)
+            font.setPointSize(22)     
         elif self.zoom >= 10:
             font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 2)
             font.setPointSize(12)
