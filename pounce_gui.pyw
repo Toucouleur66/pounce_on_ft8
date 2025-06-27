@@ -1053,14 +1053,10 @@ class MainApp(QtWidgets.QMainWindow):
         if not latest_messages:
             return
             
-        grid_colors = []
+        grids = []
         
-        for message in latest_messages:            
-            grid = message.get('grid')            
-
-            log.error(f"Grid: {grid}// {message.get('callsign')}")
-            
-            if not grid:
+        for message in latest_messages:                       
+            if not message.get('grid'):
                 continue
                 
             directed            = message.get('directed')
@@ -1081,21 +1077,17 @@ class MainApp(QtWidgets.QMainWindow):
                 color = "black_on_purple"
             elif monitored_cq_zone is True:
                 color = "black_on_cyan"
-            elif (
-                directed is not None and 
-                self.operating_band and 
-                matches_any(text_to_array(self.wanted_callsigns_vars[self.operating_band].text()), directed)
-            ):
+            else:
                 color = "white_on_blue"
             
             if color:
-                grid_colors.append({
-                    'grid'  : grid,
+                grids.append({
+                    'grid'  : message.get('grid'),
                     'color' : color
                 })
         
-        if grid_colors:
-            self.map_window.map_widget.set_highlighted_grids(grid_colors)
+        if grids:
+            self.map_window.map_widget.set_highlighted_grids(grids)
 
     def hide_container_tab(self):
         self.compact_mode_visible = False
