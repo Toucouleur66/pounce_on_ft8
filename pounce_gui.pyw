@@ -52,7 +52,7 @@ from setting_dialog import SettingsDialog
 from updater import Updater, UpdateManager
 from raw_data_model import RawDataModel
 from raw_data_filter_proxy_model import RawDataFilterProxyModel
-from map_viewer import MapWindow
+from grid_map_viewer import GridMapWindow
 
 if sys.platform == 'darwin':
     from status_menu import StatusMenuAgent
@@ -184,7 +184,6 @@ class MainApp(QtWidgets.QMainWindow):
 
     def __init__(self):
         super(MainApp, self).__init__()
-
 
         self.base_title          = GUI_LABEL_VERSION
         self.window_title        = None
@@ -1028,8 +1027,15 @@ class MainApp(QtWidgets.QMainWindow):
     def toggle_grid_monitoring(self, checked):
         if checked:
             if self.map_window is None:
-                self.map_window = MapWindow()
+                self.map_window = GridMapWindow()
                 self.map_window.closeEvent = self.on_map_window_closed
+                
+                if self.operating_band:
+                    self.map_window.map_widget.update_current_band(self.operating_band)
+                
+                if hasattr(self.worker, 'listener') and self.worker.listener and hasattr(self.worker.listener, 'adif_data'):
+                    self.map_window.map_widget.update_adif_data(self.worker.listener.adif_data)
+            
             self.map_window.show()
             self.map_window.raise_()
             self.map_window.activateWindow()
@@ -1245,6 +1251,9 @@ class MainApp(QtWidgets.QMainWindow):
 
             self.monitoring_settings.set_operating_band(band)
             
+            if self.map_window is not None:
+                self.map_window.map_widget.update_current_band(band)
+            
             self.update_tab_widget_labels_style()
         
             if self.global_sound_toggle.isChecked():      
@@ -1352,6 +1361,9 @@ class MainApp(QtWidgets.QMainWindow):
             elif message_type == 'upate_wanted_callsign':
                 log.debug(f"Received request to update ({message.get('action')}) Wanted Callsigns with [ {message.get('callsign')} ]")
                 self.update_var(self.wanted_callsigns_vars[self.operating_band], message.get('callsign'), message.get('action'))  
+            elif message_type == 'adif_data_updated':
+                if self.map_window is not None:
+                    self.map_window.map_widget.update_adif_data(message.get('adif_data', {}))
             elif message_type == 'update_status':
                 if self._running:
                     self.check_connection_status(
@@ -2757,6 +2769,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.window_menu.addAction(filter_visibility_action)
 
         grid_monitoring_action = QtGui.QAction("Grid Monitoring", self)
+        grid_monitoring_action.setShortcut(QtGui.QKeySequence("Ctrl+G"))
         grid_monitoring_action.setCheckable(True)
         grid_monitoring_action.setChecked(False)
         grid_monitoring_action.triggered.connect(self.toggle_grid_monitoring)

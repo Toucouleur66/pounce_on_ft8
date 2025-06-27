@@ -145,6 +145,7 @@ class Listener(QObject):
         self.enable_pounce_log                  = enable_pounce_log 
         self.enable_log_packet_data             = enable_log_packet_data
         self.enable_marathon                    = enable_marathon
+
         # Convert display names to property keys if needed
         if priority_order:
             self.priority_order = [PRIORITY_LIST.get(name, name) for name in priority_order]
@@ -215,6 +216,7 @@ class Listener(QObject):
             Check ADIF file to handle Worked B4 
         """
         if adif_file_path:            
+            log.error("Monitoring ADIF file: {}".format(adif_file_path))
             self.adif_monitor               = AdifMonitor(adif_file_path, ADIF_WORKED_CALLSIGNS_FILE)
             if (
                 self.enable_marathon and 
@@ -990,7 +992,7 @@ class Listener(QObject):
                     and not excluded 
                     and entity_code 
                     and not (wanted and wanted_cq_zone)                    
-                ):                
+                ):            
                     if callsign in self.wanted_callsigns_per_entity.get(self.band, {}).get(entity_code, {}):
                         marathon = True
                     elif ((   
@@ -1304,6 +1306,9 @@ class Listener(QObject):
         """      
         selected_message = max(filtered_messages, key=self.get_sorted_keys(), default=None)
                 
+
+
+        log.error(f"Selected message: {selected_message}") if selected_message else log.error("No selected message found.")
         """
             Clear buffer
         """
@@ -1528,14 +1533,6 @@ class Listener(QObject):
             log.error(f"Error sending QSOLoggedPacket via UDP: {e}")
             log.error("Caught an error while trying to send QSOLoggedPacket packet: error {}\n{}".format(e, traceback.format_exc()))
 
-    def update_adif_data(self, parsed_message):
-        self.adif_data = parsed_message
-
-    """
-        if self.adif_data.get('entity') and self.band:
-            log.info(sorted(self.adif_data.get('entity').get(str(datetime.now().year)).get(self.band)))
-    """
-
     def format_log_message(self, message):
         decode_time = message.get('decode_time')
         if hasattr(decode_time, 'strftime'):
@@ -1566,3 +1563,17 @@ class Listener(QObject):
             f"\tpid:{message.get('packet_id'):<6}"
             f"\t{wkb4_year}"                                           
         )        
+    
+    def update_adif_data(self, parsed_message):
+        self.adif_data = parsed_message
+        
+        if self.message_callback:
+            self.message_callback({
+                'type': 'adif_data_updated',
+                'adif_data': self.adif_data
+            })
+
+    """
+        if self.adif_data.get('entity') and self.band:
+            log.info(sorted(self.adif_data.get('entity').get(str(datetime.now().year)).get(self.band)))
+    """
