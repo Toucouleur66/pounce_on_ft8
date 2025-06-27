@@ -3,16 +3,19 @@
 import sys
 import math
 import requests
+
+from constants import CUSTOM_FONT
+
 from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget
-from PyQt6.QtCore import Qt, QPoint, QRect, QTimer, QThread, pyqtSignal, QMutex, QThreadPool, QRunnable, QObject
-from PyQt6.QtGui import QPainter, QPixmap, QWheelEvent, QMouseEvent, QKeyEvent, QColor, QBrush
-from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
-from io import BytesIO
+from PyQt6.QtCore import Qt, QPoint, QTimer, pyqtSignal, QThreadPool, QRunnable, QObject
+from PyQt6.QtGui import QFont, QPainter, QPixmap, QWheelEvent, QMouseEvent, QKeyEvent, QColor, QBrush
+
 import os
+
 from urllib.parse import urlparse
-import hashlib
+
 import time
-from concurrent.futures import ThreadPoolExecutor
+
 import threading
 
 
@@ -152,7 +155,7 @@ class MapWidget(QWidget):
         
         self.show_grid = True
         self.grid_color = Qt.GlobalColor.red
-        self.grid_text_color = Qt.GlobalColor.darkRed
+        self.grid_text_color = Qt.GlobalColor.gray
         
         self.highlighted_squares = []
         self.blink_timer = QTimer()
@@ -626,16 +629,22 @@ class MapWidget(QWidget):
     def draw_maidenhead_grid(self, painter):
         grid_squares = self.get_visible_grid_squares()
         
-        font = painter.font()
+        font = CUSTOM_FONT
         if self.zoom >= 16:
             font.setPointSize(8)
+            font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 2)
         elif self.zoom >= 10:
-            font.setPointSize(10)
+            font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 2)
+            font.setPointSize(12)
+        elif self.zoom >= 6:
+            font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 4)
+            font.setPointSize(22)            
         else:
-            font.setPointSize(16)
+            font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 6)
+            font.setPointSize(30)
 
         # print(self.zoom)
-        font.setBold(True)
+        painter.setPen(self.grid_color)
         painter.setFont(font)
         
         for grid in grid_squares:
@@ -701,7 +710,7 @@ class MapWidget(QWidget):
                             bg_width = text_width + 2 * bg_margin
                             bg_height = text_height + 2 * bg_margin
                             
-                            painter.fillRect(bg_x, bg_y, bg_width, bg_height, Qt.GlobalColor.white)
+                            # painter.fillRect(bg_x, bg_y, bg_width, bg_height, Qt.GlobalColor.white)
                             
                             painter.drawText(text_x, text_y, grid_label)
                         
@@ -849,11 +858,11 @@ class MapWidget(QWidget):
             time_delta = current_time - self.last_pan_time
             
             if delta.x() != 0 or delta.y() != 0:
-                self.apply_pan_movement(delta.x(), delta.y())
+                self.apply_pan_movement(-delta.x(), -delta.y())
                 
                 if time_delta > 0:
-                    velocity_x = delta.x() / max(time_delta, 1) * 16
-                    velocity_y = delta.y() / max(time_delta, 1) * 16
+                    velocity_x = -delta.x() / max(time_delta, 1) * 16
+                    velocity_y = -delta.y() / max(time_delta, 1) * 16
                     
                     self.pan_velocity = QPoint(
                         int(self.pan_velocity.x() * 0.8 + velocity_x * 0.2),
