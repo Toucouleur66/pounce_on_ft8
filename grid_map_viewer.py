@@ -225,12 +225,8 @@ class GridMapWidget(QWidget):
         if self.show_grid:
             self.draw_maidenhead_grid(painter)
             
-        for i, square in enumerate(self.highlighted_squares):
-            if i == len(self.highlighted_squares) - 1 and len(self.highlighted_squares) > 0:
-                if self.blink_visible:
-                    self.fill_grid_square_wrapped(painter, square)
-            else:
-                self.fill_grid_square_wrapped(painter, square)
+        for square in self.highlighted_squares:
+            self.fill_grid_square_wrapped(painter, square)
         
         # Draw all colored grid squares as one block with unified blinking
         if self.blink_visible and self.highlighted_grids:
@@ -830,34 +826,25 @@ class GridMapWidget(QWidget):
         self.blink_count = 0
         self.blink_visible = True
         
-        if len(squares) > 0:
+        if len(squares) > 0 and center_on_last:
             last_square = squares[-1]
             grid_info = self.maidenhead_to_lat_lon(last_square)
-            if grid_info and center_on_last:
+            if grid_info:
                 self.center_lat = grid_info['center_lat']
                 self.center_lon = grid_info['center_lon']
                 self.center_pixel_offset_x = 0.0
                 self.center_pixel_offset_y = 0.0
                 self.apply_pan_movement(0, 0)
-            
-            self.blink_timer.start(83)
         
         self.update()
     
     def set_highlighted_grids(self, grids, center_on_last=False):
-        """
-        Set highlighted grid squares with different colors
-        grid_colors: list of dict with 'grid' and 'color' keys
-        """
-        # Clear previous grid colors to ensure clean replacement
         self.highlighted_grids = []
         
-        # Stop any existing blinking
         self.blink_timer.stop()
         self.blink_count = 0
         self.blink_visible = True
         
-        # Set new grid colors
         self.highlighted_grids = grids
         
         if len(grids) > 0 and center_on_last:
@@ -870,9 +857,8 @@ class GridMapWidget(QWidget):
                 self.center_pixel_offset_y = 0.0
                 self.apply_pan_movement(0, 0)
         
-        # Start blinking the entire block every 300ms if there are grids to highlight
         if grids:
-            self.blink_timer.start(300)  # Changed from 83ms to 300ms
+            self.blink_timer.start(300)  
         
         self.update()
     
