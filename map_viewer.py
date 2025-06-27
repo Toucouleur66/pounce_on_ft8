@@ -352,12 +352,26 @@ class MapWidget(QWidget):
             self.center_pixel_offset_y = 0.0
             
             center_tile_x, center_tile_y = self.deg2num(self.center_lat, self.center_lon, self.zoom)
-            self.center_lat, self.center_lon = self.num2deg(center_tile_x, center_tile_y, self.zoom)
+            
+            world_size = self.get_world_bounds_at_zoom()
+            center_pixel_x = center_tile_x * self.tile_size
+            center_pixel_y = center_tile_y * self.tile_size
+            
+            half_width = self.width() / 2
+            half_height = self.height() / 2
+            
+            center_pixel_x = max(half_width, min(world_size - half_width, center_pixel_x))
+            center_pixel_y = max(half_height, min(world_size - half_height, center_pixel_y))
+            
+            new_tile_x = center_pixel_x / self.tile_size
+            new_tile_y = center_pixel_y / self.tile_size
+            
+            self.center_lat, self.center_lon = self.num2deg(new_tile_x, new_tile_y, self.zoom)
             self.pan_velocity = QPoint(0, 0)
             
-            self.memory_cache.clear()
+            self.apply_pan_movement(0, 0)
             
-            self.update()
+            self.memory_cache.clear()
             
             from PyQt6.QtWidgets import QApplication
             QApplication.processEvents()
