@@ -66,7 +66,6 @@ class AdifMonitor:
                         log.info(f"Start processing: {file_path}")
                         self.adif_last_mtime[file_path] = current_mtime
                         processing_time, parsed_data = parse_adif(file_path, self._lookup)
-                        
                         self.adif_data_by_file[file_path] = parsed_data
                         
                         log.info(f"Processed ({processing_time:.4f}s): {file_path}")
@@ -76,8 +75,9 @@ class AdifMonitor:
 
     def get_adif_data(self):
         merged_data = {
-            'wkb4': defaultdict(lambda: defaultdict(set)),
+            'wkb4'  : defaultdict(lambda: defaultdict(set)),
             'entity': defaultdict(lambda: defaultdict(set)),
+            'grid'  : defaultdict(lambda: defaultdict(set)),
         }
         for data in self.adif_data_by_file.values():
             if data is None:
@@ -92,11 +92,21 @@ class AdifMonitor:
                         merged_data['wkb4'][year][band].update(calls)
             
             entity_data = data.get('entity')
+            
             if entity_data:
                 for year, bands in entity_data.items():
                     if bands is None:
                         continue
                     for band, entities in bands.items():
                         merged_data['entity'][year][band].update(entities)
+            
+            grid_data = data.get('grid')
+            if grid_data:
+                for band, grids in grid_data.items():
+                    if grids is None:
+                        continue
+                    for grid, calls in grids.items():
+                        merged_data['grid'][band][grid].update(calls)
         
         return merged_data
+    
