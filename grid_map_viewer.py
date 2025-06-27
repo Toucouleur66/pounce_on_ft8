@@ -517,13 +517,18 @@ class GridMapWidget(QWidget):
                                 'color': color
                             })
 
-        add_grid_type(1.0, 2.0, 'square', False, 'gray')
+        # Only add the gray square grid if zoom level is 5 or higher
+        if self.zoom >= 5:
+            add_grid_type(1.0, 2.0, 'square', False, 'gray')
         
         if self.zoom >= 10:
             add_grid_type(1.0/24.0, 2.0/24.0, 'subsquare', True, 'red')
         elif self.zoom >= 6:
             add_grid_type(1.0, 2.0, 'square', True, 'red')
+        elif self.zoom >= 5:
+            add_grid_type(10.0, 20.0, 'field', True, 'red')
         else:
+            # For zoom levels 3-4, only show field grid
             add_grid_type(10.0, 20.0, 'field', True, 'red')
             
         return grid_squares
@@ -564,7 +569,7 @@ class GridMapWidget(QWidget):
                 pen.setWidth(1)
             else:
                 pen.setColor(self.grid_color)
-                pen.setWidth(2)
+                pen.setWidth(1)
             painter.setPen(pen)
             
             try:
