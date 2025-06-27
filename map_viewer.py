@@ -249,10 +249,8 @@ class MapWidget(QWidget):
         center_pixel_x = center_tile_x * self.tile_size + self.center_pixel_offset_x
         center_pixel_y = center_tile_y * self.tile_size + self.center_pixel_offset_y
         
-        half_width = self.width() / 2
         half_height = self.height() / 2
         
-        center_pixel_x = max(half_width, min(world_size - half_width, center_pixel_x))
         center_pixel_y = max(half_height, min(world_size - half_height, center_pixel_y))
         
         new_tile_x = center_pixel_x / self.tile_size
@@ -290,31 +288,36 @@ class MapWidget(QWidget):
         center_pixel_x = widget_width // 2
         center_pixel_y = widget_height // 2
         
+        max_tile = 2 ** self.zoom
+        
         for dy in range(-tiles_y//2, tiles_y//2 + 1):
             for dx in range(-tiles_x//2, tiles_x//2 + 1):
                 tile_x = center_tile_x + dx
                 tile_y = center_tile_y + dy
                 
-                max_tile = 2 ** self.zoom
-                if tile_x < 0 or tile_x >= max_tile or tile_y < 0 or tile_y >= max_tile:
+                if tile_y < 0 or tile_y >= max_tile:
                     continue
+                
+                wrapped_tile_x = tile_x % max_tile
+                if wrapped_tile_x < 0:
+                    wrapped_tile_x += max_tile
                 
                 screen_x = center_pixel_x + (dx * self.tile_size) - int(offset_x)
                 screen_y = center_pixel_y + (dy * self.tile_size) - int(offset_y)
                 
-                key = self.get_tile_key(self.zoom, tile_x, tile_y)
+                key = self.get_tile_key(self.zoom, wrapped_tile_x, tile_y)
                 pixmap = None
                 
                 if key in self.memory_cache:
                     pixmap = self.memory_cache[key]
                     painter.drawPixmap(screen_x, screen_y, pixmap)
                 else:
-                    cached_pixmap = self.file_cache.get_cached_tile(self.zoom, tile_x, tile_y)
+                    cached_pixmap = self.file_cache.get_cached_tile(self.zoom, wrapped_tile_x, tile_y)
                     if cached_pixmap:
                         self.memory_cache[key] = cached_pixmap
                         painter.drawPixmap(screen_x, screen_y, cached_pixmap)
                     else:
-                        self.tile_downloader.add_tile(self.zoom, tile_x, tile_y)
+                        self.tile_downloader.add_tile(self.zoom, wrapped_tile_x, tile_y)
                         painter.fillRect(screen_x, screen_y, self.tile_size, self.tile_size, 
                                        Qt.GlobalColor.lightGray)
         
@@ -324,9 +327,9 @@ class MapWidget(QWidget):
         for i, square in enumerate(self.highlighted_squares):
             if i == len(self.highlighted_squares) - 1 and len(self.highlighted_squares) > 0:
                 if self.blink_visible:
-                    self.fill_grid_square(painter, square)
+                    self.fill_grid_square_wrapped(painter, square)
             else:
-                self.fill_grid_square(painter, square)
+                self.fill_grid_square_wrapped(painter, square)
     
     def wheelEvent(self, event: QWheelEvent):
         mouse_pos = event.position()
@@ -357,10 +360,8 @@ class MapWidget(QWidget):
             center_pixel_x = center_tile_x * self.tile_size
             center_pixel_y = center_tile_y * self.tile_size
             
-            half_width = self.width() / 2
             half_height = self.height() / 2
             
-            center_pixel_x = max(half_width, min(world_size - half_width, center_pixel_x))
             center_pixel_y = max(half_height, min(world_size - half_height, center_pixel_y))
             
             new_tile_x = center_pixel_x / self.tile_size
@@ -561,6 +562,11 @@ class MapWidget(QWidget):
         east = max(top_left_lon, bottom_right_lon)
         west = min(top_left_lon, bottom_right_lon)
         
+        lon_span = east - west
+        if lon_span > 360:
+            west = -180
+            east = 180
+        
         grid_squares = []
 
         def add_grid_type(unit_lat, unit_lon, grid_type, show_labels=True, color='red'):
@@ -573,28 +579,36 @@ class MapWidget(QWidget):
             end_lat_idx = math.ceil((north - grid_base_lat) / unit_lat) + 1
             
             buffer = 2
+            
+            extended_west = west - 360
+            extended_east = east + 360
+            
             for lon_idx in range(start_lon_idx - buffer, end_lon_idx + buffer):
                 for lat_idx in range(start_lat_idx - buffer, end_lat_idx + buffer):
-                    square_sw_lon = grid_base_lon + lon_idx * unit_lon
                     square_sw_lat = grid_base_lat + lat_idx * unit_lat
-                    square_ne_lon = square_sw_lon + unit_lon
                     square_ne_lat = square_sw_lat + unit_lat
                     
-                    if (-90 <= square_sw_lat < 90 and -180 <= square_sw_lon < 180 and
-                        square_ne_lon >= west and square_sw_lon <= east and
-                        square_ne_lat >= south and square_sw_lat <= north):
+                    if not (-90 <= square_sw_lat < 90 and square_ne_lat >= south and square_sw_lat <= north):
+                        continue
+                    
+                    for offset in [0, 360, -360]:
+                        square_sw_lon = grid_base_lon + lon_idx * unit_lon + offset
+                        square_ne_lon = square_sw_lon + unit_lon
                         
-                        grid_squares.append({
-                            'sw_lat': square_sw_lat,
-                            'sw_lon': square_sw_lon,
-                            'ne_lat': square_ne_lat,
-                            'ne_lon': square_ne_lon,
-                            'type': grid_type,
-                            'unit_lat': unit_lat,
-                            'unit_lon': unit_lon,
-                            'show_labels': show_labels,
-                            'color': color
-                        })
+                        if (square_ne_lon >= west and square_sw_lon <= east) or \
+                           (square_ne_lon >= extended_west and square_sw_lon <= extended_east):
+                            
+                            grid_squares.append({
+                                'sw_lat': square_sw_lat,
+                                'sw_lon': square_sw_lon,
+                                'ne_lat': square_ne_lat,
+                                'ne_lon': square_ne_lon,
+                                'type': grid_type,
+                                'unit_lat': unit_lat,
+                                'unit_lon': unit_lon,
+                                'show_labels': show_labels,
+                                'color': color
+                            })
 
         add_grid_type(1.0, 2.0, 'square', False, 'gray')
         
@@ -736,6 +750,43 @@ class MapWidget(QWidget):
                 painter.fillRect(rect_x, rect_y, rect_width, rect_height, brush)
         except Exception:
             pass
+    
+    def fill_grid_square_wrapped(self, painter, grid_square):
+        grid_info = self.maidenhead_to_lat_lon(grid_square)
+        if not grid_info:
+            return
+            
+        min_lat = grid_info['min_lat']
+        max_lat = grid_info['max_lat']
+        min_lon = grid_info['min_lon']
+        max_lon = grid_info['max_lon']
+        
+        for offset in [0, 360, -360]:
+            offset_min_lon = min_lon + offset
+            offset_max_lon = max_lon + offset
+            
+            try:
+                top_left_x, top_left_y = self.lat_lon_to_screen_stable(max_lat, offset_min_lon)
+                top_right_x, top_right_y = self.lat_lon_to_screen_stable(max_lat, offset_max_lon)
+                bottom_left_x, bottom_left_y = self.lat_lon_to_screen_stable(min_lat, offset_min_lon)
+                bottom_right_x, bottom_right_y = self.lat_lon_to_screen_stable(min_lat, offset_max_lon)
+                
+                if (max(top_left_x, top_right_x, bottom_left_x, bottom_right_x) >= -50 and
+                    min(top_left_x, top_right_x, bottom_left_x, bottom_right_x) <= self.width() + 50 and
+                    max(top_left_y, top_right_y, bottom_left_y, bottom_right_y) >= -50 and
+                    min(top_left_y, top_right_y, bottom_left_y, bottom_right_y) <= self.height() + 50):
+                    
+                    fill_color = QColor(255, 0, 0, 128)
+                    brush = QBrush(fill_color)
+                    
+                    rect_x = int(min(top_left_x, top_right_x, bottom_left_x, bottom_right_x))
+                    rect_y = int(min(top_left_y, top_right_y, bottom_left_y, bottom_right_y))
+                    rect_width = int(max(top_left_x, top_right_x, bottom_left_x, bottom_right_x) - rect_x) + 1
+                    rect_height = int(max(top_left_y, top_right_y, bottom_left_y, bottom_right_y) - rect_y) + 1
+                    
+                    painter.fillRect(rect_x, rect_y, rect_width, rect_height, brush)
+            except Exception:
+                pass
     
     def blink_update(self):
         self.blink_visible = not self.blink_visible
