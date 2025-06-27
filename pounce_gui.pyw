@@ -191,7 +191,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.worker              = None
         self.timer               = None
         self.tray_icon           = None
-        self.map_window          = None
+        self.grid_monitoring     = None
+        self.is_shutting_down    = False
+        self.grid_window_state   = None
 
         self.monitoring_settings = MonitoringSettings()       
         self.clublog_manager     = ClubLogManager(self) 
@@ -601,8 +603,8 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.load_worked_history_callsigns()
         self.apply_theme_to_all(self.theme_manager.dark_mode)
-        self.load_window_position()
         self.create_main_menu() 
+        self.load_window_position()
         self.toggle_wkb4_column_visibility()        
 
         QtCore.QTimer.singleShot(100, lambda: self.wait_pounce_history_table.scrollToBottom())
@@ -1026,27 +1028,32 @@ class MainApp(QtWidgets.QMainWindow):
 
     def toggle_grid_monitoring(self, checked):
         if checked:
-            if self.map_window is None:
-                self.map_window = GridMapWindow()
-                self.map_window.closeEvent = self.on_map_window_closed
+            if self.grid_monitoring is None:
+                self.grid_monitoring = GridMapWindow()
+                self.grid_monitoring.closeEvent = self.on_map_window_closed
                 
                 if self.operating_band:
-                    self.map_window.map_widget.update_current_band(self.operating_band)
+                    self.grid_monitoring.map_widget.update_current_band(self.operating_band)
                 
                 if hasattr(self.worker, 'listener') and self.worker.listener and hasattr(self.worker.listener, 'adif_data'):
-                    self.map_window.map_widget.update_adif_data(self.worker.listener.adif_data)
+                    self.grid_monitoring.map_widget.update_adif_data(self.worker.listener.adif_data)
             
-            self.map_window.show()
-            self.map_window.raise_()
-            self.map_window.activateWindow()
+            self.grid_monitoring.show()
+            self.grid_monitoring.raise_()
+            self.grid_monitoring.activateWindow()
         else:
-            if self.map_window is not None:
-                self.map_window.close()
-                self.map_window = None
+            if self.grid_monitoring is not None:
+                self.grid_monitoring.close()
+                self.grid_monitoring = None
+        
+        self.save_window_position()
 
     def on_map_window_closed(self, event):
         self.grid_monitoring_action.setChecked(False)
-        self.map_window = None
+        self.grid_monitoring = None
+        # Save the grid monitoring state when window is closed (but not during shutdown)
+        if not getattr(self, 'is_shutting_down', False):
+            self.save_window_position()
         event.accept()
 
     def update_map_with_new_grids(self, latest_messages):
@@ -1087,7 +1094,7 @@ class MainApp(QtWidgets.QMainWindow):
                 })
         
         if grids:
-            self.map_window.map_widget.set_highlighted_grids(grids)
+            self.grid_monitoring.map_widget.set_highlighted_grids(grids)
 
     def hide_container_tab(self):
         self.compact_mode_visible = False
@@ -1291,9 +1298,9 @@ class MainApp(QtWidgets.QMainWindow):
 
             self.monitoring_settings.set_operating_band(band)
             
-            if self.map_window is not None:
-                self.map_window.map_widget.update_current_band(band)
-                self.map_window.map_widget.clear_highlighted_grids()
+            if self.grid_monitoring is not None:
+                self.grid_monitoring.map_widget.update_current_band(band)
+                self.grid_monitoring.map_widget.clear_highlighted_grids()
             
             self.update_tab_widget_labels_style()
         
@@ -1403,8 +1410,8 @@ class MainApp(QtWidgets.QMainWindow):
                 log.debug(f"Received request to update ({message.get('action')}) Wanted Callsigns with [ {message.get('callsign')} ]")
                 self.update_var(self.wanted_callsigns_vars[self.operating_band], message.get('callsign'), message.get('action'))  
             elif message_type == 'adif_data_updated':
-                if self.map_window is not None:
-                    self.map_window.map_widget.update_adif_data(message.get('adif_data', {}))
+                if self.grid_monitoring is not None:
+                    self.grid_monitoring.map_widget.update_adif_data(message.get('adif_data', {}))
             elif message_type == 'update_status':
                 if self._running:
                     self.check_connection_status(
@@ -1638,7 +1645,7 @@ class MainApp(QtWidgets.QMainWindow):
         """
             Update map with new grid squares
         """
-        if self.map_window is not None:
+        if self.grid_monitoring is not None:
             self.update_map_with_new_grids(latest_messages)
         
         """
@@ -2224,7 +2231,12 @@ class MainApp(QtWidgets.QMainWindow):
         if sys.platform == 'darwin':
             self.pobjc_timer.start(10) 
             
-    def on_close(self, event):        
+    def on_close(self, event):
+        # Capture grid monitoring state BEFORE setting shutdown flag to prevent window close events from affecting it
+        if self.grid_window_state is None:
+            self.grid_window_state = self.grid_monitoring_action.isChecked() if hasattr(self, 'grid_monitoring_action') else False
+        
+        self.is_shutting_down = True
         self.save_window_position()
         if self._running:
             self.stop_monitoring()
@@ -2273,6 +2285,9 @@ class MainApp(QtWidgets.QMainWindow):
         log.debug("Quit")
 
     def restart_application(self):
+        self.is_shutting_down = True
+        self.grid_window_state = self.grid_monitoring_action.isChecked() if hasattr(self, 'grid_monitoring_action') else False
+        
         if self._running:
                 self.stop_monitoring()
             
@@ -2620,11 +2635,18 @@ class MainApp(QtWidgets.QMainWindow):
 
     def save_window_position(self):
         position = self.geometry()
+        
+        # During shutdown, use the saved state to prevent overwriting by window close events
+        if getattr(self, 'is_shutting_down', False) and self.grid_window_state is not None:
+            grid_monitoring_open = self.grid_window_state
+        else:
+            grid_monitoring_open = self.grid_monitoring_action.isChecked() if hasattr(self, 'grid_monitoring_action') else False
         position_data = {
             'x': position.x(),
             'y': position.y(), 
             'width': position.width(),
-            'height': position.height()
+            'height': position.height(),
+            'grid_monitoring_open': grid_monitoring_open
         }
         with open(POSITION_FILE, "wb") as f:
             pickle.dump(position_data, f)
@@ -2635,6 +2657,12 @@ class MainApp(QtWidgets.QMainWindow):
                 position_data = pickle.load(f)
                 if 'width' in position_data and 'height' in position_data:
                     self.setGeometry(position_data['x'], position_data['y'], position_data['width'], position_data['height'])
+                    
+                    # Restore grid monitoring window state
+                    grid_monitoring_open = position_data.get('grid_monitoring_open', False)
+                    if grid_monitoring_open:
+                        self.grid_monitoring_action.setChecked(True)
+                        QtCore.QTimer.singleShot(100, lambda: self.toggle_grid_monitoring(True))
                 else:
                     self.setGeometry(100, 100, 900, 700) 
                     os.remove(POSITION_FILE)
