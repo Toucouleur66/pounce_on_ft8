@@ -5,7 +5,7 @@ import math
 import requests
 from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget
 from PyQt6.QtCore import Qt, QPoint, QRect, QTimer, QThread, pyqtSignal, QMutex, QThreadPool, QRunnable, QObject
-from PyQt6.QtGui import QPainter, QPixmap, QWheelEvent, QMouseEvent, QKeyEvent
+from PyQt6.QtGui import QPainter, QPixmap, QWheelEvent, QMouseEvent, QKeyEvent, QColor, QBrush
 from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
 from io import BytesIO
 import os
@@ -153,6 +153,12 @@ class MapWidget(QWidget):
         self.show_grid = True
         self.grid_color = Qt.GlobalColor.red
         self.grid_text_color = Qt.GlobalColor.darkRed
+        
+        self.highlighted_squares = []
+        self.blink_timer = QTimer()
+        self.blink_timer.timeout.connect(self.blink_update)
+        self.blink_count = 0
+        self.blink_visible = True
         
         self.memory_cache = {}
         self.file_cache = TileCache()
@@ -314,6 +320,13 @@ class MapWidget(QWidget):
         
         if self.show_grid:
             self.draw_maidenhead_grid(painter)
+            
+        for i, square in enumerate(self.highlighted_squares):
+            if i == len(self.highlighted_squares) - 1 and len(self.highlighted_squares) > 0:
+                if self.blink_visible:
+                    self.fill_grid_square(painter, square)
+            else:
+                self.fill_grid_square(painter, square)
     
     def wheelEvent(self, event: QWheelEvent):
         mouse_pos = event.position()
@@ -591,7 +604,7 @@ class MapWidget(QWidget):
         else:
             font.setPointSize(16)
 
-        print(self.zoom)
+        # print(self.zoom)
         font.setBold(True)
         painter.setFont(font)
         
@@ -677,10 +690,70 @@ class MapWidget(QWidget):
         
         return full_grid
     
+    def fill_grid_square(self, painter, grid_square):
+        grid_info = self.maidenhead_to_lat_lon(grid_square)
+        if not grid_info:
+            return
+            
+        min_lat = grid_info['min_lat']
+        max_lat = grid_info['max_lat']
+        min_lon = grid_info['min_lon']
+        max_lon = grid_info['max_lon']
+        
+        try:
+            top_left_x, top_left_y = self.lat_lon_to_screen_stable(max_lat, min_lon)
+            top_right_x, top_right_y = self.lat_lon_to_screen_stable(max_lat, max_lon)
+            bottom_left_x, bottom_left_y = self.lat_lon_to_screen_stable(min_lat, min_lon)
+            bottom_right_x, bottom_right_y = self.lat_lon_to_screen_stable(min_lat, max_lon)
+            
+            if (max(top_left_x, top_right_x, bottom_left_x, bottom_right_x) >= -50 and
+                min(top_left_x, top_right_x, bottom_left_x, bottom_right_x) <= self.width() + 50 and
+                max(top_left_y, top_right_y, bottom_left_y, bottom_right_y) >= -50 and
+                min(top_left_y, top_right_y, bottom_left_y, bottom_right_y) <= self.height() + 50):
+                
+                fill_color = QColor(255, 0, 0, 128)
+                brush = QBrush(fill_color)
+                
+                rect_x = int(min(top_left_x, top_right_x, bottom_left_x, bottom_right_x))
+                rect_y = int(min(top_left_y, top_right_y, bottom_left_y, bottom_right_y))
+                rect_width = int(max(top_left_x, top_right_x, bottom_left_x, bottom_right_x) - rect_x) + 1
+                rect_height = int(max(top_left_y, top_right_y, bottom_left_y, bottom_right_y) - rect_y) + 1
+                
+                painter.fillRect(rect_x, rect_y, rect_width, rect_height, brush)
+        except Exception:
+            pass
+    
+    def blink_update(self):
+        self.blink_visible = not self.blink_visible
+        self.blink_count += 1
+        self.update()
+        
+        if self.blink_count >= 6:
+            self.blink_timer.stop()
+            self.blink_count = 0
+            self.blink_visible = True
+            self.update()
+    
+    def set_highlighted_squares(self, squares):
+        self.highlighted_squares = squares
+        
+        self.blink_timer.stop()
+        self.blink_count = 0
+        self.blink_visible = True
+        
+        if len(squares) > 0:
+            self.blink_timer.start(83)
+        
+        self.update()
+    
     def keyPressEvent(self, event: QKeyEvent):
         if event.key() == Qt.Key.Key_G:
             self.show_grid = not self.show_grid
             self.update()
+        elif event.key() == Qt.Key.Key_H:
+            self.set_highlighted_squares(['BL01','BO49','CM87','CM97','CM98','CN77','CN79','CN84','CN85','CN87','CN88','CN89','CN94','CN97','CO70','CO82','DL80','DL92','DL96','DL98','DM02','DM06','DM12','DM13','DM22','DM26','DM33','DM34','DM35','DM41','DM42','DM43','DM48','DM52','DM58','DM62','DM65','DM68','DM79','DM80','DM82','DM88','DM98','DN09','DN14','DN30','DN41','DN46','DN62','DN70','EI97','EI98','EJ79','EK08','EK09','EK44','EK53','EK55','EK57','EK64','EK70','EK99','EL00','EL06','EL09','EL29','EL49','EL60','EL83','EL87','EL88','EL95','EL96','EL97','EL98','EL99','EM00','EM04','EM10','EM12','EM13','EM15','EM20','EM22','EM25','EM26','EM30','EM32','EM37','EM40','EM45','EM50','EM53','EM56','EM58','EM59','EM60','EM62','EM63','EM64','EM65','EM66','EM68','EM70','EM72','EM73','EM74','EM77','EM78','EM79','EM80','EM81','EM83','EM84','EM85','EM86','EM88','EM90','EM92','EM93','EM94','EM95','EM96','EM97','EM98','EM99','EN10','EN11','EN13','EN21','EN22','EN25','EN31','EN32','EN33','EN34','EN35','EN40','EN41','EN42','EN43','EN44','EN46','EN52','EN53','EN61','EN63','EN64','EN71','EN72','EN80','EN82','EN83','EN84','EN90','EN91','EN93','FD46','FD66','FE48','FE64','FE72','FE77','FF06','FF30','FF31','FF44','FF45','FF46','FF47','FF51','FF57','FF58','FF60','FF78','FF81','FF88','FF97','FF98','FF99','FG40','FG41','FI06','FI07','FI09','FJ24','FJ26','FJ34','FJ92','FK21','FK38','FK42','FK48','FK49','FK52','FK58','FK60','FK68','FK77','FK78','FK86','FK87','FK88','FK90','FK92','FK93','FK94','FK95','FK96','FK97','FL01','FL20','FM02','FM03','FM04','FM05','FM06','FM07','FM08','FM09','FM15','FM16','FM17','FM18','FM19','FM27','FM29','FN03','FN04','FN07','FN08','FN12','FN13','FN20','FN21','FN23','FN24','FN25','FN30','FN31','FN32','FN33','FN36','FN41','FN42','FN43','FN44','FN46','FN51','FN54','FN58','FN64','FN65','FN67','FN73','FN74','FN75','FN85','FN86','FO60','FO93','GD18','GF02','GF05','GF12','GF15','GF18','GF25','GF27','GF49','GG02','GG14','GG22','GG24','GG27','GG29','GG30','GG31','GG40','GG42','GG43','GG44','GG46','GG47','GG48','GG51','GG52','GG53','GG54','GG56','GG57','GG58','GG59','GG65','GG66','GG67','GG68','GG76','GG77','GG78','GG86','GG87','GG88','GG89','GG98','GG99','GH51','GH53','GH54','GH64','GH80','GH91','GH99','GI84','GJ25','GJ35','GK03','GN17','GN27','GN37','GP47','HH07','HI21','HI22','HI23','HI36','HK76','HK85','HK86','HM49','HM58','HM77','HP94','IB59','IF32','IH74','IJ38','IJ39','IJ45','IJ46','IJ85','IJ87','IJ95','IK13','IK14','IK52','IK62','IK92','IL17','IL18','IL38','IL46','IM12','IM13','IM57','IM58','IM59','IM63','IM67','IM75','IM76','IM85','IM98','IN50','IN51','IN52','IN60','IN62','IN78','IN80','IN89','IN94','IN95','IO51','IO52','IO61','IO63','IO64','IO65','IO74','IO75','IO77','IO78','IO81','IO82','IO83','IO84','IO85','IO86','IO89','IO90','IO91','IO92','IO93','IO95','IO97','IP61','IP62','JF95','JF96','JG78','JG82','JG87','JH81','JI64','JI75','JJ06','JJ16','JJ30','JJ39','JJ40','JJ42','JJ43','JJ53','JJ94','JK13','JK72','JM06','JM13','JM19','JM49','JM53','JM62','JM65','JM75','JM76','JM77','JM78','JN01','JN02','JN11','JN12','JN18','JN29','JN33','JN36','JN37','JN40','JN41','JN42','JN45','JN47','JN57','JN58','JN61','JN63','JN66','JN67','JN69','JN75','JN76','JN77','JN78','JN79','JN80','JN82','JN83','JN84','JN86','JN87','JN88','JN89','JN91','JN92','JN93','JN94','JN95','JN96','JN97','JN98','JN99','JO01','JO02','JO10','JO11','JO21','JO22','JO29','JO30','JO33','JO41','JO43','JO45','JO46','JO47','JO48','JO49','JO53','JO55','JO56','JO57','JO59','JO66','JO67','JO68','JO70','JO71','JO75','JO76','JO77','JO78','JO80','JO81','JO86','JO88','JO89','JO90','JO92','JO94','JP20','JP33','JP40','JP50','JP52','JP67','JP70','JP71','JP80','JP90','KF15','KF59','KG25','KG30','KG33','KG36','KG43','KG44','KG46','KG47','KG49','KG50','KG53','KG54','KG56','KG78','KH21','KH22','KH43','KH44','KH47','KH50','KH66','KH67','KH78','KH79','KI58','KI64','KI88','KI94','KJ54','KJ99','KK65','KL91','KL94','KM06','KM08','KM09','KM15','KM17','KM18','KM19','KM24','KM25','KM38','KM39','KM46','KM47','KM56','KM57','KM59','KM64','KM65','KM66','KM69','KM71','KM72','KM73','KM74','KN00','KN01','KN02','KN03','KN04','KN05','KN06','KN07','KN08','KN09','KN10','KN11','KN12','KN13','KN14','KN15','KN19','KN21','KN22','KN23','KN24','KN25','KN27','KN28','KN29','KN32','KN34','KN35','KN36','KN37','KN40','KN41','KN44','KN45','KN50','KN56','KN57','KN58','KN59','KN61','KN74','KN75','KN77','KN78','KN85','KN88','KN89','KN90','KN94','KN95','KN97','KN98','KN99','KO00','KO01','KO02','KO03','KO05','KO06','KO13','KO14','KO16','KO18','KO20','KO25','KO26','KO27','KO29','KO30','KO40','KO50','KO59','KO73','KO85','KO91','KO94','KP00','KP03','KP11','KP13','KP15','KP20','KP21','KP23','KP26','KP31','KP33','KP38','KP43','KP52','LG78','LG79','LG89','LH18','LH27','LH38','LH46','LI75','LK18','LL09','LL25','LL34','LL39','LL46','LL49','LL55','LL56','LL73','LL74','LL75','LL93','LM00','LN01','LN10','LN20','LN21','LN53','LN66','LO13','LO15','LO31','LO51','LO53','LO61','LO80','LO99','MH10','MJ63','MJ89','MJ96','MK69','MK71','MK72','MK80','MK82','MK83','MM36','MM48','MM63','MN41','MN43','MN60','MN69','MN72','MN83','MO12','MO13','MO22','MO44','MO52','MO60','MO64','MO65','MO71','MO82','MO93','MP80','NH87','NK61','NL27','NN19','NN24','NN31','NN33','NO35','NO56','OG65','OI33','OI43','OI52','OI53','OI62','OI71','OJ00','OJ11','OJ12','OJ75','OK18','OK22','OK33','OK46','OL26','OL36','OL39','OL62','OL63','OL68','OL72','OL99','OM20','OM38','OM64','OM65','OM89','OM92','ON80','PF95','PH16','PH57','PK03','PK04','PK05','PK06','PK10','PL03','PL04','PL14','PL24','PL36','PM00','PM01','PM35','PM36','PM37','PM43','PM51','PM52','PM53','PM54','PM63','PM64','PM65','PM73','PM74','PM75','PM84','PM85','PM86','PM94','PM95','PM96','PM97','PM98','QF21','QF22','QF33','QF59','QG39','QG49','QG52','QG62','QG64','QH30','QK23','QL17','QM05','QM06','QM07','QM08','QM09','QN00','QN02','QN03','QN13','QN14','QN23','RE66','RF64','RG37','RH91'])
+        elif event.key() == Qt.Key.Key_C:
+            self.set_highlighted_squares([])
         else:
             super().keyPressEvent(event)
     
@@ -729,6 +802,7 @@ class MapWidget(QWidget):
     
     def closeEvent(self, event):
         self.tile_downloader.stop()
+        self.blink_timer.stop()
         event.accept()
 
 
