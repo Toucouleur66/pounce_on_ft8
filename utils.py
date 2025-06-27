@@ -526,7 +526,7 @@ def parse_adif_record(record, lookup):
             qso_datetime = None
 
     call = call.upper() if call else None
-    grid = grid.upper() if grid else None
+    grid = grid.upper()[:4] if grid else None
     band = band.lower() if band else None
     year = qso_date[0:4] if qso_date and len(qso_date) >= 4 else None
 
