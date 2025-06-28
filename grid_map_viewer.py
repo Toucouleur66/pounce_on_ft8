@@ -925,7 +925,7 @@ class GridMapWidget(QWidget):
             color_groups[color].append(grid_data['grid'])
         
         for color, grid_list in color_groups.items():
-            if len(grid_list) >= 1:
+            if len(grid_list) >= 2:
                 self.set_ellipse_for_group(painter, grid_list, color)
     
     def set_ellipse_for_group(self, painter, grid_list, color):
@@ -933,18 +933,30 @@ class GridMapWidget(QWidget):
         for grid in grid_list:
             grid_info = self.maidenhead_to_lat_lon(grid)
             if grid_info:
-                center_lat = grid_info['center_lat']
-                center_lon = grid_info['center_lon']
+                # Get all four corners of the grid square, not just the center
+                top_lat = grid_info['max_lat']
+                bottom_lat = grid_info['min_lat']
+                left_lon = grid_info['min_lon']
+                right_lon = grid_info['max_lon']
+                
+                # Grid square corners
+                corners = [
+                    (top_lat, left_lon),      # Top-left
+                    (top_lat, right_lon),     # Top-right
+                    (bottom_lat, left_lon),   # Bottom-left
+                    (bottom_lat, right_lon)   # Bottom-right
+                ]
                 
                 offsets = [0, 360, -360] if self.zoom >= 4 else [0]
-                for offset in offsets:
-                    try:
-                        x, y = self.lat_lon_to_screen_stable(center_lat, center_lon + offset)
-                        if (-50 <= x <= self.width() + 50 and -50 <= y <= self.height() + 50):
-                            points.append((x, y))
-                            break
-                    except:
-                        continue
+                for lat, lon in corners:
+                    for offset in offsets:
+                        try:
+                            x, y = self.lat_lon_to_screen_stable(lat, lon + offset)
+                            if (-50 <= x <= self.width() + 50 and -50 <= y <= self.height() + 50):
+                                points.append((x, y))
+                                break
+                        except:
+                            continue
         
         if len(points) < 1:
             return
@@ -1022,47 +1034,70 @@ class GridMapWidget(QWidget):
         else:
             angle = math.atan2(lambda1 - xx, xy)
         
-        # Calculate the minimum ellipse that encompasses all hull points
-        # Project all points onto the principal axes
-        max_projection_major = 0
-        max_projection_minor = 0
-        
+        # Calculate the minimum ellipse that encompasses all corner points
+        # Use a more direct approach: find the maximum distance in each direction
         cos_angle = math.cos(angle)
         sin_angle = math.sin(angle)
+        
+        # Find maximum distances along both principal axes
+        max_major_positive = 0
+        max_major_negative = 0
+        max_minor_positive = 0
+        max_minor_negative = 0
         
         for px, py in hull_points:
             # Translate to center
             dx = px - center_x
             dy = py - center_y
             
-            # Project onto principal axes
-            proj_major = abs(dx * cos_angle + dy * sin_angle)
-            proj_minor = abs(-dx * sin_angle + dy * cos_angle)
+            # Project onto principal axes (rotated coordinate system)
+            proj_major = dx * cos_angle + dy * sin_angle
+            proj_minor = -dx * sin_angle + dy * cos_angle
             
-            max_projection_major = max(max_projection_major, proj_major)
-            max_projection_minor = max(max_projection_minor, proj_minor)
+            # Track maximum distances in each direction
+            if proj_major > 0:
+                max_major_positive = max(max_major_positive, proj_major)
+            else:
+                max_major_negative = max(max_major_negative, abs(proj_major))
+                
+            if proj_minor > 0:
+                max_minor_positive = max(max_minor_positive, proj_minor)
+            else:
+                max_minor_negative = max(max_minor_negative, abs(proj_minor))
         
-        # Set minimum ellipse size to encompass all points
-        base_semi_major = max(max_projection_major, 15)
-        base_semi_minor = max(max_projection_minor, 15)
+        # Set ellipse size to encompass the maximum extent in each direction
+        base_semi_major = max(max_major_positive, max_major_negative, 15)
+        base_semi_minor = max(max_minor_positive, max_minor_negative, 15)
         
         # Apply padding factor to expand beyond the base size
-        padding_factor = 1.3  # Expands ellipse beyond the minimum encompassing size
+        padding_factor = 1  # Expands ellipse beyond the minimum encompassing size
         semi_major = base_semi_major * padding_factor
         semi_minor = base_semi_minor * padding_factor
         
+        # Create a smooth elliptical shape that encompasses all corner points
         path = QPainterPath()
         
+        # Use the calculated semi-major and semi-minor axes with slight ovoid tapering
         num_points = 64
         for i in range(num_points + 1):
             t = 2 * math.pi * i / num_points
             
-            x_local = semi_major * math.cos(t)
-            y_local = semi_minor * math.sin(t)
+            cos_t = math.cos(t)
+            sin_t = math.sin(t)
             
+            # Apply gentle ovoid tapering only to the major axis
+            # Reduce major axis slightly at the ends (0° and 180°) to create subtle egg shape
+            major_taper = 1.0 - 0.1 * (cos_t * cos_t)  # Very gentle tapering
+            
+            # Calculate ellipse coordinates with tapering
+            x_local = semi_major * major_taper * cos_t
+            y_local = semi_minor * sin_t
+            
+            # Apply the principal component rotation
             x_rotated = x_local * math.cos(angle) - y_local * math.sin(angle)
             y_rotated = x_local * math.sin(angle) + y_local * math.cos(angle)
             
+            # Translate to the centroid
             x = center_x + x_rotated
             y = center_y + y_rotated
             
