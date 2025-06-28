@@ -6,6 +6,7 @@ import requests
 import os
 import time
 import threading
+import pickle
 
 from constants import (
     CUSTOM_FONT,
@@ -20,7 +21,7 @@ from constants import (
 
 from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget
 from PyQt6.QtCore import Qt, QPoint, QTimer
-from PyQt6.QtGui import QFont, QPainter, QWheelEvent, QMouseEvent, QKeyEvent, QColor, QBrush, QPen
+from PyQt6.QtGui import QFont, QPainter, QWheelEvent, QMouseEvent, QKeyEvent, QColor, QBrush, QPen, QPainterPath
 
 from tiles_manager import TileCache, TileDownloader
 from urllib.parse import urlparse
@@ -49,6 +50,7 @@ class GridMapWidget(QWidget):
         self.center_pixel_offset_y = 0.0
         
         self.show_grid = True
+        self.show_ellipses = True
         self.grid_color = Qt.GlobalColor.red
         self.grid_text_color = Qt.GlobalColor.gray
         
@@ -76,6 +78,30 @@ class GridMapWidget(QWidget):
         self.update_timer = QTimer()
         self.update_timer.timeout.connect(self.update_animation)
         self.update_timer.start(16)
+        
+        self.settings_file = os.path.join(os.path.dirname(__file__), "grid_map_settings.pickle")
+        self.load_grid_map_settings()
+    
+    def save_grid_map_settings(self):
+        settings = {
+            'show_grid': self.show_grid,
+            'show_ellipses': self.show_ellipses
+        }
+        try:
+            with open(self.settings_file, "wb") as f:
+                pickle.dump(settings, f)
+        except Exception as e:
+            log.error(f"Failed to save grid map settings: {e}")
+    
+    def load_grid_map_settings(self):
+        try:
+            if os.path.exists(self.settings_file):
+                with open(self.settings_file, "rb") as f:
+                    settings = pickle.load(f)
+                    self.show_grid = settings.get('show_grid', True)
+                    self.show_ellipses = settings.get('show_ellipses', True)
+        except Exception as e:
+            log.error(f"Failed to load grid map settings: {e}")
     
     def deg2num(self, lat_deg, lon_deg, zoom):
         lat_rad = math.radians(lat_deg)
@@ -228,9 +254,10 @@ class GridMapWidget(QWidget):
         for square in self.highlighted_squares:
             self.fill_grid_square_wrapped(painter, square)
         
-        # Draw all colored grid squares as one block with unified blinking
         if self.blink_visible and self.highlighted_grids:
             self.draw_highlighted_grids_block(painter)
+        
+        self.set_ellipse_indicators(painter)
     
     def wheelEvent(self, event: QWheelEvent):
         mouse_pos = event.position()
@@ -878,6 +905,115 @@ class GridMapWidget(QWidget):
     def clear_highlighted_grids(self):
         self.set_highlighted_grids([])
     
+    def clear_ellipse_indicators(self):
+        self.ellipse_grids = []
+        self.update()
+    
+    def set_ellipse_group_indicators(self, grids):
+        self.ellipse_grids = grids
+        self.update()
+    
+    def set_ellipse_indicators(self, painter):
+        if not self.show_ellipses or not hasattr(self, 'ellipse_grids') or not self.ellipse_grids:
+            return
+            
+        color_groups = {}
+        for grid_data in self.ellipse_grids:
+            color = grid_data['color']
+            if color not in color_groups:
+                color_groups[color] = []
+            color_groups[color].append(grid_data['grid'])
+        
+        for color, grid_list in color_groups.items():
+            if len(grid_list) >= 3:
+                self.set_ellipse_for_group(painter, grid_list, color)
+    
+    def set_ellipse_for_group(self, painter, grid_list, color):
+        points = []
+        for grid in grid_list:
+            grid_info = self.maidenhead_to_lat_lon(grid)
+            if grid_info:
+                center_lat = grid_info['center_lat']
+                center_lon = grid_info['center_lon']
+                
+                offsets = [0, 360, -360] if self.zoom >= 4 else [0]
+                for offset in offsets:
+                    try:
+                        x, y = self.lat_lon_to_screen_stable(center_lat, center_lon + offset)
+                        if (-50 <= x <= self.width() + 50 and -50 <= y <= self.height() + 50):
+                            points.append((x, y))
+                            break
+                    except:
+                        continue
+        
+        if len(points) < 1:
+            return
+            
+        hull_points = self.convex_hull(points)
+        
+        if len(hull_points) < 1:
+            return
+            
+        ellipse_path = self.create_ellipse_path(hull_points)
+        
+        border_color = self.darken_color(QColor(color), 0.3)
+        fill_color = QColor(color)
+        fill_color.setAlpha(50)
+        
+        pen = QPen(border_color)
+        pen.setWidth(1)
+        painter.setPen(pen)
+        painter.fillPath(ellipse_path, QBrush(fill_color))
+        painter.drawPath(ellipse_path)
+    
+    def convex_hull(self, points):
+        def cross(o, a, b):
+            return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+        
+        points = sorted(set(points))
+        if len(points) <= 1:
+            return points
+        
+        lower = []
+        for p in points:
+            while len(lower) >= 2 and cross(lower[-2], lower[-1], p) <= 0:
+                lower.pop()
+            lower.append(p)
+        
+        upper = []
+        for p in reversed(points):
+            while len(upper) >= 2 and cross(upper[-2], upper[-1], p) <= 0:
+                upper.pop()
+            upper.append(p)
+        
+        return lower[:-1] + upper[:-1]
+    
+    def create_ellipse_path(self, hull_points):
+        if len(hull_points) < 1:
+            return QPainterPath()
+        
+        if len(hull_points) == 1:
+            path = QPainterPath()
+            x, y = hull_points[0]
+            path.addEllipse(x - 10, y - 10, 20, 20)
+            return path
+        
+        min_x = min(p[0] for p in hull_points)
+        max_x = max(p[0] for p in hull_points)
+        min_y = min(p[1] for p in hull_points)
+        max_y = max(p[1] for p in hull_points)
+        
+        center_x = (min_x + max_x) / 2
+        center_y = (min_y + max_y) / 2
+        
+        width = max(max_x - min_x, 40)
+        height = max(max_y - min_y, 40)
+        
+        path = QPainterPath()
+        path.addEllipse(center_x - width/2, center_y - height/2, width, height)
+        
+        return path
+    
     def keyPressEvent(self, event: QKeyEvent):
         if event.key() == Qt.Key.Key_G:
             self.show_grid = not self.show_grid
@@ -889,8 +1025,13 @@ class GridMapWidget(QWidget):
                 self.update_grid_squares_for_band()
         elif event.key() == Qt.Key.Key_C:
             self.set_highlighted_squares([])
+        elif event.key() == Qt.Key.Key_E:
+            self.show_ellipses = not self.show_ellipses
+            self.update()
         else:
             super().keyPressEvent(event)
+        
+        self.save_grid_map_settings()
     
     def mousePressEvent(self, event: QMouseEvent):
         if event.button() == Qt.MouseButton.LeftButton:

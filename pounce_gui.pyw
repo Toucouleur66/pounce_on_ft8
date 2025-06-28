@@ -1094,7 +1094,9 @@ class MainApp(QtWidgets.QMainWindow):
                 })
         
         if grids:
-            self.grid_monitoring.map_widget.set_highlighted_grids(grids)
+            if hasattr(self, 'grid_monitoring') and self.grid_monitoring:
+                self.grid_monitoring.map_widget.set_highlighted_grids(grids)
+                self.grid_monitoring.map_widget.set_ellipse_group_indicators(grids)
 
     def hide_container_tab(self):
         self.compact_mode_visible = False
@@ -1301,6 +1303,7 @@ class MainApp(QtWidgets.QMainWindow):
             if self.grid_monitoring is not None:
                 self.grid_monitoring.map_widget.update_current_band(band)
                 self.grid_monitoring.map_widget.clear_highlighted_grids()
+                self.grid_monitoring.map_widget.clear_ellipse_indicators()
             
             self.update_tab_widget_labels_style()
         
@@ -2401,7 +2404,7 @@ class MainApp(QtWidgets.QMainWindow):
                 with open(PARAMS_FILE, "rb") as f:
                     return pickle.load(f)
             except (EOFError, pickle.UnpicklingError):
-                print(f"Warning: {PARAMS_FILE} is empty or corrupted. Deleting it.")
+                log.error(f"Warning: {PARAMS_FILE} is empty or corrupted. Deleting it.")
                 os.remove(PARAMS_FILE) 
                 return {}
         return {}
@@ -3261,7 +3264,7 @@ class MainApp(QtWidgets.QMainWindow):
                         self.thread.wait()
                         self.thread = None
                 except RuntimeError as e:
-                    print(f"RuntimeError when stopping thread: {e}")                        
+                    log.error(f"RuntimeError when stopping thread: {e}")                        
                 finally:
                     self.thread = None                        
 
