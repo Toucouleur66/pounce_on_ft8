@@ -124,7 +124,7 @@ class GridMapWidget(QWidget):
         min_zoom_x = math.ceil(math.log2(max(1, min_tiles_x)))
         min_zoom_y = math.ceil(math.log2(max(1, min_tiles_y)))
         
-        return max(min_zoom_x, min_zoom_y, 1)
+        return max(min_zoom_x, min_zoom_y, 2)
     
     def get_tile_key(self, zoom, x, y):
         return f"{zoom}/{x}/{y}"
@@ -519,7 +519,7 @@ class GridMapWidget(QWidget):
                     if not (-90 <= square_sw_lat < 90 and square_ne_lat >= south and square_sw_lat <= north):
                         continue
                     
-                    offsets = [0, 360, -360] if self.zoom >= 4 else [0]
+                    offsets = [0, 360, -360] if self.zoom >= 2 else [0]
                     
                     for offset in offsets:
                         square_sw_lon = grid_base_lon + lon_idx * unit_lon + offset
@@ -702,7 +702,7 @@ class GridMapWidget(QWidget):
         min_lon = grid_info['min_lon']
         max_lon = grid_info['max_lon']
         
-        offsets = [0, 360, -360] if self.zoom >= 4 else [0]
+        offsets = [0, 360, -360] if self.zoom >= 2 else [0]
         
         for offset in offsets:
             offset_min_lon = min_lon + offset
@@ -744,7 +744,7 @@ class GridMapWidget(QWidget):
         min_lon = grid_info['min_lon']
         max_lon = grid_info['max_lon']
         
-        offsets = [0, 360, -360] if self.zoom >= 4 else [0]
+        offsets = [0, 360, -360] if self.zoom >= 2 else [0]
         
         for offset in offsets:
             offset_min_lon = min_lon + offset
@@ -791,7 +791,7 @@ class GridMapWidget(QWidget):
             min_lon = grid_info['min_lon']
             max_lon = grid_info['max_lon']
             
-            offsets = [0, 360, -360] if self.zoom >= 4 else [0]
+            offsets = [0, 360, -360] if self.zoom >= 2 else [0]
             
             for offset in offsets:
                 offset_min_lon = min_lon + offset
@@ -947,7 +947,7 @@ class GridMapWidget(QWidget):
                     (bottom_lat, right_lon)   # Bottom-right
                 ]
                 
-                offsets = [0, 360, -360] if self.zoom >= 4 else [0]
+                offsets = [0, 360, -360] if self.zoom >= 2 else [0]
                 for lat, lon in corners:
                     for offset in offsets:
                         try:
