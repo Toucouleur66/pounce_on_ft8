@@ -20,7 +20,7 @@ from constants import (
 
 from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget
 from PyQt6.QtCore import Qt, QPoint, QTimer
-from PyQt6.QtGui import QFont, QPainter, QWheelEvent, QMouseEvent, QKeyEvent, QColor, QBrush
+from PyQt6.QtGui import QFont, QPainter, QWheelEvent, QMouseEvent, QKeyEvent, QColor, QBrush, QPen
 
 from tiles_manager import TileCache, TileDownloader
 from urllib.parse import urlparse
@@ -753,6 +753,8 @@ class GridMapWidget(QWidget):
             fill_color = QColor(color_hex)
             fill_color.setAlpha(255) 
             
+            border_color = self.darken_color(fill_color, 0.2)
+            
             grid_info = self.maidenhead_to_lat_lon(grid_square)
             if not grid_info:
                 continue
@@ -779,16 +781,27 @@ class GridMapWidget(QWidget):
                         max(top_left_y, top_right_y, bottom_left_y, bottom_right_y) >= -50 and
                         min(top_left_y, top_right_y, bottom_left_y, bottom_right_y) <= self.height() + 50):
                         
-                        brush = QBrush(fill_color)
-                        
                         rect_x = int(min(top_left_x, top_right_x, bottom_left_x, bottom_right_x))
                         rect_y = int(min(top_left_y, top_right_y, bottom_left_y, bottom_right_y))
                         rect_width = int(max(top_left_x, top_right_x, bottom_left_x, bottom_right_x) - rect_x) + 1
                         rect_height = int(max(top_left_y, top_right_y, bottom_left_y, bottom_right_y) - rect_y) + 1
                         
+                        brush = QBrush(fill_color)
                         painter.fillRect(rect_x, rect_y, rect_width, rect_height, brush)
+                        
+                        pen = QPen(border_color)
+                        pen.setWidth(1)
+                        painter.setPen(pen)
+                        painter.drawRect(rect_x, rect_y, rect_width - 1, rect_height - 1)
+                        
                 except Exception:
                     pass
+    
+    def darken_color(self, color, factor):
+        r = int(color.red() * (1.0 - factor))
+        g = int(color.green() * (1.0 - factor))
+        b = int(color.blue() * (1.0 - factor))
+        return QColor(r, g, b)
     
     def blink_update(self):
         self.blink_visible = not self.blink_visible
@@ -930,7 +943,7 @@ class GridMapWidget(QWidget):
 class GridMapWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(GUI_LABEL_VERSION + " - GridMap Monitor")
+        self.setWindowTitle(GUI_LABEL_VERSION + " - Grid Monitoring")
         self.setGeometry(100, 100, 1200, 800)
         
         self.map_widget = GridMapWidget()
