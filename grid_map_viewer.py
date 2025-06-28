@@ -925,7 +925,7 @@ class GridMapWidget(QWidget):
             color_groups[color].append(grid_data['grid'])
         
         for color, grid_list in color_groups.items():
-            if len(grid_list) >= 3:
+            if len(grid_list) >= 1:
                 self.set_ellipse_for_group(painter, grid_list, color)
     
     def set_ellipse_for_group(self, painter, grid_list, color):
@@ -998,20 +998,80 @@ class GridMapWidget(QWidget):
             path.addEllipse(x - 10, y - 10, 20, 20)
             return path
         
-        min_x = min(p[0] for p in hull_points)
-        max_x = max(p[0] for p in hull_points)
-        min_y = min(p[1] for p in hull_points)
-        max_y = max(p[1] for p in hull_points)
+        center_x = sum(p[0] for p in hull_points) / len(hull_points)
+        center_y = sum(p[1] for p in hull_points) / len(hull_points)
         
-        center_x = (min_x + max_x) / 2
-        center_y = (min_y + max_y) / 2
+        xx = sum((p[0] - center_x) ** 2 for p in hull_points) / len(hull_points)
+        yy = sum((p[1] - center_y) ** 2 for p in hull_points) / len(hull_points)
+        xy = sum((p[0] - center_x) * (p[1] - center_y) for p in hull_points) / len(hull_points)
         
-        width = max(max_x - min_x, 40)
-        height = max(max_y - min_y, 40)
+        trace = xx + yy
+        
+        determinant = xx * yy - xy * xy
+        
+        lambda1 = (trace + math.sqrt(trace * trace - 4 * determinant)) / 2
+        lambda2 = (trace - math.sqrt(trace * trace - 4 * determinant)) / 2
+        
+        if lambda1 < 0:
+            lambda1 = 0
+        if lambda2 < 0:
+            lambda2 = 0
+        
+        if abs(xy) < 1e-10:
+            angle = 0 if xx >= yy else math.pi / 2
+        else:
+            angle = math.atan2(lambda1 - xx, xy)
+        
+        # Calculate the minimum ellipse that encompasses all hull points
+        # Project all points onto the principal axes
+        max_projection_major = 0
+        max_projection_minor = 0
+        
+        cos_angle = math.cos(angle)
+        sin_angle = math.sin(angle)
+        
+        for px, py in hull_points:
+            # Translate to center
+            dx = px - center_x
+            dy = py - center_y
+            
+            # Project onto principal axes
+            proj_major = abs(dx * cos_angle + dy * sin_angle)
+            proj_minor = abs(-dx * sin_angle + dy * cos_angle)
+            
+            max_projection_major = max(max_projection_major, proj_major)
+            max_projection_minor = max(max_projection_minor, proj_minor)
+        
+        # Set minimum ellipse size to encompass all points
+        base_semi_major = max(max_projection_major, 15)
+        base_semi_minor = max(max_projection_minor, 15)
+        
+        # Apply padding factor to expand beyond the base size
+        padding_factor = 1.3  # Expands ellipse beyond the minimum encompassing size
+        semi_major = base_semi_major * padding_factor
+        semi_minor = base_semi_minor * padding_factor
         
         path = QPainterPath()
-        path.addEllipse(center_x - width/2, center_y - height/2, width, height)
         
+        num_points = 64
+        for i in range(num_points + 1):
+            t = 2 * math.pi * i / num_points
+            
+            x_local = semi_major * math.cos(t)
+            y_local = semi_minor * math.sin(t)
+            
+            x_rotated = x_local * math.cos(angle) - y_local * math.sin(angle)
+            y_rotated = x_local * math.sin(angle) + y_local * math.cos(angle)
+            
+            x = center_x + x_rotated
+            y = center_y + y_rotated
+            
+            if i == 0:
+                path.moveTo(x, y)
+            else:
+                path.lineTo(x, y)
+        
+        path.closeSubpath()
         return path
     
     def keyPressEvent(self, event: QKeyEvent):
