@@ -970,7 +970,7 @@ class GridMapWidget(QWidget):
         
         border_color = self.darken_color(QColor(color), 0.3)
         fill_color = QColor(color)
-        fill_color.setAlpha(50)
+        fill_color.setAlpha(80)
         
         pen = QPen(border_color)
         pen.setWidth(1)
@@ -1034,27 +1034,21 @@ class GridMapWidget(QWidget):
         else:
             angle = math.atan2(lambda1 - xx, xy)
         
-        # Calculate the minimum ellipse that encompasses all corner points
-        # Use a more direct approach: find the maximum distance in each direction
         cos_angle = math.cos(angle)
         sin_angle = math.sin(angle)
         
-        # Find maximum distances along both principal axes
         max_major_positive = 0
         max_major_negative = 0
         max_minor_positive = 0
         max_minor_negative = 0
         
         for px, py in hull_points:
-            # Translate to center
             dx = px - center_x
             dy = py - center_y
             
-            # Project onto principal axes (rotated coordinate system)
             proj_major = dx * cos_angle + dy * sin_angle
             proj_minor = -dx * sin_angle + dy * cos_angle
             
-            # Track maximum distances in each direction
             if proj_major > 0:
                 max_major_positive = max(max_major_positive, proj_major)
             else:
@@ -1065,19 +1059,21 @@ class GridMapWidget(QWidget):
             else:
                 max_minor_negative = max(max_minor_negative, abs(proj_minor))
         
-        # Set ellipse size to encompass the maximum extent in each direction
         base_semi_major = max(max_major_positive, max_major_negative, 15)
         base_semi_minor = max(max_minor_positive, max_minor_negative, 15)
-        
-        # Apply padding factor to expand beyond the base size
+                
         padding_factor = 1  # Expands ellipse beyond the minimum encompassing size
         semi_major = base_semi_major * padding_factor
         semi_minor = base_semi_minor * padding_factor
         
-        # Create a smooth elliptical shape that encompasses all corner points
+        # Just create a simple, clean ellipse with a bit of extra padding
+        # Sometimes simple is better than perfect!
+        safety_padding = 1.15  # 15% extra padding to ensure coverage
+        final_semi_major = semi_major * safety_padding
+        final_semi_minor = semi_minor * safety_padding
+        
         path = QPainterPath()
         
-        # Use the calculated semi-major and semi-minor axes with slight ovoid tapering
         num_points = 64
         for i in range(num_points + 1):
             t = 2 * math.pi * i / num_points
@@ -1085,19 +1081,14 @@ class GridMapWidget(QWidget):
             cos_t = math.cos(t)
             sin_t = math.sin(t)
             
-            # Apply gentle ovoid tapering only to the major axis
-            # Reduce major axis slightly at the ends (0° and 180°) to create subtle egg shape
-            major_taper = 1.0 - 0.1 * (cos_t * cos_t)  # Very gentle tapering
-            
-            # Calculate ellipse coordinates with tapering
-            x_local = semi_major * major_taper * cos_t
-            y_local = semi_minor * sin_t
+            # Simple ellipse - clean and beautiful
+            x_local = final_semi_major * cos_t
+            y_local = final_semi_minor * sin_t
             
             # Apply the principal component rotation
             x_rotated = x_local * math.cos(angle) - y_local * math.sin(angle)
             y_rotated = x_local * math.sin(angle) + y_local * math.cos(angle)
             
-            # Translate to the centroid
             x = center_x + x_rotated
             y = center_y + y_rotated
             
