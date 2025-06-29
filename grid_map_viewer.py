@@ -1,22 +1,12 @@
-#!/usr/bin/env python3
-
 import sys
 import math
-import requests
 import os
 import time
-import threading
 import pickle
 
 from constants import (
     CUSTOM_FONT,
-    GUI_LABEL_VERSION,
-    BG_COLOR_FOCUS_MY_CALL,
-    BG_COLOR_BLACK_ON_YELLOW,
-    BG_COLOR_BLACK_ON_SAUMON,
-    BG_COLOR_BLACK_ON_PURPLE,
-    BG_COLOR_WHITE_ON_BLUE,
-    BG_COLOR_BLACK_ON_CYAN
+    GUI_LABEL_VERSION
 )
 
 from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget
@@ -26,6 +16,7 @@ from PyQt6.QtGui import QFont, QPainter, QWheelEvent, QMouseEvent, QKeyEvent, QC
 from tiles_manager import TileCache, TileDownloader
 from urllib.parse import urlparse
 from logger import get_logger
+from utils import darken_color
 
 log     = get_logger(__name__)
 
@@ -34,58 +25,62 @@ class GridMapWidget(QWidget):
         super().__init__()
         self.setMinimumSize(800, 600)
 
-        self.zoom = 2
-        self.center_lat = 0.0
-        self.center_lon = 0.0
-        self.tile_size = 256
+        self.zoom                       = 2
+        self.center_lat                 = 0.0
+        self.center_lon                 = 0.0
+        self.tile_size                  = 256
         
-        self.dragging = False
-        self.last_pan_point = QPoint()
-        self.pan_velocity = QPoint(0, 0)
-        self.last_pan_time = 0
-        self.momentum_decay = 0.92
-        self.momentum_threshold = 1.0
+        self.dragging                   = False
+        self.last_pan_point             = QPoint()
+        self.pan_velocity               = QPoint(0, 0)
+        self.last_pan_time              = 0
+        self.momentum_decay             = 0.92
+        self.momentum_threshold         = 1.0
         
-        self.center_pixel_offset_x = 0.0
-        self.center_pixel_offset_y = 0.0
+        self.center_pixel_offset_x      = 0.0
+        self.center_pixel_offset_y      = 0.0
         
-        self.show_grid = True
-        self.show_ellipses = True
-        self.grid_color = Qt.GlobalColor.red
-        self.grid_text_color = Qt.GlobalColor.gray
+        self.show_grid                  = True
+        self.show_ellipses              = True
+        self.grid_color                 = Qt.GlobalColor.red
+        self.grid_text_color            = Qt.GlobalColor.gray
         
-        self.highlighted_squares = []
-        self.highlighted_grids = []
-        self.current_band = None
-        self.adif_data = {}
-        self.blink_timer = QTimer()
+        self.highlighted_squares        = []
+        self.highlighted_grids          = []
+        self.current_band               = None
+        self.adif_data                  = {}
+
+        self.ellipse_buffer = []  # Buffer to store multiple ellipse groups
+        self.max_ellipse_buffer_size    = 5
+        
+        self.blink_count                = 0
+        self.blink_visible              = True
+        self.blink_timer                = QTimer()
         self.blink_timer.timeout.connect(self.blink_update)
-        self.blink_count = 0
-        self.blink_visible = True
-        
-        self.memory_cache = {}
-        self.file_cache = TileCache()
+
+        self.memory_cache               = {}
+        self.file_cache                  = TileCache()
         
         self.file_cache.clean_old_tiles(30)
         
-        self.tile_downloader = TileDownloader(self.file_cache, max_workers=8)
+        self.tile_downloader            = TileDownloader(self.file_cache, max_workers=8)
         self.tile_downloader.tile_downloaded.connect(self.on_tile_downloaded)
         
         self.setMouseTracking(True)
         
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         
-        self.update_timer = QTimer()
+        self.update_timer               = QTimer()
         self.update_timer.timeout.connect(self.update_animation)
         self.update_timer.start(16)
         
-        self.settings_file = os.path.join(os.path.dirname(__file__), "grid_map_settings.pickle")
+        self.settings_file               = os.path.join(os.path.dirname(__file__), "grid_map_settings.pickle")
         self.load_grid_map_settings()
     
     def save_grid_map_settings(self):
         settings = {
-            'show_grid': self.show_grid,
-            'show_ellipses': self.show_ellipses
+            'show_grid'     : self.show_grid,
+            'show_ellipses' : self.show_ellipses
         }
         try:
             with open(self.settings_file, "wb") as f:
@@ -132,6 +127,7 @@ class GridMapWidget(QWidget):
     def on_tile_downloaded(self, zoom, x, y, pixmap):
         key = self.get_tile_key(zoom, x, y)
         self.memory_cache[key] = pixmap
+
         self.update()
     
     def update_animation(self):
@@ -242,17 +238,26 @@ class GridMapWidget(QWidget):
                     cached_pixmap = self.file_cache.get_cached_tile(self.zoom, wrapped_tile_x, tile_y)
                     if cached_pixmap:
                         self.memory_cache[key] = cached_pixmap
-                        painter.drawPixmap(screen_x, screen_y, cached_pixmap)
+                        painter.drawPixmap(
+                            screen_x,
+                            screen_y,
+                            cached_pixmap
+                        )
                     else:
                         self.tile_downloader.add_tile(self.zoom, wrapped_tile_x, tile_y)
-                        painter.fillRect(screen_x, screen_y, self.tile_size, self.tile_size, 
-                                       Qt.GlobalColor.lightGray)
+                        painter.fillRect(
+                            screen_x, 
+                            screen_y,
+                            self.tile_size,
+                            self.tile_size,
+                            Qt.GlobalColor.lightGray
+                        )
         
         if self.show_grid:
             self.draw_maidenhead_grid(painter)
             
         for square in self.highlighted_squares:
-            self.fill_grid_square_wrapped(painter, square)
+            self.fill_grid_square_with_color(painter, square, QColor(91, 105, 171, 128))
         
         if self.blink_visible and self.highlighted_grids:
             self.draw_highlighted_grids_block(painter)
@@ -465,19 +470,19 @@ class GridMapWidget(QWidget):
         center_screen_x = self.width() / 2
         center_screen_y = self.height() / 2
         
-        offset_x = screen_x - center_screen_x
-        offset_y = screen_y - center_screen_y
+        offset_x        = screen_x - center_screen_x
+        offset_y        = screen_y - center_screen_y
         
-        world_size = 2 ** self.zoom * self.tile_size
-        center_world_x = (self.center_lon + 180) / 360 * world_size
-        center_world_y = (1 - math.asinh(math.tan(math.radians(self.center_lat))) / math.pi) / 2 * world_size
+        world_size      = 2 ** self.zoom * self.tile_size
+        center_world_x  = (self.center_lon + 180) / 360 * world_size
+        center_world_y  = (1 - math.asinh(math.tan(math.radians(self.center_lat))) / math.pi) / 2 * world_size
         
-        mouse_world_x = center_world_x + offset_x
-        mouse_world_y = center_world_y + offset_y
+        mouse_world_x   = center_world_x + offset_x
+        mouse_world_y   = center_world_y + offset_y
         
-        mouse_lon = (mouse_world_x / world_size * 360) - 180
-        lat_rad = math.atan(math.sinh(math.pi * (1 - 2 * mouse_world_y / world_size)))
-        mouse_lat = math.degrees(lat_rad)
+        mouse_lon       = (mouse_world_x / world_size * 360) - 180
+        lat_rad         = math.atan(math.sinh(math.pi * (1 - 2 * mouse_world_y / world_size)))
+        mouse_lat       = math.degrees(lat_rad)
         
         return mouse_lat, mouse_lon
 
@@ -502,9 +507,9 @@ class GridMapWidget(QWidget):
             grid_base_lat = -90.0
             
             start_lon_idx = math.floor((west - grid_base_lon) / unit_lon)
-            end_lon_idx = math.ceil((east - grid_base_lon) / unit_lon) + 1
+            end_lon_idx   = math.ceil((east - grid_base_lon) / unit_lon) + 1
             start_lat_idx = math.floor((south - grid_base_lat) / unit_lat)
-            end_lat_idx = math.ceil((north - grid_base_lat) / unit_lat) + 1
+            end_lat_idx   = math.ceil((north - grid_base_lat) / unit_lat) + 1
             
             buffer = 1 if self.zoom <= 3 else 2
             
@@ -529,15 +534,15 @@ class GridMapWidget(QWidget):
                            (square_ne_lon >= extended_west and square_sw_lon <= extended_east):
                             
                             grid_squares.append({
-                                'sw_lat': square_sw_lat,
-                                'sw_lon': square_sw_lon,
-                                'ne_lat': square_ne_lat,
-                                'ne_lon': square_ne_lon,
-                                'type': grid_type,
-                                'unit_lat': unit_lat,
-                                'unit_lon': unit_lon,
-                                'show_labels': show_labels,
-                                'color': color
+                                'sw_lat'        : square_sw_lat,
+                                'sw_lon'        : square_sw_lon,
+                                'ne_lat'        : square_ne_lat,
+                                'ne_lon'        : square_ne_lon,
+                                'type'          : grid_type,
+                                'unit_lat'      : unit_lat,
+                                'unit_lon'      : unit_lon,
+                                'show_labels'   : show_labels,
+                                'color'         : color
                             })
 
         # Only add the gray square grid if zoom level is 5 or higher
@@ -578,13 +583,13 @@ class GridMapWidget(QWidget):
         painter.setFont(font)
         
         for grid in grid_squares:
-            sw_lat = grid['sw_lat']
-            sw_lon = grid['sw_lon']
-            ne_lat = grid['ne_lat']
-            ne_lon = grid['ne_lon']
-            grid_type = grid['type']
+            sw_lat      = grid['sw_lat']
+            sw_lon      = grid['sw_lon']
+            ne_lat      = grid['ne_lat']
+            ne_lon      = grid['ne_lon']
+            grid_type   = grid['type']
             show_labels = grid['show_labels']
-            color = grid['color']
+            color       = grid['color']
             
             pen = painter.pen()
             if color == 'gray':
@@ -596,10 +601,10 @@ class GridMapWidget(QWidget):
             painter.setPen(pen)
             
             try:
-                top_left_x, top_left_y = self.lat_lon_to_screen_stable(ne_lat, sw_lon)
-                top_right_x, top_right_y = self.lat_lon_to_screen_stable(ne_lat, ne_lon)
-                bottom_left_x, bottom_left_y = self.lat_lon_to_screen_stable(sw_lat, sw_lon)
-                bottom_right_x, bottom_right_y = self.lat_lon_to_screen_stable(sw_lat, ne_lon)
+                top_left_x, top_left_y          = self.lat_lon_to_screen_stable(ne_lat, sw_lon)
+                top_right_x, top_right_y        = self.lat_lon_to_screen_stable(ne_lat, ne_lon)
+                bottom_left_x, bottom_left_y    = self.lat_lon_to_screen_stable(sw_lat, sw_lon)
+                bottom_right_x, bottom_right_y  = self.lat_lon_to_screen_stable(sw_lat, ne_lon)
                 
                 if (max(top_left_x, top_right_x, bottom_left_x, bottom_right_x) >= -50 and
                     min(top_left_x, top_right_x, bottom_left_x, bottom_right_x) <= self.width() + 50 and
@@ -627,23 +632,14 @@ class GridMapWidget(QWidget):
                             painter.setPen(self.grid_text_color)
                             
                             font_metrics = painter.fontMetrics()
-                            text_width = font_metrics.horizontalAdvance(grid_label)
-                            text_height = font_metrics.height()
-                            text_ascent = font_metrics.ascent()
+                            text_width   = font_metrics.horizontalAdvance(grid_label)
+                            text_height  = font_metrics.height()
+                            text_ascent  = font_metrics.ascent()
                             
                             text_x = int(screen_center_x - text_width / 2.0)
                             text_y = int(screen_center_y - text_height / 2.0 + text_ascent)
-                            
-                            bg_margin = 2
-                            bg_x = int(screen_center_x - text_width / 2.0 - bg_margin)
-                            bg_y = int(screen_center_y - text_height / 2.0 - bg_margin)
-                            bg_width = text_width + 2 * bg_margin
-                            bg_height = text_height + 2 * bg_margin
-                            
-                            # painter.fillRect(bg_x, bg_y, bg_width, bg_height, Qt.GlobalColor.white)
-                            
-                            painter.drawText(text_x, text_y, grid_label)
-                        
+                               
+                            painter.drawText(text_x, text_y, grid_label)                        
             except Exception:
                 continue
     
@@ -659,81 +655,12 @@ class GridMapWidget(QWidget):
         
         return full_grid
     
-    def fill_grid_square(self, painter, grid_square):
-        grid_info = self.maidenhead_to_lat_lon(grid_square)
-        if not grid_info:
-            return
-            
-        min_lat = grid_info['min_lat']
-        max_lat = grid_info['max_lat']
-        min_lon = grid_info['min_lon']
-        max_lon = grid_info['max_lon']
-        
-        try:
-            top_left_x, top_left_y = self.lat_lon_to_screen_stable(max_lat, min_lon)
-            top_right_x, top_right_y = self.lat_lon_to_screen_stable(max_lat, max_lon)
-            bottom_left_x, bottom_left_y = self.lat_lon_to_screen_stable(min_lat, min_lon)
-            bottom_right_x, bottom_right_y = self.lat_lon_to_screen_stable(min_lat, max_lon)
-            
-            if (max(top_left_x, top_right_x, bottom_left_x, bottom_right_x) >= -50 and
-                min(top_left_x, top_right_x, bottom_left_x, bottom_right_x) <= self.width() + 50 and
-                max(top_left_y, top_right_y, bottom_left_y, bottom_right_y) >= -50 and
-                min(top_left_y, top_right_y, bottom_left_y, bottom_right_y) <= self.height() + 50):
-                
-                fill_color = QColor(255, 0, 0, 128)
-                brush = QBrush(fill_color)
-                
-                rect_x = int(min(top_left_x, top_right_x, bottom_left_x, bottom_right_x))
-                rect_y = int(min(top_left_y, top_right_y, bottom_left_y, bottom_right_y))
-                rect_width = int(max(top_left_x, top_right_x, bottom_left_x, bottom_right_x) - rect_x) + 1
-                rect_height = int(max(top_left_y, top_right_y, bottom_left_y, bottom_right_y) - rect_y) + 1
-                
-                painter.fillRect(rect_x, rect_y, rect_width, rect_height, brush)
-        except Exception:
-            pass
-    
-    def fill_grid_square_wrapped(self, painter, grid_square):
-        grid_info = self.maidenhead_to_lat_lon(grid_square)
-        if not grid_info:
-            return
-            
-        min_lat = grid_info['min_lat']
-        max_lat = grid_info['max_lat']
-        min_lon = grid_info['min_lon']
-        max_lon = grid_info['max_lon']
-        
-        offsets = [0, 360, -360] if self.zoom >= 2 else [0]
-        
-        for offset in offsets:
-            offset_min_lon = min_lon + offset
-            offset_max_lon = max_lon + offset
-            
-            try:
-                top_left_x, top_left_y = self.lat_lon_to_screen_stable(max_lat, offset_min_lon)
-                top_right_x, top_right_y = self.lat_lon_to_screen_stable(max_lat, offset_max_lon)
-                bottom_left_x, bottom_left_y = self.lat_lon_to_screen_stable(min_lat, offset_min_lon)
-                bottom_right_x, bottom_right_y = self.lat_lon_to_screen_stable(min_lat, offset_max_lon)
-                
-                if (max(top_left_x, top_right_x, bottom_left_x, bottom_right_x) >= -50 and
-                    min(top_left_x, top_right_x, bottom_left_x, bottom_right_x) <= self.width() + 50 and
-                    max(top_left_y, top_right_y, bottom_left_y, bottom_right_y) >= -50 and
-                    min(top_left_y, top_right_y, bottom_left_y, bottom_right_y) <= self.height() + 50):
-                    
-                    fill_color = QColor(255, 0, 0, 128)
-                    brush = QBrush(fill_color)
-                    
-                    rect_x = int(min(top_left_x, top_right_x, bottom_left_x, bottom_right_x))
-                    rect_y = int(min(top_left_y, top_right_y, bottom_left_y, bottom_right_y))
-                    rect_width = int(max(top_left_x, top_right_x, bottom_left_x, bottom_right_x) - rect_x) + 1
-                    rect_height = int(max(top_left_y, top_right_y, bottom_left_y, bottom_right_y) - rect_y) + 1
-                    
-                    painter.fillRect(rect_x, rect_y, rect_width, rect_height, brush)
-            except Exception:
-                pass
-    
-    def fill_grid_square_with_color(self, painter, grid_square, color_hex):        
-        fill_color = QColor(color_hex)
-        fill_color.setAlpha(255)
+    def fill_grid_square_with_color(self, painter, grid_square, color):        
+        if isinstance(color, str):
+            fill_color = QColor(color)
+            fill_color.setAlpha(255)
+        else:
+            fill_color = color
         
         grid_info = self.maidenhead_to_lat_lon(grid_square)
         if not grid_info:
@@ -751,10 +678,10 @@ class GridMapWidget(QWidget):
             offset_max_lon = max_lon + offset
             
             try:
-                top_left_x, top_left_y = self.lat_lon_to_screen_stable(max_lat, offset_min_lon)
-                top_right_x, top_right_y = self.lat_lon_to_screen_stable(max_lat, offset_max_lon)
-                bottom_left_x, bottom_left_y = self.lat_lon_to_screen_stable(min_lat, offset_min_lon)
-                bottom_right_x, bottom_right_y = self.lat_lon_to_screen_stable(min_lat, offset_max_lon)
+                top_left_x, top_left_y          = self.lat_lon_to_screen_stable(max_lat, offset_min_lon)
+                top_right_x, top_right_y        = self.lat_lon_to_screen_stable(max_lat, offset_max_lon)
+                bottom_left_x, bottom_left_y    = self.lat_lon_to_screen_stable(min_lat, offset_min_lon)
+                bottom_right_x, bottom_right_y  = self.lat_lon_to_screen_stable(min_lat, offset_max_lon)
                 
                 if (max(top_left_x, top_right_x, bottom_left_x, bottom_right_x) >= -50 and
                     min(top_left_x, top_right_x, bottom_left_x, bottom_right_x) <= self.width() + 50 and
@@ -763,9 +690,9 @@ class GridMapWidget(QWidget):
                     
                     brush = QBrush(fill_color)
                     
-                    rect_x = int(min(top_left_x, top_right_x, bottom_left_x, bottom_right_x))
-                    rect_y = int(min(top_left_y, top_right_y, bottom_left_y, bottom_right_y))
-                    rect_width = int(max(top_left_x, top_right_x, bottom_left_x, bottom_right_x) - rect_x) + 1
+                    rect_x      = int(min(top_left_x, top_right_x, bottom_left_x, bottom_right_x))
+                    rect_y      = int(min(top_left_y, top_right_y, bottom_left_y, bottom_right_y))
+                    rect_width  = int(max(top_left_x, top_right_x, bottom_left_x, bottom_right_x) - rect_x) + 1
                     rect_height = int(max(top_left_y, top_right_y, bottom_left_y, bottom_right_y) - rect_y) + 1
                     
                     painter.fillRect(rect_x, rect_y, rect_width, rect_height, brush)
@@ -775,12 +702,12 @@ class GridMapWidget(QWidget):
     def draw_highlighted_grids_block(self, painter):
         for grid_color in self.highlighted_grids:
             grid_square = grid_color['grid']
-            color_hex = grid_color['color']
+            color_hex   = grid_color['color']
             
             fill_color = QColor(color_hex)
             fill_color.setAlpha(255) 
             
-            border_color = self.darken_color(fill_color, 0.2)
+            border_color = darken_color(fill_color, 0.2)
             
             grid_info = self.maidenhead_to_lat_lon(grid_square)
             if not grid_info:
@@ -798,19 +725,19 @@ class GridMapWidget(QWidget):
                 offset_max_lon = max_lon + offset
                 
                 try:
-                    top_left_x, top_left_y = self.lat_lon_to_screen_stable(max_lat, offset_min_lon)
-                    top_right_x, top_right_y = self.lat_lon_to_screen_stable(max_lat, offset_max_lon)
-                    bottom_left_x, bottom_left_y = self.lat_lon_to_screen_stable(min_lat, offset_min_lon)
-                    bottom_right_x, bottom_right_y = self.lat_lon_to_screen_stable(min_lat, offset_max_lon)
+                    top_left_x, top_left_y          = self.lat_lon_to_screen_stable(max_lat, offset_min_lon)
+                    top_right_x, top_right_y        = self.lat_lon_to_screen_stable(max_lat, offset_max_lon)
+                    bottom_left_x, bottom_left_y    = self.lat_lon_to_screen_stable(min_lat, offset_min_lon)
+                    bottom_right_x, bottom_right_y  = self.lat_lon_to_screen_stable(min_lat, offset_max_lon)
                     
                     if (max(top_left_x, top_right_x, bottom_left_x, bottom_right_x) >= -50 and
                         min(top_left_x, top_right_x, bottom_left_x, bottom_right_x) <= self.width() + 50 and
                         max(top_left_y, top_right_y, bottom_left_y, bottom_right_y) >= -50 and
                         min(top_left_y, top_right_y, bottom_left_y, bottom_right_y) <= self.height() + 50):
                         
-                        rect_x = int(min(top_left_x, top_right_x, bottom_left_x, bottom_right_x))
-                        rect_y = int(min(top_left_y, top_right_y, bottom_left_y, bottom_right_y))
-                        rect_width = int(max(top_left_x, top_right_x, bottom_left_x, bottom_right_x) - rect_x) + 1
+                        rect_x      = int(min(top_left_x, top_right_x, bottom_left_x, bottom_right_x))
+                        rect_y      = int(min(top_left_y, top_right_y, bottom_left_y, bottom_right_y))
+                        rect_width  = int(max(top_left_x, top_right_x, bottom_left_x, bottom_right_x) - rect_x) + 1
                         rect_height = int(max(top_left_y, top_right_y, bottom_left_y, bottom_right_y) - rect_y) + 1
                         
                         brush = QBrush(fill_color)
@@ -823,12 +750,6 @@ class GridMapWidget(QWidget):
                         
                 except Exception:
                     pass
-    
-    def darken_color(self, color, factor):
-        r = int(color.red() * (1.0 - factor))
-        g = int(color.green() * (1.0 - factor))
-        b = int(color.blue() * (1.0 - factor))
-        return QColor(r, g, b)
     
     def blink_update(self):
         self.blink_visible = not self.blink_visible
@@ -855,16 +776,15 @@ class GridMapWidget(QWidget):
             self.set_highlighted_squares([])
             return
 
+        """
+            Update the highlighted squares based on the current band and ADIF data.
+        """
         grid_squares = list(self.adif_data.get('grid', {}).get(self.current_band, {}).keys())
 
         self.set_highlighted_squares(grid_squares, center_on_last=False)
     
     def set_highlighted_squares(self, squares, center_on_last=True):
         self.highlighted_squares = squares
-        
-        self.blink_timer.stop()
-        self.blink_count = 0
-        self.blink_visible = True
         
         if len(squares) > 0 and center_on_last:
             last_square = squares[-1]
@@ -906,45 +826,65 @@ class GridMapWidget(QWidget):
         self.set_highlighted_grids([])
     
     def clear_ellipse_indicators(self):
-        self.ellipse_grids = []
+        self.ellipse_buffer = []
         self.update()
+    
+    def add_ellipse_group_to_buffer(self, grids):
+        if grids:  
+            self.ellipse_buffer.append(grids)
+            
+            if len(self.ellipse_buffer) > self.max_ellipse_buffer_size:
+                self.ellipse_buffer.pop(0)  
+            
+            self.update()
     
     def set_ellipse_group_indicators(self, grids):
-        self.ellipse_grids = grids
-        self.update()
+        self.add_ellipse_group_to_buffer(grids)
+    
+    def get_ellipse_buffer_info(self):
+        return {
+            'count'     : len(self.ellipse_buffer),
+            'max_size'  : self.max_ellipse_buffer_size,
+            'is_full'   : len(self.ellipse_buffer) >= self.max_ellipse_buffer_size
+        }
     
     def set_ellipse_indicators(self, painter):
-        if not self.show_ellipses or not hasattr(self, 'ellipse_grids') or not self.ellipse_grids:
+        if (
+            not self.show_ellipses or 
+            not hasattr(self, 'ellipse_buffer') or 
+            not self.ellipse_buffer
+        ):
             return
-            
-        color_groups = {}
-        for grid_data in self.ellipse_grids:
-            color = grid_data['color']
-            if color not in color_groups:
-                color_groups[color] = []
-            color_groups[color].append(grid_data['grid'])
         
-        for color, grid_list in color_groups.items():
-            if len(grid_list) >= 2:
-                self.set_ellipse_for_group(painter, grid_list, color)
+        # Draw all ellipse groups in the buffer (from oldest to newest)
+        for ellipse_group in self.ellipse_buffer:
+            color_groups = {}
+            for grid_data in ellipse_group:
+                color = grid_data['color']
+                if color not in color_groups:
+                    color_groups[color] = []
+                color_groups[color].append(grid_data['grid'])
+            
+            for color, grid_list in color_groups.items():
+                if len(grid_list) >= 2:
+                    self.set_ellipse_for_group(painter, grid_list, color)
     
     def set_ellipse_for_group(self, painter, grid_list, color):
         points = []
         for grid in grid_list:
             grid_info = self.maidenhead_to_lat_lon(grid)
             if grid_info:
-                # Get all four corners of the grid square, not just the center
-                top_lat = grid_info['max_lat']
-                bottom_lat = grid_info['min_lat']
-                left_lon = grid_info['min_lon']
-                right_lon = grid_info['max_lon']
+                top_lat     = grid_info['max_lat']
+                bottom_lat  = grid_info['min_lat']
+                left_lon    = grid_info['min_lon']
+                right_lon   = grid_info['max_lon']
                 
                 # Grid square corners
                 corners = [
-                    (top_lat, left_lon),      # Top-left
-                    (top_lat, right_lon),     # Top-right
-                    (bottom_lat, left_lon),   # Bottom-left
-                    (bottom_lat, right_lon)   # Bottom-right
+                    (top_lat, left_lon),      
+                    (top_lat, right_lon),    
+                    (bottom_lat, left_lon), 
+                    (bottom_lat, right_lon) 
                 ]
                 
                 offsets = [0, 360, -360] if self.zoom >= 2 else [0]
@@ -968,9 +908,10 @@ class GridMapWidget(QWidget):
             
         ellipse_path = self.create_ellipse_path(hull_points)
         
-        border_color = self.darken_color(QColor(color), 0.3)
-        fill_color = QColor(color)
-        fill_color.setAlpha(80)
+        border_color = darken_color(QColor(color), 0.1)
+        # fill_color = QColor(color)
+        fill_color = QColor(376, 136, 156)
+        fill_color.setAlpha(20)
         
         pen = QPen(border_color)
         pen.setWidth(1)

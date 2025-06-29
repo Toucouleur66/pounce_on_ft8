@@ -1085,7 +1085,8 @@ class MainApp(QtWidgets.QMainWindow):
             elif monitored_cq_zone is True:
                 color = BG_COLOR_BLACK_ON_CYAN
             else:
-                color = BG_COLOR_WHITE_ON_BLUE
+                color = FG_TIMER_COLOR
+                color = "#FAB975"
             
             if color:
                 grids.append({
@@ -1095,8 +1096,8 @@ class MainApp(QtWidgets.QMainWindow):
         
         if grids:
             if hasattr(self, 'grid_monitoring') and self.grid_monitoring:
+                self.grid_monitoring.map_widget.set_ellipse_group_indicators(grids)                
                 self.grid_monitoring.map_widget.set_highlighted_grids(grids)
-                self.grid_monitoring.map_widget.set_ellipse_group_indicators(grids)
 
     def hide_container_tab(self):
         self.compact_mode_visible = False
@@ -1255,17 +1256,14 @@ class MainApp(QtWidgets.QMainWindow):
 
         color_combo.addItem(DEFAULT_FILTER_VALUE, userData=None)
 
-        # Liste des couleurs
-        colors = [
+        for bg_color in [
             BG_COLOR_FOCUS_MY_CALL,
             BG_COLOR_BLACK_ON_YELLOW,
             BG_COLOR_BLACK_ON_SAUMON,
             BG_COLOR_BLACK_ON_PURPLE,
             BG_COLOR_WHITE_ON_BLUE,
             BG_COLOR_BLACK_ON_CYAN,
-        ]
-
-        for bg_color in colors:
+        ]:
             pixmap = QtGui.QPixmap(120, 10)  
             pixmap.fill(QtGui.QColor(bg_color))
             icon = QtGui.QIcon(pixmap)
@@ -2828,7 +2826,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.window_menu.addSeparator()
 
         show_all_messages_action = QtGui.QAction("Show All Messages", self)
-        show_all_messages_action.setShortcut(QtGui.QKeySequence("Ctrl+T"))
+        show_all_messages_action.setShortcut(QtGui.QKeySequence("Ctrl+A"))
         show_all_messages_action.setCheckable(True)  
         show_all_messages_action.setChecked(self.enable_show_all_decoded)  
         show_all_messages_action.triggered.connect(self.update_show_all_decoded_preference)
