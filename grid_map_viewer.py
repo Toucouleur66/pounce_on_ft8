@@ -6,22 +6,28 @@ import pickle
 
 from constants import (
     CUSTOM_FONT,
-    GUI_LABEL_VERSION
+    GUI_LABEL_VERSION,
+    STATUS_MONITORING_COLOR
 )
 
-from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget
+from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QStatusBar
 from PyQt6.QtCore import Qt, QPoint, QTimer, pyqtSignal
 from PyQt6.QtGui import QFont, QPainter, QWheelEvent, QMouseEvent, QKeyEvent, QColor, QBrush, QPen, QPainterPath
 
+from custom_qlabel import CustomQLabel
+from animated_toggle import AnimatedToggle
 from tiles_manager import TileCache, TileDownloader
+
 from urllib.parse import urlparse
 from logger import get_logger
+
 from utils import darken_color, complementary_color
 
 log     = get_logger(__name__)
 
 class GridMapWidget(QWidget):
-    grid_clicked = pyqtSignal(str)  # Signal to emit message_uid when grid is clicked
+    # Signal to emit message_uid when grid is clicked
+    grid_clicked = pyqtSignal(str)  
     
     def __init__(self):
         super().__init__()
@@ -49,7 +55,7 @@ class GridMapWidget(QWidget):
         self.grid_color                 = Qt.GlobalColor.red
         self.grid_text_color            = Qt.GlobalColor.gray
         
-        self.highlighted_squares        = []
+        self.permanent_squares        = []
         self.highlighted_grids          = []
         self.current_band               = None
         self.adif_data                  = {}
@@ -264,7 +270,7 @@ class GridMapWidget(QWidget):
         if self.show_grid:
             self.draw_maidenhead_grid(painter)
             
-        for square in self.highlighted_squares:
+        for square in self.permanent_squares:
             self.fill_grid_square_with_color(painter, square, QColor(91, 105, 171, 128))
         
         self.set_ellipse_indicators(painter)
@@ -738,15 +744,21 @@ class GridMapWidget(QWidget):
     def update_adif_data(self, adif_data):
         self.adif_data = adif_data
         self.update_grid_squares_for_band()
+        # Update status bar if parent has one
+        if hasattr(self.parent(), 'update_status_labels'):
+            self.parent().update_status_labels()
     
     def update_current_band(self, band):
         if self.current_band != band:
             self.current_band = band
             self.update_grid_squares_for_band()
+            # Update status bar if parent has one
+            if hasattr(self.parent(), 'update_status_labels'):
+                self.parent().update_status_labels()
     
     def update_grid_squares_for_band(self):
         if not self.current_band or not self.adif_data:
-            self.set_highlighted_squares([])
+            self.set_permanent_squares([])
             return
 
         """
@@ -754,10 +766,10 @@ class GridMapWidget(QWidget):
         """
         grid_squares = list(self.adif_data.get('grid', {}).get(self.current_band, {}).keys())
 
-        self.set_highlighted_squares(grid_squares, center_on_last=False)
+        self.set_permanent_squares(grid_squares, center_on_last=False)
     
-    def set_highlighted_squares(self, squares, center_on_last=True):
-        self.highlighted_squares = squares
+    def set_permanent_squares(self, squares, center_on_last=True):
+        self.permanent_squares = squares
         
         if len(squares) > 0 and center_on_last:
             last_square = squares[-1]
@@ -770,6 +782,9 @@ class GridMapWidget(QWidget):
                 self.apply_pan_movement(0, 0)
         
         self.update()
+        # Update status bar if parent has one
+        if hasattr(self.parent(), 'update_status_labels'):
+            self.parent().update_status_labels()
     
     def set_highlighted_grids(self, grids, center_on_last=False):
         self.highlighted_grids = []
@@ -1032,18 +1047,30 @@ class GridMapWidget(QWidget):
     
     def keyPressEvent(self, event: QKeyEvent):
         if event.key() == Qt.Key.Key_G:
+            # Toggle grid visibility
             self.show_grid = not self.show_grid
             self.update()
-        elif event.key() == Qt.Key.Key_H:
-            if len(self.highlighted_squares) > 0:
-                self.set_highlighted_squares([])
+            
+            if hasattr(self.parent(), 'update_status_labels'):
+                self.parent().update_status_labels()
+        elif event.key() == Qt.Key.Key_W:
+            # Toggle persistent squares
+            if len(self.permanent_squares) > 0:
+                self.set_permanent_squares([])
             else:
                 self.update_grid_squares_for_band()
+
+            if hasattr(self.parent(), 'update_status_labels'):
+                self.parent().update_status_labels()
         elif event.key() == Qt.Key.Key_C:
-            self.set_highlighted_squares([])
-        elif event.key() == Qt.Key.Key_E:
+            self.set_permanent_squares([])
+        elif event.key() == Qt.Key.Key_N:
+            # Toggle nowcast ellipses
             self.show_ellipses = not self.show_ellipses
             self.update()
+            
+            if hasattr(self.parent(), 'update_status_labels'):
+                self.parent().update_status_labels()
         else:
             super().keyPressEvent(event)
         
@@ -1149,6 +1176,78 @@ class GridMapWindow(QMainWindow):
         
         self.map_widget = GridMapWidget()
         self.setCentralWidget(self.map_widget)
+        
+        # Create status bar
+        self.setup_status_bar()
+    
+    def setup_status_bar(self):
+        status_bar = QStatusBar()
+        self.setStatusBar(status_bar)
+        
+        status_widget = QWidget()
+        horizontal_layout = QHBoxLayout(status_widget)
+        horizontal_layout.setContentsMargins(10, 5, 10, 5)
+        horizontal_layout.addWidget(CustomQLabel("Show Grid"))
+        
+        self.grid_toggle = AnimatedToggle(
+            checked_color=STATUS_MONITORING_COLOR,
+            pulse_checked_color=f"{STATUS_MONITORING_COLOR}FF"
+        )
+        self.grid_toggle.setFixedSize(self.grid_toggle.sizeHint())
+        self.grid_toggle.setChecked(self.map_widget.show_grid)
+        self.grid_toggle.stateChanged.connect(self.toggle_grid)
+        
+        horizontal_layout.addWidget(self.grid_toggle)        
+        horizontal_layout.addSpacing(20)        
+        horizontal_layout.addWidget(CustomQLabel("Show Nowcast"))
+        
+        self.ellipse_toggle = AnimatedToggle(
+            checked_color=STATUS_MONITORING_COLOR,
+            pulse_checked_color=f"{STATUS_MONITORING_COLOR}FF"
+        )
+        self.ellipse_toggle.setFixedSize(self.ellipse_toggle.sizeHint())
+        self.ellipse_toggle.setChecked(self.map_widget.show_ellipses)
+        self.ellipse_toggle.stateChanged.connect(self.toggle_ellipses)
+        
+        horizontal_layout.addWidget(self.ellipse_toggle)
+        horizontal_layout.addSpacing(20)        
+        horizontal_layout.addWidget(CustomQLabel("Show Worked"))
+        
+        self.worked_toggle = AnimatedToggle(
+            checked_color=STATUS_MONITORING_COLOR,
+            pulse_checked_color=f"{STATUS_MONITORING_COLOR}FF"
+        )
+        self.worked_toggle.setFixedSize(self.worked_toggle.sizeHint())
+        self.worked_toggle.setChecked(len(self.map_widget.permanent_squares) > 0)
+        self.worked_toggle.stateChanged.connect(self.toggle_worked)
+        
+        horizontal_layout.addWidget(self.worked_toggle)
+        
+        status_bar.addPermanentWidget(status_widget)
+    
+    def update_status_labels(self):
+        if hasattr(self, 'grid_toggle'):
+            self.grid_toggle.setChecked(self.map_widget.show_grid)
+        if hasattr(self, 'ellipse_toggle'):
+            self.ellipse_toggle.setChecked(self.map_widget.show_ellipses)
+        if hasattr(self, 'worked_toggle'):
+            self.worked_toggle.setChecked(len(self.map_widget.permanent_squares) > 0)
+    
+    def toggle_grid(self, checked):
+        self.map_widget.show_grid = checked
+        self.map_widget.update()
+        self.map_widget.save_grid_map_settings()
+    
+    def toggle_ellipses(self, checked):
+        self.map_widget.show_ellipses = checked
+        self.map_widget.update()
+        self.map_widget.save_grid_map_settings()
+    
+    def toggle_worked(self, checked):
+        if checked:
+            self.map_widget.update_grid_squares_for_band()
+        else:
+            self.map_widget.set_permanent_squares([])
     
     def closeEvent(self, event):
         self.map_widget.closeEvent(event)

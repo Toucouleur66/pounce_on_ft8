@@ -1,5 +1,6 @@
 __pycache__/
 /dist/
+/vector_cache/
 /build*
 
 cty_sample.xml
@@ -15,3 +16,4 @@ pounce.log*
 *.spec
 *.adif
 *.adi
+test*.*
