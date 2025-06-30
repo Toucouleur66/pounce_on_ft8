@@ -16,7 +16,7 @@ from PyQt6.QtGui import QFont, QPainter, QWheelEvent, QMouseEvent, QKeyEvent, QC
 from tiles_manager import TileCache, TileDownloader
 from urllib.parse import urlparse
 from logger import get_logger
-from utils import darken_color
+from utils import darken_color, complementary_color
 
 log     = get_logger(__name__)
 
@@ -50,7 +50,8 @@ class GridMapWidget(QWidget):
         self.current_band               = None
         self.adif_data                  = {}
 
-        self.ellipse_buffer = []  # Buffer to store multiple ellipse groups
+        # Buffer to store multiple ellipse groups
+        self.ellipse_buffer             = []  
         self.max_ellipse_buffer_size    = 5
         
         self.blink_count                = 0
@@ -253,16 +254,19 @@ class GridMapWidget(QWidget):
                             Qt.GlobalColor.lightGray
                         )
         
+        """
+            Make sure to properly set the order of drawing elements.
+        """
         if self.show_grid:
             self.draw_maidenhead_grid(painter)
             
         for square in self.highlighted_squares:
             self.fill_grid_square_with_color(painter, square, QColor(91, 105, 171, 128))
         
+        self.set_ellipse_indicators(painter)
+        
         if self.blink_visible and self.highlighted_grids:
             self.draw_highlighted_grids_block(painter)
-        
-        self.set_ellipse_indicators(painter)
     
     def wheelEvent(self, event: QWheelEvent):
         mouse_pos = event.position()
@@ -364,7 +368,6 @@ class GridMapWidget(QWidget):
         screen_x = self.width() / 2 + dx_px
         screen_y = self.height() / 2 + dy_px
         return screen_x, screen_y
-
     
     def calculate_center_for_cursor_point(self, cursor_x, cursor_y, target_lat, target_lon):
         center_screen_x = self.width() / 2
@@ -704,10 +707,12 @@ class GridMapWidget(QWidget):
             grid_square = grid_color['grid']
             color_hex   = grid_color['color']
             
-            fill_color = QColor(color_hex)
+            color = QColor(color_hex)
+
+            fill_color = complementary_color(color)
             fill_color.setAlpha(255) 
             
-            border_color = darken_color(fill_color, 0.2)
+            border_color = color
             
             grid_info = self.maidenhead_to_lat_lon(grid_square)
             if not grid_info:
@@ -830,8 +835,24 @@ class GridMapWidget(QWidget):
         self.update()
     
     def add_ellipse_group_to_buffer(self, grids):
-        if grids:  
-            self.ellipse_buffer.append(grids)
+        if grids:
+            # Remove duplicate grids within the group
+            unique_grids = []
+            seen_grids = set()
+            for grid_data in grids:
+                grid_key = grid_data['grid']
+                if grid_key not in seen_grids:
+                    seen_grids.add(grid_key)
+                    unique_grids.append(grid_data)
+            
+            # Check if this exact ellipse group already exists
+            new_grid_set = set(grid_data['grid'] for grid_data in unique_grids)
+            for existing_group in self.ellipse_buffer:
+                existing_grid_set = set(grid_data['grid'] for grid_data in existing_group)
+                if new_grid_set == existing_grid_set:
+                    return  # Don't add duplicate ellipse
+            
+            self.ellipse_buffer.append(unique_grids)
             
             if len(self.ellipse_buffer) > self.max_ellipse_buffer_size:
                 self.ellipse_buffer.pop(0)  
@@ -856,7 +877,9 @@ class GridMapWidget(QWidget):
         ):
             return
         
-        # Draw all ellipse groups in the buffer (from oldest to newest)
+        """
+            Draw all ellipse groups in the buffer (from oldest to newest)
+        """
         for ellipse_group in self.ellipse_buffer:
             color_groups = {}
             for grid_data in ellipse_group:
@@ -908,13 +931,15 @@ class GridMapWidget(QWidget):
             
         ellipse_path = self.create_ellipse_path(hull_points)
         
-        border_color = darken_color(QColor(color), 0.1)
-        # fill_color = QColor(color)
-        fill_color = QColor(376, 136, 156)
-        fill_color.setAlpha(20)
+        # border_color = darken_color(QColor(color), 0.1)
+        border_color = darken_color(QColor(color), 0.2)
+        border_color.setAlpha(30)
+        # fill_color = QColor(color)    
+        fill_color = QColor(color)
+        fill_color.setAlpha(40)
         
         pen = QPen(border_color)
-        pen.setWidth(1)
+        pen.setWidth(0)
         painter.setPen(pen)
         painter.fillPath(ellipse_path, QBrush(fill_color))
         painter.drawPath(ellipse_path)
@@ -1007,8 +1032,6 @@ class GridMapWidget(QWidget):
         semi_major = base_semi_major * padding_factor
         semi_minor = base_semi_minor * padding_factor
         
-        # Just create a simple, clean ellipse with a bit of extra padding
-        # Sometimes simple is better than perfect!
         safety_padding = 1.15  # 15% extra padding to ensure coverage
         final_semi_major = semi_major * safety_padding
         final_semi_minor = semi_minor * safety_padding
@@ -1022,11 +1045,9 @@ class GridMapWidget(QWidget):
             cos_t = math.cos(t)
             sin_t = math.sin(t)
             
-            # Simple ellipse - clean and beautiful
             x_local = final_semi_major * cos_t
             y_local = final_semi_minor * sin_t
             
-            # Apply the principal component rotation
             x_rotated = x_local * math.cos(angle) - y_local * math.sin(angle)
             y_rotated = x_local * math.sin(angle) + y_local * math.cos(angle)
             

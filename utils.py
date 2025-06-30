@@ -11,9 +11,8 @@ import sys
 import fnmatch
 import locale
 
-from PyQt6.QtWidgets import QTextEdit, QLineEdit
 from PyQt6.QtCore import QCoreApplication, QStandardPaths
-from PyQt6.QtGui import QTextCursor
+from PyQt6.QtGui import QColor
 
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -711,3 +710,24 @@ def latlon_to_grid(lat, lon, precision=4):
     grid += chr(ord('A') + subsquare_lat)
     
     return grid
+
+def darken_color(color, factor):
+    r = int(color.red() * (1.0 - factor))
+    g = int(color.green() * (1.0 - factor))
+    b = int(color.blue() * (1.0 - factor))
+
+    return QColor(r, g, b)
+
+def lighten_color(color, factor):
+    r = int(color.red() + (255 - color.red()) * factor)
+    g = int(color.green() + (255 - color.green()) * factor)
+    b = int(color.blue() + (255 - color.blue()) * factor)
+    
+    return QColor(r, g, b, color.alpha())
+    
+def complementary_color(color):
+    h, s, v, a = color.getHsv()
+    
+    complementary_h = (h + 180) % 360
+    
+    return QColor.fromHsv(complementary_h, s, v, a)

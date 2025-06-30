@@ -60,7 +60,7 @@ if sys.platform == 'darwin':
 from utils import get_local_ip_address, matches_any
 from utils import get_mode_interval, get_amateur_band, display_frequency
 from utils import force_input, focus_out_event, text_to_array, has_significant_change
-from utils import parse_adif, grid_to_latlon, latlon_to_grid
+from utils import parse_adif
 
 from version import is_first_launch_or_new_version, save_current_version
 
@@ -1085,9 +1085,8 @@ class MainApp(QtWidgets.QMainWindow):
             elif monitored_cq_zone is True:
                 color = BG_COLOR_BLACK_ON_CYAN
             else:
-                color = FG_TIMER_COLOR
-                color = "#FAB975"
-            
+               color = FG_TIMER_COLOR
+               
             if color:
                 grids.append({
                     'grid'  : message.get('grid'),
