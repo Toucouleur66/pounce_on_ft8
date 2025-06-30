@@ -10,7 +10,7 @@ from constants import (
 )
 
 from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget
-from PyQt6.QtCore import Qt, QPoint, QTimer
+from PyQt6.QtCore import Qt, QPoint, QTimer, pyqtSignal
 from PyQt6.QtGui import QFont, QPainter, QWheelEvent, QMouseEvent, QKeyEvent, QColor, QBrush, QPen, QPainterPath
 
 from tiles_manager import TileCache, TileDownloader
@@ -21,6 +21,8 @@ from utils import darken_color, complementary_color
 log     = get_logger(__name__)
 
 class GridMapWidget(QWidget):
+    grid_clicked = pyqtSignal(str)  # Signal to emit message_uid when grid is clicked
+    
     def __init__(self):
         super().__init__()
         self.setMinimumSize(800, 600)
@@ -31,6 +33,8 @@ class GridMapWidget(QWidget):
         self.tile_size                  = 256
         
         self.dragging                   = False
+        self.mouse_pressed              = False
+        self.has_moved                  = False
         self.last_pan_point             = QPoint()
         self.pan_velocity               = QPoint(0, 0)
         self.last_pan_time              = 0
@@ -255,7 +259,7 @@ class GridMapWidget(QWidget):
                         )
         
         """
-            Make sure to properly set the order of drawing elements.
+            Make sure to properly set the order of drawing elements (like Z-index).
         """
         if self.show_grid:
             self.draw_maidenhead_grid(painter)
@@ -267,7 +271,7 @@ class GridMapWidget(QWidget):
         
         if self.blink_visible and self.highlighted_grids:
             self.draw_highlighted_grids_block(painter)
-    
+
     def wheelEvent(self, event: QWheelEvent):
         mouse_pos = event.position()
         mouse_x = mouse_pos.x()
@@ -603,48 +607,45 @@ class GridMapWidget(QWidget):
                 pen.setWidth(1)
             painter.setPen(pen)
             
-            try:
-                top_left_x, top_left_y          = self.lat_lon_to_screen_stable(ne_lat, sw_lon)
-                top_right_x, top_right_y        = self.lat_lon_to_screen_stable(ne_lat, ne_lon)
-                bottom_left_x, bottom_left_y    = self.lat_lon_to_screen_stable(sw_lat, sw_lon)
-                bottom_right_x, bottom_right_y  = self.lat_lon_to_screen_stable(sw_lat, ne_lon)
+            top_left_x, top_left_y          = self.lat_lon_to_screen_stable(ne_lat, sw_lon)
+            top_right_x, top_right_y        = self.lat_lon_to_screen_stable(ne_lat, ne_lon)
+            bottom_left_x, bottom_left_y    = self.lat_lon_to_screen_stable(sw_lat, sw_lon)
+            bottom_right_x, bottom_right_y  = self.lat_lon_to_screen_stable(sw_lat, ne_lon)
+            
+            if (max(top_left_x, top_right_x, bottom_left_x, bottom_right_x) >= -50 and
+                min(top_left_x, top_right_x, bottom_left_x, bottom_right_x) <= self.width() + 50 and
+                max(top_left_y, top_right_y, bottom_left_y, bottom_right_y) >= -50 and
+                min(top_left_y, top_right_y, bottom_left_y, bottom_right_y) <= self.height() + 50):
                 
-                if (max(top_left_x, top_right_x, bottom_left_x, bottom_right_x) >= -50 and
-                    min(top_left_x, top_right_x, bottom_left_x, bottom_right_x) <= self.width() + 50 and
-                    max(top_left_y, top_right_y, bottom_left_y, bottom_right_y) >= -50 and
-                    min(top_left_y, top_right_y, bottom_left_y, bottom_right_y) <= self.height() + 50):
+                painter.drawLine(int(top_left_x), int(top_left_y), int(top_right_x), int(top_right_y))
+                painter.drawLine(int(top_right_x), int(top_right_y), int(bottom_right_x), int(bottom_right_y))
+                painter.drawLine(int(bottom_right_x), int(bottom_right_y), int(bottom_left_x), int(bottom_left_y))
+                painter.drawLine(int(bottom_left_x), int(bottom_left_y), int(top_left_x), int(top_left_y))
+                
+                if show_labels:
+                    screen_center_x = (top_left_x + bottom_right_x) / 2.0
+                    screen_center_y = (top_left_y + bottom_right_y) / 2.0
                     
-                    painter.drawLine(int(top_left_x), int(top_left_y), int(top_right_x), int(top_right_y))
-                    painter.drawLine(int(top_right_x), int(top_right_y), int(bottom_right_x), int(bottom_right_y))
-                    painter.drawLine(int(bottom_right_x), int(bottom_right_y), int(bottom_left_x), int(bottom_left_y))
-                    painter.drawLine(int(bottom_left_x), int(bottom_left_y), int(top_left_x), int(top_left_y))
+                    center_lat = (sw_lat + ne_lat) / 2.0
+                    center_lon = (sw_lon + ne_lon) / 2.0
                     
-                    if show_labels:
-                        screen_center_x = (top_left_x + bottom_right_x) / 2.0
-                        screen_center_y = (top_left_y + bottom_right_y) / 2.0
+                    grid_label = self.get_grid_label(center_lat, center_lon, grid_type)
+                    
+                    if (grid_label and 
+                        10 <= screen_center_x <= self.width() - 10 and 
+                        10 <= screen_center_y <= self.height() - 10):
                         
-                        center_lat = (sw_lat + ne_lat) / 2.0
-                        center_lon = (sw_lon + ne_lon) / 2.0
+                        painter.setPen(self.grid_text_color)
                         
-                        grid_label = self.get_grid_label(center_lat, center_lon, grid_type)
+                        font_metrics = painter.fontMetrics()
+                        text_width   = font_metrics.horizontalAdvance(grid_label)
+                        text_height  = font_metrics.height()
+                        text_ascent  = font_metrics.ascent()
                         
-                        if (grid_label and 
-                            10 <= screen_center_x <= self.width() - 10 and 
-                            10 <= screen_center_y <= self.height() - 10):
+                        text_x = int(screen_center_x - text_width / 2.0)
+                        text_y = int(screen_center_y - text_height / 2.0 + text_ascent)
                             
-                            painter.setPen(self.grid_text_color)
-                            
-                            font_metrics = painter.fontMetrics()
-                            text_width   = font_metrics.horizontalAdvance(grid_label)
-                            text_height  = font_metrics.height()
-                            text_ascent  = font_metrics.ascent()
-                            
-                            text_x = int(screen_center_x - text_width / 2.0)
-                            text_y = int(screen_center_y - text_height / 2.0 + text_ascent)
-                               
-                            painter.drawText(text_x, text_y, grid_label)                        
-            except Exception:
-                continue
+                        painter.drawText(text_x, text_y, grid_label)                        
     
     def get_grid_label(self, lat, lon, grid_type):
         full_grid = self.lat_lon_to_maidenhead(lat, lon)
@@ -658,12 +659,10 @@ class GridMapWidget(QWidget):
         
         return full_grid
     
-    def fill_grid_square_with_color(self, painter, grid_square, color):        
-        if isinstance(color, str):
-            fill_color = QColor(color)
+    def draw_grid_square(self, painter, grid_square, fill_color, border_color=None):
+        if isinstance(fill_color, str):
+            fill_color = QColor(fill_color)
             fill_color.setAlpha(255)
-        else:
-            fill_color = color
         
         grid_info = self.maidenhead_to_lat_lon(grid_square)
         if not grid_info:
@@ -691,70 +690,39 @@ class GridMapWidget(QWidget):
                     max(top_left_y, top_right_y, bottom_left_y, bottom_right_y) >= -50 and
                     min(top_left_y, top_right_y, bottom_left_y, bottom_right_y) <= self.height() + 50):
                     
-                    brush = QBrush(fill_color)
-                    
                     rect_x      = int(min(top_left_x, top_right_x, bottom_left_x, bottom_right_x))
                     rect_y      = int(min(top_left_y, top_right_y, bottom_left_y, bottom_right_y))
                     rect_width  = int(max(top_left_x, top_right_x, bottom_left_x, bottom_right_x) - rect_x) + 1
                     rect_height = int(max(top_left_y, top_right_y, bottom_left_y, bottom_right_y) - rect_y) + 1
                     
+                    # Fill rectangle
+                    brush = QBrush(fill_color)
                     painter.fillRect(rect_x, rect_y, rect_width, rect_height, brush)
-            except Exception:
-                pass
-    
-    def draw_highlighted_grids_block(self, painter):
-        for grid_color in self.highlighted_grids:
-            grid_square = grid_color['grid']
-            color_hex   = grid_color['color']
-            
-            color = QColor(color_hex)
-
-            fill_color = complementary_color(color)
-            fill_color.setAlpha(255) 
-            
-            border_color = color
-            
-            grid_info = self.maidenhead_to_lat_lon(grid_square)
-            if not grid_info:
-                continue
-                
-            min_lat = grid_info['min_lat']
-            max_lat = grid_info['max_lat']
-            min_lon = grid_info['min_lon']
-            max_lon = grid_info['max_lon']
-            
-            offsets = [0, 360, -360] if self.zoom >= 2 else [0]
-            
-            for offset in offsets:
-                offset_min_lon = min_lon + offset
-                offset_max_lon = max_lon + offset
-                
-                try:
-                    top_left_x, top_left_y          = self.lat_lon_to_screen_stable(max_lat, offset_min_lon)
-                    top_right_x, top_right_y        = self.lat_lon_to_screen_stable(max_lat, offset_max_lon)
-                    bottom_left_x, bottom_left_y    = self.lat_lon_to_screen_stable(min_lat, offset_min_lon)
-                    bottom_right_x, bottom_right_y  = self.lat_lon_to_screen_stable(min_lat, offset_max_lon)
                     
-                    if (max(top_left_x, top_right_x, bottom_left_x, bottom_right_x) >= -50 and
-                        min(top_left_x, top_right_x, bottom_left_x, bottom_right_x) <= self.width() + 50 and
-                        max(top_left_y, top_right_y, bottom_left_y, bottom_right_y) >= -50 and
-                        min(top_left_y, top_right_y, bottom_left_y, bottom_right_y) <= self.height() + 50):
-                        
-                        rect_x      = int(min(top_left_x, top_right_x, bottom_left_x, bottom_right_x))
-                        rect_y      = int(min(top_left_y, top_right_y, bottom_left_y, bottom_right_y))
-                        rect_width  = int(max(top_left_x, top_right_x, bottom_left_x, bottom_right_x) - rect_x) + 1
-                        rect_height = int(max(top_left_y, top_right_y, bottom_left_y, bottom_right_y) - rect_y) + 1
-                        
-                        brush = QBrush(fill_color)
-                        painter.fillRect(rect_x, rect_y, rect_width, rect_height, brush)
-                        
+                    # Draw border if specified
+                    if border_color:
                         pen = QPen(border_color)
                         pen.setWidth(1)
                         painter.setPen(pen)
                         painter.drawRect(rect_x, rect_y, rect_width - 1, rect_height - 1)
                         
-                except Exception:
-                    pass
+            except Exception:
+                pass
+    
+    def fill_grid_square_with_color(self, painter, grid_square, color):
+        self.draw_grid_square(painter, grid_square, color)
+    
+    def draw_highlighted_grids_block(self, painter):
+        for grid_color in self.highlighted_grids:
+            grid_square     = grid_color['grid']
+            color_hex       = grid_color['color']
+            
+            color           = QColor(color_hex)
+            border_color    = darken_color(color, 0.5)
+            fill_color      = complementary_color(color)
+            fill_color.setAlpha(255) 
+            
+            self.draw_grid_square(painter, grid_square, fill_color, border_color)
     
     def blink_update(self):
         self.blink_visible = not self.blink_visible
@@ -1083,37 +1051,81 @@ class GridMapWidget(QWidget):
     
     def mousePressEvent(self, event: QMouseEvent):
         if event.button() == Qt.MouseButton.LeftButton:
-            self.dragging = True
+            self.mouse_pressed = True
+            self.has_moved = False
             self.last_pan_point = event.pos()
             self.pan_velocity = QPoint(0, 0)
             self.last_pan_time = time.time() * 1000
     
     def mouseMoveEvent(self, event: QMouseEvent):
-        if self.dragging:
-            current_time = time.time() * 1000
-            delta = event.pos() - self.last_pan_point
-            time_delta = current_time - self.last_pan_time
+        if self.mouse_pressed:
+            if not self.dragging:
+                # Start dragging if mouse moved enough
+                delta = event.pos() - self.last_pan_point
+                if abs(delta.x()) > 3 or abs(delta.y()) > 3:
+                    self.dragging = True
+                    self.has_moved = True
             
-            if delta.x() != 0 or delta.y() != 0:
-                self.apply_pan_movement(-delta.x(), -delta.y())
+            if self.dragging:
+                current_time = time.time() * 1000
+                delta = event.pos() - self.last_pan_point
+                time_delta = current_time - self.last_pan_time
                 
-                if time_delta > 0:
-                    velocity_x = -delta.x() / max(time_delta, 1) * 16
-                    velocity_y = -delta.y() / max(time_delta, 1) * 16
+                if delta.x() != 0 or delta.y() != 0:
+                    self.apply_pan_movement(-delta.x(), -delta.y())
                     
-                    self.pan_velocity = QPoint(
-                        int(self.pan_velocity.x() * 0.8 + velocity_x * 0.2),
-                        int(self.pan_velocity.y() * 0.8 + velocity_y * 0.2)
-                    )
+                    if time_delta > 0:
+                        velocity_x = -delta.x() / max(time_delta, 1) * 16
+                        velocity_y = -delta.y() / max(time_delta, 1) * 16
+                        
+                        self.pan_velocity = QPoint(
+                            int(self.pan_velocity.x() * 0.8 + velocity_x * 0.2),
+                            int(self.pan_velocity.y() * 0.8 + velocity_y * 0.2)
+                        )
+                    
+                    self.update()
                 
-                self.update()
-            
-            self.last_pan_point = event.pos()
-            self.last_pan_time = current_time
+                self.last_pan_point = event.pos()
+                self.last_pan_time  = current_time
     
     def mouseReleaseEvent(self, event: QMouseEvent):
         if event.button() == Qt.MouseButton.LeftButton:
-            self.dragging = False
+            was_dragging        = self.dragging
+            self.mouse_pressed  = False
+            self.dragging       = False
+            
+            if not was_dragging and not self.has_moved:
+                self.handle_grid_click(event.pos())
+    
+    def handle_grid_click(self, pos):
+        lat, lon = self.screen_to_lat_lon(pos.x(), pos.y())
+
+        for i, grid_data in enumerate(self.highlighted_grids):
+            grid_square = grid_data['grid']
+            grid_info = self.maidenhead_to_lat_lon(grid_square)
+            if not grid_info:
+                continue
+            
+            screen_coords = []
+            for lat in [grid_info['min_lat'], grid_info['max_lat']]:
+                for lon in [grid_info['min_lon'], grid_info['max_lon']]:
+                    x, y = self.lat_lon_to_screen_stable(lat, lon)
+                    screen_coords.append(f"({x:.0f},{y:.0f})")            
+                
+            min_screen_x = min(float(coord.split(',')[0][1:]) for coord in screen_coords)
+            max_screen_x = max(float(coord.split(',')[0][1:]) for coord in screen_coords)
+            min_screen_y = min(float(coord.split(',')[1][:-1]) for coord in screen_coords)
+            max_screen_y = max(float(coord.split(',')[1][:-1]) for coord in screen_coords)
+            
+            click_x = pos.x()
+            click_y = pos.y()
+            
+            if (min_screen_x <= click_x <= max_screen_x and
+                min_screen_y <= click_y <= max_screen_y):
+                message_uid = grid_data.get('message_uid')
+                if message_uid:
+                    self.grid_clicked.emit(message_uid)
+                break
     
     def resizeEvent(self, event):
         super().resizeEvent(event)

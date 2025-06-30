@@ -204,7 +204,7 @@ class RawDataModel(QtCore.QAbstractTableModel):
 
     def findRowByUid(self, uid):
         for i, row_data in enumerate(self._data):
-            if row_data.get('uid') == uid:
+            if row_data.get('message_uid') == uid:
                 return i
         return -1
 

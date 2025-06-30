@@ -17,7 +17,6 @@ import threading
 import pyperclip
 import sys
 import threading
-import uuid
 import webbrowser
 
 """
@@ -1032,6 +1031,9 @@ class MainApp(QtWidgets.QMainWindow):
                 self.grid_monitoring = GridMapWindow()
                 self.grid_monitoring.closeEvent = self.on_map_window_closed
                 
+                # Connect grid click signal to scroll function
+                self.grid_monitoring.map_widget.grid_clicked.connect(self.scroll_to_message_uid)
+                
                 if self.operating_band:
                     self.grid_monitoring.map_widget.update_current_band(self.operating_band)
                 
@@ -1074,24 +1076,36 @@ class MainApp(QtWidgets.QMainWindow):
             monitored_cq_zone   = message.get('monitored_cq_zone')
             
             color = None
+            priority = 0
             if directed == my_call:
-                color = BG_COLOR_FOCUS_MY_CALL
+                color    = BG_COLOR_FOCUS_MY_CALL
+                priority = 5
             elif wanted is True:
-                color = BG_COLOR_BLACK_ON_YELLOW
+                color    = BG_COLOR_BLACK_ON_YELLOW
+                priority = 4
             elif wanted_cq_zone is True:
-                color = BG_COLOR_BLACK_ON_SAUMON
+                color    = BG_COLOR_BLACK_ON_SAUMON
+                priority = 3
             elif monitored is True:
-                color = BG_COLOR_BLACK_ON_PURPLE
+                color    = BG_COLOR_BLACK_ON_PURPLE
+                priority = 2
             elif monitored_cq_zone is True:
-                color = BG_COLOR_BLACK_ON_CYAN
+                color    = BG_COLOR_BLACK_ON_CYAN
+                priority = 2
             else:
-               color = FG_TIMER_COLOR
+               color    = FG_TIMER_COLOR
+               priority = 1
                
             if color:
                 grids.append({
-                    'grid'  : message.get('grid'),
-                    'color' : color
+                    'message_uid'   : message.get('message_uid'),
+                    'grid'          : message.get('grid'),
+                    'color'         : color,
+                    'priority'      : priority
                 })
+        
+        # Sort grids by priority (highest first) for proper z-index drawing
+        grids.sort(key=lambda x: x['priority'])
         
         if grids:
             if hasattr(self, 'grid_monitoring') and self.grid_monitoring:
@@ -1500,7 +1514,6 @@ class MainApp(QtWidgets.QMainWindow):
                     message.get('message_uid'),                     
                 )   
 
-                message['message_uid']  = uuid.uuid4()
                 self.message_buffer.append(message)         
 
                 if not self.process_timer:
@@ -2502,14 +2515,14 @@ class MainApp(QtWidgets.QMainWindow):
             "snr"               : snr,
             "delta_time"        : delta_time,
             "delta_freq"        : delta_freq,
+            "message_uid"       : message_uid,            
             "message"           : message,
             "formatted_message" : formatted_message,
             "entity"            : entity,
             "cq_zone"           : cq_zone,
             "continent"         : continent,
             "row_datetime"      : datetime.now(timezone.utc),
-            "row_color"         : row_color,
-            "uid"               : message_uid,
+            "row_color"         : row_color
         }
 
         """"
@@ -2530,6 +2543,7 @@ class MainApp(QtWidgets.QMainWindow):
     def scroll_to_message_uid(self, uid, column=0, scroll_hint=QtWidgets.QAbstractItemView.ScrollHint.PositionAtCenter):
         row = self.output_model.findRowByUid(uid)
         if row == -1:
+            log.warning(f"Nothing found for this message_uid: {uid}")
             return  
 
         source_index = self.output_model.index(row, column)

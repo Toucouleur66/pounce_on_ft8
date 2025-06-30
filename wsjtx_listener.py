@@ -7,6 +7,7 @@ import socket
 import bisect
 import json
 import inspect
+import uuid
 import threading
 
 from datetime import datetime, timezone
@@ -1242,6 +1243,7 @@ class Listener(QObject):
                     'delta_freq'        : delta_f,
                     'snr'               : snr,                
                     'message'           : message,
+                    'message_uid'       : str(uuid.uuid4()), 
                     'message_type'      : message_type,
                     'priority'          : priority,
                     'formatted_message' : formatted_message
