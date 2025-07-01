@@ -55,6 +55,7 @@ class GridMapWidget(QWidget):
         self.show_grid                  = True
         self.show_ellipses              = True
         self.show_worked                = True
+        self.show_night                 = True
         self.grid_color                 = Qt.GlobalColor.red
         self.grid_text_color            = Qt.GlobalColor.gray
         
@@ -95,7 +96,8 @@ class GridMapWidget(QWidget):
         settings = {
             'show_grid'     : self.show_grid,
             'show_ellipses' : self.show_ellipses,
-            'show_worked'   : self.show_worked
+            'show_worked'   : self.show_worked,
+            'show_night'    : self.show_night
         }
         try:
             with open(self.settings_file, "wb") as f:
@@ -110,6 +112,7 @@ class GridMapWidget(QWidget):
                     settings = pickle.load(f)
                     self.show_grid = settings.get('show_grid', True)
                     self.show_ellipses = settings.get('show_ellipses', True)
+                    self.show_night = settings.get('show_night', True)
         except Exception as e:
             log.error(f"Failed to load grid map settings: {e}")
     
@@ -742,6 +745,9 @@ class GridMapWidget(QWidget):
         """
             Draw day/night overlay showing current daylight conditions
         """
+        if not self.show_night:
+            return
+            
         solar_lat, solar_lon = self.calculate_solar_position()
         
         night_color = QColor(0, 0, 0, 50)
@@ -1082,7 +1088,6 @@ class GridMapWidget(QWidget):
     
     def add_ellipse_group_to_buffer(self, grids):
         if grids:
-            # Remove duplicate grids within the group
             unique_grids = []
             seen_grids = set()
             for grid_data in grids:
@@ -1090,13 +1095,6 @@ class GridMapWidget(QWidget):
                 if grid_key not in seen_grids:
                     seen_grids.add(grid_key)
                     unique_grids.append(grid_data)
-            
-            # Check if this exact ellipse group already exists
-            new_grid_set = set(grid_data['grid'] for grid_data in unique_grids)
-            for existing_group in self.ellipse_buffer:
-                existing_grid_set = set(grid_data['grid'] for grid_data in existing_group)
-                if new_grid_set == existing_grid_set:
-                    return 
             
             self.ellipse_buffer.append(unique_grids)
             
@@ -1106,6 +1104,9 @@ class GridMapWidget(QWidget):
             self.update()
     
     def set_ellipse_group_indicators(self, grids):
+         # Sort grids by priority (highest first) for proper z-index drawing
+        grids.sort(key=lambda grid: grid['priority'])
+        
         self.add_ellipse_group_to_buffer(grids)
     
     def get_ellipse_buffer_info(self):
@@ -1177,6 +1178,7 @@ class GridMapWidget(QWidget):
             
         ellipse_path = self.create_ellipse_path(hull_points)
         
+        # Draw all ellipses with normal transparency - let the layering handle priority
         border_color = darken_color(QColor(color), 0.2)
         border_color.setAlpha(30)
 
@@ -1336,6 +1338,15 @@ class GridMapWidget(QWidget):
             else:
                 self.show_ellipses = not self.show_ellipses
                 self.update()
+        elif event.key() == Qt.Key.Key_L:
+            if hasattr(window, 'toggle_night'):
+                new_state = not self.show_night
+                window.toggle_night(new_state)
+                if hasattr(window, 'night_toggle'):
+                    window.night_toggle.setChecked(new_state)
+            else:
+                self.show_night = not self.show_night
+                self.update()
         else:
             super().keyPressEvent(event)
 
@@ -1468,7 +1479,8 @@ class GridMapWindow(QMainWindow):
         
         horizontal_layout = QHBoxLayout(self.controls_widget)
         horizontal_layout.setContentsMargins(10, 5, 10, 5)
-        horizontal_layout.addWidget(CustomQLabel("Show Grid"))
+        horizontal_layout.setSpacing(0) 
+        horizontal_layout.addWidget(CustomQLabel("Grid maps"))
         
         self.grid_toggle = AnimatedToggle(
             checked_color=STATUS_MONITORING_COLOR,
@@ -1480,7 +1492,7 @@ class GridMapWindow(QMainWindow):
         
         horizontal_layout.addWidget(self.grid_toggle)        
         horizontal_layout.addSpacing(20)        
-        horizontal_layout.addWidget(CustomQLabel("Show Nowcast"))
+        horizontal_layout.addWidget(CustomQLabel("Nowcast"))
         
         self.ellipse_toggle = AnimatedToggle(
             checked_color=STATUS_MONITORING_COLOR,
@@ -1492,7 +1504,7 @@ class GridMapWindow(QMainWindow):
         
         horizontal_layout.addWidget(self.ellipse_toggle)
         horizontal_layout.addSpacing(20)        
-        horizontal_layout.addWidget(CustomQLabel("Show Worked"))
+        horizontal_layout.addWidget(CustomQLabel("Worked Grids"))
         
         self.worked_toggle = AnimatedToggle(
             checked_color=STATUS_MONITORING_COLOR,
@@ -1503,6 +1515,18 @@ class GridMapWindow(QMainWindow):
         self.worked_toggle.stateChanged.connect(self.toggle_worked)
         
         horizontal_layout.addWidget(self.worked_toggle)
+        horizontal_layout.addSpacing(20)        
+        horizontal_layout.addWidget(CustomQLabel("Greyline"))
+        
+        self.night_toggle = AnimatedToggle(
+            checked_color=STATUS_MONITORING_COLOR,
+            pulse_checked_color=f"{STATUS_MONITORING_COLOR}FF"
+        )
+        self.night_toggle.setFixedSize(self.night_toggle.sizeHint())
+        self.night_toggle.setChecked(self.map_widget.show_night)
+        self.night_toggle.stateChanged.connect(self.toggle_night)
+        
+        horizontal_layout.addWidget(self.night_toggle)
         horizontal_layout.addStretch() 
         
         main_layout.addWidget(self.controls_widget)
@@ -1514,6 +1538,8 @@ class GridMapWindow(QMainWindow):
             self.ellipse_toggle.setChecked(self.map_widget.show_ellipses)
         if hasattr(self, 'worked_toggle'):
             self.worked_toggle.setChecked(self.map_widget.show_worked)
+        if hasattr(self, 'night_toggle'):
+            self.night_toggle.setChecked(self.map_widget.show_night)
     
     def toggle_grid(self, checked):
         self.map_widget.show_grid = checked
@@ -1531,6 +1557,11 @@ class GridMapWindow(QMainWindow):
             self.map_widget.update_grid_squares_for_band()
         else:
             self.map_widget.set_permanent_squares([])
+    
+    def toggle_night(self, checked):
+        self.map_widget.show_night = checked
+        self.map_widget.update()
+        self.map_widget.save_grid_map_settings()
     
     def check_theme_change(self):
         current_dark_mode = self.theme_manager.is_dark_apperance()

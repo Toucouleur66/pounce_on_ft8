@@ -1077,6 +1077,7 @@ class MainApp(QtWidgets.QMainWindow):
             
             color = None
             priority = 0
+            """
             if directed == my_call:
                 color    = BG_COLOR_FOCUS_MY_CALL
                 priority = 5
@@ -1090,12 +1091,26 @@ class MainApp(QtWidgets.QMainWindow):
                 color    = BG_COLOR_BLACK_ON_PURPLE
                 priority = 2
             elif monitored_cq_zone is True:
-                color    = BG_COLOR_BLACK_ON_CYAN
+                color    = FG_COLOR_BLACK_ON_WHITE
                 priority = 2
             else:
                color    = FG_TIMER_COLOR
                priority = 1
-               
+            """               
+
+            if (
+                directed == my_call or
+                wanted            is True or
+                wanted_cq_zone    is True or
+                monitored         is True or
+                monitored_cq_zone is True
+            ):
+                color    = FG_COLOR_BLACK_ON_WHITE
+                priority = 2
+            else:
+               color     = FG_TIMER_COLOR
+               priority  = 1
+
             if color:
                 grids.append({
                     'message_uid'   : message.get('message_uid'),
@@ -1103,9 +1118,6 @@ class MainApp(QtWidgets.QMainWindow):
                     'color'         : color,
                     'priority'      : priority
                 })
-        
-        # Sort grids by priority (highest first) for proper z-index drawing
-        grids.sort(key=lambda x: x['priority'])
         
         if grids:
             if hasattr(self, 'grid_monitoring') and self.grid_monitoring:
