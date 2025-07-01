@@ -1576,13 +1576,9 @@ class GridMapWindow(QMainWindow):
         self.dark_mode = dark_mode
         
         if dark_mode:
-            qt_bg_color = "#181818"
-            controls_bg_color = "#353535"
-            text_color = "#FFFFFF"
+            qt_bg_color = "#353535"
         else:
             qt_bg_color = "#E0E0E0"
-            controls_bg_color = "#FFFFFF"
-            text_color = "#000000"
         
         # Apply theme to main window
         self.setStyleSheet(f"""
@@ -1590,16 +1586,6 @@ class GridMapWindow(QMainWindow):
                 background-color: {qt_bg_color};
             }}
         """)
-        
-        # Apply theme to controls widget if it exists
-        if hasattr(self, 'controls_widget'):
-            self.controls_widget.setStyleSheet(f"""
-                QWidget#controls_widget {{
-                    background-color: {controls_bg_color};
-                    color: {text_color};
-                    border-top: 1px solid palette(Mid);
-                }}
-            """)
     
     def closeEvent(self, event):
         self.map_widget.closeEvent(event)
