@@ -445,7 +445,7 @@ class GridMapWidget(QWidget):
         
         return field + square + subsquare
     
-    def maidenhead_to_lat_lon(self, grid):
+    def maidenhead_to_lat_lon(self, grid, adjust_for_view=True):
         if len(grid) < 4:
             return None
             
@@ -468,23 +468,45 @@ class GridMapWidget(QWidget):
             subsquare_base_lon = square_base_lon + subsquare_lon_idx * (2.0/24.0)
             subsquare_base_lat = square_base_lat + subsquare_lat_idx * (1.0/24.0)
             
-            return {
-                'min_lat': subsquare_base_lat,
-                'max_lat': subsquare_base_lat + (1.0/24.0),
-                'min_lon': subsquare_base_lon,
-                'max_lon': subsquare_base_lon + (2.0/24.0),
-                'center_lat': subsquare_base_lat + (1.0/48.0),
-                'center_lon': subsquare_base_lon + (1.0/24.0)
-            }
+            min_lon = subsquare_base_lon
+            max_lon = subsquare_base_lon + (2.0/24.0)
+            center_lon = subsquare_base_lon + (1.0/24.0)
+            
+            min_lat = subsquare_base_lat
+            max_lat = subsquare_base_lat + (1.0/24.0)
+            center_lat = subsquare_base_lat + (1.0/48.0)
         else:
-            return {
-                'min_lat': square_base_lat,
-                'max_lat': square_base_lat + 1.0,
-                'min_lon': square_base_lon,
-                'max_lon': square_base_lon + 2.0,
-                'center_lat': square_base_lat + 0.5,
-                'center_lon': square_base_lon + 1.0
-            }
+            min_lon = square_base_lon
+            max_lon = square_base_lon + 2.0
+            center_lon = square_base_lon + 1.0
+            
+            min_lat = square_base_lat
+            max_lat = square_base_lat + 1.0
+            center_lat = square_base_lat + 0.5
+        
+        # Adjust longitude for current view if requested
+        if adjust_for_view:
+            # Get the center longitude of current view
+            _, view_center_lon = self.screen_to_lat_lon_stable(self.width()//2, self.height()//2)
+            
+            # Calculate the best offset mathematically for infinite panning
+            # Find the multiple of 360° that brings the grid square closest to the view center
+            longitude_diff = view_center_lon - center_lon
+            best_offset = round(longitude_diff / 360.0) * 360.0
+            
+            # Apply the offset to all longitude values
+            min_lon += best_offset
+            max_lon += best_offset
+            center_lon += best_offset
+        
+        return {
+            'min_lat': min_lat,
+            'max_lat': max_lat,
+            'min_lon': min_lon,
+            'max_lon': max_lon,
+            'center_lat': center_lat,
+            'center_lon': center_lon
+        }
     
     def screen_to_lat_lon_stable(self, screen_x, screen_y):
         center_screen_x = self.width() / 2
@@ -915,7 +937,7 @@ class GridMapWidget(QWidget):
         min_lon = grid_info['min_lon']
         max_lon = grid_info['max_lon']
         
-        # Use the coordinates as provided - no multiple offset approach
+        # Use coordinates adjusted for current view - no complex offset logic needed
         try:
             top_left_x, top_left_y          = self.lat_lon_to_screen_stable(max_lat, min_lon)
             top_right_x, top_right_y        = self.lat_lon_to_screen_stable(max_lat, max_lon)
@@ -1001,7 +1023,7 @@ class GridMapWidget(QWidget):
         
         if len(squares) > 0 and center_on_last:
             last_square = squares[-1]
-            grid_info = self.maidenhead_to_lat_lon(last_square)
+            grid_info = self.maidenhead_to_lat_lon(last_square, adjust_for_view=False)
             if grid_info:
                 self.center_lat = grid_info['center_lat']
                 self.center_lon = grid_info['center_lon']
@@ -1025,7 +1047,7 @@ class GridMapWidget(QWidget):
         
         if len(grids) > 0 and center_on_last:
             last_grid = grids[-1]['grid']
-            grid_info = self.maidenhead_to_lat_lon(last_grid)
+            grid_info = self.maidenhead_to_lat_lon(last_grid, adjust_for_view=False)
             if grid_info:
                 self.center_lat = grid_info['center_lat']
                 self.center_lon = grid_info['center_lon']
@@ -1109,7 +1131,7 @@ class GridMapWidget(QWidget):
     def set_ellipse_for_group(self, painter, grid_list, color):
         points = []
         for grid in grid_list:
-            grid_info = self.maidenhead_to_lat_lon(grid)
+            grid_info = self.maidenhead_to_lat_lon(grid, adjust_for_view=True)
             if grid_info:
                 top_lat     = grid_info['max_lat']
                 bottom_lat  = grid_info['min_lat']
@@ -1363,7 +1385,7 @@ class GridMapWidget(QWidget):
 
         for i, grid_data in enumerate(self.highlighted_grids):
             grid_square = grid_data['grid']
-            grid_info = self.maidenhead_to_lat_lon(grid_square)
+            grid_info = self.maidenhead_to_lat_lon(grid_square, adjust_for_view=True)
             if not grid_info:
                 continue
             
