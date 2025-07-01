@@ -3,6 +3,7 @@ import math
 import os
 import time
 import pickle
+from datetime import datetime, timezone
 
 from constants import (
     CUSTOM_FONT,
@@ -270,6 +271,9 @@ class GridMapWidget(QWidget):
         """
             Make sure to properly set the order of drawing elements (like Z-index).
         """
+        # Draw day/night overlay before grid
+        self.draw_daylight_overlay(painter)
+        
         if self.show_grid:
             self.draw_maidenhead_grid(painter)
             
@@ -667,6 +671,229 @@ class GridMapWidget(QWidget):
             return full_grid[:6]
         
         return full_grid
+    
+    def calculate_solar_position(self, utc_time=None):
+        """Calculate the subsolar point (where the sun is directly overhead)"""
+        if utc_time is None:
+            utc_time = datetime.now(timezone.utc)
+        
+        # Calculate days since J2000 epoch
+        j2000 = datetime(2000, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        delta = utc_time - j2000
+        days_since_j2000 = delta.total_seconds() / 86400.0
+        
+        # Calculate solar declination (latitude where sun is overhead)
+        # This varies from +23.45° to -23.45° over the year
+        solar_declination = 23.45 * math.sin(math.radians((360/365.25) * (days_since_j2000 - 81)))
+        
+        # Calculate solar longitude (longitude where sun is overhead)
+        # The sun moves 15 degrees per hour (360° / 24 hours)
+        # At UTC noon, sun is at 0° longitude (Greenwich meridian)
+        utc_hours = utc_time.hour + utc_time.minute / 60.0 + utc_time.second / 3600.0
+        solar_longitude = -(utc_hours - 12.0) * 15.0  # Negative because sun moves westward
+        
+        # Normalize longitude to [-180, 180]
+        while solar_longitude > 180:
+            solar_longitude -= 360
+        while solar_longitude < -180:
+            solar_longitude += 360
+            
+        return solar_declination, solar_longitude
+    
+    def draw_daylight_overlay(self, painter):
+        """Draw day/night overlay showing current daylight conditions"""
+        # Get current solar position
+        solar_lat, solar_lon = self.calculate_solar_position()
+        
+        # Debug: Add some logging (only occasionally to avoid spam)
+        if hasattr(self, '_last_solar_log_time'):
+            if time.time() - self._last_solar_log_time > 5:  # Log every 5 seconds
+                log.error(f"Solar position: lat={solar_lat:.2f}, lon={solar_lon:.2f}")
+                self._last_solar_log_time = time.time()
+        else:
+            log.error(f"Solar position: lat={solar_lat:.2f}, lon={solar_lon:.2f}")
+            self._last_solar_log_time = time.time()
+        
+        # Create semi-transparent overlay for night areas
+        night_color = QColor(0, 0, 0, 80)  # Semi-transparent black
+        
+        # Create smooth terminator path
+        self.draw_smooth_night_overlay(painter, solar_lat, solar_lon, night_color)
+    
+    def draw_smooth_night_overlay(self, painter, solar_lat, solar_lon, night_color):
+        """Draw smooth night overlay using precise terminator curve"""
+        # Calculate extended longitude range for smooth coverage
+        center_lat, center_lon = self.screen_to_lat_lon_stable(self.width()//2, self.height()//2)
+        
+        # Calculate terminator points across a wide longitude range
+        terminator_points = []
+        lon_step = 1.0  # Every 1 degree for smooth curve
+        
+        # Use wider longitude range to ensure complete coverage
+        for lon in range(-180, 181, int(lon_step)):
+            # Calculate terminator latitude
+            terminator_lat = self.calculate_terminator_latitude(lon, solar_lat, solar_lon)
+            
+            # Convert to screen coordinates
+            screen_x, screen_y = self.lat_lon_to_screen_stable(terminator_lat, lon)
+            
+            # Only include points that are visible or near the screen
+            if -200 <= screen_x <= self.width() + 200:
+                terminator_points.append((screen_x, screen_y, lon, terminator_lat))
+        
+        if len(terminator_points) < 2:
+            return
+        
+        # Create night area by filling the side of the terminator that's in shadow
+        night_path = QPainterPath()
+        
+        # Start the path with the terminator curve
+        night_path.moveTo(terminator_points[0][0], terminator_points[0][1])
+        for x, y, _, _ in terminator_points[1:]:
+            night_path.lineTo(x, y)
+        
+        # Determine which side of the terminator should be filled
+        # Test the center of the screen to see if it's in night
+        hour_angle = math.radians(center_lon - solar_lon)
+        solar_lat_rad = math.radians(solar_lat)
+        center_lat_rad = math.radians(center_lat)
+        
+        sin_elevation = (math.sin(center_lat_rad) * math.sin(solar_lat_rad) + 
+                        math.cos(center_lat_rad) * math.cos(solar_lat_rad) * math.cos(hour_angle))
+        
+        is_center_night = sin_elevation < 0
+        
+        # Always create the night area if we have a valid terminator
+        # Determine which side of the terminator is night by testing multiple points
+        test_points = []
+        
+        # Sample points along both sides of the terminator to determine night side
+        for i in range(0, len(terminator_points), max(1, len(terminator_points)//10)):
+            term_x, term_y = terminator_points[i][0], terminator_points[i][1]
+            
+            # Test points perpendicular to the terminator (above and below)
+            offset = 50
+            test_points.extend([
+                (term_x, term_y - offset),  # Above terminator
+                (term_x, term_y + offset),  # Below terminator
+            ])
+        
+        # Also test screen corners and center
+        test_points.extend([
+            (self.width()//2, self.height()//2),  # Center
+            (self.width()//4, self.height()//4),  # Various points
+            (3*self.width()//4, self.height()//4),
+            (self.width()//4, 3*self.height()//4),
+            (3*self.width()//4, 3*self.height()//4),
+        ])
+        
+        night_points = []
+        for test_x, test_y in test_points:
+            # Skip points outside screen bounds
+            if not (0 <= test_x <= self.width() and 0 <= test_y <= self.height()):
+                continue
+                
+            test_lat, test_lon = self.screen_to_lat_lon_stable(test_x, test_y)
+            hour_angle = math.radians(test_lon - solar_lon)
+            test_lat_rad = math.radians(test_lat)
+            
+            sin_elev = (math.sin(test_lat_rad) * math.sin(solar_lat_rad) + 
+                       math.cos(test_lat_rad) * math.cos(solar_lat_rad) * math.cos(hour_angle))
+            
+            if sin_elev < 0:  # Night
+                night_points.append((test_x, test_y))
+        
+        # If we have night points, create a fill area
+        if night_points:
+            # Calculate average position of night points to determine fill direction
+            avg_night_y = sum(y for _, y in night_points) / len(night_points)
+            
+            # Get screen boundaries
+            screen_margin = 200
+            
+            # Complete the path by connecting to screen edges
+            last_y = terminator_points[-1][1]
+            first_y = terminator_points[0][1]
+            
+            # Determine which edges to connect based on where night points are
+            if avg_night_y < self.height() / 2:  # Night is in upper area
+                night_path.lineTo(self.width() + screen_margin, last_y)
+                night_path.lineTo(self.width() + screen_margin, -screen_margin)
+                night_path.lineTo(-screen_margin, -screen_margin)
+                night_path.lineTo(-screen_margin, first_y)
+            else:  # Night is in lower area
+                night_path.lineTo(self.width() + screen_margin, last_y)
+                night_path.lineTo(self.width() + screen_margin, self.height() + screen_margin)
+                night_path.lineTo(-screen_margin, self.height() + screen_margin)
+                night_path.lineTo(-screen_margin, first_y)
+            
+            night_path.closeSubpath()
+            painter.fillPath(night_path, QBrush(night_color))
+        
+        # Draw terminator line for reference
+        self.draw_terminator_line(painter, solar_lat, solar_lon)
+    
+    def draw_terminator_line(self, painter, solar_lat, solar_lon):
+        """Draw the solar terminator line"""
+        painter.setPen(QPen(QColor(255, 255, 0, 120), 2))  # Yellow line
+        painter.setBrush(QBrush(Qt.BrushStyle.NoBrush))
+        
+        # Calculate terminator points globally, then convert to screen
+        terminator_points = []
+        
+        for lon in range(-180, 181, 5):  # Every 5 degrees globally
+            terminator_lat = self.calculate_terminator_latitude(lon, solar_lat, solar_lon)
+            screen_x, screen_y = self.lat_lon_to_screen_stable(terminator_lat, lon)
+            
+            # Check if point is visible on screen (with buffer)
+            if -100 <= screen_x <= self.width() + 100 and -100 <= screen_y <= self.height() + 100:
+                terminator_points.append((screen_x, screen_y))
+        
+        # Draw connected line segments
+        if len(terminator_points) >= 2:
+            terminator_path = QPainterPath()
+            terminator_path.moveTo(terminator_points[0][0], terminator_points[0][1])
+            
+            for screen_x, screen_y in terminator_points[1:]:
+                terminator_path.lineTo(screen_x, screen_y)
+            
+            painter.drawPath(terminator_path)
+    
+    def calculate_terminator_latitude(self, longitude, solar_lat, solar_lon):
+        """Calculate the latitude of the solar terminator at a given longitude"""
+        # Hour angle from the subsolar longitude
+        hour_angle = math.radians(longitude - solar_lon)
+        solar_lat_rad = math.radians(solar_lat)
+        
+        # Handle special cases
+        if abs(hour_angle) < 1e-10:  # At subsolar longitude
+            return solar_lat
+        if abs(abs(hour_angle) - math.pi/2) < 1e-10:  # 90 degrees from subsolar
+            return 0.0
+        if abs(abs(hour_angle) - math.pi) < 1e-10:  # Opposite side of earth
+            return -solar_lat
+        
+        # For solar elevation = 0: sin(elevation) = sin(lat)*sin(solar_lat) + cos(lat)*cos(solar_lat)*cos(hour_angle) = 0
+        # Solving for lat: tan(lat) = -cos(solar_lat)*cos(hour_angle) / sin(solar_lat)
+        
+        try:
+            if abs(solar_lat) < 1e-10:  # Solar declination near zero (equinox)
+                return 0.0
+                
+            tan_lat = -(math.cos(solar_lat_rad) * math.cos(hour_angle)) / math.sin(solar_lat_rad)
+            
+            # Clamp to valid latitude range
+            if abs(tan_lat) > math.tan(math.radians(85)):
+                return 85.0 if tan_lat > 0 else -85.0
+                
+            terminator_lat = math.degrees(math.atan(tan_lat))
+            
+            # Ensure the result is within valid latitude bounds
+            return max(-85, min(85, terminator_lat))
+            
+        except (ZeroDivisionError, ValueError):
+            # Fallback for edge cases
+            return 0.0
     
     def draw_grid_square(self, painter, grid_square, fill_color, border_color=None):
         if isinstance(fill_color, str):
