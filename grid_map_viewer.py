@@ -271,7 +271,6 @@ class GridMapWidget(QWidget):
         """
             Make sure to properly set the order of drawing elements (like Z-index).
         """
-        # Draw day/night overlay before grid
         self.draw_daylight_overlay(painter)
         
         if self.show_grid:
@@ -484,17 +483,11 @@ class GridMapWidget(QWidget):
             max_lat = square_base_lat + 1.0
             center_lat = square_base_lat + 0.5
         
-        # Adjust longitude for current view if requested
         if adjust_for_view:
-            # Get the center longitude of current view
             _, view_center_lon = self.screen_to_lat_lon_stable(self.width()//2, self.height()//2)
             
-            # Calculate the best offset mathematically for infinite panning
-            # Find the multiple of 360° that brings the grid square closest to the view center
             longitude_diff = view_center_lon - center_lon
             best_offset = round(longitude_diff / 360.0) * 360.0
-            
-            # Apply the offset to all longitude values
             min_lon += best_offset
             max_lon += best_offset
             center_lon += best_offset
@@ -563,24 +556,19 @@ class GridMapWidget(QWidget):
                     if not (-90 <= square_sw_lat < 90 and square_ne_lat >= south and square_sw_lat <= north):
                         continue
                     
-                    # Calculate grid square longitude bounds
                     square_sw_lon = grid_base_lon + lon_idx * unit_lon
                     square_ne_lon = square_sw_lon + unit_lon
                     
                     # Check if this grid square is visible in current view
-                    # Handle longitude wrapping properly
                     is_visible = False
                     
                     if west <= east:
-                        # Normal case: view doesn't cross 180°/-180° boundary
                         if square_ne_lon >= west and square_sw_lon <= east:
                             is_visible = True
                     else:
-                        # View crosses 180°/-180° boundary
-                        if (square_ne_lon >= west or square_sw_lon <= east):
+                        if square_ne_lon >= west or square_sw_lon <= east:
                             is_visible = True
                     
-                    # Also check if shifting by ±360° makes it visible (for seamless panning)
                     if not is_visible:
                         for offset in [360, -360]:
                             offset_sw = square_sw_lon + offset
@@ -612,10 +600,9 @@ class GridMapWidget(QWidget):
                             'color'         : color
                         })
 
-        # Only add the gray square grid if zoom level is 5 or higher
         if self.zoom >= 5:
-            add_grid_type(1.0, 2.0, 'square', False, 'gray')
-        
+            add_grid_type(1.0, 2.0, 'square', False, 'gray')        
+            
         if self.zoom >= 10:
             add_grid_type(1.0/24.0, 2.0/24.0, 'subsquare', True, 'red')
         elif self.zoom >= 6:
@@ -716,8 +703,6 @@ class GridMapWidget(QWidget):
                         painter.drawText(text_x, text_y, grid_label)                        
     
     def get_grid_label(self, lat, lon, grid_type):
-        # Normalize longitude to [-180, 180] range to prevent duplicate labels
-        # when grid squares have been offset by ±360° for seamless panning
         normalized_lon = self.normalize_longitude(lon)
         full_grid = self.lat_lon_to_maidenhead(lat, normalized_lon)
         
@@ -731,26 +716,21 @@ class GridMapWidget(QWidget):
         return full_grid
     
     def calculate_solar_position(self, utc_time=None):
-        """Calculate the subsolar point (where the sun is directly overhead)"""
+        """
+            Calculate the subsolar point (where the sun is directly overhead)
+        """
         if utc_time is None:
             utc_time = datetime.now(timezone.utc)
         
-        # Calculate days since J2000 epoch
         j2000 = datetime(2000, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         delta = utc_time - j2000
         days_since_j2000 = delta.total_seconds() / 86400.0
         
-        # Calculate solar declination (latitude where sun is overhead)
-        # This varies from +23.45° to -23.45° over the year
         solar_declination = 23.45 * math.sin(math.radians((360/365.25) * (days_since_j2000 - 81)))
         
-        # Calculate solar longitude (longitude where sun is overhead)
-        # The sun moves 15 degrees per hour (360° / 24 hours)
-        # At UTC noon, sun is at 0° longitude (Greenwich meridian)
         utc_hours = utc_time.hour + utc_time.minute / 60.0 + utc_time.second / 3600.0
         solar_longitude = -(utc_hours - 12.0) * 15.0  # Negative because sun moves westward
         
-        # Normalize longitude to [-180, 180]
         while solar_longitude > 180:
             solar_longitude -= 360
         while solar_longitude < -180:
@@ -759,56 +739,39 @@ class GridMapWidget(QWidget):
         return solar_declination, solar_longitude
     
     def draw_daylight_overlay(self, painter):
-        """Draw day/night overlay showing current daylight conditions"""
-        # Get current solar position
+        """
+            Draw day/night overlay showing current daylight conditions
+        """
         solar_lat, solar_lon = self.calculate_solar_position()
         
-        # Debug: Add some logging (only occasionally to avoid spam)
-        if hasattr(self, '_last_solar_log_time'):
-            if time.time() - self._last_solar_log_time > 5:  # Log every 5 seconds
-                log.error(f"Solar position: lat={solar_lat:.2f}, lon={solar_lon:.2f}")
-                self._last_solar_log_time = time.time()
-        else:
-            log.error(f"Solar position: lat={solar_lat:.2f}, lon={solar_lon:.2f}")
-            self._last_solar_log_time = time.time()
+        night_color = QColor(0, 0, 0, 50)
         
-        # Create semi-transparent overlay for night areas
-        night_color = QColor(0, 0, 0, 80)  # Semi-transparent black
-        
-        # Create smooth terminator path
         self.draw_smooth_night_overlay(painter, solar_lat, solar_lon, night_color)
     
     def draw_smooth_night_overlay(self, painter, solar_lat, solar_lon, night_color):
-        """Draw smooth night overlay using terminator curve calculation"""
-        # Calculate terminator curve points across longitude range
+        """
+            Draw smooth night overlay using terminator curve calculation
+        """        
         terminator_points = []
         
-        # Get visible longitude range for the current view
         _, left_lon = self.screen_to_lat_lon_stable(0, 0)
         _, right_lon = self.screen_to_lat_lon_stable(self.width(), self.height())
-        
-        # Determine longitude range, handling wraparound
+            
         if right_lon > left_lon:
-            lon_range = (left_lon - 10, right_lon + 10)  # Add buffer
+            lon_range = (left_lon - 10, right_lon + 10)  
         else:
-            # Crosses 180°/-180° boundary
-            lon_range = (left_lon - 10, right_lon + 370)  # Extended range
+            lon_range = (left_lon - 10, right_lon + 370)  
         
-        # Generate terminator curve points with high resolution
-        lon_step = 0.5  # Half-degree steps for smooth curve
+        lon_step = 0.5  
         current_lon = lon_range[0]
         
-        while current_lon <= lon_range[1]:
-            # Normalize longitude for solar calculation
+        while current_lon <= lon_range[1]:        
             norm_lon = self.normalize_longitude(current_lon)
             
-            # Calculate terminator latitude at this longitude
             terminator_lat = self.calculate_terminator_latitude(norm_lon, solar_lat, solar_lon)
             
-            # Convert to screen coordinates
             screen_x, screen_y = self.lat_lon_to_screen_stable(terminator_lat, current_lon)
             
-            # Only include points visible on screen (with buffer)
             if -100 <= screen_x <= self.width() + 100:
                 terminator_points.append((screen_x, screen_y, current_lon, terminator_lat))
             
@@ -817,65 +780,66 @@ class GridMapWidget(QWidget):
         if len(terminator_points) < 3:
             return
         
-        # Create smooth terminator path
         terminator_path = QPainterPath()
         terminator_path.moveTo(terminator_points[0][0], terminator_points[0][1])
         
         for x, y, _, _ in terminator_points[1:]:
             terminator_path.lineTo(x, y)
         
-        # Determine which side of terminator is night using solar position
-        # The night side is always away from the sun (opposite the solar longitude)
-        # If solar longitude is positive, night extends toward negative longitudes
-        # This is independent of current map view
+        """
+            Determine which side of terminator is night using solar position
+            The night side is always away from the sun (opposite the solar longitude)
+            If solar longitude is positive, night extends toward negative longitudes
+            This is independent of current map view
+        """
         solar_norm_lon = self.normalize_longitude(solar_lon)
         
-        # Night area extends in the direction opposite to the sun
-        # If sun is in eastern hemisphere (lon > 0), night extends westward (left)
-        # If sun is in western hemisphere (lon < 0), night extends eastward (right)
+        """
+            Night area extends in the direction opposite to the sun
+            If sun is in eastern hemisphere (lon > 0), night extends westward (left)
+            If sun is in western hemisphere (lon < 0), night extends eastward (right)
+        """
         night_extends_left = solar_norm_lon > 0
         
-        # Create night area polygon
         if len(terminator_points) > 0:
             self.fill_night_area(painter, terminator_path, night_extends_left, night_color)
         
-        # Draw terminator line for reference
         self.draw_terminator_line(painter, solar_lat, solar_lon)
     
-    def fill_night_area(self, painter, terminator_path, night_extends_left, night_color):
+    def fill_night_area(
+            self,
+            painter,
+            terminator_path,
+            night_extends_left,
+            night_color
+        ):
         screen_w, screen_h = self.width(), self.height()
-        margin = 200                     # hors-écran pour être sûr
+        margin = 200
 
-        # 1) Rectangle couvrant tout l’écran (un tout petit peu plus grand)
         full_rect = QPainterPath()
-        full_rect.addRect(-margin, -margin,
-                        screen_w + 2*margin, screen_h + 2*margin)
+        full_rect.addRect(-margin, -margin, screen_w + 2*margin, screen_h + 2*margin)
 
-        # 2) Construire la zone JOUR (côté où sin(elev) > 0)
         day_path = QPainterPath(terminator_path)
 
-        # Close the day area path properly based on solar position
         if night_extends_left:
-            # Night extends leftward, so day area closes through bottom of screen
             day_path.lineTo(screen_w + margin, screen_h + margin)
             day_path.lineTo(-margin, screen_h + margin)
         else:
-            # Night extends rightward, so day area closes through top of screen
             day_path.lineTo(screen_w + margin, -margin)
             day_path.lineTo(-margin, -margin)
+        
         day_path.closeSubpath()
 
-        # 3) Nuit = rectangle – jour
         night_path = full_rect.subtracted(day_path)
 
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         painter.fillPath(night_path, QBrush(night_color))
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
 
-    
-    
     def get_visible_longitude_range(self, left_lon, right_lon):
-        """Calculate the visible longitude range, handling 180°/-180° wrapping"""
+        """
+            Calculate the visible longitude range, handling 180°/-180° wrapping
+        """
         if right_lon > left_lon:
             # Normal case: doesn't cross the date line
             return {'min': left_lon, 'max': right_lon, 'wraps': False}
@@ -884,19 +848,19 @@ class GridMapWidget(QWidget):
             return {'min': left_lon, 'max': right_lon + 360, 'wraps': True}
     
     def generate_longitude_sequence(self, min_lon, max_lon, step):
-        """Generate longitude sequence that handles wrapping"""
+        """
+            Generate longitude sequence that handles wrapping
+        """
         longitudes = []
         current = min_lon
         
         while current <= max_lon:
-            # Keep original longitude for screen conversion
             longitudes.append(current)
             current += step
         
         return longitudes
     
     def normalize_longitude(self, lon):
-        """Normalize longitude to [-180, 180] range"""
         while lon > 180:
             lon -= 360
         while lon < -180:
@@ -904,26 +868,21 @@ class GridMapWidget(QWidget):
         return lon
     
     def draw_terminator_line(self, painter, solar_lat, solar_lon):
-        """Draw the solar terminator line only in visible area"""
-        painter.setPen(QPen(QColor(255, 255, 0, 30), 50))  
+        painter.setPen(QPen(QColor(255, 255, 0, 0), 0))  
         painter.setBrush(QBrush(Qt.BrushStyle.NoBrush))
         
-        # Get the visible longitude range
         _, left_lon = self.screen_to_lat_lon_stable(0, 0)
         _, right_lon = self.screen_to_lat_lon_stable(self.width(), self.height())
         
         # Handle longitude wrapping
         lon_range = self.get_visible_longitude_range(left_lon, right_lon)
         
-        # Generate terminator points only in visible range
         terminator_points = []
-        lon_step = 2.0  # Every 2 degrees for line drawing
+        # Every 2 degrees for line drawing
+        lon_step = 2.0  
         
         for lon in self.generate_longitude_sequence(lon_range['min'], lon_range['max'], lon_step):
-            # Normalize longitude for solar calculation
             normalized_lon = self.normalize_longitude(lon)
-            
-            # Calculate terminator latitude
             terminator_lat = self.calculate_terminator_latitude(normalized_lon, solar_lat, solar_lon)
             
             # Convert to screen coordinates
@@ -944,21 +903,18 @@ class GridMapWidget(QWidget):
             painter.drawPath(terminator_path)
     
     def calculate_terminator_latitude(self, longitude, solar_lat, solar_lon):
-        """Calculate the latitude of the solar terminator at a given longitude"""
-        # Hour angle from the subsolar longitude
+        """
+            Calculate the latitude of the solar terminator at a given longitude
+        """
         hour_angle = math.radians(longitude - solar_lon)
         solar_lat_rad = math.radians(solar_lat)
         
-        # Handle special cases
-        if abs(hour_angle) < 1e-10:  # At subsolar longitude
+        if abs(hour_angle) < 1e-10: # At subsolar longitude
             return solar_lat
         if abs(abs(hour_angle) - math.pi/2) < 1e-10:  # 90 degrees from subsolar
             return 0.0
         if abs(abs(hour_angle) - math.pi) < 1e-10:  # Opposite side of earth
             return -solar_lat
-        
-        # For solar elevation = 0: sin(elevation) = sin(lat)*sin(solar_lat) + cos(lat)*cos(solar_lat)*cos(hour_angle) = 0
-        # Solving for lat: tan(lat) = -cos(solar_lat)*cos(hour_angle) / sin(solar_lat)
         
         try:
             if abs(solar_lat) < 1e-10:  # Solar declination near zero (equinox)
@@ -977,7 +933,6 @@ class GridMapWidget(QWidget):
             return max(-89.9, min(89.9, terminator_lat))
             
         except (ZeroDivisionError, ValueError):
-            # Fallback for edge cases
             return 0.0
     
     def draw_grid_square(self, painter, grid_square, fill_color, border_color=None):
@@ -994,14 +949,12 @@ class GridMapWidget(QWidget):
         min_lon = grid_info['min_lon']
         max_lon = grid_info['max_lon']
         
-        # Use coordinates adjusted for current view - no complex offset logic needed
         try:
             top_left_x, top_left_y          = self.lat_lon_to_screen_stable(max_lat, min_lon)
             top_right_x, top_right_y        = self.lat_lon_to_screen_stable(max_lat, max_lon)
             bottom_left_x, bottom_left_y    = self.lat_lon_to_screen_stable(min_lat, min_lon)
             bottom_right_x, bottom_right_y  = self.lat_lon_to_screen_stable(min_lat, max_lon)
             
-            # Check if any part of the square is visible on screen
             if (max(top_left_x, top_right_x, bottom_left_x, bottom_right_x) >= -50 and
                 min(top_left_x, top_right_x, bottom_left_x, bottom_right_x) <= self.width() + 50 and
                 max(top_left_y, top_right_y, bottom_left_y, bottom_right_y) >= -50 and
@@ -1143,7 +1096,7 @@ class GridMapWidget(QWidget):
             for existing_group in self.ellipse_buffer:
                 existing_grid_set = set(grid_data['grid'] for grid_data in existing_group)
                 if new_grid_set == existing_grid_set:
-                    return  # Don't add duplicate ellipse
+                    return 
             
             self.ellipse_buffer.append(unique_grids)
             
@@ -1224,10 +1177,9 @@ class GridMapWidget(QWidget):
             
         ellipse_path = self.create_ellipse_path(hull_points)
         
-        # border_color = darken_color(QColor(color), 0.1)
         border_color = darken_color(QColor(color), 0.2)
         border_color.setAlpha(30)
-        # fill_color = QColor(color)    
+
         fill_color = QColor(color)
         fill_color.setAlpha(40)
         
@@ -1321,7 +1273,7 @@ class GridMapWidget(QWidget):
         base_semi_major = max(max_major_positive, max_major_negative, 15)
         base_semi_minor = max(max_minor_positive, max_minor_negative, 15)
                 
-        padding_factor = 1  # Expands ellipse beyond the minimum encompassing size
+        padding_factor = 1 # Expands ellipse beyond the minimum encompassing size
         semi_major = base_semi_major * padding_factor
         semi_minor = base_semi_minor * padding_factor
         
