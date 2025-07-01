@@ -824,28 +824,25 @@ class GridMapWidget(QWidget):
         for x, y, _, _ in terminator_points[1:]:
             terminator_path.lineTo(x, y)
         
-        # Determine which side of terminator is night
-        # Test center of screen
-        center_lat, center_lon = self.screen_to_lat_lon_stable(self.width()//2, self.height()//2)
-        center_norm_lon = self.normalize_longitude(center_lon)
+        # Determine which side of terminator is night using solar position
+        # The night side is always away from the sun (opposite the solar longitude)
+        # If solar longitude is positive, night extends toward negative longitudes
+        # This is independent of current map view
+        solar_norm_lon = self.normalize_longitude(solar_lon)
         
-        hour_angle = math.radians(center_norm_lon - solar_lon)
-        solar_lat_rad = math.radians(solar_lat)
-        center_lat_rad = math.radians(center_lat)
-        
-        sin_elevation = (math.sin(center_lat_rad) * math.sin(solar_lat_rad) + 
-                        math.cos(center_lat_rad) * math.cos(solar_lat_rad) * math.cos(hour_angle))
-        
-        is_center_night = sin_elevation < 0
+        # Night area extends in the direction opposite to the sun
+        # If sun is in eastern hemisphere (lon > 0), night extends westward (left)
+        # If sun is in western hemisphere (lon < 0), night extends eastward (right)
+        night_extends_left = solar_norm_lon > 0
         
         # Create night area polygon
-        if is_center_night or len(terminator_points) > 0:
-            self.fill_night_area(painter, terminator_path, is_center_night, night_color)
+        if len(terminator_points) > 0:
+            self.fill_night_area(painter, terminator_path, night_extends_left, night_color)
         
         # Draw terminator line for reference
         self.draw_terminator_line(painter, solar_lat, solar_lon)
     
-    def fill_night_area(self, painter, terminator_path,is_center_night, night_color):
+    def fill_night_area(self, painter, terminator_path, night_extends_left, night_color):
         screen_w, screen_h = self.width(), self.height()
         margin = 200                     # hors-écran pour être sûr
 
@@ -857,13 +854,13 @@ class GridMapWidget(QWidget):
         # 2) Construire la zone JOUR (côté où sin(elev) > 0)
         day_path = QPainterPath(terminator_path)
 
-        if is_center_night:
-            # le terminator_path borde le JOUR, il faut le fermer
-            # côté opposé à center -> tourne par le bas
+        # Close the day area path properly based on solar position
+        if night_extends_left:
+            # Night extends leftward, so day area closes through bottom of screen
             day_path.lineTo(screen_w + margin, screen_h + margin)
-            day_path.lineTo(-margin,  screen_h + margin)
+            day_path.lineTo(-margin, screen_h + margin)
         else:
-            # centre dans le jour : fermer par le haut
+            # Night extends rightward, so day area closes through top of screen
             day_path.lineTo(screen_w + margin, -margin)
             day_path.lineTo(-margin, -margin)
         day_path.closeSubpath()
@@ -908,7 +905,7 @@ class GridMapWidget(QWidget):
     
     def draw_terminator_line(self, painter, solar_lat, solar_lon):
         """Draw the solar terminator line only in visible area"""
-        painter.setPen(QPen(QColor(255, 255, 0, 120), 2))  # Yellow line
+        painter.setPen(QPen(QColor(255, 255, 0, 30), 50))  
         painter.setBrush(QBrush(Qt.BrushStyle.NoBrush))
         
         # Get the visible longitude range
