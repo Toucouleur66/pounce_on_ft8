@@ -779,43 +779,102 @@ class GridMapWidget(QWidget):
         self.draw_smooth_night_overlay(painter, solar_lat, solar_lon, night_color)
     
     def draw_smooth_night_overlay(self, painter, solar_lat, solar_lon, night_color):
-        """Draw stable night overlay that never changes during panning"""
-        # Simple grid-based approach: test every area of the screen
-        grid_size = 20  # Test every 20 pixels for good coverage
+        """Draw smooth night overlay using terminator curve calculation"""
+        # Calculate terminator curve points across longitude range
+        terminator_points = []
         
-        night_areas = []
+        # Get visible longitude range for the current view
+        _, left_lon = self.screen_to_lat_lon_stable(0, 0)
+        _, right_lon = self.screen_to_lat_lon_stable(self.width(), self.height())
         
-        # Test the entire screen in a grid pattern
-        for screen_y in range(0, self.height() + grid_size, grid_size):
-            for screen_x in range(0, self.width() + grid_size, grid_size):
-                # Get the lat/lon for this screen position
-                lat, lon = self.screen_to_lat_lon_stable(screen_x, screen_y)
-                
-                # Normalize longitude for consistent solar calculation
-                normalized_lon = self.normalize_longitude(lon)
-                
-                # Calculate solar elevation at this position
-                hour_angle = math.radians(normalized_lon - solar_lon)
-                solar_lat_rad = math.radians(solar_lat)
-                lat_rad = math.radians(lat)
-                
-                sin_elevation = (math.sin(lat_rad) * math.sin(solar_lat_rad) + 
-                               math.cos(lat_rad) * math.cos(solar_lat_rad) * math.cos(hour_angle))
-                
-                # If this position is in night, add it to night areas
-                if sin_elevation < 0:
-                    night_areas.append((screen_x, screen_y))
+        # Determine longitude range, handling wraparound
+        if right_lon > left_lon:
+            lon_range = (left_lon - 10, right_lon + 10)  # Add buffer
+        else:
+            # Crosses 180°/-180° boundary
+            lon_range = (left_lon - 10, right_lon + 370)  # Extended range
         
-        # Draw night areas as rectangles
-        if night_areas:
-            painter.setBrush(QBrush(night_color))
-            painter.setPen(QPen(Qt.PenStyle.NoPen))
+        # Generate terminator curve points with high resolution
+        lon_step = 0.5  # Half-degree steps for smooth curve
+        current_lon = lon_range[0]
+        
+        while current_lon <= lon_range[1]:
+            # Normalize longitude for solar calculation
+            norm_lon = self.normalize_longitude(current_lon)
             
-            for x, y in night_areas:
-                painter.drawRect(x, y, grid_size, grid_size)
+            # Calculate terminator latitude at this longitude
+            terminator_lat = self.calculate_terminator_latitude(norm_lon, solar_lat, solar_lon)
+            
+            # Convert to screen coordinates
+            screen_x, screen_y = self.lat_lon_to_screen_stable(terminator_lat, current_lon)
+            
+            # Only include points visible on screen (with buffer)
+            if -100 <= screen_x <= self.width() + 100:
+                terminator_points.append((screen_x, screen_y, current_lon, terminator_lat))
+            
+            current_lon += lon_step
+        
+        if len(terminator_points) < 3:
+            return
+        
+        # Create smooth terminator path
+        terminator_path = QPainterPath()
+        terminator_path.moveTo(terminator_points[0][0], terminator_points[0][1])
+        
+        for x, y, _, _ in terminator_points[1:]:
+            terminator_path.lineTo(x, y)
+        
+        # Determine which side of terminator is night
+        # Test center of screen
+        center_lat, center_lon = self.screen_to_lat_lon_stable(self.width()//2, self.height()//2)
+        center_norm_lon = self.normalize_longitude(center_lon)
+        
+        hour_angle = math.radians(center_norm_lon - solar_lon)
+        solar_lat_rad = math.radians(solar_lat)
+        center_lat_rad = math.radians(center_lat)
+        
+        sin_elevation = (math.sin(center_lat_rad) * math.sin(solar_lat_rad) + 
+                        math.cos(center_lat_rad) * math.cos(solar_lat_rad) * math.cos(hour_angle))
+        
+        is_center_night = sin_elevation < 0
+        
+        # Create night area polygon
+        if is_center_night or len(terminator_points) > 0:
+            self.fill_night_area(painter, terminator_path, is_center_night, night_color)
         
         # Draw terminator line for reference
         self.draw_terminator_line(painter, solar_lat, solar_lon)
+    
+    def fill_night_area(self, painter, terminator_path,is_center_night, night_color):
+        screen_w, screen_h = self.width(), self.height()
+        margin = 200                     # hors-écran pour être sûr
+
+        # 1) Rectangle couvrant tout l’écran (un tout petit peu plus grand)
+        full_rect = QPainterPath()
+        full_rect.addRect(-margin, -margin,
+                        screen_w + 2*margin, screen_h + 2*margin)
+
+        # 2) Construire la zone JOUR (côté où sin(elev) > 0)
+        day_path = QPainterPath(terminator_path)
+
+        if is_center_night:
+            # le terminator_path borde le JOUR, il faut le fermer
+            # côté opposé à center -> tourne par le bas
+            day_path.lineTo(screen_w + margin, screen_h + margin)
+            day_path.lineTo(-margin,  screen_h + margin)
+        else:
+            # centre dans le jour : fermer par le haut
+            day_path.lineTo(screen_w + margin, -margin)
+            day_path.lineTo(-margin, -margin)
+        day_path.closeSubpath()
+
+        # 3) Nuit = rectangle – jour
+        night_path = full_rect.subtracted(day_path)
+
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        painter.fillPath(night_path, QBrush(night_color))
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
+
     
     
     def get_visible_longitude_range(self, left_lon, right_lon):
@@ -910,14 +969,15 @@ class GridMapWidget(QWidget):
                 
             tan_lat = -(math.cos(solar_lat_rad) * math.cos(hour_angle)) / math.sin(solar_lat_rad)
             
-            # Clamp to valid latitude range
-            if abs(tan_lat) > math.tan(math.radians(85)):
-                return 85.0 if tan_lat > 0 else -85.0
+            # Handle extreme values near poles
+            if abs(tan_lat) > math.tan(math.radians(89.9)):
+                # Near polar regions - return extreme latitude
+                return 89.9 if tan_lat > 0 else -89.9
                 
             terminator_lat = math.degrees(math.atan(tan_lat))
             
-            # Ensure the result is within valid latitude bounds
-            return max(-85, min(85, terminator_lat))
+            # Clamp to reasonable bounds but allow closer to poles
+            return max(-89.9, min(89.9, terminator_lat))
             
         except (ZeroDivisionError, ValueError):
             # Fallback for edge cases
