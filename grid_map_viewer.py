@@ -533,9 +533,6 @@ class GridMapWidget(QWidget):
             
             buffer = 1 if self.zoom <= 3 else 2
             
-            extended_west = west - 360
-            extended_east = east + 360
-            
             for lon_idx in range(start_lon_idx - buffer, end_lon_idx + buffer):
                 for lat_idx in range(start_lat_idx - buffer, end_lat_idx + buffer):
                     square_sw_lat = grid_base_lat + lat_idx * unit_lat
@@ -544,26 +541,54 @@ class GridMapWidget(QWidget):
                     if not (-90 <= square_sw_lat < 90 and square_ne_lat >= south and square_sw_lat <= north):
                         continue
                     
-                    offsets = [0, 360, -360] if self.zoom >= 2 else [0]
+                    # Calculate grid square longitude bounds
+                    square_sw_lon = grid_base_lon + lon_idx * unit_lon
+                    square_ne_lon = square_sw_lon + unit_lon
                     
-                    for offset in offsets:
-                        square_sw_lon = grid_base_lon + lon_idx * unit_lon + offset
-                        square_ne_lon = square_sw_lon + unit_lon
-                        
-                        if (square_ne_lon >= west and square_sw_lon <= east) or \
-                           (square_ne_lon >= extended_west and square_sw_lon <= extended_east):
+                    # Check if this grid square is visible in current view
+                    # Handle longitude wrapping properly
+                    is_visible = False
+                    
+                    if west <= east:
+                        # Normal case: view doesn't cross 180°/-180° boundary
+                        if square_ne_lon >= west and square_sw_lon <= east:
+                            is_visible = True
+                    else:
+                        # View crosses 180°/-180° boundary
+                        if (square_ne_lon >= west or square_sw_lon <= east):
+                            is_visible = True
+                    
+                    # Also check if shifting by ±360° makes it visible (for seamless panning)
+                    if not is_visible:
+                        for offset in [360, -360]:
+                            offset_sw = square_sw_lon + offset
+                            offset_ne = square_ne_lon + offset
                             
-                            grid_squares.append({
-                                'sw_lat'        : square_sw_lat,
-                                'sw_lon'        : square_sw_lon,
-                                'ne_lat'        : square_ne_lat,
-                                'ne_lon'        : square_ne_lon,
-                                'type'          : grid_type,
-                                'unit_lat'      : unit_lat,
-                                'unit_lon'      : unit_lon,
-                                'show_labels'   : show_labels,
-                                'color'         : color
-                            })
+                            if west <= east:
+                                if offset_ne >= west and offset_sw <= east:
+                                    square_sw_lon = offset_sw
+                                    square_ne_lon = offset_ne
+                                    is_visible = True
+                                    break
+                            else:
+                                if (offset_ne >= west or offset_sw <= east):
+                                    square_sw_lon = offset_sw
+                                    square_ne_lon = offset_ne
+                                    is_visible = True
+                                    break
+                    
+                    if is_visible:
+                        grid_squares.append({
+                            'sw_lat'        : square_sw_lat,
+                            'sw_lon'        : square_sw_lon,
+                            'ne_lat'        : square_ne_lat,
+                            'ne_lon'        : square_ne_lon,
+                            'type'          : grid_type,
+                            'unit_lat'      : unit_lat,
+                            'unit_lon'      : unit_lon,
+                            'show_labels'   : show_labels,
+                            'color'         : color
+                        })
 
         # Only add the gray square grid if zoom level is 5 or higher
         if self.zoom >= 5:
@@ -601,6 +626,9 @@ class GridMapWidget(QWidget):
         # print(self.zoom)
         painter.setPen(self.grid_color)
         painter.setFont(font)
+        
+        # Track drawn labels to prevent duplicates
+        drawn_labels = set()
         
         for grid in grid_squares:
             sw_lat      = grid['sw_lat']
@@ -644,9 +672,14 @@ class GridMapWidget(QWidget):
                     
                     grid_label = self.get_grid_label(center_lat, center_lon, grid_type)
                     
-                    if (grid_label and 
+                    # Create a unique key for this label position to prevent duplicates
+                    label_key = f"{grid_label}_{grid_type}"
+                    
+                    if (grid_label and label_key not in drawn_labels and
                         10 <= screen_center_x <= self.width() - 10 and 
                         10 <= screen_center_y <= self.height() - 10):
+                        
+                        drawn_labels.add(label_key)
                         
                         painter.setPen(self.grid_text_color)
                         
@@ -661,7 +694,10 @@ class GridMapWidget(QWidget):
                         painter.drawText(text_x, text_y, grid_label)                        
     
     def get_grid_label(self, lat, lon, grid_type):
-        full_grid = self.lat_lon_to_maidenhead(lat, lon)
+        # Normalize longitude to [-180, 180] range to prevent duplicate labels
+        # when grid squares have been offset by ±360° for seamless panning
+        normalized_lon = self.normalize_longitude(lon)
+        full_grid = self.lat_lon_to_maidenhead(lat, normalized_lon)
         
         if grid_type == 'field':
             return full_grid[:2]
@@ -721,132 +757,102 @@ class GridMapWidget(QWidget):
         self.draw_smooth_night_overlay(painter, solar_lat, solar_lon, night_color)
     
     def draw_smooth_night_overlay(self, painter, solar_lat, solar_lon, night_color):
-        """Draw smooth night overlay using precise terminator curve"""
-        # Calculate extended longitude range for smooth coverage
-        center_lat, center_lon = self.screen_to_lat_lon_stable(self.width()//2, self.height()//2)
+        """Draw stable night overlay that never changes during panning"""
+        # Simple grid-based approach: test every area of the screen
+        grid_size = 20  # Test every 20 pixels for good coverage
         
-        # Calculate terminator points across a wide longitude range
-        terminator_points = []
-        lon_step = 1.0  # Every 1 degree for smooth curve
+        night_areas = []
         
-        # Use wider longitude range to ensure complete coverage
-        for lon in range(-180, 181, int(lon_step)):
-            # Calculate terminator latitude
-            terminator_lat = self.calculate_terminator_latitude(lon, solar_lat, solar_lon)
-            
-            # Convert to screen coordinates
-            screen_x, screen_y = self.lat_lon_to_screen_stable(terminator_lat, lon)
-            
-            # Only include points that are visible or near the screen
-            if -200 <= screen_x <= self.width() + 200:
-                terminator_points.append((screen_x, screen_y, lon, terminator_lat))
-        
-        if len(terminator_points) < 2:
-            return
-        
-        # Create night area by filling the side of the terminator that's in shadow
-        night_path = QPainterPath()
-        
-        # Start the path with the terminator curve
-        night_path.moveTo(terminator_points[0][0], terminator_points[0][1])
-        for x, y, _, _ in terminator_points[1:]:
-            night_path.lineTo(x, y)
-        
-        # Determine which side of the terminator should be filled
-        # Test the center of the screen to see if it's in night
-        hour_angle = math.radians(center_lon - solar_lon)
-        solar_lat_rad = math.radians(solar_lat)
-        center_lat_rad = math.radians(center_lat)
-        
-        sin_elevation = (math.sin(center_lat_rad) * math.sin(solar_lat_rad) + 
-                        math.cos(center_lat_rad) * math.cos(solar_lat_rad) * math.cos(hour_angle))
-        
-        is_center_night = sin_elevation < 0
-        
-        # Always create the night area if we have a valid terminator
-        # Determine which side of the terminator is night by testing multiple points
-        test_points = []
-        
-        # Sample points along both sides of the terminator to determine night side
-        for i in range(0, len(terminator_points), max(1, len(terminator_points)//10)):
-            term_x, term_y = terminator_points[i][0], terminator_points[i][1]
-            
-            # Test points perpendicular to the terminator (above and below)
-            offset = 50
-            test_points.extend([
-                (term_x, term_y - offset),  # Above terminator
-                (term_x, term_y + offset),  # Below terminator
-            ])
-        
-        # Also test screen corners and center
-        test_points.extend([
-            (self.width()//2, self.height()//2),  # Center
-            (self.width()//4, self.height()//4),  # Various points
-            (3*self.width()//4, self.height()//4),
-            (self.width()//4, 3*self.height()//4),
-            (3*self.width()//4, 3*self.height()//4),
-        ])
-        
-        night_points = []
-        for test_x, test_y in test_points:
-            # Skip points outside screen bounds
-            if not (0 <= test_x <= self.width() and 0 <= test_y <= self.height()):
-                continue
+        # Test the entire screen in a grid pattern
+        for screen_y in range(0, self.height() + grid_size, grid_size):
+            for screen_x in range(0, self.width() + grid_size, grid_size):
+                # Get the lat/lon for this screen position
+                lat, lon = self.screen_to_lat_lon_stable(screen_x, screen_y)
                 
-            test_lat, test_lon = self.screen_to_lat_lon_stable(test_x, test_y)
-            hour_angle = math.radians(test_lon - solar_lon)
-            test_lat_rad = math.radians(test_lat)
-            
-            sin_elev = (math.sin(test_lat_rad) * math.sin(solar_lat_rad) + 
-                       math.cos(test_lat_rad) * math.cos(solar_lat_rad) * math.cos(hour_angle))
-            
-            if sin_elev < 0:  # Night
-                night_points.append((test_x, test_y))
+                # Normalize longitude for consistent solar calculation
+                normalized_lon = self.normalize_longitude(lon)
+                
+                # Calculate solar elevation at this position
+                hour_angle = math.radians(normalized_lon - solar_lon)
+                solar_lat_rad = math.radians(solar_lat)
+                lat_rad = math.radians(lat)
+                
+                sin_elevation = (math.sin(lat_rad) * math.sin(solar_lat_rad) + 
+                               math.cos(lat_rad) * math.cos(solar_lat_rad) * math.cos(hour_angle))
+                
+                # If this position is in night, add it to night areas
+                if sin_elevation < 0:
+                    night_areas.append((screen_x, screen_y))
         
-        # If we have night points, create a fill area
-        if night_points:
-            # Calculate average position of night points to determine fill direction
-            avg_night_y = sum(y for _, y in night_points) / len(night_points)
+        # Draw night areas as rectangles
+        if night_areas:
+            painter.setBrush(QBrush(night_color))
+            painter.setPen(QPen(Qt.PenStyle.NoPen))
             
-            # Get screen boundaries
-            screen_margin = 200
-            
-            # Complete the path by connecting to screen edges
-            last_y = terminator_points[-1][1]
-            first_y = terminator_points[0][1]
-            
-            # Determine which edges to connect based on where night points are
-            if avg_night_y < self.height() / 2:  # Night is in upper area
-                night_path.lineTo(self.width() + screen_margin, last_y)
-                night_path.lineTo(self.width() + screen_margin, -screen_margin)
-                night_path.lineTo(-screen_margin, -screen_margin)
-                night_path.lineTo(-screen_margin, first_y)
-            else:  # Night is in lower area
-                night_path.lineTo(self.width() + screen_margin, last_y)
-                night_path.lineTo(self.width() + screen_margin, self.height() + screen_margin)
-                night_path.lineTo(-screen_margin, self.height() + screen_margin)
-                night_path.lineTo(-screen_margin, first_y)
-            
-            night_path.closeSubpath()
-            painter.fillPath(night_path, QBrush(night_color))
+            for x, y in night_areas:
+                painter.drawRect(x, y, grid_size, grid_size)
         
         # Draw terminator line for reference
         self.draw_terminator_line(painter, solar_lat, solar_lon)
     
+    
+    def get_visible_longitude_range(self, left_lon, right_lon):
+        """Calculate the visible longitude range, handling 180°/-180° wrapping"""
+        if right_lon > left_lon:
+            # Normal case: doesn't cross the date line
+            return {'min': left_lon, 'max': right_lon, 'wraps': False}
+        else:
+            # Crosses the date line: left_lon > right_lon
+            return {'min': left_lon, 'max': right_lon + 360, 'wraps': True}
+    
+    def generate_longitude_sequence(self, min_lon, max_lon, step):
+        """Generate longitude sequence that handles wrapping"""
+        longitudes = []
+        current = min_lon
+        
+        while current <= max_lon:
+            # Keep original longitude for screen conversion
+            longitudes.append(current)
+            current += step
+        
+        return longitudes
+    
+    def normalize_longitude(self, lon):
+        """Normalize longitude to [-180, 180] range"""
+        while lon > 180:
+            lon -= 360
+        while lon < -180:
+            lon += 360
+        return lon
+    
     def draw_terminator_line(self, painter, solar_lat, solar_lon):
-        """Draw the solar terminator line"""
+        """Draw the solar terminator line only in visible area"""
         painter.setPen(QPen(QColor(255, 255, 0, 120), 2))  # Yellow line
         painter.setBrush(QBrush(Qt.BrushStyle.NoBrush))
         
-        # Calculate terminator points globally, then convert to screen
-        terminator_points = []
+        # Get the visible longitude range
+        _, left_lon = self.screen_to_lat_lon_stable(0, 0)
+        _, right_lon = self.screen_to_lat_lon_stable(self.width(), self.height())
         
-        for lon in range(-180, 181, 5):  # Every 5 degrees globally
-            terminator_lat = self.calculate_terminator_latitude(lon, solar_lat, solar_lon)
+        # Handle longitude wrapping
+        lon_range = self.get_visible_longitude_range(left_lon, right_lon)
+        
+        # Generate terminator points only in visible range
+        terminator_points = []
+        lon_step = 2.0  # Every 2 degrees for line drawing
+        
+        for lon in self.generate_longitude_sequence(lon_range['min'], lon_range['max'], lon_step):
+            # Normalize longitude for solar calculation
+            normalized_lon = self.normalize_longitude(lon)
+            
+            # Calculate terminator latitude
+            terminator_lat = self.calculate_terminator_latitude(normalized_lon, solar_lat, solar_lon)
+            
+            # Convert to screen coordinates
             screen_x, screen_y = self.lat_lon_to_screen_stable(terminator_lat, lon)
             
-            # Check if point is visible on screen (with buffer)
-            if -100 <= screen_x <= self.width() + 100 and -100 <= screen_y <= self.height() + 100:
+            # Check if point is visible on screen
+            if -50 <= screen_x <= self.width() + 50 and -50 <= screen_y <= self.height() + 50:
                 terminator_points.append((screen_x, screen_y))
         
         # Draw connected line segments
@@ -909,39 +915,35 @@ class GridMapWidget(QWidget):
         min_lon = grid_info['min_lon']
         max_lon = grid_info['max_lon']
         
-        offsets = [0, 360, -360] if self.zoom >= 2 else [0]
-        
-        for offset in offsets:
-            offset_min_lon = min_lon + offset
-            offset_max_lon = max_lon + offset
+        # Use the coordinates as provided - no multiple offset approach
+        try:
+            top_left_x, top_left_y          = self.lat_lon_to_screen_stable(max_lat, min_lon)
+            top_right_x, top_right_y        = self.lat_lon_to_screen_stable(max_lat, max_lon)
+            bottom_left_x, bottom_left_y    = self.lat_lon_to_screen_stable(min_lat, min_lon)
+            bottom_right_x, bottom_right_y  = self.lat_lon_to_screen_stable(min_lat, max_lon)
             
-            try:
-                top_left_x, top_left_y          = self.lat_lon_to_screen_stable(max_lat, offset_min_lon)
-                top_right_x, top_right_y        = self.lat_lon_to_screen_stable(max_lat, offset_max_lon)
-                bottom_left_x, bottom_left_y    = self.lat_lon_to_screen_stable(min_lat, offset_min_lon)
-                bottom_right_x, bottom_right_y  = self.lat_lon_to_screen_stable(min_lat, offset_max_lon)
+            # Check if any part of the square is visible on screen
+            if (max(top_left_x, top_right_x, bottom_left_x, bottom_right_x) >= -50 and
+                min(top_left_x, top_right_x, bottom_left_x, bottom_right_x) <= self.width() + 50 and
+                max(top_left_y, top_right_y, bottom_left_y, bottom_right_y) >= -50 and
+                min(top_left_y, top_right_y, bottom_left_y, bottom_right_y) <= self.height() + 50):
                 
-                if (max(top_left_x, top_right_x, bottom_left_x, bottom_right_x) >= -50 and
-                    min(top_left_x, top_right_x, bottom_left_x, bottom_right_x) <= self.width() + 50 and
-                    max(top_left_y, top_right_y, bottom_left_y, bottom_right_y) >= -50 and
-                    min(top_left_y, top_right_y, bottom_left_y, bottom_right_y) <= self.height() + 50):
+                rect_x      = int(min(top_left_x, top_right_x, bottom_left_x, bottom_right_x))
+                rect_y      = int(min(top_left_y, top_right_y, bottom_left_y, bottom_right_y))
+                rect_width  = int(max(top_left_x, top_right_x, bottom_left_x, bottom_right_x) - rect_x) + 1
+                rect_height = int(max(top_left_y, top_right_y, bottom_left_y, bottom_right_y) - rect_y) + 1
+                
+                brush = QBrush(fill_color)
+                painter.fillRect(rect_x, rect_y, rect_width, rect_height, brush)
+                
+                if border_color:
+                    pen = QPen(border_color)
+                    pen.setWidth(1)
+                    painter.setPen(pen)
+                    painter.drawRect(rect_x, rect_y, rect_width - 1, rect_height - 1)
                     
-                    rect_x      = int(min(top_left_x, top_right_x, bottom_left_x, bottom_right_x))
-                    rect_y      = int(min(top_left_y, top_right_y, bottom_left_y, bottom_right_y))
-                    rect_width  = int(max(top_left_x, top_right_x, bottom_left_x, bottom_right_x) - rect_x) + 1
-                    rect_height = int(max(top_left_y, top_right_y, bottom_left_y, bottom_right_y) - rect_y) + 1
-                    
-                    brush = QBrush(fill_color)
-                    painter.fillRect(rect_x, rect_y, rect_width, rect_height, brush)
-                    
-                    if border_color:
-                        pen = QPen(border_color)
-                        pen.setWidth(1)
-                        painter.setPen(pen)
-                        painter.drawRect(rect_x, rect_y, rect_width - 1, rect_height - 1)
-                        
-            except Exception:
-                pass
+        except Exception:
+            pass
     
     def fill_grid_square_with_color(self, painter, grid_square, color):
         self.draw_grid_square(painter, grid_square, color)
