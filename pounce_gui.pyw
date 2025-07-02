@@ -2555,7 +2555,12 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.clear_button.setEnabled(True)
 
-    def scroll_to_message_uid(self, uid):        
+    def scroll_to_message_uid(self, uid):
+        # Bring main window to forefront
+        self.show()
+        self.raise_()
+        self.activateWindow()
+        
         row = self.output_model.findRowByUid(uid)
         if row == -1:
             log.warning(f"Nothing found for this message_uid: {uid}")
@@ -2564,16 +2569,6 @@ class MainApp(QtWidgets.QMainWindow):
         source_index = self.output_model.index(row, 0)
         if not source_index.isValid():
             return
-        
-        # Restore windows
-        self.show()
-        self.raise_()
-        self.activateWindow()
-
-        if self.grid_monitoring and self.grid_monitoring.isVisible():
-            self.grid_monitoring.show()
-            self.grid_monitoring.raise_()
-            self.grid_monitoring.activateWindow()
         
         # Get the message data to update the focus label
         message_data = self.output_model.data(source_index, QtCore.Qt.ItemDataRole.UserRole)
@@ -2584,6 +2579,12 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.output_table.scrollTo(proxy_index, QtWidgets.QAbstractItemView.ScrollHint.PositionAtBottom)        
         self.output_table.setCurrentIndex(proxy_index)
+        
+        # Bring grid map viewer back to front if it exists and is visible
+        if self.grid_monitoring and self.grid_monitoring.isVisible():
+            self.grid_monitoring.show()
+            self.grid_monitoring.raise_()
+            self.grid_monitoring.activateWindow()
 
     def add_row_to_history_table(self, raw_data, add_to_history=True):
         row_id = self.wait_pounce_history_table.rowCount()

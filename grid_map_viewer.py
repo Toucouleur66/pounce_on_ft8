@@ -6,7 +6,9 @@ from datetime import datetime, timezone
 from constants import (
     CUSTOM_FONT,
     GUI_LABEL_VERSION,
-    STATUS_MONITORING_COLOR
+    STATUS_MONITORING_COLOR,
+    FG_COLOR_REGULAR_FOCUS,
+    BG_COLOR_REGULAR_FOCUS
 )
 
 from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout
@@ -69,6 +71,7 @@ class GridMapWidget(QWidget):
         self.blink_visible              = True
         self.blink_timer                = QTimer()
         self.blink_timer.timeout.connect(self.blink_update)
+        self.clicked_grid               = None
 
         self.memory_cache               = {}
         self.file_cache                  = TileCache()
@@ -289,8 +292,13 @@ class GridMapWidget(QWidget):
         
         self.set_ellipse_indicators(painter)
         
-        if self.blink_visible and self.highlighted_grids:
+        # Draw highlighted grids (always visible)
+        if self.highlighted_grids:
             self.draw_highlighted_grids_block(painter)
+        
+        # Draw clicked grid with blinking effect (only the clicked one blinks)
+        if self.clicked_grid and self.blink_visible:
+            self.draw_clicked_grid(painter)
 
     def wheelEvent(self, event: QWheelEvent):
         mouse_pos = event.position()
@@ -991,14 +999,28 @@ class GridMapWidget(QWidget):
     def draw_highlighted_grids_block(self, painter):
         for grid_color in self.highlighted_grids:
             grid_square     = grid_color['grid']
+            
+            # Skip the clicked grid if it's currently blinking
+            if self.clicked_grid and grid_square == self.clicked_grid:
+                continue
+                
             color_hex       = grid_color['color']
             
             color           = QColor(color_hex)
             border_color    = darken_color(color, 0.5)
-            fill_color      = complementary_color(color)
+            fill_color       = complementary_color(color)
             fill_color.setAlpha(255) 
             
             self.draw_grid_square(painter, grid_square, fill_color, border_color)
+    
+    def draw_clicked_grid(self, painter):
+        if not self.clicked_grid:
+            return
+            
+        fill_color    = QColor(FG_COLOR_REGULAR_FOCUS) 
+        border_color = QColor(BG_COLOR_REGULAR_FOCUS)  
+        
+        self.draw_grid_square(painter, self.clicked_grid, fill_color, border_color)
     
     def blink_update(self):
         self.blink_visible = not self.blink_visible
@@ -1009,6 +1031,7 @@ class GridMapWidget(QWidget):
             self.blink_timer.stop()
             self.blink_count = 0
             self.blink_visible = True
+            self.clicked_grid = None
             self.update()
     
     def update_adif_data(self, adif_data):
@@ -1451,6 +1474,12 @@ class GridMapWidget(QWidget):
                 min_screen_y <= click_y <= max_screen_y):
                 message_uid = grid_data.get('message_uid')
                 if message_uid:
+                    # Store clicked grid for blinking
+                    self.clicked_grid = grid_square
+                    self.blink_count = 0
+                    self.blink_visible = True
+                    self.blink_timer.start(300)
+                    
                     self.grid_clicked.emit(message_uid)
                 break
     
