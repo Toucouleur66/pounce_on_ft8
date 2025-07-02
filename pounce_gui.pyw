@@ -990,6 +990,7 @@ class MainApp(QtWidgets.QMainWindow):
         if self.enable_show_all_decoded != checked:
             self.enable_show_all_decoded = checked
             self.show_all_decoded_toggle.setChecked(checked)
+            self.show_all_messages_action.setChecked(checked)  
             
             self.save_unique_param('enable_show_all_decoded', checked)   
 
