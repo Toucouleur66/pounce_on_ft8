@@ -815,11 +815,10 @@ class GridMapWidget(QWidget):
         
         """
             Night area extends in the direction opposite to the sun
-            If sun is in eastern hemisphere (lon > 0), night extends westward 
-            If sun is in western hemisphere (lon < 0), night extends eastward
-            BUT: The path closure logic is inverted, so we need to flip this
+            If sun is in eastern hemisphere (lon > 0), night extends westward (left)
+            If sun is in western hemisphere (lon < 0), night extends eastward (right)
         """
-        night_extends_left = solar_norm_lon < 0
+        night_extends_left = solar_norm_lon > 0
         
         if len(terminator_points) > 0:
             self.fill_night_area(painter, terminator_path, night_extends_left, night_color)
@@ -1021,6 +1020,34 @@ class GridMapWidget(QWidget):
         border_color = QColor(BG_COLOR_REGULAR_FOCUS)  
         
         self.draw_grid_square(painter, self.clicked_grid, fill_color, border_color)
+    
+    def trigger_grid_blink(self, message_uid):
+        """Trigger blinking for a grid square by finding it via message UID"""
+        if not message_uid:
+            return
+            
+        if self.parent_app:
+            row = self.parent_app.output_model.findRowByUid(message_uid)
+            if row != -1:
+                source_index = self.parent_app.output_model.index(row, 0)
+                if source_index.isValid():
+                    message_data = self.parent_app.output_model.data(source_index, Qt.ItemDataRole.UserRole)
+                    if message_data and message_data.get('grid'):
+                        self.clicked_grid = message_data.get('grid')
+                        self.blink_count = 0
+                        self.blink_visible = True
+                        self.blink_timer.start(300)
+    
+    def update_status_menu_for_grid(self, message):
+        # Get the parent window to access the main app
+        window = self.parent()
+        while window and not hasattr(window, 'map_widget'):
+            window = window.parent()
+        
+        if window and hasattr(window, 'map_widget'):
+            main_app = getattr(window.map_widget, 'parent_app', None)
+            if main_app and hasattr(main_app, 'set_message_to_focus_value_label'):                
+                main_app.set_message_to_focus_value_label(message)
     
     def blink_update(self):
         self.blink_visible = not self.blink_visible
@@ -1480,7 +1507,11 @@ class GridMapWidget(QWidget):
                     self.blink_visible = True
                     self.blink_timer.start(300)
                     
+                    # Emit grid click with message UID
                     self.grid_clicked.emit(message_uid)
+                    
+                    # Update status menu with this grid's information
+                    self.update_status_menu_for_grid(grid_data)
                 break
     
     def resizeEvent(self, event):

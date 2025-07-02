@@ -670,8 +670,17 @@ class MainApp(QtWidgets.QMainWindow):
         self.showNormal()
         self.raise_()
         self.activateWindow()
+        
+        if (
+            self.last_focus_value_message_uid and 
+            self.grid_monitoring and 
+            self.grid_monitoring.isVisible()
+        ):            
+            self.grid_monitoring.map_widget.trigger_grid_blink(self.last_focus_value_message_uid)
+        
         self.on_focus_value_label_clicked()
         self.hide_status_menu()
+        self.scroll_to_message_uid(self.last_focus_value_message_uid)
             
         try:
             from AppKit import NSRunningApplication, NSApplicationActivateIgnoringOtherApps
@@ -1065,7 +1074,7 @@ class MainApp(QtWidgets.QMainWindow):
         if not latest_messages:
             return
             
-        grids = []
+        grid_messages = []
         
         for message in latest_messages:                       
             if not message.get('grid'):
@@ -1075,11 +1084,12 @@ class MainApp(QtWidgets.QMainWindow):
             my_call             = message.get('my_call')
             wanted              = message.get('wanted')
             wanted_cq_zone      = message.get('wanted_cq_zone')
+            excluded            = message.get('excluded')
             monitored           = message.get('monitored')
             monitored_cq_zone   = message.get('monitored_cq_zone')
             
-            color = None
-            priority = 0
+            color               = None
+            priority            = None
             """
             if directed == my_call:
                 color    = BG_COLOR_FOCUS_MY_CALL
@@ -1114,18 +1124,17 @@ class MainApp(QtWidgets.QMainWindow):
                color     = FG_TIMER_COLOR
                priority  = 1
 
-            if color:
-                grids.append({
-                    'message_uid'   : message.get('message_uid'),
-                    'grid'          : message.get('grid'),
+            if priority and not excluded:
+                message.update({
                     'color'         : color,
                     'priority'      : priority
                 })
+                grid_messages.append(message)
         
-        if grids:
+        if grid_messages:
             if hasattr(self, 'grid_monitoring') and self.grid_monitoring:
-                self.grid_monitoring.map_widget.set_ellipse_group_indicators(grids)                
-                self.grid_monitoring.map_widget.set_highlighted_grids(grids)
+                self.grid_monitoring.map_widget.set_ellipse_group_indicators(grid_messages)                
+                self.grid_monitoring.map_widget.set_highlighted_grids(grid_messages)
 
     def hide_container_tab(self):
         self.compact_mode_visible = False
@@ -1524,6 +1533,7 @@ class MainApp(QtWidgets.QMainWindow):
                     entity,
                     cq_zone,
                     continent,
+                    message.get('grid'),
                     message_type,
                     message_color,
                     message.get('message_uid'),                     
@@ -2512,6 +2522,7 @@ class MainApp(QtWidgets.QMainWindow):
             entity,
             cq_zone,
             continent,
+            grid,
             message_type,
             row_color         = None,
             message_uid       = None
@@ -2536,6 +2547,7 @@ class MainApp(QtWidgets.QMainWindow):
             "entity"            : entity,
             "cq_zone"           : cq_zone,
             "continent"         : continent,
+            "grid"              : grid,
             "row_datetime"      : datetime.now(timezone.utc),
             "row_color"         : row_color
         }
@@ -2569,11 +2581,6 @@ class MainApp(QtWidgets.QMainWindow):
         source_index = self.output_model.index(row, 0)
         if not source_index.isValid():
             return
-        
-        # Get the message data to update the focus label
-        message_data = self.output_model.data(source_index, QtCore.Qt.ItemDataRole.UserRole)
-        if message_data:
-            self.set_message_to_focus_value_label(message_data)
         
         proxy_index = self.filter_proxy_model.mapFromSource(source_index)
 
