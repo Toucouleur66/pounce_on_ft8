@@ -802,10 +802,11 @@ class GridMapWidget(QWidget):
         
         """
             Night area extends in the direction opposite to the sun
-            If sun is in eastern hemisphere (lon > 0), night extends westward (left)
-            If sun is in western hemisphere (lon < 0), night extends eastward (right)
+            If sun is in eastern hemisphere (lon > 0), night extends westward 
+            If sun is in western hemisphere (lon < 0), night extends eastward
+            BUT: The path closure logic is inverted, so we need to flip this
         """
-        night_extends_left = solar_norm_lon > 0
+        night_extends_left = solar_norm_lon < 0
         
         if len(terminator_points) > 0:
             self.fill_night_area(painter, terminator_path, night_extends_left, night_color)
