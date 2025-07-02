@@ -2555,11 +2555,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.clear_button.setEnabled(True)
 
-    def scroll_to_message_uid(self, uid):
-        self.show()
-        self.raise_()
-        self.activateWindow()
-        
+    def scroll_to_message_uid(self, uid):        
         row = self.output_model.findRowByUid(uid)
         if row == -1:
             log.warning(f"Nothing found for this message_uid: {uid}")
@@ -2568,6 +2564,16 @@ class MainApp(QtWidgets.QMainWindow):
         source_index = self.output_model.index(row, 0)
         if not source_index.isValid():
             return
+        
+        # Restore windows
+        self.show()
+        self.raise_()
+        self.activateWindow()
+
+        if self.grid_monitoring and self.grid_monitoring.isVisible():
+            self.grid_monitoring.show()
+            self.grid_monitoring.raise_()
+            self.grid_monitoring.activateWindow()
         
         # Get the message data to update the focus label
         message_data = self.output_model.data(source_index, QtCore.Qt.ItemDataRole.UserRole)
