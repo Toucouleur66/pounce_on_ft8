@@ -1031,6 +1031,9 @@ class MainApp(QtWidgets.QMainWindow):
                 self.grid_monitoring = GridMapWindow()
                 self.grid_monitoring.closeEvent = self.on_map_window_closed
                 
+                # Set parent app reference for settings management
+                self.grid_monitoring.map_widget.set_parent_app(self)
+                
                 # Connect grid click signal to scroll function
                 self.grid_monitoring.map_widget.grid_clicked.connect(self.scroll_to_message_uid)
                 
@@ -1999,8 +2002,8 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.focus_value_label.setText(formatted_message)
 
-        contains_my_call = message.get('directed') == message.get('my_call')
-        contains_alert = message.get('type') == 'gui_alert'
+        contains_my_call = message.get('directed') == message.get('my_call') and message.get('directed') is not None
+        contains_alert   = message.get('type') == 'gui_alert'
         
         if contains_alert:
             bg_color_hex = FG_COLOR_FOCUS_MY_CALL
@@ -2552,19 +2555,28 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.clear_button.setEnabled(True)
 
-    def scroll_to_message_uid(self, uid, column=0, scroll_hint=QtWidgets.QAbstractItemView.ScrollHint.PositionAtCenter):
+    def scroll_to_message_uid(self, uid):
+        self.show()
+        self.raise_()
+        self.activateWindow()
+        
         row = self.output_model.findRowByUid(uid)
         if row == -1:
             log.warning(f"Nothing found for this message_uid: {uid}")
             return  
 
-        source_index = self.output_model.index(row, column)
+        source_index = self.output_model.index(row, 0)
         if not source_index.isValid():
             return
         
+        # Get the message data to update the focus label
+        message_data = self.output_model.data(source_index, QtCore.Qt.ItemDataRole.UserRole)
+        if message_data:
+            self.set_message_to_focus_value_label(message_data)
+        
         proxy_index = self.filter_proxy_model.mapFromSource(source_index)
 
-        self.output_table.scrollTo(proxy_index, scroll_hint)        
+        self.output_table.scrollTo(proxy_index, QtWidgets.QAbstractItemView.ScrollHint.PositionAtBottom)        
         self.output_table.setCurrentIndex(proxy_index)
 
     def add_row_to_history_table(self, raw_data, add_to_history=True):
