@@ -109,20 +109,30 @@ class GridMapWidget(QWidget):
             self.parent_app.save_unique_param('grid_map_show_ellipses', self.show_ellipses)
             self.parent_app.save_unique_param('grid_map_show_worked', self.show_worked)
             self.parent_app.save_unique_param('grid_map_show_night', self.show_night)
+
+            self.parent_app.save_unique_param('grid_map_zoom', self.zoom)
+            self.parent_app.save_unique_param('grid_map_center_lat', self.center_lat)
+            self.parent_app.save_unique_param('grid_map_center_lon', self.center_lon)
     
     def load_grid_map_settings(self):
+        self.show_grid      = True
+        self.show_ellipses  = True
+        self.show_worked    = True
+        self.show_night     = True
+        self.zoom           = 3
+        self.center_lat     = 0.0
+        self.center_lon     = 0.0
+    
         if self.parent_app:
             params = self.parent_app.load_params()
-            self.show_grid = params.get('grid_map_show_grid', True)
-            self.show_ellipses = params.get('grid_map_show_ellipses', True)
-            self.show_worked = params.get('grid_map_show_worked', True)
-            self.show_night = params.get('grid_map_show_night', True)
-        else:
-            # Fallback to default values if parent app not available
-            self.show_grid = True
-            self.show_ellipses = True
-            self.show_worked = True
-            self.show_night = True
+            self.show_grid      = params.get('grid_map_show_grid', self.show_grid)
+            self.show_ellipses  = params.get('grid_map_show_ellipses', self.show_ellipses)
+            self.show_worked    = params.get('grid_map_show_worked', self.show_worked)
+            self.show_night     = params.get('grid_map_show_night', self.show_night)
+
+            self.zoom           = params.get('grid_map_zoom', self.zoom)
+            self.center_lat     = params.get('grid_map_center_lat', self.center_lat)
+            self.center_lon     = params.get('grid_map_center_lon', self.center_lon)
     
     def deg2num(self, lat_deg, lon_deg, zoom):
         lat_rad = math.radians(lat_deg)
@@ -347,6 +357,9 @@ class GridMapWidget(QWidget):
             QApplication.processEvents()
             
             self.repaint()
+            
+            # Save settings when zoom changes
+            self.save_grid_map_settings()
     
     def screen_to_lat_lon(self, screen_x, screen_y):
         center_screen_x = self.width() / 2
@@ -751,6 +764,13 @@ class GridMapWidget(QWidget):
             solar_longitude -= 360
         while solar_longitude < -180:
             solar_longitude += 360
+        
+        # Debug logging every 30 minutes
+        if utc_time.minute % 30 == 0 and utc_time.second < 5:
+            log.warning(f"SOLAR DEBUG: UTC {utc_time.strftime('%H:%M')} | "
+                       f"Solar Lon: {solar_longitude:.1f}° | "
+                       f"Solar Lat: {solar_declination:.1f}° | "
+                       f"UTC Hours: {utc_hours:.2f}")
             
         return solar_declination, solar_longitude
     
@@ -819,6 +839,14 @@ class GridMapWidget(QWidget):
             If sun is in western hemisphere (lon < 0), night extends eastward (right)
         """
         night_extends_left = solar_norm_lon > 0
+        
+        # Debug logging every 30 minutes for night area decision
+        current_time = datetime.now(timezone.utc)
+        if current_time.minute % 30 == 0 and current_time.second < 5:
+            direction = "LEFT (westward)" if night_extends_left else "RIGHT (eastward)"
+            hemisphere = "EASTERN" if solar_norm_lon > 0 else "WESTERN"
+            log.warning(f"NIGHT DEBUG: Solar in {hemisphere} hemisphere ({solar_norm_lon:.1f}°) | "
+                       f"Night extends {direction}")
         
         if len(terminator_points) > 0:
             self.fill_night_area(painter, terminator_path, night_extends_left, night_color)
@@ -1022,7 +1050,6 @@ class GridMapWidget(QWidget):
         self.draw_grid_square(painter, self.clicked_grid, fill_color, border_color)
     
     def trigger_grid_blink(self, message_uid):
-        """Trigger blinking for a grid square by finding it via message UID"""
         if not message_uid:
             return
             
@@ -1473,6 +1500,9 @@ class GridMapWidget(QWidget):
             
             if not was_dragging and not self.has_moved:
                 self.handle_grid_click(event.pos())
+            elif was_dragging:
+                # Save settings when panning ends
+                self.save_grid_map_settings()
     
     def handle_grid_click(self, pos):
         lat, lon = self.screen_to_lat_lon(pos.x(), pos.y())
@@ -1517,8 +1547,11 @@ class GridMapWidget(QWidget):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         
+        # Only adjust zoom if it's really too low for the window size
+        # Allow some flexibility to preserve user's preferred zoom level
         min_zoom = self.get_min_zoom_for_size(self.width(), self.height())
-        if self.zoom < min_zoom:
+        # Only force zoom adjustment if current zoom is significantly below minimum
+        if self.zoom < min_zoom - 1:
             self.zoom = min_zoom
             self.memory_cache.clear()
             self.update()
@@ -1672,6 +1705,9 @@ class GridMapWindow(QMainWindow):
         """)
     
     def closeEvent(self, event):
+        # Trigger main app to save window positions (including this grid map window)
+        if hasattr(self.map_widget, 'parent_app') and self.map_widget.parent_app:
+            self.map_widget.parent_app.save_window_position()
         self.map_widget.closeEvent(event)
         event.accept()
 

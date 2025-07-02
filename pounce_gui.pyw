@@ -1041,10 +1041,8 @@ class MainApp(QtWidgets.QMainWindow):
                 self.grid_monitoring = GridMapWindow()
                 self.grid_monitoring.closeEvent = self.on_map_window_closed
                 
-                # Set parent app reference for settings management
                 self.grid_monitoring.map_widget.set_parent_app(self)
-                
-                # Connect grid click signal to scroll function
+    
                 self.grid_monitoring.map_widget.grid_clicked.connect(self.scroll_to_message_uid)
                 
                 if self.operating_band:
@@ -1052,21 +1050,28 @@ class MainApp(QtWidgets.QMainWindow):
                 
                 if hasattr(self.worker, 'listener') and self.worker.listener and hasattr(self.worker.listener, 'adif_data'):
                     self.grid_monitoring.map_widget.update_adif_data(self.worker.listener.adif_data)
+                
+                if hasattr(self, 'saved_grid_map_geometry') and self.saved_grid_map_geometry:
+                    self.grid_monitoring.setGeometry(
+                        self.saved_grid_map_geometry['x'],
+                        self.saved_grid_map_geometry['y'], 
+                        self.saved_grid_map_geometry['width'],
+                        self.saved_grid_map_geometry['height']
+                    )
             
             self.grid_monitoring.show()
             self.grid_monitoring.raise_()
             self.grid_monitoring.activateWindow()
         else:
-            if self.grid_monitoring is not None:
+            self.save_window_position()
+            if self.grid_monitoring is not None:                                
                 self.grid_monitoring.close()
                 self.grid_monitoring = None
-        
-        self.save_window_position()
-
+            
     def on_map_window_closed(self, event):
         self.grid_monitoring_action.setChecked(False)
         self.grid_monitoring = None
-        # Save the grid monitoring state when window is closed (but not during shutdown)
+        
         if not getattr(self, 'is_shutting_down', False):
             self.save_window_position()
         event.accept()
@@ -2329,7 +2334,7 @@ class MainApp(QtWidgets.QMainWindow):
         
         if self._running:
                 self.stop_monitoring()
-            
+        
         self.save_window_position()
 
         self.save_band_settings()
@@ -2689,18 +2694,29 @@ class MainApp(QtWidgets.QMainWindow):
     def save_window_position(self):
         position = self.geometry()
         
-        # During shutdown, use the saved state to prevent overwriting by window close events
         if getattr(self, 'is_shutting_down', False) and self.grid_window_state is not None:
             grid_monitoring_open = self.grid_window_state
         else:
             grid_monitoring_open = self.grid_monitoring_action.isChecked() if hasattr(self, 'grid_monitoring_action') else False
+        
         position_data = {
-            'x': position.x(),
-            'y': position.y(), 
-            'width': position.width(),
+            'x'     : position.x(),
+            'y'     : position.y(), 
+            'width' : position.width(),
             'height': position.height(),
             'grid_monitoring_open': grid_monitoring_open
         }
+        
+        if self.grid_monitoring:
+            grid_position = self.grid_monitoring.geometry()
+            position_data['grid_map_window'] = {
+                'x'     : grid_position.x(),
+                'y'     : grid_position.y(),
+                'width' : grid_position.width(),
+                'height': grid_position.height()
+            }
+            self.saved_grid_map_geometry = position_data['grid_map_window']
+
         with open(POSITION_FILE, "wb") as f:
             pickle.dump(position_data, f)
 
@@ -2708,10 +2724,18 @@ class MainApp(QtWidgets.QMainWindow):
         if os.path.exists(POSITION_FILE):
             with open(POSITION_FILE, "rb") as f:
                 position_data = pickle.load(f)
-                if 'width' in position_data and 'height' in position_data:
-                    self.setGeometry(position_data['x'], position_data['y'], position_data['width'], position_data['height'])
-                    
-                    # Restore grid monitoring window state
+                if (
+                    'width' in position_data and 
+                    'height' in position_data
+                ):
+                    self.setGeometry(
+                        position_data['x'],
+                        position_data['y'],
+                        position_data['width'],
+                        position_data['height']
+                    )                                      
+                    self.saved_grid_map_geometry = position_data.get('grid_map_window')
+                                    
                     grid_monitoring_open = position_data.get('grid_monitoring_open', False)
                     if grid_monitoring_open:
                         self.grid_monitoring_action.setChecked(True)

@@ -70,7 +70,7 @@ class CallsignLookup:
 
     def save_cache(self):
         data_to_save = {}
-        with self.cache_lock:  # On protège l'accès en lecture
+        with self.cache_lock: 
             for callsign, info in self.cache.items():
                 data_to_save[callsign] = self._serialize_info(info)
 
@@ -270,7 +270,6 @@ class CallsignLookup:
                     }
                     self.entities[adif] = entity_data
 
-                    # On étend la liste de préfixes
                     expanded_prefixes = self.expand_prefixes(prefix_str)
                     for pfx in expanded_prefixes:
                         pfx = pfx.upper()
