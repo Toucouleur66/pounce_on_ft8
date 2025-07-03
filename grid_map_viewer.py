@@ -136,6 +136,12 @@ class GridMapWidget(QWidget):
             self.zoom           = params.get('grid_map_zoom', self.zoom)
             self.center_lat     = params.get('grid_map_center_lat', self.center_lat)
             self.center_lon     = params.get('grid_map_center_lon', self.center_lon)
+            
+            # Reset pixel offsets and recalculate coordinate system when loading settings
+            self.center_pixel_offset_x = 0.0
+            self.center_pixel_offset_y = 0.0
+            # Apply pan movement with 0 delta to properly initialize the coordinate system
+            self.apply_pan_movement(0, 0)
     
     def deg2num(self, lat_deg, lon_deg, zoom):
         lat_rad = math.radians(lat_deg)
@@ -747,7 +753,7 @@ class GridMapWidget(QWidget):
         
         return full_grid
     
-    def calculate_solar_position(self, utc_time=None):
+    def get_solar_position(self, utc_time=None):
         """
             Calculate the subsolar point (where the sun is directly overhead)
         """
@@ -765,7 +771,8 @@ class GridMapWidget(QWidget):
         solar_declination = 23.45 * math.sin(math.radians((360/365.25) * (days_since_j2000 - 81)))
         
         utc_hours = utc_time.hour + utc_time.minute / 60.0 + utc_time.second / 3600.0
-        solar_longitude = -(utc_hours - 12.0) * 15.0  # Negative because sun moves westward
+        # Negative because sun moves westward
+        solar_longitude = -(utc_hours - 12.0) * 15.0  
         
         while solar_longitude > 180:
             solar_longitude -= 360
@@ -778,10 +785,6 @@ class GridMapWidget(QWidget):
     def set_test_time(self, hour, minute=0, second=0):
         """
             Set a test time for debugging night area display
-            Args:
-                hour: UTC hour (0-23)
-                minute: UTC minute (0-59) 
-                second: UTC second (0-59)
         """
         today = datetime.now(timezone.utc).date()
         self.test_time = datetime.combine(today, datetime.min.time().replace(
@@ -789,7 +792,7 @@ class GridMapWidget(QWidget):
         )).replace(tzinfo=timezone.utc)
         
         log.info(f"Test time UTC: {self.test_time.isoformat()}")
-        
+
         self.update()
     
     def draw_daylight_overlay(self, painter):
@@ -799,7 +802,7 @@ class GridMapWidget(QWidget):
         if not self.show_night:
             return
             
-        solar_lat, solar_lon = self.calculate_solar_position()
+        solar_lat, solar_lon = self.get_solar_position()
         
         night_color = QColor(0, 0, 0, 50)
         
