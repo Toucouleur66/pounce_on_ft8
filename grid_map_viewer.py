@@ -58,6 +58,9 @@ class GridMapWidget(QWidget):
         self.grid_color                 = Qt.GlobalColor.red
         self.grid_text_color            = Qt.GlobalColor.gray
         
+        # Test mode for night area - set to None for normal operation
+        self.test_time                  = None
+        
         self.permanent_squares        = []
         self.highlighted_grids          = []
         self.current_band               = None
@@ -749,7 +752,11 @@ class GridMapWidget(QWidget):
             Calculate the subsolar point (where the sun is directly overhead)
         """
         if utc_time is None:
-            utc_time = datetime.now(timezone.utc)
+            # Use test time if set, otherwise use current time
+            if self.test_time is not None:
+                utc_time = self.test_time
+            else:
+                utc_time = datetime.now(timezone.utc)
         
         j2000 = datetime(2000, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         delta = utc_time - j2000
@@ -765,14 +772,25 @@ class GridMapWidget(QWidget):
         while solar_longitude < -180:
             solar_longitude += 360
         
-        # Debug logging every 30 minutes
-        if utc_time.minute % 30 == 0 and utc_time.second < 5:
-            log.warning(f"SOLAR DEBUG: UTC {utc_time.strftime('%H:%M')} | "
-                       f"Solar Lon: {solar_longitude:.1f}° | "
-                       f"Solar Lat: {solar_declination:.1f}° | "
-                       f"UTC Hours: {utc_hours:.2f}")
             
         return solar_declination, solar_longitude
+    
+    def set_test_time(self, hour, minute=0, second=0):
+        """
+            Set a test time for debugging night area display
+            Args:
+                hour: UTC hour (0-23)
+                minute: UTC minute (0-59) 
+                second: UTC second (0-59)
+        """
+        today = datetime.now(timezone.utc).date()
+        self.test_time = datetime.combine(today, datetime.min.time().replace(
+            hour=hour, minute=minute, second=second
+        )).replace(tzinfo=timezone.utc)
+        
+        log.info(f"Test time UTC: {self.test_time.isoformat()}")
+        
+        self.update()
     
     def draw_daylight_overlay(self, painter):
         """
@@ -835,21 +853,14 @@ class GridMapWidget(QWidget):
         
         """
             Night area extends in the direction opposite to the sun
-            If sun is in eastern hemisphere (lon > 0), night extends westward (left)
+            If sun is in eastern hemisphere (lon >= 0), night extends westward (left)
             If sun is in western hemisphere (lon < 0), night extends eastward (right)
         """
-        night_extends_left = solar_norm_lon > 0
+        night_extends_left = solar_norm_lon < 0
         
-        # Debug logging every 30 minutes for night area decision
-        current_time = datetime.now(timezone.utc)
-        if current_time.minute % 30 == 0 and current_time.second < 5:
-            direction = "LEFT (westward)" if night_extends_left else "RIGHT (eastward)"
-            hemisphere = "EASTERN" if solar_norm_lon > 0 else "WESTERN"
-            log.warning(f"NIGHT DEBUG: Solar in {hemisphere} hemisphere ({solar_norm_lon:.1f}°) | "
-                       f"Night extends {direction}")
         
         if len(terminator_points) > 0:
-            self.fill_night_area(painter, terminator_path, night_extends_left, night_color)
+            self.fill_night_area(painter, terminator_path, terminator_points, night_extends_left, night_color, solar_lat, solar_lon)
         
         self.draw_terminator_line(painter, solar_lat, solar_lon)
     
@@ -857,8 +868,11 @@ class GridMapWidget(QWidget):
             self,
             painter,
             terminator_path,
+            terminator_points,
             night_extends_left,
-            night_color
+            night_color,
+            solar_lat,
+            solar_lon
         ):
         screen_w, screen_h = self.width(), self.height()
         margin = 200
@@ -866,14 +880,53 @@ class GridMapWidget(QWidget):
         full_rect = QPainterPath()
         full_rect.addRect(-margin, -margin, screen_w + 2*margin, screen_h + 2*margin)
 
-        day_path = QPainterPath(terminator_path)
-
-        if night_extends_left:
-            day_path.lineTo(screen_w + margin, screen_h + margin)
-            day_path.lineTo(-margin, screen_h + margin)
-        else:
+        extended_points = []
+        
+        # Extend terminator line to left and right edges of screen
+        # longitude of first point
+        first_lon = terminator_points[0][2]  
+        # longitude of last point
+        last_lon = terminator_points[-1][2]  
+        
+        # Add points extending to the left edge
+        extend_left_lon = first_lon - 10
+        extend_left_lat = self.calculate_terminator_latitude(extend_left_lon, solar_lat, solar_lon)
+        extend_left_x = -margin
+        extend_left_y, _ = self.lat_lon_to_screen_stable(extend_left_lat, extend_left_lon)
+        extended_points.append((extend_left_x, extend_left_y))
+        
+        # Add all terminator points
+        extended_points.extend([(x, y) for x, y, _, _ in terminator_points])
+        
+        # Add points extending to the right edge  
+        extend_right_lon = last_lon + 10
+        extend_right_lat = self.calculate_terminator_latitude(extend_right_lon, solar_lat, solar_lon)
+        extend_right_x = screen_w + margin
+        extend_right_y, _ = self.lat_lon_to_screen_stable(extend_right_lat, extend_right_lon)
+        extended_points.append((extend_right_x, extend_right_y))
+        
+        # Create the extended terminator path
+        extended_terminator = QPainterPath()
+        extended_terminator.moveTo(extended_points[0][0], extended_points[0][1])
+        for x, y in extended_points[1:]:
+            extended_terminator.lineTo(x, y)
+        
+        # Create day area by connecting terminator to appropriate screen edge
+        day_path = QPainterPath(extended_terminator)
+        
+        # Determine which side of terminator is day based on terminator slope
+        first_y = extended_points[0][1]
+        last_y = extended_points[-1][1]
+        terminator_slopes_down = last_y > first_y
+        
+        if terminator_slopes_down:
+            # Terminator slopes down, day is above it
             day_path.lineTo(screen_w + margin, -margin)
             day_path.lineTo(-margin, -margin)
+        else:
+            # Terminator slopes up, day is below it  
+            day_path.lineTo(screen_w + margin, screen_h + margin)
+            day_path.lineTo(-margin, screen_h + margin)
         
         day_path.closeSubpath()
 
@@ -1376,11 +1429,13 @@ class GridMapWidget(QWidget):
         base_semi_major = max(max_major_positive, max_major_negative, 15)
         base_semi_minor = max(max_minor_positive, max_minor_negative, 15)
                 
-        padding_factor = 1 # Expands ellipse beyond the minimum encompassing size
+        # Expands ellipse beyond the minimum encompassing size
+        padding_factor = 1 
         semi_major = base_semi_major * padding_factor
         semi_minor = base_semi_minor * padding_factor
         
-        safety_padding = 1.15  # 15% extra padding to ensure coverage
+        # 15% extra padding to ensure coverage
+        safety_padding = 1.15  
         final_semi_major = semi_major * safety_padding * scale_factor
         final_semi_minor = semi_minor * safety_padding * scale_factor
         
@@ -1447,6 +1502,18 @@ class GridMapWidget(QWidget):
                     window.night_toggle.setChecked(new_state)
             else:
                 self.show_night = not self.show_night
+                self.update()
+        elif sys.platform == 'darwin':
+            if event.key() == Qt.Key.Key_1:
+                self.set_test_time(6)  
+            elif event.key() == Qt.Key.Key_2:
+                self.set_test_time(12) 
+            elif event.key() == Qt.Key.Key_3:
+                self.set_test_time(13) 
+            elif event.key() == Qt.Key.Key_4:
+                self.set_test_time(0)  
+            elif event.key() == Qt.Key.Key_0:
+                self.test_time = None
                 self.update()
         else:
             super().keyPressEvent(event)
