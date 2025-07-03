@@ -190,9 +190,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.worker              = None
         self.timer               = None
         self.tray_icon           = None
-        self.grid_monitoring     = None
-        self.is_shutting_down    = False
-        self.grid_window_state   = None
+        self.grid_monitor        = None
+
+        self.grid_monitor_geometry = {}
 
         self.monitoring_settings = MonitoringSettings()       
         self.clublog_manager     = ClubLogManager(self) 
@@ -317,6 +317,8 @@ class MainApp(QtWidgets.QMainWindow):
         
         self.enable_pounce_log                  = params.get('enable_pounce_log', True)
         self.enable_filter_gui                   = params.get('enable_filter_gui', False)        
+        self.enable_grid_monitor                = params.get('enable_grid_monitor')
+
         self.enable_minimized_gui               = False
         self.enable_global_sound                = params.get('enable_global_sound', True)
         self.datetime_column_setting            = params.get('datetime_column_setting', DATE_COLUMN_DATETIME)
@@ -443,13 +445,13 @@ class MainApp(QtWidgets.QMainWindow):
         self.global_sound_toggle.setFixedSize(self.global_sound_toggle.sizeHint())
         self.global_sound_toggle.setChecked(self.enable_global_sound)
 
-        self.show_all_decoded_toggle = AnimatedToggle(
+        self.show_all_toggle = AnimatedToggle(
             checked_color=STATUS_MONITORING_COLOR,
             pulse_checked_color=f"{STATUS_MONITORING_COLOR}FF"
         )
-        self.show_all_decoded_toggle.stateChanged.connect(self.update_show_all_decoded_preference)
-        self.show_all_decoded_toggle.setFixedSize(self.show_all_decoded_toggle.sizeHint())
-        self.show_all_decoded_toggle.setChecked(self.enable_show_all_decoded)
+        self.show_all_toggle.stateChanged.connect(self.update_show_all_preference)
+        self.show_all_toggle.setFixedSize(self.show_all_toggle.sizeHint())
+        self.show_all_toggle.setChecked(self.enable_show_all_decoded)
 
         self.filter_gui_toggle = AnimatedToggle(
             checked_color=STATUS_MONITORING_COLOR,
@@ -458,6 +460,14 @@ class MainApp(QtWidgets.QMainWindow):
         self.filter_gui_toggle.stateChanged.connect(self.update_filter_gui_preference)
         self.filter_gui_toggle.setFixedSize(self.filter_gui_toggle.sizeHint())
         self.filter_gui_toggle.setChecked(self.enable_filter_gui)
+
+        self.grid_monitor_toggle = AnimatedToggle(
+            checked_color=STATUS_MONITORING_COLOR,
+            pulse_checked_color=f"{STATUS_MONITORING_COLOR}FF"
+        )
+        self.grid_monitor_toggle.stateChanged.connect(self.update_grid_map_preference)
+        self.grid_monitor_toggle.setFixedSize(self.grid_monitor_toggle.sizeHint())
+        self.grid_monitor_toggle.setChecked(self.enable_grid_monitor)
 
         self.toggle_buttons_layout = QtWidgets.QWidget()
         horizontal_layout = QtWidgets.QHBoxLayout()
@@ -468,11 +478,14 @@ class MainApp(QtWidgets.QMainWindow):
         
         horizontal_layout.addWidget(self.global_sound_toggle)
         horizontal_layout.addSpacing(20)
-        horizontal_layout.addWidget(CustomQLabel("View All"))  
-        horizontal_layout.addWidget(self.show_all_decoded_toggle)
+        horizontal_layout.addWidget(CustomQLabel("All"))  
+        horizontal_layout.addWidget(self.show_all_toggle)
         horizontal_layout.addSpacing(20)
         horizontal_layout.addWidget(CustomQLabel("Filters"))  
         horizontal_layout.addWidget(self.filter_gui_toggle)
+        horizontal_layout.addSpacing(20)
+        horizontal_layout.addWidget(CustomQLabel("Grid"))  
+        horizontal_layout.addWidget(self.grid_monitor_toggle)
 
         # Apply layout to the widget
         self.toggle_buttons_layout.setLayout(horizontal_layout)
@@ -673,10 +686,10 @@ class MainApp(QtWidgets.QMainWindow):
         
         if (
             self.last_focus_value_message_uid and 
-            self.grid_monitoring and 
-            self.grid_monitoring.isVisible()
+            self.grid_monitor and 
+            self.grid_monitor.isVisible()
         ):            
-            self.grid_monitoring.map_widget.trigger_grid_blink(self.last_focus_value_message_uid)
+            self.grid_monitor.map_widget.trigger_grid_blink(self.last_focus_value_message_uid)
         
         self.on_focus_value_label_clicked()
         self.hide_status_menu()
@@ -983,14 +996,14 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.update_global_sound_preference(checked)
 
-    def update_show_all_decoded_preference(self, checked):
+    def update_show_all_preference(self, checked):
         self.filter_proxy_model.setEnableShowAllDecoded(checked)
         self.filter_proxy_model.invalidateFilter()
     
         if self.enable_show_all_decoded != checked:
             self.enable_show_all_decoded = checked
-            self.show_all_decoded_toggle.setChecked(checked)
-            self.show_all_messages_action.setChecked(checked)  
+            self.show_all_toggle.setChecked(checked)
+            self.show_all_action.setChecked(checked)  
             
             self.save_unique_param('enable_show_all_decoded', checked)   
 
@@ -1006,6 +1019,7 @@ class MainApp(QtWidgets.QMainWindow):
         if self.enable_filter_gui != checked:
             self.enable_filter_gui = checked
             self.filter_gui_toggle.setChecked(checked)
+            self.filter_gui_action.setChecked(checked)
             self.save_unique_param('enable_filter_gui', checked)     
 
     def toggle_minimize_gui(self):    
@@ -1035,45 +1049,61 @@ class MainApp(QtWidgets.QMainWindow):
         else:
             self.show_container_tab()
 
-    def toggle_grid_monitoring(self, checked):
+    def toggle_grid_monitor(self, checked):    
+        checked = bool(checked) if isinstance(checked, int) else checked
         if checked:
-            if self.grid_monitoring is None:
-                self.grid_monitoring = GridMapWindow()
-                self.grid_monitoring.closeEvent = self.on_map_window_closed
+            if self.grid_monitor is None:
+                self.grid_monitor = GridMapWindow()
+                self.grid_monitor.closeEvent = self.on_map_window_closed
                 
-                self.grid_monitoring.map_widget.set_parent_app(self)
-    
-                self.grid_monitoring.map_widget.grid_clicked.connect(self.scroll_to_message_uid)
-                
-                if self.operating_band:
-                    self.grid_monitoring.map_widget.update_current_band(self.operating_band)
-                
-                if hasattr(self.worker, 'listener') and self.worker.listener and hasattr(self.worker.listener, 'adif_data'):
-                    self.grid_monitoring.map_widget.update_adif_data(self.worker.listener.adif_data)
-                
-                if hasattr(self, 'saved_grid_map_geometry') and self.saved_grid_map_geometry:
-                    self.grid_monitoring.setGeometry(
-                        self.saved_grid_map_geometry['x'],
-                        self.saved_grid_map_geometry['y'], 
-                        self.saved_grid_map_geometry['width'],
-                        self.saved_grid_map_geometry['height']
-                    )
+            self.grid_monitor.map_widget.set_parent_app(self)
+            self.grid_monitor.map_widget.grid_clicked.connect(self.scroll_to_message_uid)
             
-            self.grid_monitoring.show()
-            self.grid_monitoring.raise_()
-            self.grid_monitoring.activateWindow()
-        else:
-            self.save_window_position()
-            if self.grid_monitoring is not None:                                
-                self.grid_monitoring.close()
-                self.grid_monitoring = None
+            if self.operating_band:
+                self.grid_monitor.map_widget.update_current_band(self.operating_band)
+            
+            if self.grid_monitor_geometry:
+                self.grid_monitor.setGeometry(
+                    self.grid_monitor_geometry['x'],
+                    self.grid_monitor_geometry['y'], 
+                    self.grid_monitor_geometry['width'],
+                    self.grid_monitor_geometry['height']
+                )
+
+            if (
+                self.worker and 
+                self.worker.listener and
+                hasattr(self.worker.listener, 'adif_data')
+            ):
+                self.grid_monitor.map_widget.update_adif_data(self.worker.listener.adif_data)            
+            
+            self.grid_monitor.show()
+            self.grid_monitor.raise_()
+            self.grid_monitor.activateWindow()
+        else:                      
+            if self.grid_monitor is not None:                                
+                self.grid_monitor_geometry = {
+                    'x'     : self.grid_monitor.geometry().x(),
+                    'y'     : self.grid_monitor.geometry().y(),
+                    'width' : self.grid_monitor.geometry().width(),
+                    'height': self.grid_monitor.geometry().height()
+                }
+
+                self.grid_monitor.close()
+                self.grid_monitor = None
+
+    def update_grid_map_preference(self, checked) :    
+        self.toggle_grid_monitor(checked)
+
+        if self.enable_grid_monitor != checked:
+            self.enable_grid_monitor = checked
+            self.grid_monitor_toggle.setChecked(checked)
+            self.grid_monitor_action.setChecked(checked) 
+
+            self.save_unique_param('enable_grid_monitor', checked)
             
     def on_map_window_closed(self, event):
-        self.grid_monitoring_action.setChecked(False)
-        self.grid_monitoring = None
-        
-        if not getattr(self, 'is_shutting_down', False):
-            self.save_window_position()
+        self.toggle_grid_monitor(False)    
         event.accept()
 
     def update_map_with_new_grids(self, latest_messages):
@@ -1138,9 +1168,9 @@ class MainApp(QtWidgets.QMainWindow):
                 grid_messages.append(message)
         
         if grid_messages:
-            if hasattr(self, 'grid_monitoring') and self.grid_monitoring:
-                self.grid_monitoring.map_widget.set_ellipse_group_indicators(grid_messages)                
-                self.grid_monitoring.map_widget.set_highlighted_grids(grid_messages)
+            if hasattr(self, 'grid_monitor') and self.grid_monitor:
+                self.grid_monitor.map_widget.set_ellipse_group_indicators(grid_messages)                
+                self.grid_monitor.map_widget.set_highlighted_grids(grid_messages)
 
     def hide_container_tab(self):
         self.compact_mode_visible = False
@@ -1341,10 +1371,10 @@ class MainApp(QtWidgets.QMainWindow):
 
             self.monitoring_settings.set_operating_band(band)
             
-            if self.grid_monitoring is not None:
-                self.grid_monitoring.map_widget.update_current_band(band)
-                self.grid_monitoring.map_widget.clear_highlighted_grids()
-                self.grid_monitoring.map_widget.clear_ellipse_indicators()
+            if self.grid_monitor is not None:
+                self.grid_monitor.map_widget.update_current_band(band)
+                self.grid_monitor.map_widget.clear_highlighted_grids()
+                self.grid_monitor.map_widget.clear_ellipse_indicators()
             
             self.update_tab_widget_labels_style()
         
@@ -1454,8 +1484,8 @@ class MainApp(QtWidgets.QMainWindow):
                 log.debug(f"Received request to update ({message.get('action')}) Wanted Callsigns with [ {message.get('callsign')} ]")
                 self.update_var(self.wanted_callsigns_vars[self.operating_band], message.get('callsign'), message.get('action'))  
             elif message_type == 'adif_data_updated':
-                if self.grid_monitoring is not None:
-                    self.grid_monitoring.map_widget.update_adif_data(message.get('adif_data', {}))
+                if self.grid_monitor is not None:
+                    self.grid_monitor.map_widget.update_adif_data(message.get('adif_data', {}))
             elif message_type == 'update_status':
                 if self._running:
                     self.check_connection_status(
@@ -1689,7 +1719,7 @@ class MainApp(QtWidgets.QMainWindow):
         """
             Update map with new grid squares
         """
-        if self.grid_monitoring is not None:
+        if self.grid_monitor is not None:
             self.update_map_with_new_grids(latest_messages)
         
         """
@@ -1948,8 +1978,10 @@ class MainApp(QtWidgets.QMainWindow):
 
     def update_activity_bar(self):
         time_delta_in_seconds = get_mode_interval(self.mode)
-        # We need to double time_delta_to_be_used the time transmitting == 1 
-        # otherwise we are loosing accuracy of activity bar
+        """
+            We need to double time_delta_to_be_used the time transmitting == 1 
+            otherwise we are loosing accuracy of activity bar
+        """
         if not self.transmitting:
             cutoff_time = datetime.now() - timedelta(seconds=time_delta_in_seconds)
             while self.message_times and self.message_times[0] < cutoff_time:
@@ -1958,13 +1990,11 @@ class MainApp(QtWidgets.QMainWindow):
         self.activity_bar.setValue(len(self.message_times))                                     
 
     def start_blinking_status_button(self):
-        # log.error("Start blinking status button")
         if self.is_status_button_label_blinking is False:
             self.is_status_button_label_blinking = True
             self.blink_timer.start(500)
 
     def stop_blinking_status_button(self):    
-        # log.error("Stop blinking status button")
         if self.is_status_button_label_blinking is True:
             self.is_status_button_label_blinking = False
             self.blink_timer.stop()            
@@ -2276,11 +2306,6 @@ class MainApp(QtWidgets.QMainWindow):
             self.pobjc_timer.start(10) 
             
     def on_close(self, event):
-        # Capture grid monitoring state BEFORE setting shutdown flag to prevent window close events from affecting it
-        if self.grid_window_state is None:
-            self.grid_window_state = self.grid_monitoring_action.isChecked() if hasattr(self, 'grid_monitoring_action') else False
-        
-        self.is_shutting_down = True
         self.save_window_position()
         if self._running:
             self.stop_monitoring()
@@ -2325,20 +2350,19 @@ class MainApp(QtWidgets.QMainWindow):
 
     def quit_application(self):
         self.save_window_position()
-        QtWidgets.QApplication.quit()
-        log.debug("Quit")
-
-    def restart_application(self):
-        self.is_shutting_down = True
-        self.grid_window_state = self.grid_monitoring_action.isChecked() if hasattr(self, 'grid_monitoring_action') else False
         
+        log.debug(f"Quit {GUI_LABEL_NAME}")
+        
+        QtWidgets.QApplication.quit()
+
+    def restart_application(self):       
         if self._running:
                 self.stop_monitoring()
         
-        self.save_window_position()
-
         self.save_band_settings()
         self.save_worked_callsigns()
+
+        log.debug(f"Restart {GUI_LABEL_NAME}")
 
         QtCore.QProcess.startDetached(sys.executable, sys.argv)
         QtWidgets.QApplication.quit()
@@ -2594,10 +2618,10 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_table.setCurrentIndex(proxy_index)
         
         # Bring grid map viewer back to front if it exists and is visible
-        if self.grid_monitoring and self.grid_monitoring.isVisible():
-            self.grid_monitoring.show()
-            self.grid_monitoring.raise_()
-            self.grid_monitoring.activateWindow()
+        if self.grid_monitor and self.grid_monitor.isVisible():
+            self.grid_monitor.show()
+            self.grid_monitor.raise_()
+            self.grid_monitor.activateWindow()
 
     def add_row_to_history_table(self, raw_data, add_to_history=True):
         row_id = self.wait_pounce_history_table.rowCount()
@@ -2692,38 +2716,29 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_table.scrollToBottom() 
 
     def save_window_position(self):
-        position = self.geometry()
-        
-        if getattr(self, 'is_shutting_down', False) and self.grid_window_state is not None:
-            grid_monitoring_open = self.grid_window_state
-        else:
-            grid_monitoring_open = self.grid_monitoring_action.isChecked() if hasattr(self, 'grid_monitoring_action') else False
-        
-        position_data = {
-            'x'     : position.x(),
-            'y'     : position.y(), 
-            'width' : position.width(),
-            'height': position.height(),
-            'grid_monitoring_open': grid_monitoring_open
-        }
-        
-        if self.grid_monitoring:
-            grid_position = self.grid_monitoring.geometry()
-            position_data['grid_map_window'] = {
-                'x'     : grid_position.x(),
-                'y'     : grid_position.y(),
-                'width' : grid_position.width(),
-                'height': grid_position.height()
+        try:
+            position_data = {
+                'x'               : self.geometry().x(),
+                'y'               : self.geometry().y(), 
+                'width'           : self.geometry().width(),
+                'height'          : self.geometry().height()
             }
-            self.saved_grid_map_geometry = position_data['grid_map_window']
+            
+            position_data['grid_map_window'] = self.grid_monitor_geometry
 
-        with open(POSITION_FILE, "wb") as f:
-            pickle.dump(position_data, f)
+            log.warning(f"Saving: #{position_data}")
+            with open(POSITION_FILE, "wb") as f:
+                pickle.dump(position_data, f)
+                f.flush() 
+                os.fsync(f.fileno()) 
+        except Exception as e:
+            self.log.error(f"Failed to save window position: {e}")
 
     def load_window_position(self):
         if os.path.exists(POSITION_FILE):
             with open(POSITION_FILE, "rb") as f:
                 position_data = pickle.load(f)
+
                 if (
                     'width' in position_data and 
                     'height' in position_data
@@ -2734,15 +2749,12 @@ class MainApp(QtWidgets.QMainWindow):
                         position_data['width'],
                         position_data['height']
                     )                                      
-                    self.saved_grid_map_geometry = position_data.get('grid_map_window')
-                                    
-                    grid_monitoring_open = position_data.get('grid_monitoring_open', False)
-                    if grid_monitoring_open:
-                        self.grid_monitoring_action.setChecked(True)
-                        QtCore.QTimer.singleShot(100, lambda: self.toggle_grid_monitoring(True))
                 else:
                     self.setGeometry(100, 100, 900, 700) 
                     os.remove(POSITION_FILE)
+
+                self.grid_monitor_geometry = position_data.get('grid_map_window')
+                QtCore.QTimer.singleShot(100, lambda: self.toggle_grid_monitor(self.enable_grid_monitor))                    
         else:
             self.setGeometry(100, 100, 900, 700) 
 
@@ -2769,7 +2781,6 @@ class MainApp(QtWidgets.QMainWindow):
             bg_color = "black",
             fg_color = "white",
         ):
-            # log.error(f"Update status button to : [ {text} ]")
             if (
                 self.status_button.current_text     != text     or
                 self.status_button.current_bg_color != bg_color or
@@ -2901,49 +2912,37 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.window_menu.addSeparator()
 
-        show_all_messages_action = QtGui.QAction("Show All Messages", self)
-        show_all_messages_action.setShortcut(QtGui.QKeySequence("Ctrl+A"))
-        show_all_messages_action.setCheckable(True)  
-        show_all_messages_action.setChecked(self.enable_show_all_decoded)  
-        show_all_messages_action.triggered.connect(self.update_show_all_decoded_preference)
+        show_all_action = QtGui.QAction("Show All Messages", self)
+        show_all_action.setShortcut(QtGui.QKeySequence("Ctrl+A"))
+        show_all_action.setCheckable(True)  
+        show_all_action.setChecked(self.enable_show_all_decoded)  
+        show_all_action.triggered.connect(self.update_show_all_preference)
 
-        self.show_all_messages_action = show_all_messages_action
+        self.show_all_action = show_all_action
         
-        self.window_menu.addAction(show_all_messages_action)
+        self.window_menu.addAction(show_all_action)
         
-        filter_visibility_action = QtGui.QAction("Show Filters", self)
-        filter_visibility_action.setShortcut(QtGui.QKeySequence("Ctrl+F"))
-        filter_visibility_action.setCheckable(True)  
-        filter_visibility_action.setChecked(self.enable_filter_gui)  
-        filter_visibility_action.triggered.connect(self.update_filter_gui_preference)
+        filter_gui_action = QtGui.QAction("Show Filters", self)
+        filter_gui_action.setShortcut(QtGui.QKeySequence("Ctrl+F"))
+        filter_gui_action.setCheckable(True)  
+        filter_gui_action.setChecked(self.enable_filter_gui)  
+        filter_gui_action.triggered.connect(self.update_filter_gui_preference)
 
-        self.filter_visibility_action = filter_visibility_action
+        self.filter_gui_action = filter_gui_action
         
-        self.window_menu.addAction(filter_visibility_action)
+        self.window_menu.addAction(filter_gui_action)
 
-        grid_monitoring_action = QtGui.QAction("Grid Monitoring", self)
-        grid_monitoring_action.setShortcut(QtGui.QKeySequence("Ctrl+G"))
-        grid_monitoring_action.setCheckable(True)
-        grid_monitoring_action.setChecked(False)
-        grid_monitoring_action.triggered.connect(self.toggle_grid_monitoring)
-        
-        self.grid_monitoring_action = grid_monitoring_action
-        self.window_menu.addAction(grid_monitoring_action)
+        grid_monitor_action = QtGui.QAction("Grid Monitoring", self)
+        grid_monitor_action.setShortcut(QtGui.QKeySequence("Ctrl+G"))
+        grid_monitor_action.setCheckable(True)
+        grid_monitor_action.setChecked(self.enable_grid_monitor)
+        grid_monitor_action.triggered.connect(self.update_grid_map_preference)
+
+        self.grid_monitor_action = grid_monitor_action
+
+        self.window_menu.addAction(grid_monitor_action)
 
         self.window_menu.addSeparator()
-
-        """
-        toggle_minimize_action = QtGui.QAction("Minimize Windows", self)
-        toggle_minimize_action.setCheckable(True)  
-        toggle_minimize_action.setChecked(self.enable_minimized_gui)  
-        toggle_minimize_action.triggered.connect(self.toggle_minimize_gui)
-
-        self.toggle_minimize_action = toggle_minimize_action
-        
-        self.window_menu.addAction(toggle_minimize_action)
-
-        self.window_menu.addSeparator()
-        """
         
         clear_filters_action = QtGui.QAction("Clear Filters", self)
         clear_filters_action.setShortcut(QtGui.QKeySequence("Ctrl+W")) 
