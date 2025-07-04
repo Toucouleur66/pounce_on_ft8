@@ -317,7 +317,7 @@ class MainApp(QtWidgets.QMainWindow):
         
         self.enable_pounce_log                  = params.get('enable_pounce_log', True)
         self.enable_filter_gui                   = params.get('enable_filter_gui', False)        
-        self.enable_grid_monitor                = params.get('enable_grid_monitor')
+        self.enable_grid_monitor                = params.get('enable_grid_monitor', False)
 
         self.enable_minimized_gui               = False
         self.enable_global_sound                = params.get('enable_global_sound', True)
