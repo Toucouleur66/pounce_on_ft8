@@ -528,7 +528,7 @@ class SettingsDialog(QtWidgets.QDialog):
         row = 0
         col = 0
 
-        for amateur_band in list(AMATEUR_BANDS.keys())[:-2]:
+        for amateur_band in list(AMATEUR_BANDS.keys())[:-3]:
             btn = CustomButton(amateur_band)
             btn.setCheckable(True)         
             btn.toggled.connect(lambda checked, btn=btn, name=amateur_band: self.on_band_toggled(btn, name, checked))

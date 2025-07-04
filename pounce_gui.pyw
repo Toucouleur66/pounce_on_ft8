@@ -475,7 +475,6 @@ class MainApp(QtWidgets.QMainWindow):
         horizontal_layout.setSpacing(0)  
 
         horizontal_layout.addWidget(CustomQLabel("Sounds"))
-        
         horizontal_layout.addWidget(self.global_sound_toggle)
         horizontal_layout.addSpacing(20)
         horizontal_layout.addWidget(CustomQLabel("All"))  
@@ -484,7 +483,7 @@ class MainApp(QtWidgets.QMainWindow):
         horizontal_layout.addWidget(CustomQLabel("Filters"))  
         horizontal_layout.addWidget(self.filter_gui_toggle)
         horizontal_layout.addSpacing(20)
-        horizontal_layout.addWidget(CustomQLabel("Grid"))  
+        horizontal_layout.addWidget(CustomQLabel("Grids"))  
         horizontal_layout.addWidget(self.grid_monitor_toggle)
 
         # Apply layout to the widget
@@ -636,6 +635,9 @@ class MainApp(QtWidgets.QMainWindow):
                 
         # Close event to save position
         self.closeEvent = self.on_close
+        
+        # Set focus policy for main window to handle keyboard events
+        self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
 
         if self.enable_auto_start_monitoring:
             self.start_monitoring()
@@ -677,6 +679,14 @@ class MainApp(QtWidgets.QMainWindow):
 
             self.status_bar.setContentsMargins(10, 3, 10, 3)
 
+    def blinking_grid(self):
+        if (
+            self.last_focus_value_message_uid and 
+            self.grid_monitor and 
+            self.grid_monitor.isVisible()
+        ):            
+            self.grid_monitor.map_widget.trigger_grid_blink(self.last_focus_value_message_uid)
+
     @QtCore.pyqtSlot()
     def on_status_menu_clicked(self):
         self.show()
@@ -684,13 +694,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.raise_()
         self.activateWindow()
         
-        if (
-            self.last_focus_value_message_uid and 
-            self.grid_monitor and 
-            self.grid_monitor.isVisible()
-        ):            
-            self.grid_monitor.map_widget.trigger_grid_blink(self.last_focus_value_message_uid)
-        
+        self.blinking_grid()
         self.on_focus_value_label_clicked()
         self.hide_status_menu()
         self.scroll_to_message_uid(self.last_focus_value_message_uid)
@@ -2529,6 +2533,7 @@ class MainApp(QtWidgets.QMainWindow):
         message = self.focus_value_label.text()
 
         if message:
+            self.blinking_grid()
             self.scroll_to_message_uid(self.last_focus_value_message_uid)
             self.copy_message_to_clipboard(message)
 

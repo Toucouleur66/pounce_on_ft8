@@ -88,6 +88,9 @@ class GridMapWidget(QWidget):
         
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         
+        # Ensure focus is maintained
+        self.setFocus()
+        
         self.update_timer               = QTimer()
         self.update_timer.timeout.connect(self.update_animation)
         self.update_timer.start(16)
@@ -1468,7 +1471,7 @@ class GridMapWidget(QWidget):
         path.closeSubpath()
         return path
     
-    def keyPressEvent(self, event: QKeyEvent):
+    def keyPressEvent(self, event: QKeyEvent):       
         window = self.window()  
         if event.key() == Qt.Key.Key_G:    
             if hasattr(window, 'toggle_grid'):
@@ -1524,6 +1527,9 @@ class GridMapWidget(QWidget):
         self.save_grid_map_settings()
     
     def mousePressEvent(self, event: QMouseEvent):
+        # Ensure we have focus when clicked
+        self.setFocus()
+        
         if event.button() == Qt.MouseButton.LeftButton:
             self.mouse_pressed = True
             self.has_moved = False
@@ -1649,7 +1655,9 @@ class GridMapWindow(QMainWindow):
         self.map_widget = GridMapWidget()
         
         self.setup_main_layout()
-    
+        
+        self.map_widget.setFocus()
+        
     def setup_main_layout(self):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -1774,8 +1782,13 @@ class GridMapWindow(QMainWindow):
             }}
         """)
     
+    def showEvent(self, event):
+        super().showEvent(event)
+    
+    def activateEvent(self, event):
+        super().activateEvent(event)
+    
     def closeEvent(self, event):
-        # Trigger main app to save window positions (including this grid map window)
         if hasattr(self.map_widget, 'parent_app') and self.map_widget.parent_app:
             self.map_widget.parent_app.save_window_position()
         self.map_widget.closeEvent(event)
