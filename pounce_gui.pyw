@@ -391,7 +391,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.timer_value_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Minimum)
 
         top_layout.addWidget(self.timer_value_label)
-  
+
+        self.create_main_menu() 
+
         """
             Widget Tab
         """
@@ -614,7 +616,6 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.load_worked_history_callsigns()
         self.apply_theme_to_all(self.theme_manager.dark_mode)
-        self.create_main_menu() 
         self.load_window_position()
         self.toggle_wkb4_column_visibility()        
 
@@ -728,7 +729,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.tooltip_monitored_vars             = {}
         self.tooltip_excluded_callsigns_vars    = {}
         self.tooltip_wanted_cq_zones_vars       = {}
-        self.tooltip_excluded_cd_zones_vars     = {}
+        self.tooltip_excluded_cq_zones_vars     = {}
         self.tooltip_monitored_cq_zones_vars    = {}
 
         self.band_indices                       = {}
@@ -749,7 +750,7 @@ class MainApp(QtWidgets.QMainWindow):
             'wanted_cq_zones'       : self.tooltip_wanted_cq_zones_vars,
             'monitored_cq_zones'    : self.tooltip_monitored_cq_zones_vars,
             'excluded_callsigns'    : self.tooltip_excluded_callsigns_vars,
-            'excluded_cq_zones'     : self.tooltip_excluded_cd_zones_vars,
+            'excluded_cq_zones'     : self.tooltip_excluded_cq_zones_vars,
         }
 
         sought_variables = [
@@ -818,7 +819,23 @@ class MainApp(QtWidgets.QMainWindow):
                 line_label.setStyleSheet("border-radius: 6px; padding: 3px;")
                 line_label.setMinimumWidth(100)
 
-                tooltip_wanted_dict[variable_info['name']][amateur_band] = ToolTip(line_label, source_widget=line_edit, default_text=CALLSIGN_NOTICE_LABEL)
+                # Use appropriate tooltip type based on field name
+                if variable_info['name'] in ['excluded_callsigns', 'excluded_cq_zones']:
+                    tooltip_wanted_dict[variable_info['name']][amateur_band] = ToolTip(
+                        line_label, 
+                        source_widget=line_edit, 
+                        default_text=CALLSIGN_NOTICE_LABEL,
+                        bg_color=BG_COLOR_REGULAR_FOCUS,
+                        fg_color=FG_COLOR_REGULAR_FOCUS
+                    )
+                else:
+                    tooltip_type = variable_info['name']
+                    tooltip_wanted_dict[variable_info['name']][amateur_band] = ToolTip(
+                        line_label, 
+                        source_widget=line_edit, 
+                        default_text=CALLSIGN_NOTICE_LABEL,
+                        tooltip_type=tooltip_type
+                    )
 
                 layout.addWidget(line_label, idx+1, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
                 layout.addWidget(line_edit, idx+1, 1)

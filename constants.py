@@ -153,16 +153,6 @@ SETTING_QSS                     = f"""
                 border-radius: 6px;
         """
 
-TOOLTIP_QSS                      = f"""
-            QToolTip {{
-                background-color: {STATUS_MONITORING_COLOR}; 
-                color: white;
-                padding: 3px;
-                margin: 0px;
-                border-radius: 6px;
-            }}
-        """
-
 TABLE_SETTING_QSS               = f"""
             QTableWidget {{
                 border: none;

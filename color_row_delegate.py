@@ -13,14 +13,12 @@ class ColorRowDelegate(QStyledItemDelegate):
         if custom_font:
             painter.setFont(custom_font)
 
-        # Lire la couleur de fond
         bg_color = index.data(Qt.ItemDataRole.BackgroundRole)
         if bg_color:
             painter.setBrush(QBrush(bg_color))
         else:
             painter.setBrush(Qt.BrushStyle.NoBrush)
 
-        # Dessiner le fond
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawRect(option.rect)
 
