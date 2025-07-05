@@ -17,20 +17,49 @@ from constants import (
 class TooltipManager:
     _instance = None
     _current_tooltip = None
-    _app_focus_listener = None
+    _focus_timer = None
+    _main_window = None
     
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._setup_app_focus_listener()
+            cls._setup_focus_monitoring()
         return cls._instance
     
     @classmethod
-    def _setup_app_focus_listener(cls):
+    def _setup_focus_monitoring(cls):
+        if not cls._focus_timer:
+            cls._focus_timer = QtCore.QTimer()
+            cls._focus_timer.timeout.connect(cls._check_focus)
+            cls._focus_timer.start(100)  # Check every 100ms
+    
+    @classmethod
+    def _check_focus(cls):
+        if cls._current_tooltip and not cls._is_app_really_active():
+            cls.hide_current_tooltip()
+    
+    @classmethod
+    def _is_app_really_active(cls):
         app = QtWidgets.QApplication.instance()
-        if app and not cls._app_focus_listener:
-            cls._app_focus_listener = AppFocusListener()
-            app.installEventFilter(cls._app_focus_listener)
+        if not app:
+            return False
+        
+        # Check if any widget has focus
+        focused_widget = app.focusWidget()
+        if focused_widget:
+            return True
+        
+        # Check if any window is active
+        active_window = app.activeWindow()
+        if active_window and active_window.isActiveWindow():
+            return True
+        
+        # Additional check for main window
+        for widget in app.allWidgets():
+            if widget.isWindow() and widget.isActiveWindow():
+                return True
+        
+        return False
     
     @classmethod
     def hide_current_tooltip(cls):
@@ -45,17 +74,7 @@ class TooltipManager:
     
     @classmethod
     def is_app_active(cls):
-        app = QtWidgets.QApplication.instance()
-        if app:
-            return app.activeWindow() is not None
-        return False
-
-class AppFocusListener(QtCore.QObject):
-    def eventFilter(self, obj, event):
-        if event.type() == QtCore.QEvent.Type.ApplicationStateChange:
-            if not TooltipManager.is_app_active():
-                TooltipManager.hide_current_tooltip()
-        return super().eventFilter(obj, event)
+        return cls._is_app_really_active()
 
 class CustomToolTip(QtWidgets.QWidget):
     def __init__(self, text, tooltip_type="default", bg_color=None, fg_color=None, parent=None):
@@ -68,6 +87,7 @@ class CustomToolTip(QtWidgets.QWidget):
         self.radius = 3
         
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_ShowWithoutActivating)
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
         self.setFont(CUSTOM_FONT)
         
@@ -193,17 +213,26 @@ class ToolTip(QtWidgets.QWidget):
         self.show_timer = QtCore.QTimer()
         self.show_timer.setSingleShot(True)
         self.show_timer.timeout.connect(self._show_tooltip_delayed)
-        self.show_delay = 100  # 100ms delay
+        self.show_delay = 300  # 300ms delay to prevent blinking
+        
+        # Track mouse state
+        self.mouse_over = False
 
     def eventFilter(self, obj, event):
         if obj == self.widget:
             if event.type() == QtCore.QEvent.Type.Enter:
+                self.mouse_over = True
                 self.show_tooltip()
             elif event.type() == QtCore.QEvent.Type.Leave:
+                self.mouse_over = False
                 self.hide_tooltip()
         return super().eventFilter(obj, event)
 
     def show_tooltip(self):
+        # Only proceed if mouse is actually over the widget
+        if not self.mouse_over:
+            return
+        
         # Hide any existing tooltip immediately
         TooltipManager.hide_current_tooltip()
         
@@ -214,8 +243,8 @@ class ToolTip(QtWidgets.QWidget):
         self.show_timer.start(self.show_delay)
     
     def _show_tooltip_delayed(self):
-        # Check if app is still active
-        if not TooltipManager.is_app_active():
+        # Double-check mouse is still over and app is active
+        if not self.mouse_over or not TooltipManager.is_app_active():
             return
             
         if hasattr(self.source_widget, 'text'):
@@ -229,11 +258,13 @@ class ToolTip(QtWidgets.QWidget):
         text_parts = [part.strip() for part in raw_text.split(",") if part.strip()]
         tooltip_text = "<br/>".join(sorted(text_parts))
         
-        if self.tooltip_window:
-            self.tooltip_window.hideToolTip()
-        
-        self.tooltip_window = CustomToolTip(tooltip_text, self.tooltip_type, self.bg_color, self.fg_color)
-        self.tooltip_window.showToolTip(QtGui.QCursor.pos())
+        # Only show if mouse is still over
+        if self.mouse_over:
+            if self.tooltip_window:
+                self.tooltip_window.hideToolTip()
+            
+            self.tooltip_window = CustomToolTip(tooltip_text, self.tooltip_type, self.bg_color, self.fg_color)
+            self.tooltip_window.showToolTip(QtGui.QCursor.pos())
 
     def hide_tooltip(self):
         # Cancel any pending show timer
