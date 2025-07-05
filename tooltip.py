@@ -84,7 +84,7 @@ class CustomToolTip(QtWidgets.QWidget):
         self.tooltip_type = tooltip_type
         self.custom_bg_color = bg_color
         self.custom_fg_color = fg_color
-        self.padding = 14
+        self.padding = 8
         self.radius = 3
         
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -124,11 +124,16 @@ class CustomToolTip(QtWidgets.QWidget):
             line_width = fm.horizontalAdvance(line)
             max_width = max(max_width, line_width)
         
+        # Add extra margin for text rendering
         width = max_width + 2 * self.padding + 8
         
+        # Calculate height more accurately
         line_height = fm.height()
-        total_height = len(text_lines) * line_height + (len(text_lines) - 1) * 4
-        height = total_height + 2 * self.padding
+        line_spacing = 4
+        
+        # Total height: all lines + spacing between lines + padding + extra margin
+        total_height = len(text_lines) * line_height + (len(text_lines) - 1) * line_spacing
+        height = total_height + 2 * self.padding + 4  # Extra 4px to prevent cutting
         
         return QtCore.QSize(width, height)
     
@@ -200,13 +205,14 @@ class CustomToolTip(QtWidgets.QWidget):
         
         fm = QtGui.QFontMetrics(self.font())
         line_height = fm.height()
+        line_spacing = 4
         y_offset = 0
         
         for line in text_lines:
             line_y = text_rect.y() + y_offset
             line_rect = QtCore.QRect(text_rect.x(), line_y, text_rect.width(), line_height)
             painter.drawText(line_rect, QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignTop, line)
-            y_offset += line_height + 4
+            y_offset += line_height + line_spacing
 
 class ToolTip(QtWidgets.QWidget):
     def __init__(self, widget, source_widget=None, default_text='', tooltip_type="default", bg_color=None, fg_color=None):
