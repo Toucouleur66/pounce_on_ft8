@@ -14,6 +14,49 @@ from constants import (
     FG_COLOR_BLACK_ON_CYAN
 )
 
+class TooltipManager:
+    _instance = None
+    _current_tooltip = None
+    _app_focus_listener = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._setup_app_focus_listener()
+        return cls._instance
+    
+    @classmethod
+    def _setup_app_focus_listener(cls):
+        app = QtWidgets.QApplication.instance()
+        if app and not cls._app_focus_listener:
+            cls._app_focus_listener = AppFocusListener()
+            app.installEventFilter(cls._app_focus_listener)
+    
+    @classmethod
+    def hide_current_tooltip(cls):
+        if cls._current_tooltip:
+            cls._current_tooltip.hideToolTip()
+            cls._current_tooltip = None
+    
+    @classmethod
+    def set_current_tooltip(cls, tooltip):
+        cls.hide_current_tooltip()
+        cls._current_tooltip = tooltip
+    
+    @classmethod
+    def is_app_active(cls):
+        app = QtWidgets.QApplication.instance()
+        if app:
+            return app.activeWindow() is not None
+        return False
+
+class AppFocusListener(QtCore.QObject):
+    def eventFilter(self, obj, event):
+        if event.type() == QtCore.QEvent.Type.ApplicationStateChange:
+            if not TooltipManager.is_app_active():
+                TooltipManager.hide_current_tooltip()
+        return super().eventFilter(obj, event)
+
 class CustomToolTip(QtWidgets.QWidget):
     def __init__(self, text, tooltip_type="default", bg_color=None, fg_color=None, parent=None):
         super().__init__(parent, QtCore.Qt.WindowType.ToolTip | QtCore.Qt.WindowType.FramelessWindowHint)
@@ -68,6 +111,11 @@ class CustomToolTip(QtWidgets.QWidget):
         return QtCore.QSize(width, height)
     
     def showToolTip(self, pos=None):
+        if not TooltipManager.is_app_active():
+            return
+            
+        TooltipManager.set_current_tooltip(self)
+        
         self.adjustSize()
         if pos is None:
             pos = QtGui.QCursor.pos()
@@ -92,6 +140,8 @@ class CustomToolTip(QtWidgets.QWidget):
     
     def hideToolTip(self):
         self.hide()
+        if TooltipManager._current_tooltip == self:
+            TooltipManager._current_tooltip = None
     
     def paintEvent(self, event):
         painter = QtGui.QPainter(self)
@@ -121,7 +171,7 @@ class CustomToolTip(QtWidgets.QWidget):
         line_height = fm.height()
         y_offset = 0
         
-        for i, line in enumerate(text_lines):
+        for line in text_lines:
             line_y = text_rect.y() + y_offset
             line_rect = QtCore.QRect(text_rect.x(), line_y, text_rect.width(), line_height)
             painter.drawText(line_rect, QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignTop, line)
@@ -138,6 +188,12 @@ class ToolTip(QtWidgets.QWidget):
         self.fg_color = fg_color
         self.tooltip_window = None
         self.widget.installEventFilter(self)
+        
+        # Add timer for debouncing
+        self.show_timer = QtCore.QTimer()
+        self.show_timer.setSingleShot(True)
+        self.show_timer.timeout.connect(self._show_tooltip_delayed)
+        self.show_delay = 100  # 100ms delay
 
     def eventFilter(self, obj, event):
         if obj == self.widget:
@@ -148,6 +204,20 @@ class ToolTip(QtWidgets.QWidget):
         return super().eventFilter(obj, event)
 
     def show_tooltip(self):
+        # Hide any existing tooltip immediately
+        TooltipManager.hide_current_tooltip()
+        
+        # Cancel any pending show timer
+        self.show_timer.stop()
+        
+        # Start the show timer
+        self.show_timer.start(self.show_delay)
+    
+    def _show_tooltip_delayed(self):
+        # Check if app is still active
+        if not TooltipManager.is_app_active():
+            return
+            
         if hasattr(self.source_widget, 'text'):
             raw_text = self.source_widget.text()
         else:
@@ -166,6 +236,13 @@ class ToolTip(QtWidgets.QWidget):
         self.tooltip_window.showToolTip(QtGui.QCursor.pos())
 
     def hide_tooltip(self):
+        # Cancel any pending show timer
+        self.show_timer.stop()
+        
+        # Hide current tooltip
         if self.tooltip_window:
             self.tooltip_window.hideToolTip()
             self.tooltip_window = None
+        
+        # Also hide any globally current tooltip
+        TooltipManager.hide_current_tooltip()
