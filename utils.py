@@ -480,7 +480,16 @@ def compute_time_ago(dt_value):
         return f"{seconds // 86400}d"
     else:
         weeks = seconds // (86400 * 7)
-        return f"{weeks}w"            
+        return f"{weeks}w"
+
+def get_period_for_datetime(dt_value, mode):
+    from constants import EVEN, ODD
+    
+    if dt_value.tzinfo is None:
+        dt_value = dt_value.replace(tzinfo=timezone.utc)
+    
+    period_index = int(dt_value.timestamp() // get_mode_interval(mode))
+    return "(1)" if period_index % 2 == 0 else "(2)"            
 
 def has_significant_change(first_str, second_str):
     if first_str.count(',') != second_str.count(','):

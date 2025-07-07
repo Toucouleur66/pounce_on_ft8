@@ -56,7 +56,7 @@ from grid_map_viewer import GridMapWindow
 if sys.platform == 'darwin':
     from status_menu import StatusMenuAgent
 
-from utils import get_local_ip_address, matches_any
+from utils import get_local_ip_address, matches_any, get_app_data_dir
 from utils import get_mode_interval, get_amateur_band, display_frequency
 from utils import force_input, focus_out_event, text_to_array, has_significant_change
 from utils import parse_adif
@@ -142,6 +142,7 @@ from constants import (
     DEFAULT_LOG_ALL_VALID_CONTACT,
     DEFAULT_DELAY_BETWEEN_SOUND,
     DEFAULT_MAX_WAITING_DELAY,
+    DEFAULT_MINIMUM_REPORT,
     ACTIVITY_BAR_MAX_VALUE,
     WKB4_REPLY_MODE_ALWAYS,
     # QSS
@@ -1507,6 +1508,7 @@ class MainApp(QtWidgets.QMainWindow):
                 self.update_var(self.wanted_callsigns_vars[self.operating_band], message.get('callsign'), message.get('action'))  
             elif message_type == 'adif_data_updated':
                 if self.grid_monitor is not None:
+                    log.warning("update_adif_data callback received")
                     self.grid_monitor.map_widget.update_adif_data(message.get('adif_data', {}))
             elif message_type == 'update_status':
                 if self._running:
@@ -3208,6 +3210,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.adif_worked_backup_file_path    = params.get('adif_worked_backup_file_path', None)
         self.worked_before_preference       = params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS)
         self.marathon_preference            = params.get('marathon_preference', {})
+        minimum_report_for_reply            = params.get('minimum_report_for_reply', DEFAULT_MINIMUM_REPORT)
         priority_order                      = params.get('priority_order', None)
         
         self.save_unique_param('freq_range_mode', freq_range_mode )        
@@ -3242,6 +3245,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.worked_before_preference,
             self.enable_marathon,
             self.marathon_preference,
+            minimum_report_for_reply,
             priority_order           
         )
         self.worker.moveToThread(self.thread)

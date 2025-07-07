@@ -44,6 +44,7 @@ class Worker(QObject):
             worked_before_preference,
             enable_marathon,
             marathon_preference,
+            minimum_report_for_reply,
             priority_order=None
         ):
         
@@ -87,6 +88,7 @@ class Worker(QObject):
         self.worked_before_preference           = worked_before_preference
         self.enable_marathon                    = enable_marathon
         self.marathon_preference                = marathon_preference
+        self.minimum_report_for_reply           = minimum_report_for_reply
         self.priority_order                     = priority_order
 
         self.timer = QTimer()
@@ -133,6 +135,7 @@ class Worker(QObject):
                 adif_file_path                   = self.adif_file_path,
                 adif_worked_backup_file_path     = self.adif_worked_backup_file_path,                
                 worked_before_preference        = self.worked_before_preference,
+                minimum_report_for_reply        = self.minimum_report_for_reply,
                 priority_order                  = self.priority_order,
                 
                 message_callback                = self.message.emit

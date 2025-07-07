@@ -83,6 +83,7 @@ class Listener(QObject):
             adif_file_path,
             adif_worked_backup_file_path,
             worked_before_preference,
+            minimum_report_for_reply,
             priority_order=None,
             message_callback=None
         ):
@@ -195,6 +196,7 @@ class Listener(QObject):
 
         self.worked_before_preference       = worked_before_preference      
         self.marathon_preference            = marathon_preference
+        self.minimum_report_for_reply       = minimum_report_for_reply
 
         self.adif_data                      = {}        
 
@@ -394,13 +396,13 @@ class Listener(QObject):
         log_output.append(f"MyCall={self.my_call}")
         log_output.append(f"EnableSendingReply={self.enable_sending_reply}")             
         log_output.append(f"Band={self.band}")   
+        log_output.append(f"MinimumSignalReport={self.minimum_report_for_reply}db")        
         log_output.append(f"WantedCallsigns={self.wanted_callsigns}")
         log_output.append(f"MonitoredCallsigns={self.monitored_callsigns}")
         log_output.append(f"ExcludedCallsigns={self.excluded_callsigns}")
         log_output.append(f"WantedZones={self.wanted_cq_zones}")
         log_output.append(f"MonitoredZones={self.monitored_cq_zones}")
         log_output.append(f"ExcludedZones={self.excluded_cq_zones}")
-
         
         if self.enable_marathon:
             marathon_preference = self.marathon_preference.get(self.band)
@@ -935,7 +937,7 @@ class Listener(QObject):
                 excluded          = parsed_message['excluded']
                 monitored         = parsed_message['monitored']
                 monitored_cq_zone = parsed_message['monitored_cq_zone']
-                
+
                 """
                     Might need to handle in priority callsign set rather than callsign
                     automatically added
@@ -1196,6 +1198,17 @@ class Listener(QObject):
                     log.error(f"DT is above normal for [ {callsign } ]. DT: [ {round(delta_t, 1)}s ]")
                     return                            
                 
+                """
+                    Check SNR
+                """
+                if (
+                    reply_to_packet and 
+                    snr >= self.minimum_report_for_reply and
+                    directed != self.my_call
+                ):
+                    log.error(f"SNR value is below than the expected minimum [ {self.minimum_report_for_reply}dB ] for [ {callsign } ]. SNR: [ {snr}dB ]")
+                    reply_to_packet = False
+
                 """
                     Check priority
                 """
@@ -1571,6 +1584,7 @@ class Listener(QObject):
                 'type': 'adif_data_updated',
                 'adif_data': self.adif_data
             })
+            log.warning("update_adif_data done")
 
     """
         if self.adif_data.get('entity') and self.band:
