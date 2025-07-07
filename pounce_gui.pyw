@@ -227,7 +227,7 @@ class MainApp(QtWidgets.QMainWindow):
         }
                 
         self.setGeometry(100, 100, 1_000, 700)
-        self.setMinimumSize(780, 500)
+        self.setMinimumSize(780, 600)
         self.setWindowTitle(self.base_title)      
 
         if platform.system() == 'Windows':
@@ -1067,15 +1067,16 @@ class MainApp(QtWidgets.QMainWindow):
     def toggle_compact_mode(self, checked):
         if checked:
             self.hide_container_tab()
+            self.setMinimumSize(780, 300)
         else:
             self.show_container_tab()
+            self.setMinimumSize(780, 600)
 
     def toggle_grid_monitor(self, checked):    
         checked = bool(checked) if isinstance(checked, int) else checked
         if checked:
             if self.grid_monitor is None:
                 self.grid_monitor = GridMapWindow()
-                self.grid_monitor.closeEvent = self.on_map_window_closed
                 
             self.grid_monitor.map_widget.set_parent_app(self)
             self.grid_monitor.map_widget.grid_clicked.connect(self.scroll_to_message_uid)

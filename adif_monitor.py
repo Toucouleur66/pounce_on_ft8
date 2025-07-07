@@ -1,5 +1,6 @@
 import os
 import threading
+import copy
 
 import inspect
 import traceback
@@ -25,6 +26,7 @@ class AdifMonitor:
         self.adif_data_by_file   = {}
         self.callbacks          = []
         self.stop_event         = Event()
+        self.data_lock          = threading.RLock()
 
         self._lookup            = False
         self._running           = False
@@ -46,9 +48,12 @@ class AdifMonitor:
         self.callbacks.append(callback)
     
     def notify_callbacks(self):
+        with self.data_lock:
+            data_copy = copy.deepcopy(self.get_adif_data())
+        
         for callback in self.callbacks:
             try:
-                callback(self.get_adif_data())
+                callback(data_copy)
             except Exception as e:
                 log.error(f"Error in callback {callback}: {e}\n{traceback.format_exc()}")  
 
@@ -66,7 +71,9 @@ class AdifMonitor:
                         log.info(f"Start processing: {file_path}")
                         self.adif_last_mtime[file_path] = current_mtime
                         processing_time, parsed_data = parse_adif(file_path, self._lookup)
-                        self.adif_data_by_file[file_path] = parsed_data
+                        
+                        with self.data_lock:
+                            self.adif_data_by_file[file_path] = parsed_data
                         
                         log.info(f"Processed ({processing_time:.4f}s): {file_path}")
                         self.notify_callbacks()                            
@@ -79,7 +86,10 @@ class AdifMonitor:
             'entity': defaultdict(lambda: defaultdict(set)),
             'grid'  : defaultdict(lambda: defaultdict(set)),
         }
-        for data in self.adif_data_by_file.values():
+        
+        # Create a snapshot to avoid iterator invalidation
+        data_snapshot = list(self.adif_data_by_file.values())
+        for data in data_snapshot:
             if data is None:
                 continue  
 

@@ -76,24 +76,27 @@ class SettingsDialog(QtWidgets.QDialog):
 
         tab_1 = QtWidgets.QWidget()
         tab_2 = QtWidgets.QWidget()
-        tab_3 = QtWidgets.QWidget()
+        tab_3 = QtWidgets.QWidget()        
         tab_4 = QtWidgets.QWidget()
         tab_5 = QtWidgets.QWidget()
         tab_6 = QtWidgets.QWidget()
+        tab_7 = QtWidgets.QWidget()
 
         self.tab_widget.addTab(tab_1, "Server")
         self.tab_widget.addTab(tab_2, "General")
-        self.tab_widget.addTab(tab_3, "Sound Alerts")
-        self.tab_widget.addTab(tab_4, "Log Analysis")
-        self.tab_widget.addTab(tab_5, "Backup")
-        self.tab_widget.addTab(tab_6, "Debugging")
+        self.tab_widget.addTab(tab_3, "Priority")        
+        self.tab_widget.addTab(tab_4, "Sound Alerts")
+        self.tab_widget.addTab(tab_5, "Log Analysis")
+        self.tab_widget.addTab(tab_6, "Backup")
+        self.tab_widget.addTab(tab_7, "Debugging")
 
         tab_1_layout = QtWidgets.QVBoxLayout(tab_1)
         tab_2_layout = QtWidgets.QVBoxLayout(tab_2)
-        tab_3_layout = QtWidgets.QVBoxLayout(tab_3)
+        tab_3_layout = QtWidgets.QVBoxLayout(tab_3)        
         tab_4_layout = QtWidgets.QVBoxLayout(tab_4)
         tab_5_layout = QtWidgets.QVBoxLayout(tab_5)
         tab_6_layout = QtWidgets.QVBoxLayout(tab_6)
+        tab_7_layout = QtWidgets.QVBoxLayout(tab_7)
         
         """
             Server Settings
@@ -175,6 +178,16 @@ class SettingsDialog(QtWidgets.QDialog):
         """
             Main Settings
         """
+        general_notice_text = (
+            f"<p>{GUI_LABEL_NAME} won't trigger reply unless you enabled <u>Enable reply</u> or <u>Enable polite reply</u>.</p><p>If you disable these settings, {GUI_LABEL_NAME} still run as a monitoring tool with different visual or sound alerts depending on your preference.</p><p>If you enable them, this program will double-click on any of the lines of decoded text in the Band Activity window of your WSJT-X/JTDX instance which match with your preferences.</p>"
+        )
+        general_notice_label = QtWidgets.QLabel(general_notice_text)
+        general_notice_label.setWordWrap(True)
+        general_notice_label.setFont(CUSTOM_FONT_SMALL)
+        general_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
+        general_notice_label.setStyleSheet(SETTING_QSS)
+        general_notice_label.setAutoFillBackground(True)
+
         general_settings_group = QtWidgets.QGroupBox(f"General {GUI_LABEL_NAME} Settings")
         
         general_settings_widget = QtWidgets.QWidget()
@@ -205,65 +218,6 @@ class SettingsDialog(QtWidgets.QDialog):
         general_settings_layout.addWidget(self.enable_watchdog_bypass, 3, 0, 1, 2)
         general_settings_layout.addWidget(self.enable_log_all_valid_contact, 4, 0, 1, 2)
         general_settings_layout.addWidget(self.enable_reply_to_valid_callsign, 5, 0, 1, 2)
-
-        max_reply_text = (
-            "<p>When several Wanted callsigns are detected during the same sequence and if program starts to reply to one specific callsign, it has a limited <u>number of attempts</u> before moving on to the next detected callsign.</p><p>The maximum <u>waiting delay</u> is used to halt TX and stop calling a station that the program has started to call but is no longer decoded. However, if another Wanted callsign is detected, this setting has no effect.</p>"
-        )
-        max_reply_notice_label = QtWidgets.QLabel(max_reply_text)
-        max_reply_notice_label.setWordWrap(True)
-        max_reply_notice_label.setFont(CUSTOM_FONT_SMALL)
-        max_reply_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
-        max_reply_notice_label.setStyleSheet(SETTING_QSS)
-        max_reply_notice_label.setAutoFillBackground(True)
-
-        self.max_reply_group = QtWidgets.QGroupBox(f"Sequencing")
-
-        max_reply_layout = QtWidgets.QVBoxLayout()
-
-        max_reply_label = QtWidgets.QLabel("Maximum number of attempts for a Wanted Callsign")
-        max_reply_label.setFixedWidth(400)
-
-        self.max_reply_attemps_combo = QtWidgets.QComboBox()
-        self.max_reply_attemps_combo.setEditable(False)  
-        self.max_reply_attemps_combo.setMinimumWidth(100)
-
-        self.max_reply_attemps_combo.addItems([str(i) for i in range(4, 31)])
-        self.max_reply_attemps_combo.setCurrentIndex(DEFAULT_REPLY_ATTEMPTS)
-
-        reply_attempts_layout = QtWidgets.QHBoxLayout()
-        reply_attempts_layout.addWidget(max_reply_label)
-        reply_attempts_layout.addWidget(self.max_reply_attemps_combo)
-        reply_attempts_layout.addWidget(QtWidgets.QLabel("times"))
-
-        max_reply_layout.addLayout(reply_attempts_layout)
-
-        max_waiting_delay_label = QtWidgets.QLabel("Maximum waiting delay")
-        max_waiting_delay_label.setFixedWidth(400)
-        
-        self.max_waiting_delay_combo = QtWidgets.QComboBox()
-        self.max_waiting_delay_combo.setEditable(False)  
-        self.max_waiting_delay_combo.setMinimumWidth(100)
-
-        waiting_delay_values = list(range(1, 11, 1)) 
-        self.max_waiting_delay_combo.addItems([str(value) for value in waiting_delay_values])
-
-        default_waiting_delay = str(DEFAULT_MAX_WAITING_DELAY)
-        if default_waiting_delay in [str(v) for v in waiting_delay_values]:
-            self.max_waiting_delay_combo.setCurrentText(default_waiting_delay)
-        else:
-            self.max_waiting_delay_combo.setCurrentText(str(waiting_delay_values[0])) 
-
-        waiting_delay_layout = QtWidgets.QHBoxLayout()
-        waiting_delay_layout.addWidget(max_waiting_delay_label)
-        waiting_delay_layout.addWidget(self.max_waiting_delay_combo)
-        waiting_delay_layout.addWidget(QtWidgets.QLabel("minutes"))
-
-        max_reply_layout.addLayout(waiting_delay_layout)
-
-        max_reply_layout.addStretch()
-
-        self.max_reply_group.setLayout(max_reply_layout)
-        self.max_reply_group.layout().setSpacing(5)
 
         general_settings_group.setLayout(QtWidgets.QVBoxLayout())
         general_settings_group.layout().setContentsMargins(0, 0, 0, 0)
@@ -359,12 +313,21 @@ class SettingsDialog(QtWidgets.QDialog):
         self.freq_range_type_group.layout().setContentsMargins(0, 0, 0, 0)
         self.freq_range_type_group.layout().addWidget(udp_freq_range_type_widget)
 
-        # Priority Manager Group
+        # Keep general settings in General tab
+        tab_2_layout.addWidget(general_notice_label)
+        tab_2_layout.addWidget(general_settings_group)
+        tab_2_layout.addWidget(self.freq_range_type_group)
+
+        tab_2_layout.addStretch() 
+
+        """
+            Priority Manager Group
+        """
         self.priority_manager_group = QtWidgets.QGroupBox("Priority Manager")
         priority_layout = QtWidgets.QVBoxLayout()
         
         priority_notice_text = (
-            "<p>Set the priority order for reply decisions when decoding several potential callsigns for a same period.</p><p>Drag and drop blocks to reorder them. The first row has the highest priority, and the last row refers to the lowest priority. </p>"
+            "<p>Set the priority order for reply decisions when decoding several potential callsigns for a same period.</p><p>Drag and drop blocks to reorder them. The first row has the highest priority, and the last row refers to the lowest priority.</p>"
         )
         priority_notice_label = QtWidgets.QLabel(priority_notice_text)
         priority_notice_label.setWordWrap(True)
@@ -372,6 +335,65 @@ class SettingsDialog(QtWidgets.QDialog):
         priority_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
         priority_notice_label.setStyleSheet(SETTING_QSS)
         
+        max_reply_text = (
+            "<p>When several Wanted callsigns are detected during the same sequence and if program starts to reply to one specific callsign, it has a limited <u>number of attempts</u> before moving on to the next detected callsign.</p><p>The maximum <u>waiting delay</u> is used to halt TX and stop calling a station that the program has started to call but is no longer decoded. However, if another Wanted callsign is detected, this setting has no effect.</p>"
+        )
+        max_reply_notice_label = QtWidgets.QLabel(max_reply_text)
+        max_reply_notice_label.setWordWrap(True)
+        max_reply_notice_label.setFont(CUSTOM_FONT_SMALL)
+        max_reply_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
+        max_reply_notice_label.setStyleSheet(SETTING_QSS)
+        max_reply_notice_label.setAutoFillBackground(True)
+
+        self.max_reply_group = QtWidgets.QGroupBox(f"Sequencing")
+
+        max_reply_layout = QtWidgets.QVBoxLayout()
+
+        max_reply_label = QtWidgets.QLabel("Maximum number of attempts for a Wanted Callsign")
+        max_reply_label.setFixedWidth(400)
+
+        self.max_reply_attemps_combo = QtWidgets.QComboBox()
+        self.max_reply_attemps_combo.setEditable(False)  
+        self.max_reply_attemps_combo.setMinimumWidth(100)
+
+        self.max_reply_attemps_combo.addItems([str(i) for i in range(4, 31)])
+        self.max_reply_attemps_combo.setCurrentIndex(DEFAULT_REPLY_ATTEMPTS)
+
+        reply_attempts_layout = QtWidgets.QHBoxLayout()
+        reply_attempts_layout.addWidget(max_reply_label)
+        reply_attempts_layout.addWidget(self.max_reply_attemps_combo)
+        reply_attempts_layout.addWidget(QtWidgets.QLabel("times"))
+
+        max_reply_layout.addLayout(reply_attempts_layout)
+
+        max_waiting_delay_label = QtWidgets.QLabel("Maximum waiting delay")
+        max_waiting_delay_label.setFixedWidth(400)
+        
+        self.max_waiting_delay_combo = QtWidgets.QComboBox()
+        self.max_waiting_delay_combo.setEditable(False)  
+        self.max_waiting_delay_combo.setMinimumWidth(100)
+
+        waiting_delay_values = list(range(1, 11, 1)) 
+        self.max_waiting_delay_combo.addItems([str(value) for value in waiting_delay_values])
+
+        default_waiting_delay = str(DEFAULT_MAX_WAITING_DELAY)
+        if default_waiting_delay in [str(v) for v in waiting_delay_values]:
+            self.max_waiting_delay_combo.setCurrentText(default_waiting_delay)
+        else:
+            self.max_waiting_delay_combo.setCurrentText(str(waiting_delay_values[0])) 
+
+        waiting_delay_layout = QtWidgets.QHBoxLayout()
+        waiting_delay_layout.addWidget(max_waiting_delay_label)
+        waiting_delay_layout.addWidget(self.max_waiting_delay_combo)
+        waiting_delay_layout.addWidget(QtWidgets.QLabel("minutes"))
+
+        max_reply_layout.addLayout(waiting_delay_layout)
+
+        max_reply_layout.addStretch()
+
+        self.max_reply_group.setLayout(max_reply_layout)
+        self.max_reply_group.layout().setSpacing(5)
+
         self.priority_table = PriorityTableWidget()
         self.priority_table.setColumnCount(2)
         self.priority_table.setShowGrid(False)
@@ -399,14 +421,12 @@ class SettingsDialog(QtWidgets.QDialog):
         priority_layout.addWidget(self.priority_table)
         self.priority_manager_group.setLayout(priority_layout)
 
-        tab_2_layout.addWidget(max_reply_notice_label)
-        tab_2_layout.addWidget(self.max_reply_group)        
-        tab_2_layout.addWidget(general_settings_group)
-        tab_2_layout.addWidget(self.priority_manager_group)
-        tab_2_layout.addWidget(self.freq_range_type_group)
-
-        tab_2_layout.addStretch() 
-
+        # Move priority-related widgets to Priority tab
+        tab_3_layout.addWidget(max_reply_notice_label)
+        tab_3_layout.addWidget(self.max_reply_group)
+        tab_3_layout.addWidget(self.priority_manager_group)
+        tab_3_layout.addStretch()
+        
         """
             Sound Settings
         """
@@ -415,9 +435,11 @@ class SettingsDialog(QtWidgets.QDialog):
         )
 
         sound_notice_label = QtWidgets.QLabel(sound_notice_text)
-        sound_notice_label.setStyleSheet(SETTING_QSS)
         sound_notice_label.setWordWrap(True)
         sound_notice_label.setFont(CUSTOM_FONT_SMALL)
+        sound_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
+        sound_notice_label.setStyleSheet(SETTING_QSS)
+        sound_notice_label.setAutoFillBackground(True)
 
         sound_settings_group = QtWidgets.QGroupBox("Sound Alerts Settings")
         sound_settings_layout = QtWidgets.QGridLayout()
@@ -454,16 +476,15 @@ class SettingsDialog(QtWidgets.QDialog):
         sound_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
         sound_settings_group.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
-        tab_3_layout.addWidget(sound_notice_label)
-        tab_3_layout.addWidget(sound_settings_group)
-        tab_3_layout.addStretch()  
+        tab_4_layout.addWidget(sound_notice_label)
+        tab_4_layout.addWidget(sound_settings_group)
+        tab_4_layout.addStretch()  
 
         """
             Worked B4 Settings
         """
-
         worked_b4_notice_text = (
-            f"<p>While using {GUI_LABEL_NAME}, you can let this program <u>analyze your working ADIF file from WSJT-x or JTDX</u>. {GUI_LABEL_NAME} won't update your main ADIF file. Still, it can read and parse it.</p>"
+            f"<p>While using {GUI_LABEL_NAME}, you can let this program analyze your working ADIF file from WSJT-x or JTDX. {GUI_LABEL_NAME} won't update your main ADIF file. Still, it can read and parse it.</p>"
         )
 
         worked_b4_notice_label = QtWidgets.QLabel(worked_b4_notice_text)
@@ -548,12 +569,12 @@ class SettingsDialog(QtWidgets.QDialog):
 
         self.marathon_group.setLayout(marathon_layout)
 
-        tab_4_layout.addWidget(worked_b4_notice_label)
-        tab_4_layout.addWidget(file_selection_group)
-        tab_4_layout.addWidget(self.adif_wkb4_group)
-        tab_4_layout.addWidget(marathon_notice_label)
-        tab_4_layout.addWidget(self.marathon_group)
-        tab_4_layout.addStretch()  
+        tab_5_layout.addWidget(worked_b4_notice_label)
+        tab_5_layout.addWidget(file_selection_group)
+        tab_5_layout.addWidget(self.adif_wkb4_group)
+        tab_5_layout.addWidget(marathon_notice_label)
+        tab_5_layout.addWidget(self.marathon_group)
+        tab_5_layout.addStretch()  
 
         """
             Backup Settings
@@ -598,13 +619,22 @@ class SettingsDialog(QtWidgets.QDialog):
         adif_backup_selection_group.layout().setContentsMargins(0, 0, 0, 0)
         adif_backup_selection_group.layout().addWidget(adif_backup_widget)
 
-        tab_5_layout.addWidget(working_log_notice_label)
-        tab_5_layout.addWidget(adif_backup_selection_group)
-        tab_5_layout.addStretch()  
+        tab_6_layout.addWidget(working_log_notice_label)
+        tab_6_layout.addWidget(adif_backup_selection_group)
+        tab_6_layout.addStretch()  
         
         """
             Debug Settings
         """
+        debug_notice_text = (
+            "<p>Do not enable <u>Save all received Packet</u> unless you want to study every packet data received from your WSJT-X/JTDX instance.</p>"
+        )
+        debug_notice_label = QtWidgets.QLabel(debug_notice_text)
+        debug_notice_label.setWordWrap(True)
+        debug_notice_label.setFont(CUSTOM_FONT_SMALL)
+        debug_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
+        debug_notice_label.setStyleSheet(SETTING_QSS)
+        debug_notice_label.setAutoFillBackground(True)
 
         log_settings_group = QtWidgets.QGroupBox("Log Settings")
         log_settings_layout = QtWidgets.QGridLayout()
@@ -626,8 +656,9 @@ class SettingsDialog(QtWidgets.QDialog):
 
         log_settings_group.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
-        tab_6_layout.addWidget(log_settings_group)
-        tab_6_layout.addStretch()  
+        tab_7_layout.addWidget(debug_notice_label)
+        tab_7_layout.addWidget(log_settings_group)
+        tab_7_layout.addStretch()  
 
         self.load_params()
 

@@ -1789,8 +1789,12 @@ class GridMapWindow(QMainWindow):
         super().activateEvent(event)
     
     def closeEvent(self, event):
-        if hasattr(self.map_widget, 'parent_app') and self.map_widget.parent_app:
-            self.map_widget.parent_app.save_window_position()
+        log.warning("Closing GridMapWindow")        
+        if hasattr(self.map_widget, 'parent_app') and self.map_widget.parent_app:            
+            self.map_widget.parent_app.update_grid_map_preference(False)
+            parent_app = self.map_widget.parent_app
+            if hasattr(parent_app, 'on_map_window_closed'):
+                parent_app.on_map_window_closed(event)
         self.map_widget.closeEvent(event)
         event.accept()
 

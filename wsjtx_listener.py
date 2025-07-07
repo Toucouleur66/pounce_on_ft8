@@ -1015,7 +1015,7 @@ class Listener(QObject):
                             self.wanted_callsigns_per_entity[self.band][entity_code].append(callsign)
                             # save_marathon_wanted_data(MARATHON_FILE, self.wanted_callsigns_per_entity)
 
-                            log.info(f"Entity Code Wanted={entity_code} ({self.band}/{current_year})\n\tAdding Wanted Callsign={callsign}\n\tWorked ({self.band}/{current_year}):{self.adif_data.get('entity', {}).get(current_year, {}).get(self.band, {})}")
+                            # log.info(f"Entity Code Wanted={entity_code} ({self.band}/{current_year})\n\tAdding Wanted Callsign={callsign}\n\tWorked ({self.band}/{current_year}):{self.adif_data.get('entity', {}).get(current_year, {}).get(self.band, {})}")
 
                         if callsign not in self.wanted_callsigns:
                             if self.message_callback:
@@ -1308,10 +1308,7 @@ class Listener(QObject):
             Selects the message with the highest priority
         """      
         selected_message = max(filtered_messages, key=self.get_sorted_keys(), default=None)
-                
 
-
-        log.error(f"Selected message: {selected_message}") if selected_message else log.error("No selected message found.")
         """
             Clear buffer
         """
