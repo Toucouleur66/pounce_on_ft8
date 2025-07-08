@@ -184,6 +184,9 @@ class MainApp(QtWidgets.QMainWindow):
 
     def __init__(self):
         super(MainApp, self).__init__()
+        
+        # Setup comprehensive error handling
+        self.setup_error_handling()
 
         self.base_title          = GUI_LABEL_VERSION
         self.window_title        = None
@@ -1192,7 +1195,7 @@ class MainApp(QtWidgets.QMainWindow):
         
         if grid_messages:
             if hasattr(self, 'grid_monitor') and self.grid_monitor:
-                self.grid_monitor.map_widget.set_ellipse_group_indicators(grid_messages)                
+                self.grid_monitor.map_widget.set_heatmap_group_indicators(grid_messages)                
                 self.grid_monitor.map_widget.set_highlighted_grids(grid_messages)
 
     def hide_container_tab(self):
@@ -1397,7 +1400,7 @@ class MainApp(QtWidgets.QMainWindow):
             if self.grid_monitor is not None:
                 self.grid_monitor.map_widget.update_current_band(band)
                 self.grid_monitor.map_widget.clear_highlighted_grids()
-                self.grid_monitor.map_widget.clear_ellipse_indicators()
+                #self.grid_monitor.map_widget.clear_ellipse_indicators()
             
             self.update_tab_widget_labels_style()
         
@@ -3376,7 +3379,116 @@ class MainApp(QtWidgets.QMainWindow):
     def status_menu_agent_cleaner(self):
         if sys.platform == 'darwin':
             self.status_menu_agent.hide_status_menu_agent()
-            self.status_menu_agent.deleteLater()       
+            self.status_menu_agent.deleteLater()
+    
+    def setup_error_handling(self):
+        """Setup comprehensive error handling for silent crash detection"""
+        
+        # 1. Global exception handler for uncaught exceptions
+        sys.excepthook = self.handle_exception
+        
+        # 2. PyQt6 exception handler 
+        QtCore.qInstallMessageHandler(self.qt_message_handler)
+        
+        # 3. Thread exception handler
+        threading.excepthook = self.handle_thread_exception
+        
+        # 4. Connect error signal
+        self.error_occurred.connect(self.display_error)
+        
+        log.info("Comprehensive error handling initialized")
+    
+    def handle_exception(self, exc_type, exc_value, exc_traceback):
+        """Handle uncaught exceptions"""
+        if issubclass(exc_type, KeyboardInterrupt):
+            # Allow Ctrl+C to work normally
+            sys.__excepthook__(exc_type, exc_value, exc_traceback)
+            return
+        
+        error_msg = ''.join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+        critical_error = f"CRITICAL UNCAUGHT EXCEPTION:\n{error_msg}"
+        
+        log.critical(critical_error)
+        
+        # Try to emit signal if possible
+        try:
+            self.error_occurred.emit(critical_error)
+        except:
+            # If signal fails, write to file as last resort
+            self.write_crash_log(critical_error)
+    
+    def handle_thread_exception(self, args):
+        """Handle thread exceptions"""
+        error_msg = f"THREAD EXCEPTION in {args.thread}:\n{args.exc_type.__name__}: {args.exc_value}"
+        if args.exc_traceback:
+            error_msg += "\n" + ''.join(traceback.format_tb(args.exc_traceback))
+        
+        log.error(error_msg)
+        
+        try:
+            self.error_occurred.emit(error_msg)
+        except:
+            self.write_crash_log(error_msg)
+    
+    def qt_message_handler(self, mode, context, message):
+        """Handle Qt messages and log them"""
+        qt_log_levels = {
+            QtCore.QtMsgType.QtDebugMsg: "DEBUG",
+            QtCore.QtMsgType.QtWarningMsg: "WARNING", 
+            QtCore.QtMsgType.QtCriticalMsg: "CRITICAL",
+            QtCore.QtMsgType.QtFatalMsg: "FATAL",
+            QtCore.QtMsgType.QtInfoMsg: "INFO"
+        }
+        
+        level = qt_log_levels.get(mode, "UNKNOWN")
+        location = f"{context.file}:{context.line}" if context.file else "Unknown"
+        
+        log_msg = f"Qt {level}: {message} (Location: {location})"
+        
+        if mode == QtCore.QtMsgType.QtFatalMsg:
+            log.critical(log_msg)
+            self.write_crash_log(f"QT FATAL ERROR: {log_msg}")
+        elif mode == QtCore.QtMsgType.QtCriticalMsg:
+            log.error(log_msg)
+        else:
+            log.debug(log_msg)
+    
+    def display_error(self, error_message):
+        """Display error dialog for critical errors"""
+        try:
+            QtWidgets.QMessageBox.critical(
+                self,
+                "Critical Error",
+                f"A critical error occurred:\n\n{error_message[:500]}...\n\nCheck logs for full details."
+            )
+        except:
+            self.write_crash_log(f"FAILED TO DISPLAY ERROR DIALOG: {error_message}")
+    
+    def write_crash_log(self, error_message):
+        """
+            Write crash log as last resort when other logging fails
+        """
+        try:
+            crash_log_path = os.path.join(get_app_data_dir(), "crash.log")
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            with open(crash_log_path, "a", encoding="utf-8") as f:
+                f.write(f"\n{'='*50}\n")
+                f.write(f"CRASH LOG - {timestamp}\n")
+                f.write(f"{'='*50}\n")
+                f.write(error_message)
+                f.write(f"\n{'='*50}\n")
+        except:
+            print(f"CRASH: {error_message}", file=sys.stderr)
+    
+    def safe_execute(self, func, *args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            error_msg = f"Error in {func.__name__}: {e}\n{traceback.format_exc()}"
+            log.error(error_msg)
+            self.error_occurred.emit(error_msg)
+            return None
 
 def on_about_to_quit(window):
     log.info("Application is about to quit. Cleaning up...")
