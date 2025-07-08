@@ -1132,40 +1132,9 @@ class MainApp(QtWidgets.QMainWindow):
     def update_map_with_new_grids(self, latest_messages):
         if not latest_messages:
             return
-            
-        grid_messages = []
         
-        for message in latest_messages:                       
-            if not message.get('grid'):
-                continue
-                
-            color               = None
-            priority            = None  
-
-            if (
-                message.get('directed') == message.get('my_call') or
-                message.get('wanted')            is True or
-                message.get('wanted_cq_zone')    is True or
-                message.get('monitored')         is True or
-                message.get('monitored_cq_zone') is True
-            ):
-                color    = FG_COLOR_BLACK_ON_WHITE
-                priority = 2
-            else:
-               color     = FG_TIMER_COLOR
-               priority  = 1
-
-            if priority and not message.get('excluded'):
-                message.update({
-                    'color'         : color,
-                    'priority'      : priority
-                })
-                grid_messages.append(message)
-        
-        if grid_messages:
-            if hasattr(self, 'grid_monitor') and self.grid_monitor:
-                self.grid_monitor.map_widget.set_heatmap_group_indicators(grid_messages)                
-                self.grid_monitor.map_widget.set_highlighted_grids(grid_messages)
+        if hasattr(self, 'grid_monitor') and self.grid_monitor:        
+            self.grid_monitor.map_widget.set_highlighted_grids([message for message in latest_messages if "grid" in message])
 
     def hide_container_tab(self):
         self.compact_mode_visible = False

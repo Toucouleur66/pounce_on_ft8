@@ -13,6 +13,7 @@ from constants import (
     CUSTOM_FONT,
     GUI_LABEL_VERSION,
     STATUS_MONITORING_COLOR,
+    FG_TIMER_COLOR,
     FG_COLOR_REGULAR_FOCUS,
     BG_COLOR_REGULAR_FOCUS
 )
@@ -74,7 +75,7 @@ class GridMapWidget(QWidget):
 
         # Buffer to store multiple heatmap groups
         self.heatmap_buffer             = []  
-        self.max_heatmap_buffer_size    = 5
+        self.max_heatmap_buffer_size    = 6
         
         # Heatmap caching for performance
         self.heatmap_cache              = {}
@@ -1137,9 +1138,8 @@ class GridMapWidget(QWidget):
             if self.clicked_grid and grid_square == self.clicked_grid:
                 continue
                 
-            color_hex       = grid_color['color']
-            
-            color           = QColor(color_hex)
+            # color_hex     = grid_color['color']            
+            color           = QColor(FG_TIMER_COLOR)
             border_color    = darken_color(color, 0.5)
             fill_color       = complementary_color(color)
             fill_color.setAlpha(255) 
@@ -1238,15 +1238,27 @@ class GridMapWidget(QWidget):
             self.parent().update_toggle_labels()
     
     def set_highlighted_grids(self, grids, center_on_last=False):
+        self.set_heatmap_group_indicators(grids)       
+
         self.highlighted_grids = []
         
         self.blink_timer.stop()
         self.blink_count = 0
         self.blink_visible = True
         
-        self.highlighted_grids = grids
+        unique_grids = []
+
+        if grids:            
+            seen_grids = set()
+            for grid_data in grids:
+                grid_key = grid_data['grid']
+                if grid_key not in seen_grids:
+                    seen_grids.add(grid_key)
+                    unique_grids.append(grid_data)            
+
+        self.highlighted_grids = unique_grids
         
-        if len(grids) > 0 and center_on_last:
+        if len(unique_grids) > 0 and center_on_last:
             last_grid = grids[-1]['grid']
             grid_info = self.maidenhead_to_lat_lon(last_grid, adjust_for_view=False)
             if grid_info:
@@ -1273,28 +1285,15 @@ class GridMapWidget(QWidget):
         self.heatmap_cache_key = None
         self.update()
     
-    def add_heatmap_group_to_buffer(self, grids):
-        if grids:
-            unique_grids = []
-            seen_grids = set()
-            for grid_data in grids:
-                grid_key = grid_data['grid']
-                if grid_key not in seen_grids:
-                    seen_grids.add(grid_key)
-                    unique_grids.append(grid_data)
-            
-            self.heatmap_buffer.append(unique_grids)
-            
-            if len(self.heatmap_buffer) > self.max_heatmap_buffer_size:
-                self.heatmap_buffer.pop(0)  
-            
-            self.update()
-    
     def set_heatmap_group_indicators(self, grids):
          # Sort grids by priority (highest first) for proper z-index drawing
-        grids.sort(key=lambda grid: grid['priority'])
-        
-        self.add_heatmap_group_to_buffer(grids)
+        grids.sort(key=lambda grid: grid['priority'])            
+        self.heatmap_buffer.append(grids)
+
+        if len(self.heatmap_buffer) > self.max_heatmap_buffer_size:
+            self.heatmap_buffer.pop(0)  
+
+        self.update()
     
     def get_heatmap_buffer_info(self):
         return {
@@ -1320,8 +1319,7 @@ class GridMapWidget(QWidget):
         for heatmap_group in self.heatmap_buffer:
             for grid_data in heatmap_group:
                 grid_square = grid_data['grid']
-                priority = grid_data.get('priority', 1)
-                color = grid_data['color']
+                priority    = grid_data.get('priority', 1)
                 
                 # Use priority as weight for density calculation
                 weight = priority
@@ -1332,8 +1330,7 @@ class GridMapWidget(QWidget):
                 else:
                     grid_density[grid_square] = {
                         'weight': weight,
-                        'count': 1,
-                        'color': color
+                        'count': 1
                     }
        
         if grid_density:
