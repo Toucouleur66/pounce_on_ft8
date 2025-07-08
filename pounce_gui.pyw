@@ -185,6 +185,8 @@ class MainApp(QtWidgets.QMainWindow):
     def __init__(self):
         super(MainApp, self).__init__()
 
+        self.setup_error_handling()
+
         self.base_title          = GUI_LABEL_VERSION
         self.window_title        = None
 
@@ -192,6 +194,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.timer               = None
         self.tray_icon           = None
         self.grid_monitor        = None
+        self.app_shutting_down   = False
 
         self.grid_monitor_geometry = {}
 
@@ -1125,8 +1128,11 @@ class MainApp(QtWidgets.QMainWindow):
 
             self.save_unique_param('enable_grid_monitor', checked)
             
-    def on_map_window_closed(self, event):
+    def on_grid_map_closed(self, event):
         self.toggle_grid_monitor(False)    
+        self.grid_monitor_toggle.setChecked(False)
+        self.grid_monitor_action.setChecked(False) 
+
         event.accept()
 
     def update_map_with_new_grids(self, latest_messages):
@@ -2377,6 +2383,13 @@ class MainApp(QtWidgets.QMainWindow):
         
         log.debug(f"Quit {GUI_LABEL_NAME}")
         
+        # Set flag to indicate app is shutting down
+        self.app_shutting_down = True
+        
+        # Close grid monitor without triggering toggle
+        if hasattr(self, 'grid_monitor') and self.grid_monitor:
+            self.grid_monitor.close()
+        
         QtWidgets.QApplication.quit()
 
     def restart_application(self):       
@@ -2387,6 +2400,13 @@ class MainApp(QtWidgets.QMainWindow):
         self.save_worked_callsigns()
 
         log.debug(f"Restart {GUI_LABEL_NAME}")
+        
+        # Set flag to indicate app is shutting down
+        self.app_shutting_down = True
+        
+        # Close grid monitor without triggering toggle
+        if hasattr(self, 'grid_monitor') and self.grid_monitor:
+            self.grid_monitor.close()
 
         QtCore.QProcess.startDetached(sys.executable, sys.argv)
         QtWidgets.QApplication.quit()
@@ -2751,7 +2771,6 @@ class MainApp(QtWidgets.QMainWindow):
             
             position_data['grid_map_window'] = self.grid_monitor_geometry
 
-            log.warning(f"Saving: #{position_data}")
             with open(POSITION_FILE, "wb") as f:
                 pickle.dump(position_data, f)
                 f.flush() 
@@ -3378,8 +3397,128 @@ class MainApp(QtWidgets.QMainWindow):
             self.status_menu_agent.hide_status_menu_agent()
             self.status_menu_agent.deleteLater()       
 
+    def setup_error_handling(self):
+        """
+            Setup comprehensive error handling for silent crash detection
+        """        
+        # Global exception handler for uncaught exceptions
+        sys.excepthook = self.handle_exception
+        # PyQt6 exception handler 
+        QtCore.qInstallMessageHandler(self.qt_message_handler)
+        # Thread exception handler
+        threading.excepthook = self.handle_thread_exception        
+        # Connect error signal
+        self.error_occurred.connect(self.display_error)
+        
+        log.info("Comprehensive error handling initialized")
+    
+    def handle_exception(self, exc_type, exc_value, exc_traceback):
+        """
+        Handle uncaught exceptions
+        """
+        if issubclass(exc_type, KeyboardInterrupt):
+            # Allow Ctrl+C to work normally
+            sys.__excepthook__(exc_type, exc_value, exc_traceback)
+            return
+        
+        error_msg = ''.join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+        critical_error = f"CRITICAL UNCAUGHT EXCEPTION:\n{error_msg}"
+        
+        log.critical(critical_error)
+        
+        try:
+            self.error_occurred.emit(critical_error)
+        except:
+            self.write_crash_log(critical_error)
+    
+    def handle_thread_exception(self, args):
+        """
+            Handle thread exceptions
+        """
+        error_msg = f"THREAD EXCEPTION in {args.thread}:\n{args.exc_type.__name__}: {args.exc_value}"
+        if args.exc_traceback:
+            error_msg += "\n" + ''.join(traceback.format_tb(args.exc_traceback))
+        
+        log.error(error_msg)
+        
+        try:
+            self.error_occurred.emit(error_msg)
+        except:
+            self.write_crash_log(error_msg)
+    
+    def qt_message_handler(self, mode, context, message):
+        """
+            Handle Qt messages and log them
+        """
+        qt_log_levels = {
+            QtCore.QtMsgType.QtDebugMsg: "DEBUG",
+            QtCore.QtMsgType.QtWarningMsg: "WARNING", 
+            QtCore.QtMsgType.QtCriticalMsg: "CRITICAL",
+            QtCore.QtMsgType.QtFatalMsg: "FATAL",
+            QtCore.QtMsgType.QtInfoMsg: "INFO"
+        }
+        
+        level = qt_log_levels.get(mode, "UNKNOWN")
+        location = f"{context.file}:{context.line}" if context.file else "Unknown"
+        
+        log_msg = f"Qt {level}: {message} (Location: {location})"
+        
+        if mode == QtCore.QtMsgType.QtFatalMsg:
+            log.critical(log_msg)
+            self.write_crash_log(f"QT FATAL ERROR: {log_msg}")
+        elif mode == QtCore.QtMsgType.QtCriticalMsg:
+            log.error(log_msg)
+        else:
+            log.debug(log_msg)
+    
+    def display_error(self, error_message):
+        """
+            Display error dialog for critical errors
+        """
+        try:
+            QtWidgets.QMessageBox.critical(
+                self,
+                "Critical Error",
+                f"A critical error occurred:\n\n{error_message[:500]}...\n\nCheck logs for full details."
+            )
+        except:
+            self.write_crash_log(f"Failed to display error dialog: {error_message}")
+    
+    def write_crash_log(self, error_message):
+        """
+            Write crash log as last resort when other logging fails
+        """
+        try:
+            crash_log_path = os.path.join(get_app_data_dir(), "crash.log")
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            with open(crash_log_path, "a", encoding="utf-8") as f:
+                f.write(f"\n{'='*50}\n")
+                f.write(f"Crash log - {timestamp}\n")
+                f.write(f"{'='*50}\n")
+                f.write(error_message)
+                f.write(f"\n{'='*50}\n")
+        except:
+            print(f"Crash: {error_message}", file=sys.stderr)
+    
+    def safe_execute(self, func, *args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            error_msg = f"Error in {func.__name__}: {e}\n{traceback.format_exc()}"
+            log.error(error_msg)
+            self.error_occurred.emit(error_msg)
+            return None
+
 def on_about_to_quit(window):
-    log.info("Application is about to quit. Cleaning up...")
+    log.info("Application is about to quit. Cleaning up...")    
+    
+    if (
+        hasattr(window, 'grid_monitor') and 
+        window.grid_monitor
+    ):
+        window.app_shutting_down = True
+        window.grid_monitor.close()
 
     if sys.platform == 'darwin':
         try:

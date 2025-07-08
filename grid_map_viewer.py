@@ -64,10 +64,10 @@ class GridMapWidget(QWidget):
         self.grid_color                 = Qt.GlobalColor.red
         self.grid_text_color            = Qt.GlobalColor.gray
         
-        # Test mode for night area - set to None for normal operation
+        # Test mode for night area
         self.test_time                  = None
         
-        self.permanent_squares        = []
+        self.permanent_squares          = []
         self.highlighted_grids          = []
         self.current_band               = None
         self.adif_data                  = {}
@@ -79,6 +79,71 @@ class GridMapWidget(QWidget):
         # Heatmap caching for performance
         self.heatmap_cache              = {}
         self.heatmap_cache_key          = None
+
+        self.max_possible_density       = 10.0
+        
+        # First value is intensity
+        # Viridis
+        self.heatmap_gradient = {
+            0.00: (64, 0, 128),
+            0.20: (255, 0, 255),
+            0.40: (0, 0, 255),  
+            0.60: (0, 255, 0),  
+            0.80: (255, 255, 0),
+            1.00: (255, 0, 0)   
+        }
+    
+        # Plasma
+        self.heatmap_gradient = {
+            0.00: (0, 0, 3),
+            0.11: (23, 15, 60),
+            0.22: (67, 15, 117),
+            0.33: (113, 31, 129),
+            0.44: (158, 46, 126),
+            0.56: (203, 62, 113),
+            0.67: (240, 96, 93),
+            0.78: (252, 147, 102),
+            0.89: (254, 201, 141),
+            1.00: (251, 252, 191)
+        }
+
+        # Coolwarm
+        self.heatmap_gradient = {
+            0.00: (58, 76, 192),
+            0.11: (92, 123, 229),
+            0.22: (130, 165, 251),
+            0.33: (170, 198, 253),
+            0.44: (205, 217, 236),
+            0.56: (233, 212, 201),
+            0.67: (246, 183, 156),
+            0.78: (241, 142, 112),
+            0.89: (217, 88, 71),
+            1.00: (179, 3, 38)
+        }
+
+        # Custom F5UKW v1 
+        self.heatmap_gradient = {
+            0.00: (58, 76, 192),
+            0.11: (92, 123, 229),
+            0.22: (130, 165, 251),
+            0.33: (170, 198, 253),
+            0.44: (205, 217, 236),
+            0.56: (233, 212, 201),
+            0.67: (246, 183, 156),
+            0.78: (241, 142, 112),
+            0.89: (217, 88, 71),
+            1.00: (179, 3, 38)
+        }
+
+        # Custom F5UKW v2
+        self.heatmap_gradient = {
+            0.00: (153, 255, 255),  
+            0.20: (0, 102, 255),    
+            0.40: (204, 102, 153),  
+            0.60: (153, 0, 255),    
+            0.80: (102, 0, 153),    
+            1.00: (0, 128, 0)       
+        }
         
         self.blink_count                = 0
         self.blink_visible              = True
@@ -1360,30 +1425,72 @@ class GridMapWidget(QWidget):
                 density += weighted_contribution
         
         # Normalize density to 0-1 range
-        max_possible_density = 5.0  # Adjust this to control sensitivity
+        max_possible_density = self.max_possible_density  # Adjust this to control sensitivity
         return min(density / max_possible_density, 1.0)
+    
+    def get_gradient_color(self, intensity):
+        """
+            Get color from configurable gradient based on intensity (0.0 to 1.0)
+        """
+        # Clamp intensity to valid range
+        intensity = max(0.0, min(1.0, intensity))
+        
+        # Get sorted gradient keys
+        thresholds = sorted(self.heatmap_gradient.keys())
+        
+        # Find the two colors to interpolate between
+        lower_threshold = 0.0
+        upper_threshold = 1.0
+        lower_color = self.heatmap_gradient[0.0]
+        upper_color = self.heatmap_gradient[1.0]
+        
+        for threshold in thresholds:
+            if intensity <= threshold:
+                upper_threshold = threshold
+                upper_color = self.heatmap_gradient[threshold]
+                break
+            lower_threshold = threshold
+            lower_color = self.heatmap_gradient[threshold]
+        
+        # If we're exactly at a threshold, return that color
+        if intensity == lower_threshold:
+            return QColor(*lower_color)
+        if intensity == upper_threshold:
+            return QColor(*upper_color)
+            
+        # Interpolate between the two colors
+        if upper_threshold == lower_threshold:
+            ratio = 0.0
+        else:
+            ratio = (intensity - lower_threshold) / (upper_threshold - lower_threshold)
+        
+        r = int(lower_color[0] + (upper_color[0] - lower_color[0]) * ratio)
+        g = int(lower_color[1] + (upper_color[1] - lower_color[1]) * ratio)
+        b = int(lower_color[2] + (upper_color[2] - lower_color[2]) * ratio)
+        
+        return QColor(r, g, b)
+    
+    def set_heatmap_gradient(self, gradient_dict):
+        """
+            Set a custom heatmap gradient
+            gradient_dict format: {0.00: (255,0,255), 0.25: (0,0,255), ...}
+        """
+        self.heatmap_gradient = gradient_dict
+        # Clear cache to force regeneration with new colors
+        self.clear_heatmap_cache()
+        self.update()
+    
+    def clear_heatmap_cache(self):
+        """Clear heatmap cache to force regeneration"""
+        self.heatmap_cache = {}
+        self.heatmap_cache_key = None
     
     def draw_heatmap_blob(self, painter, center_x, center_y, intensity):
         """
             Draw a heatmap blob (gradient circle) at the specified screen position
         """
-        # Create heat colors: blue > cyan > yellow > red
-        if intensity < 0.25:
-            # Blue to cyan
-            ratio = intensity / 0.25
-            base_color = QColor(0, int(150 * ratio), int(255 * (1 - ratio * 0.5)))
-        elif intensity < 0.5:
-            # Cyan to green
-            ratio = (intensity - 0.25) / 0.25
-            base_color = QColor(0, int(150 + 105 * ratio), int(150 * (1 - ratio)))
-        elif intensity < 0.75:
-            # Green to yellow
-            ratio = (intensity - 0.5) / 0.25
-            base_color = QColor(int(255 * ratio), 255, 0)
-        else:
-            # Yellow to red
-            ratio = (intensity - 0.75) / 0.25
-            base_color = QColor(255, int(255 * (1 - ratio)), 0)
+        # Get color from configurable gradient
+        base_color = self.get_gradient_color(intensity)
         
         # Draw multiple overlapping circles for smooth gradient effect
         radii = [40, 25, 15, 8]  # Multiple sizes for gradient
@@ -1391,7 +1498,10 @@ class GridMapWidget(QWidget):
         
         for radius, alpha in zip(radii, alphas):
             color = QColor(base_color)
-            color.setAlpha(int(alpha * intensity))
+            # Ensure minimum visibility - don't let alpha go below 25% of base alpha
+            min_alpha = alpha * 0.25
+            final_alpha = max(min_alpha, alpha * intensity)
+            color.setAlpha(int(final_alpha))
             
             brush = QBrush(color)
             painter.setBrush(brush)
@@ -1425,7 +1535,7 @@ class GridMapWidget(QWidget):
             else:
                 self.show_worked = not self.show_worked
                 self.update()            
-        elif event.key() == Qt.Key.Key_N:
+        elif event.key() == Qt.Key.Key_H:
             if hasattr(window, 'toggle_heatmap'):
                 new_state = not self.show_heatmap
                 window.toggle_heatmap(new_state)
@@ -1443,6 +1553,7 @@ class GridMapWidget(QWidget):
             else:
                 self.show_night = not self.show_night
                 self.update()
+        """
         elif sys.platform == 'darwin':
             if event.key() == Qt.Key.Key_1:
                 self.set_test_time(6)  
@@ -1454,9 +1565,8 @@ class GridMapWidget(QWidget):
                 self.set_test_time(0)  
             elif event.key() == Qt.Key.Key_0:
                 self.test_time = None
-                self.update()
-        else:
-            super().keyPressEvent(event)
+                self.update()       
+        """
 
         self.save_grid_map_settings()
     
@@ -1722,11 +1832,12 @@ class GridMapWindow(QMainWindow):
     
     def closeEvent(self, event):
         log.warning("Closing GridMapWindow")        
-        if hasattr(self.map_widget, 'parent_app') and self.map_widget.parent_app:            
+        if (
+            hasattr(self.map_widget, 'parent_app') and 
+            self.map_widget.parent_app and 
+            not getattr(self.map_widget.parent_app, 'app_shutting_down', False)
+        ):            
             self.map_widget.parent_app.update_grid_map_preference(False)
-            parent_app = self.map_widget.parent_app
-            if hasattr(parent_app, 'on_map_window_closed'):
-                parent_app.on_map_window_closed(event)
         self.map_widget.closeEvent(event)
         event.accept()
 
