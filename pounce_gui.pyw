@@ -1192,7 +1192,7 @@ class MainApp(QtWidgets.QMainWindow):
         
         if grid_messages:
             if hasattr(self, 'grid_monitor') and self.grid_monitor:
-                self.grid_monitor.map_widget.set_ellipse_group_indicators(grid_messages)                
+                self.grid_monitor.map_widget.set_heatmap_group_indicators(grid_messages)                
                 self.grid_monitor.map_widget.set_highlighted_grids(grid_messages)
 
     def hide_container_tab(self):
@@ -1397,7 +1397,7 @@ class MainApp(QtWidgets.QMainWindow):
             if self.grid_monitor is not None:
                 self.grid_monitor.map_widget.update_current_band(band)
                 self.grid_monitor.map_widget.clear_highlighted_grids()
-                self.grid_monitor.map_widget.clear_ellipse_indicators()
+                self.grid_monitor.map_widget.clear_heatmap_indicators()
             
             self.update_tab_widget_labels_style()
         

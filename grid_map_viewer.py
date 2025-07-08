@@ -1,7 +1,13 @@
 import sys
 import math
 import time
+import numpy as np
 from datetime import datetime, timezone
+
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
 
 from constants import (
     CUSTOM_FONT,
@@ -52,7 +58,7 @@ class GridMapWidget(QWidget):
         self.center_pixel_offset_y      = 0.0
         
         self.show_grid                  = True
-        self.show_ellipses              = True
+        self.show_heatmap               = True
         self.show_worked                = True
         self.show_night                 = True
         self.grid_color                 = Qt.GlobalColor.red
@@ -66,9 +72,13 @@ class GridMapWidget(QWidget):
         self.current_band               = None
         self.adif_data                  = {}
 
-        # Buffer to store multiple ellipse groups
-        self.ellipse_buffer             = []  
-        self.max_ellipse_buffer_size    = 5
+        # Buffer to store multiple heatmap groups
+        self.heatmap_buffer             = []  
+        self.max_heatmap_buffer_size    = 5
+        
+        # Heatmap caching for performance
+        self.heatmap_cache              = {}
+        self.heatmap_cache_key          = None
         
         self.blink_count                = 0
         self.blink_visible              = True
@@ -112,7 +122,7 @@ class GridMapWidget(QWidget):
     def save_grid_map_settings(self):
         if self.parent_app:
             self.parent_app.save_unique_param('grid_map_show_grid', self.show_grid)
-            self.parent_app.save_unique_param('grid_map_show_ellipses', self.show_ellipses)
+            self.parent_app.save_unique_param('grid_map_show_heatmap', self.show_heatmap)
             self.parent_app.save_unique_param('grid_map_show_worked', self.show_worked)
             self.parent_app.save_unique_param('grid_map_show_night', self.show_night)
 
@@ -122,7 +132,7 @@ class GridMapWidget(QWidget):
     
     def load_grid_map_settings(self):
         self.show_grid      = True
-        self.show_ellipses  = True
+        self.show_heatmap   = True
         self.show_worked    = True
         self.show_night     = True
         self.zoom           = 3
@@ -132,7 +142,7 @@ class GridMapWidget(QWidget):
         if self.parent_app:
             params = self.parent_app.load_params()
             self.show_grid      = params.get('grid_map_show_grid', self.show_grid)
-            self.show_ellipses  = params.get('grid_map_show_ellipses', self.show_ellipses)
+            self.show_heatmap   = params.get('grid_map_show_heatmap', self.show_heatmap)
             self.show_worked    = params.get('grid_map_show_worked', self.show_worked)
             self.show_night     = params.get('grid_map_show_night', self.show_night)
 
@@ -312,13 +322,11 @@ class GridMapWidget(QWidget):
         for square in self.permanent_squares:
             self.fill_grid_square_with_color(painter, square, QColor(91, 105, 171, 128))
         
-        self.set_ellipse_indicators(painter)
+        self.set_heatmap_indicators(painter)
         
-        # Draw highlighted grids (always visible)
         if self.highlighted_grids:
             self.draw_highlighted_grids_block(painter)
         
-        # Draw clicked grid with blinking effect (only the clicked one blinks)
         if self.clicked_grid and self.blink_visible:
             self.draw_clicked_grid(painter)
 
@@ -370,7 +378,6 @@ class GridMapWidget(QWidget):
             
             self.repaint()
             
-            # Save settings when zoom changes
             self.save_grid_map_settings()
     
     def screen_to_lat_lon(self, screen_x, screen_y):
@@ -566,10 +573,10 @@ class GridMapWidget(QWidget):
         top_left_lat, top_left_lon = self.screen_to_lat_lon_stable(0, 0)
         bottom_right_lat, bottom_right_lon = self.screen_to_lat_lon_stable(self.width(), self.height())
         
-        north = max(top_left_lat, bottom_right_lat)
-        south = min(top_left_lat, bottom_right_lat)
-        east = max(top_left_lon, bottom_right_lon)
-        west = min(top_left_lon, bottom_right_lon)
+        north   = max(top_left_lat, bottom_right_lat)
+        south   = min(top_left_lat, bottom_right_lat)
+        east    = max(top_left_lon, bottom_right_lon)
+        west    = min(top_left_lon, bottom_right_lon)
         
         lon_span = east - west
         if lon_span > 360:
@@ -651,7 +658,6 @@ class GridMapWidget(QWidget):
         elif self.zoom >= 5:
             add_grid_type(10.0, 20.0, 'field', True, 'red')
         else:
-            # For zoom levels 3-4, only show field grid
             add_grid_type(10.0, 20.0, 'field', True, 'red')
             
         return grid_squares
@@ -841,41 +847,17 @@ class GridMapWidget(QWidget):
             current_lon += lon_step
         
         if len(terminator_points) < 3:
-            return
-        
-        terminator_path = QPainterPath()
-        terminator_path.moveTo(terminator_points[0][0], terminator_points[0][1])
-        
-        for x, y, _, _ in terminator_points[1:]:
-            terminator_path.lineTo(x, y)
-        
-        """
-            Determine which side of terminator is night using solar position
-            The night side is always away from the sun (opposite the solar longitude)
-            If solar longitude is positive, night extends toward negative longitudes
-            This is independent of current map view
-        """
-        solar_norm_lon = self.normalize_longitude(solar_lon)
-        
-        """
-            Night area extends in the direction opposite to the sun
-            If sun is in eastern hemisphere (lon >= 0), night extends westward (left)
-            If sun is in western hemisphere (lon < 0), night extends eastward (right)
-        """
-        night_extends_left = solar_norm_lon < 0
-        
+            return       
         
         if len(terminator_points) > 0:
-            self.fill_night_area(painter, terminator_path, terminator_points, night_extends_left, night_color, solar_lat, solar_lon)
+            self.fill_night_area(painter, terminator_points, night_color, solar_lat, solar_lon)
         
         self.draw_terminator_line(painter, solar_lat, solar_lon)
     
     def fill_night_area(
             self,
             painter,
-            terminator_path,
             terminator_points,
-            night_extends_left,
             night_color,
             solar_lat,
             solar_lon
@@ -1220,11 +1202,13 @@ class GridMapWidget(QWidget):
         if hasattr(self.parent(), 'update_toggle_labels'):
             self.parent().update_toggle_labels()
     
-    def clear_ellipse_indicators(self):
-        self.ellipse_buffer = []
+    def clear_heatmap_indicators(self):
+        self.heatmap_buffer = []
+        self.heatmap_cache = {}
+        self.heatmap_cache_key = None
         self.update()
     
-    def add_ellipse_group_to_buffer(self, grids):
+    def add_heatmap_group_to_buffer(self, grids):
         if grids:
             unique_grids = []
             seen_grids = set()
@@ -1234,242 +1218,192 @@ class GridMapWidget(QWidget):
                     seen_grids.add(grid_key)
                     unique_grids.append(grid_data)
             
-            self.ellipse_buffer.append(unique_grids)
+            self.heatmap_buffer.append(unique_grids)
             
-            if len(self.ellipse_buffer) > self.max_ellipse_buffer_size:
-                self.ellipse_buffer.pop(0)  
+            if len(self.heatmap_buffer) > self.max_heatmap_buffer_size:
+                self.heatmap_buffer.pop(0)  
             
             self.update()
     
-    def set_ellipse_group_indicators(self, grids):
+    def set_heatmap_group_indicators(self, grids):
          # Sort grids by priority (highest first) for proper z-index drawing
         grids.sort(key=lambda grid: grid['priority'])
         
-        self.add_ellipse_group_to_buffer(grids)
+        self.add_heatmap_group_to_buffer(grids)
     
-    def get_ellipse_buffer_info(self):
+    def get_heatmap_buffer_info(self):
         return {
-            'count'     : len(self.ellipse_buffer),
-            'max_size'  : self.max_ellipse_buffer_size,
-            'is_full'   : len(self.ellipse_buffer) >= self.max_ellipse_buffer_size
+            'count'     : len(self.heatmap_buffer),
+            'max_size'  : self.max_heatmap_buffer_size,
+            'is_full'   : len(self.heatmap_buffer) >= self.max_heatmap_buffer_size
         }
     
-    def set_ellipse_indicators(self, painter):
+    def set_heatmap_indicators(self, painter):
         if (
-            not self.show_ellipses or 
-            not hasattr(self, 'ellipse_buffer') or 
-            not self.ellipse_buffer
+            not self.show_heatmap or 
+            not hasattr(self, 'heatmap_buffer') or 
+            not self.heatmap_buffer
         ):
             return
         
         """
-            Draw all ellipse groups in the buffer (from oldest to newest)
+            Generate and draw heatmap visualization from grid data
         """
-        for ellipse_group in self.ellipse_buffer:
-            color_groups = {}
-            for grid_data in ellipse_group:
+        # Collect all grid data with their weights
+        grid_density = {}
+        
+        for heatmap_group in self.heatmap_buffer:
+            for grid_data in heatmap_group:
+                grid_square = grid_data['grid']
+                priority = grid_data.get('priority', 1)
                 color = grid_data['color']
-                if color not in color_groups:
-                    color_groups[color] = {'grids': [], 'priority': grid_data.get('priority', 1)}
-                color_groups[color]['grids'].append(grid_data['grid'])
-            
-            for color, group_info in color_groups.items():
-                grid_list = group_info['grids']
-                priority = group_info['priority']
-                if len(grid_list) >= 2:
-                    self.set_ellipse_for_group(painter, grid_list, color, priority)
-    
-    def set_ellipse_for_group(self, painter, grid_list, color, priority=1):
-        points = []
-        for grid in grid_list:
-            grid_info = self.maidenhead_to_lat_lon(grid, adjust_for_view=True)
-            if grid_info:
-                top_lat     = grid_info['max_lat']
-                bottom_lat  = grid_info['min_lat']
-                left_lon    = grid_info['min_lon']
-                right_lon   = grid_info['max_lon']
                 
-                # Grid square corners
-                corners = [
-                    (top_lat, left_lon),      
-                    (top_lat, right_lon),    
-                    (bottom_lat, left_lon), 
-                    (bottom_lat, right_lon) 
-                ]
+                # Use priority as weight for density calculation
+                weight = priority
                 
-                offsets = [0, 360, -360] if self.zoom >= 2 else [0]
-                for lat, lon in corners:
-                    for offset in offsets:
-                        x, y = self.lat_lon_to_screen_stable(lat, lon + offset)
-                        if (-50 <= x <= self.width() + 50 and -50 <= y <= self.height() + 50):
-                            points.append((x, y))
-                            break
+                if grid_square in grid_density:
+                    grid_density[grid_square]['weight'] += weight
+                    grid_density[grid_square]['count'] += 1
+                else:
+                    grid_density[grid_square] = {
+                        'weight': weight,
+                        'count': 1,
+                        'color': color
+                    }
+       
+        if grid_density:
+            try:
+                self.draw_coordinate_based_heatmap(painter, grid_density)
+            except Exception as e:
+                log.error(f"Heatmap generation failed: {e}")
+                
+    def draw_coordinate_based_heatmap(self, painter, grid_density):
+        """
+            Draw density-based heatmap showing areas with high concentration of grids
+        """
         
-        if len(points) < 1:
+        # Convert all grid positions to screen coordinates
+        grid_positions = []
+        for grid_square, data in grid_density.items():
+            grid_info = self.maidenhead_to_lat_lon(grid_square, adjust_for_view=True)
+            if not grid_info:
+                continue
+            
+            center_lat = grid_info['center_lat']
+            center_lon = grid_info['center_lon']
+            weight = data['weight']
+            
+            # Convert to screen coordinates
+            screen_x, screen_y = self.lat_lon_to_screen_stable(center_lat, center_lon)
+            
+            # Only include if visible on screen
+            if (
+                -200 <= screen_x <= self.width() + 200 and
+                -200 <= screen_y <= self.height() + 200
+            ):
+                grid_positions.append({
+                    'x': screen_x,
+                    'y': screen_y,
+                    'weight': weight,
+                    'grid': grid_square
+                })
+        
+        if not grid_positions:
             return
-            
-        hull_points = self.convex_hull(points)
         
-        if len(hull_points) < 1:
-            return
-            
-        ellipse_path = self.create_ellipse_path(hull_points)
+        # log.info(f"Calculating density for {len(grid_positions)} grid positions")
         
-        if priority > 1:
-            # Priority ellipses: Draw with overlay effect for better visibility
-            # Step 1: Draw base ellipse with normal transparency
-            base_border = darken_color(QColor(color), 0.2)
-            base_border.setAlpha(30)
-            base_fill = QColor(color)
-            base_fill.setAlpha(40)
+        # Create heatmap effect by drawing overlapping circles at grid positions
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        
+        # For each grid position, calculate its local density and draw accordingly
+        for grid_pos in grid_positions:
+            # Calculate density at this position based on nearby grids
+            density = self.calculate_local_density(grid_pos, grid_positions)
             
-            pen = QPen(base_border)
-            pen.setWidth(0)
-            painter.setPen(pen)
-            painter.fillPath(ellipse_path, QBrush(base_fill))
-            painter.drawPath(ellipse_path)
+            # Use the grid's own weight as a multiplier
+            intensity = min(density * (grid_pos['weight'] / 5.0), 1.0)
             
-            # Step 2: Add overlay effect - brighter center with gradient fade
-            overlay_fill = QColor(color)
-            overlay_fill.setAlpha(25)  # Lighter overlay
+            # log.debug(f"Grid {grid_pos['grid']}: density={density:.2f}, weight={grid_pos['weight']}, intensity={intensity:.2f}")
             
-            # Create a slightly smaller ellipse for the overlay effect
-            smaller_path = self.create_ellipse_path(hull_points, scale_factor=0.8)
-            pen = QPen(Qt.PenStyle.NoPen)
-            painter.setPen(pen)
-            painter.fillPath(smaller_path, QBrush(overlay_fill))            
-        else:
-            # Priority 1: Draw normally with standard transparency
-            border_color = darken_color(QColor(color), 0.2)
-            border_color.setAlpha(30)
-            fill_color = QColor(color)
-            fill_color.setAlpha(40)
-            
-            pen = QPen(border_color)
-            pen.setWidth(0)
-            painter.setPen(pen)
-            painter.fillPath(ellipse_path, QBrush(fill_color))
-            painter.drawPath(ellipse_path)
+            # Draw the heatmap blob
+            self.draw_heatmap_blob(painter, grid_pos['x'], grid_pos['y'], intensity)
+        
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
     
-    def convex_hull(self, points):
-        def cross(o, a, b):
-            return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+    def calculate_local_density(self, center_grid, all_grids):
+        """
+            Calculate density at a grid position based on proximity to other grids
+        """
+        density = 0.0
+        # Pixels - grids within this distance influence density
+        influence_radius = 150  
         
-        points = sorted(set(points))
-        if len(points) <= 1:
-            return points
+        for other_grid in all_grids:
+            # Calculate distance between grids
+            dx = center_grid['x'] - other_grid['x']
+            dy = center_grid['y'] - other_grid['y']
+            distance = math.sqrt(dx * dx + dy * dy)
+            
+            if distance <= influence_radius:
+                # Close grids contribute more to density
+                if distance == 0:
+                    # The grid itself
+                    contribution = 1.0
+                else:
+                    # Inverse distance weighting with falloff
+                    contribution = (influence_radius - distance) / influence_radius
+                    contribution = contribution ** 2  # Square for steeper falloff
+                
+                # Weight the contribution by the other grid's importance
+                weighted_contribution = contribution * (other_grid['weight'] / 5.0)
+                density += weighted_contribution
         
-        lower = []
-        for p in points:
-            while len(lower) >= 2 and cross(lower[-2], lower[-1], p) <= 0:
-                lower.pop()
-            lower.append(p)
-        
-        upper = []
-        for p in reversed(points):
-            while len(upper) >= 2 and cross(upper[-2], upper[-1], p) <= 0:
-                upper.pop()
-            upper.append(p)
-        
-        return lower[:-1] + upper[:-1]
+        # Normalize density to 0-1 range
+        max_possible_density = 5.0  # Adjust this to control sensitivity
+        return min(density / max_possible_density, 1.0)
     
-    def create_ellipse_path(self, hull_points, scale_factor=1.0):
-        if len(hull_points) < 1:
-            return QPainterPath()
-        
-        if len(hull_points) == 1:
-            path = QPainterPath()
-            x, y = hull_points[0]
-            path.addEllipse(x - 10, y - 10, 20, 20)
-            return path
-        
-        center_x = sum(p[0] for p in hull_points) / len(hull_points)
-        center_y = sum(p[1] for p in hull_points) / len(hull_points)
-        
-        xx = sum((p[0] - center_x) ** 2 for p in hull_points) / len(hull_points)
-        yy = sum((p[1] - center_y) ** 2 for p in hull_points) / len(hull_points)
-        xy = sum((p[0] - center_x) * (p[1] - center_y) for p in hull_points) / len(hull_points)
-        
-        trace = xx + yy
-        
-        determinant = xx * yy - xy * xy
-        
-        lambda1 = (trace + math.sqrt(trace * trace - 4 * determinant)) / 2
-        lambda2 = (trace - math.sqrt(trace * trace - 4 * determinant)) / 2
-        
-        if lambda1 < 0:
-            lambda1 = 0
-        if lambda2 < 0:
-            lambda2 = 0
-        
-        if abs(xy) < 1e-10:
-            angle = 0 if xx >= yy else math.pi / 2
+    def draw_heatmap_blob(self, painter, center_x, center_y, intensity):
+        """
+            Draw a heatmap blob (gradient circle) at the specified screen position
+        """
+        # Create heat colors: blue > cyan > yellow > red
+        if intensity < 0.25:
+            # Blue to cyan
+            ratio = intensity / 0.25
+            base_color = QColor(0, int(150 * ratio), int(255 * (1 - ratio * 0.5)))
+        elif intensity < 0.5:
+            # Cyan to green
+            ratio = (intensity - 0.25) / 0.25
+            base_color = QColor(0, int(150 + 105 * ratio), int(150 * (1 - ratio)))
+        elif intensity < 0.75:
+            # Green to yellow
+            ratio = (intensity - 0.5) / 0.25
+            base_color = QColor(int(255 * ratio), 255, 0)
         else:
-            angle = math.atan2(lambda1 - xx, xy)
+            # Yellow to red
+            ratio = (intensity - 0.75) / 0.25
+            base_color = QColor(255, int(255 * (1 - ratio)), 0)
         
-        cos_angle = math.cos(angle)
-        sin_angle = math.sin(angle)
+        # Draw multiple overlapping circles for smooth gradient effect
+        radii = [40, 25, 15, 8]  # Multiple sizes for gradient
+        alphas = [20, 35, 55, 80]  # Increasing opacity toward center
         
-        max_major_positive = 0
-        max_major_negative = 0
-        max_minor_positive = 0
-        max_minor_negative = 0
-        
-        for px, py in hull_points:
-            dx = px - center_x
-            dy = py - center_y
+        for radius, alpha in zip(radii, alphas):
+            color = QColor(base_color)
+            color.setAlpha(int(alpha * intensity))
             
-            proj_major = dx * cos_angle + dy * sin_angle
-            proj_minor = -dx * sin_angle + dy * cos_angle
+            brush = QBrush(color)
+            painter.setBrush(brush)
+            painter.setPen(Qt.PenStyle.NoPen)
             
-            if proj_major > 0:
-                max_major_positive = max(max_major_positive, proj_major)
-            else:
-                max_major_negative = max(max_major_negative, abs(proj_major))
-                
-            if proj_minor > 0:
-                max_minor_positive = max(max_minor_positive, proj_minor)
-            else:
-                max_minor_negative = max(max_minor_negative, abs(proj_minor))
-        
-        base_semi_major = max(max_major_positive, max_major_negative, 15)
-        base_semi_minor = max(max_minor_positive, max_minor_negative, 15)
-                
-        # Expands ellipse beyond the minimum encompassing size
-        padding_factor = 1 
-        semi_major = base_semi_major * padding_factor
-        semi_minor = base_semi_minor * padding_factor
-        
-        # 15% extra padding to ensure coverage
-        safety_padding = 1.15  
-        final_semi_major = semi_major * safety_padding * scale_factor
-        final_semi_minor = semi_minor * safety_padding * scale_factor
-        
-        path = QPainterPath()
-        
-        num_points = 64
-        for i in range(num_points + 1):
-            t = 2 * math.pi * i / num_points
-            
-            cos_t = math.cos(t)
-            sin_t = math.sin(t)
-            
-            x_local = final_semi_major * cos_t
-            y_local = final_semi_minor * sin_t
-            
-            x_rotated = x_local * math.cos(angle) - y_local * math.sin(angle)
-            y_rotated = x_local * math.sin(angle) + y_local * math.cos(angle)
-            
-            x = center_x + x_rotated
-            y = center_y + y_rotated
-            
-            if i == 0:
-                path.moveTo(x, y)
-            else:
-                path.lineTo(x, y)
-        
-        path.closeSubpath()
-        return path
+            # Draw circle centered at the grid position
+            painter.drawEllipse(
+                int(center_x - radius), 
+                int(center_y - radius), 
+                radius * 2, 
+                radius * 2
+            )
     
     def keyPressEvent(self, event: QKeyEvent):       
         window = self.window()  
@@ -1492,13 +1426,13 @@ class GridMapWidget(QWidget):
                 self.show_worked = not self.show_worked
                 self.update()            
         elif event.key() == Qt.Key.Key_N:
-            if hasattr(window, 'toggle_ellipses'):
-                new_state = not self.show_ellipses
-                window.toggle_ellipses(new_state)
-                if hasattr(window, 'ellipse_toggle'):
-                    window.ellipse_toggle.setChecked(new_state)
+            if hasattr(window, 'toggle_heatmap'):
+                new_state = not self.show_heatmap
+                window.toggle_heatmap(new_state)
+                if hasattr(window, 'heatmap_toggle'):
+                    window.heatmap_toggle.setChecked(new_state)
             else:
-                self.show_ellipses = not self.show_ellipses
+                self.show_heatmap = not self.show_heatmap
                 self.update()
         elif event.key() == Qt.Key.Key_L:
             if hasattr(window, 'toggle_night'):
@@ -1623,10 +1557,8 @@ class GridMapWidget(QWidget):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         
-        # Only adjust zoom if it's really too low for the window size
-        # Allow some flexibility to preserve user's preferred zoom level
         min_zoom = self.get_min_zoom_for_size(self.width(), self.height())
-        # Only force zoom adjustment if current zoom is significantly below minimum
+        
         if self.zoom < min_zoom - 1:
             self.zoom = min_zoom
             self.memory_cache.clear()
@@ -1687,17 +1619,17 @@ class GridMapWindow(QMainWindow):
         
         horizontal_layout.addWidget(self.grid_toggle)        
         horizontal_layout.addSpacing(20)        
-        horizontal_layout.addWidget(CustomQLabel("Nowcast"))
+        horizontal_layout.addWidget(CustomQLabel("Heatmap"))
         
-        self.ellipse_toggle = AnimatedToggle(
+        self.heatmap_toggle = AnimatedToggle(
             checked_color=STATUS_MONITORING_COLOR,
             pulse_checked_color=f"{STATUS_MONITORING_COLOR}FF"
         )
-        self.ellipse_toggle.setFixedSize(self.ellipse_toggle.sizeHint())
-        self.ellipse_toggle.setChecked(self.map_widget.show_ellipses)
-        self.ellipse_toggle.stateChanged.connect(self.toggle_ellipses)
+        self.heatmap_toggle.setFixedSize(self.heatmap_toggle.sizeHint())
+        self.heatmap_toggle.setChecked(self.map_widget.show_heatmap)
+        self.heatmap_toggle.stateChanged.connect(self.toggle_heatmap)
         
-        horizontal_layout.addWidget(self.ellipse_toggle)
+        horizontal_layout.addWidget(self.heatmap_toggle)
         horizontal_layout.addSpacing(20)        
         horizontal_layout.addWidget(CustomQLabel("Worked Grids"))
         
@@ -1729,8 +1661,8 @@ class GridMapWindow(QMainWindow):
     def update_toggle_labels(self):
         if hasattr(self, 'grid_toggle'):
             self.grid_toggle.setChecked(self.map_widget.show_grid)
-        if hasattr(self, 'ellipse_toggle'):
-            self.ellipse_toggle.setChecked(self.map_widget.show_ellipses)
+        if hasattr(self, 'heatmap_toggle'):
+            self.heatmap_toggle.setChecked(self.map_widget.show_heatmap)
         if hasattr(self, 'worked_toggle'):
             self.worked_toggle.setChecked(self.map_widget.show_worked)
         if hasattr(self, 'night_toggle'):
@@ -1741,8 +1673,8 @@ class GridMapWindow(QMainWindow):
         self.map_widget.update()
         self.map_widget.save_grid_map_settings()
     
-    def toggle_ellipses(self, checked):
-        self.map_widget.show_ellipses = checked
+    def toggle_heatmap(self, checked):
+        self.map_widget.show_heatmap = checked
         self.map_widget.update()
         self.map_widget.save_grid_map_settings()
     

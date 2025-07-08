@@ -55,6 +55,7 @@ from constants import (
     DEFAULT_REPLY_ATTEMPTS,
     DEFAULT_DELAY_BETWEEN_SOUND,
     DEFAULT_MAX_WAITING_DELAY,
+    DEFAULT_MINIMUM_REPORT,
     # Fonts
     CUSTOM_FONT_SMALL,
     SETTING_QSS,
@@ -179,7 +180,7 @@ class SettingsDialog(QtWidgets.QDialog):
             Main Settings
         """
         general_notice_text = (
-            f"<p>{GUI_LABEL_NAME} won't trigger reply unless you enabled <u>Enable reply</u> or <u>Enable polite reply</u>.</p><p>If you disable these settings, {GUI_LABEL_NAME} still run as a monitoring tool with different visual or sound alerts depending on your preference.</p><p>If you enable them, this program will double-click on any of the lines of decoded text in the Band Activity window of your WSJT-X/JTDX instance which match with your preferences.</p>"
+            f"<p>{GUI_LABEL_NAME} won't trigger a reply unless you enable <u>Enable reply</u> or <u>Enable polite reply</u>.</p><p>If you disable these settings, {GUI_LABEL_NAME} will still run as a monitoring tool with different visual or sound alerts depending on your preference.</p><p>If you enable them, this program will double-click on any of the lines of decoded text in the Band Activity window of your WSJT-X/JTDX instance which match with your preferences.</p>"
         )
         general_notice_label = QtWidgets.QLabel(general_notice_text)
         general_notice_label.setWordWrap(True)
@@ -313,9 +314,42 @@ class SettingsDialog(QtWidgets.QDialog):
         self.freq_range_type_group.layout().setContentsMargins(0, 0, 0, 0)
         self.freq_range_type_group.layout().addWidget(udp_freq_range_type_widget)
 
-        # Keep general settings in General tab
+        minimum_report_text = (
+            f"<p>{GUI_LABEL_NAME} won't trigger reply unless decoded message reach a minimal signal report.</p>"
+        )
+        minimum_report_notice = QtWidgets.QLabel(minimum_report_text)
+        minimum_report_notice.setWordWrap(True)
+        minimum_report_notice.setFont(CUSTOM_FONT_SMALL)
+        minimum_report_notice.setTextFormat(QtCore.Qt.TextFormat.RichText)
+        minimum_report_notice.setStyleSheet(SETTING_QSS)
+        minimum_report_notice.setAutoFillBackground(True)
+
+        minimum_report_group = QtWidgets.QGroupBox("Minimum dB signal for reply")
+        minimum_report_layout = QtWidgets.QHBoxLayout()
+        
+        minimum_report_label = QtWidgets.QLabel("Minimum report")
+        minimum_report_label.setFixedWidth(400)        
+        
+        self.minimum_report_combo = QtWidgets.QComboBox()
+        self.minimum_report_combo.setEditable(False)
+        self.minimum_report_combo.setMinimumWidth(100)
+        
+        report_values = [f"{i:+d}dB" for i in range(10, -27, -1)]
+        self.minimum_report_combo.addItems(report_values)
+        
+        default_index = 10 - DEFAULT_MINIMUM_REPORT  
+        self.minimum_report_combo.setCurrentIndex(default_index)
+        
+        minimum_report_layout.addWidget(minimum_report_label)
+        minimum_report_layout.addWidget(self.minimum_report_combo)
+        minimum_report_layout.addStretch()
+        
+        minimum_report_group.setLayout(minimum_report_layout)
+
         tab_2_layout.addWidget(general_notice_label)
         tab_2_layout.addWidget(general_settings_group)
+        tab_2_layout.addWidget(minimum_report_notice)
+        tab_2_layout.addWidget(minimum_report_group)
         tab_2_layout.addWidget(self.freq_range_type_group)
 
         tab_2_layout.addStretch() 
@@ -982,6 +1016,13 @@ class SettingsDialog(QtWidgets.QDialog):
         else:
             self.max_waiting_delay_combo.setCurrentText(str(DEFAULT_MAX_WAITING_DELAY))    
 
+        minimum_report = self.params.get('minimum_report_for_reply', DEFAULT_MINIMUM_REPORT)
+        minimum_report_index = 10 - minimum_report
+        if 0 <= minimum_report_index < self.minimum_report_combo.count():
+            self.minimum_report_combo.setCurrentIndex(minimum_report_index)
+        else:
+            self.minimum_report_combo.setCurrentIndex(10 - DEFAULT_MINIMUM_REPORT)
+
         self.marathon_preference = self.params.get('marathon_preference', {})
 
         if isinstance(self.marathon_preference, bool):
@@ -1010,6 +1051,10 @@ class SettingsDialog(QtWidgets.QDialog):
 
         max_reply_attemps = int(self.max_reply_attemps_combo.currentText())
         max_waiting_delay = int(self.max_waiting_delay_combo.currentText())
+        
+        # Get minimum report for reply (convert combo index back to dB value)
+        minimum_report_index = self.minimum_report_combo.currentIndex()
+        minimum_report_for_reply = 10 - minimum_report_index  # +10dB is index 0, so +10 - 0 = +10
 
         marathon_preference = {}
         for band_name, btn in self.band_buttons.items():
@@ -1035,11 +1080,12 @@ class SettingsDialog(QtWidgets.QDialog):
             'logging_udp_server_port'                    : self.logging_udp_server_port.text(),
             'enable_logging_udp_server'                  : self.enable_logging_udp_server.isChecked(),
             'enable_sending_reply'                       : self.enable_sending_reply.isChecked(),
-            'enable_polite_reply'                    : self.enable_polite_reply.isChecked(),
+            'enable_polite_reply'                        : self.enable_polite_reply.isChecked(),
             'enable_log_all_valid_contact'               : self.enable_log_all_valid_contact.isChecked(),
             'enable_reply_to_valid_callsign'             : self.enable_reply_to_valid_callsign.isChecked(),
             'max_reply_attemps_to_callsign'              : max_reply_attemps,
             'max_waiting_delay'                          : max_waiting_delay,
+            'minimum_report_for_reply'                   : minimum_report_for_reply,
             'enable_gap_finder'                           : self.enable_gap_finder.isChecked(),
             'enable_watchdog_bypass'                     : self.enable_watchdog_bypass.isChecked(),
             'enable_debug_output'                        : self.enable_debug_output.isChecked(),
