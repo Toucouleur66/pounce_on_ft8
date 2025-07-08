@@ -1087,6 +1087,7 @@ class MainApp(QtWidgets.QMainWindow):
             
             if self.operating_band:
                 self.grid_monitor.map_widget.update_current_band(self.operating_band)
+                self.update_map_with_new_grids(self.message_buffer)
             
             if self.grid_monitor_geometry:
                 self.grid_monitor.setGeometry(
@@ -1128,13 +1129,6 @@ class MainApp(QtWidgets.QMainWindow):
 
             self.save_unique_param('enable_grid_monitor', checked)
             
-    def on_grid_map_closed(self, event):
-        self.toggle_grid_monitor(False)    
-        self.grid_monitor_toggle.setChecked(False)
-        self.grid_monitor_action.setChecked(False) 
-
-        event.accept()
-
     def update_map_with_new_grids(self, latest_messages):
         if not latest_messages:
             return
@@ -1145,43 +1139,15 @@ class MainApp(QtWidgets.QMainWindow):
             if not message.get('grid'):
                 continue
                 
-            directed            = message.get('directed')
-            my_call             = message.get('my_call')
-            wanted              = message.get('wanted')
-            wanted_cq_zone      = message.get('wanted_cq_zone')
-            excluded            = message.get('excluded')
-            monitored           = message.get('monitored')
-            monitored_cq_zone   = message.get('monitored_cq_zone')
-            
             color               = None
-            priority            = None
-            """
-            if directed == my_call:
-                color    = BG_COLOR_FOCUS_MY_CALL
-                priority = 5
-            elif wanted is True:
-                color    = BG_COLOR_BLACK_ON_YELLOW
-                priority = 4
-            elif wanted_cq_zone is True:
-                color    = BG_COLOR_BLACK_ON_SAUMON
-                priority = 3
-            elif monitored is True:
-                color    = BG_COLOR_BLACK_ON_PURPLE
-                priority = 2
-            elif monitored_cq_zone is True:
-                color    = FG_COLOR_BLACK_ON_WHITE
-                priority = 2
-            else:
-               color    = FG_TIMER_COLOR
-               priority = 1
-            """               
+            priority            = None  
 
             if (
-                directed == my_call or
-                wanted            is True or
-                wanted_cq_zone    is True or
-                monitored         is True or
-                monitored_cq_zone is True
+                message.get('directed') == message.get('my_call') or
+                message.get('wanted')            is True or
+                message.get('wanted_cq_zone')    is True or
+                message.get('monitored')         is True or
+                message.get('monitored_cq_zone') is True
             ):
                 color    = FG_COLOR_BLACK_ON_WHITE
                 priority = 2
@@ -1189,7 +1155,7 @@ class MainApp(QtWidgets.QMainWindow):
                color     = FG_TIMER_COLOR
                priority  = 1
 
-            if priority and not excluded:
+            if priority and not message.get('excluded'):
                 message.update({
                     'color'         : color,
                     'priority'      : priority
