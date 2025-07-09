@@ -384,7 +384,7 @@ class CallsignLookup:
     def grid_to_cq_zone(self, grid: str):
         lat, lon = self.locator_to_lat_lon_partial(grid)
         zone = self.lat_lon_to_cq_zone(lat, lon)
-        return (lat, lon, zone)
+        return zone
 
     def lookup_callsign(
         self, callsign, grid=None, date=None, enable_cache=True
@@ -393,6 +393,23 @@ class CallsignLookup:
             callsign = callsign.strip().upper()
             if date is None:
                 date = datetime.datetime.now(datetime.timezone.utc)
+
+            if enable_cache and callsign in self.cache:
+                with self.cache_lock:
+                    cached_result = self.cache[callsign].copy()
+                    self.cache.move_to_end(callsign)
+                    
+                    if grid and cached_result:                    
+                        cached_result["grid"] = grid
+                        new_zone = self.grid_to_cq_zone(grid)
+                        if new_zone is not None:
+                            if cached_result.get("cqz") != new_zone:
+                                cached_result["cqz"] = new_zone
+                        self.cache[callsign] = cached_result
+                    
+                    if self.lookup_debug:
+                        log.debug(f"Cache hit for {callsign}")
+                    return cached_result
 
             if callsign in self.invalid_operations:
                 for inv_data in self.invalid_operations[callsign]:
@@ -405,7 +422,13 @@ class CallsignLookup:
             if callsign in self.callsign_exceptions:
                 for exception_data in self.callsign_exceptions[callsign]:
                     if self.is_valid_for_date(exception_data, date):
-                        result = exception_data
+                        result = exception_data.copy()
+
+                        if grid and result:
+                            result["grid"] = grid
+                            new_zone = self.grid_to_cq_zone(grid)
+                            if new_zone is not None and result.get("cqz") != new_zone:
+                                result["cqz"] = new_zone
                         self._update_cache(callsign, result, enable_cache)
                         return result
 
@@ -414,7 +437,7 @@ class CallsignLookup:
                 if callsign.startswith(prefix):
                     for entry in self.prefixes.get(prefix, []):
                         if self.is_valid_for_date(entry, date):
-                            result = entry
+                            result = entry.copy()
                             break
                 if result:
                     break
@@ -425,7 +448,8 @@ class CallsignLookup:
                 result = {}
 
             if grid and result:
-                lat, lon, new_zone = self.grid_to_cq_zone(grid)
+                result["grid"] = grid
+                new_zone = self.grid_to_cq_zone(grid)
                 if new_zone is not None and result.get("cqz") != new_zone:
                     result["cqz"] = new_zone
 

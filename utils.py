@@ -206,7 +206,8 @@ def parse_single_wsjtx_message(
             callsign_info = lookup.lookup_callsign(callsign, grid)    
 
         if callsign_info:            
-            cq_zone = callsign_info["cqz"]
+            cq_zone = callsign_info.get("cqz", None)
+            grid    = callsign_info.get("grid", None)
 
     if callsign:
         """
