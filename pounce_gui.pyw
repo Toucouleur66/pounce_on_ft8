@@ -476,6 +476,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.grid_monitor_toggle.setChecked(self.enable_grid_monitor)
 
         self.toggle_buttons_layout = QtWidgets.QWidget()
+        self.toggle_buttons_layout.setFixedHeight(50)
+
         horizontal_layout = QtWidgets.QHBoxLayout()
         horizontal_layout.setContentsMargins(0, 0, 0, 0)
         horizontal_layout.setSpacing(0)  
@@ -494,7 +496,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         # Apply layout to the widget
         self.toggle_buttons_layout.setLayout(horizontal_layout)
-        self.toggle_buttons_layout.setFixedHeight(42)
+        self.toggle_buttons_layout.setFixedHeight(44)
         
         """
             Bottom layout

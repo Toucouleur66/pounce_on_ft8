@@ -4,21 +4,18 @@ import time
 import numpy as np
 from datetime import datetime, timezone
 
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-from matplotlib.colors import LinearSegmentedColormap
-
 from constants import (
     CUSTOM_FONT,
     GUI_LABEL_VERSION,
     STATUS_MONITORING_COLOR,
     FG_TIMER_COLOR,
+    QSLIDER_QSS,
+    SLIDER_VALUE_LABEL_QSS,
     FG_COLOR_REGULAR_FOCUS,
     BG_COLOR_REGULAR_FOCUS
 )
 
-from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout
+from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QSlider, QFrame
 from PyQt6.QtCore import Qt, QPoint, QTimer, pyqtSignal
 from PyQt6.QtGui import QFont, QPainter, QWheelEvent, QMouseEvent, QKeyEvent, QColor, QBrush, QPen, QPainterPath
 
@@ -81,7 +78,9 @@ class GridMapWidget(QWidget):
         self.heatmap_cache              = {}
         self.heatmap_cache_key          = None
 
-        self.max_possible_density       = 10.0
+        self.max_possible_density       = 10.0  # For 20 grids max intensity
+        self.influence_radius            = 250  # was 150
+        self.weight_scaling_factor      = 5.0  
         
         # First value is intensity
         # Viridis
@@ -559,9 +558,9 @@ class GridMapWidget(QWidget):
         return field + square + subsquare
     
     def maidenhead_to_lat_lon(self, grid, adjust_for_view=True):
-        if len(grid) < 4:
+        if not grid or len(grid) < 4:
             return None
-            
+    
         field_lon_idx = ord(grid[0].upper()) - ord('A')
         field_lat_idx = ord(grid[1].upper()) - ord('A')
         
@@ -1095,6 +1094,7 @@ class GridMapWidget(QWidget):
             fill_color.setAlpha(255)
         
         grid_info = self.maidenhead_to_lat_lon(grid_square)
+
         if not grid_info:
             return
             
@@ -1225,6 +1225,7 @@ class GridMapWidget(QWidget):
         if len(squares) > 0 and center_on_last:
             last_square = squares[-1]
             grid_info = self.maidenhead_to_lat_lon(last_square, adjust_for_view=False)
+
             if grid_info:
                 self.center_lat = grid_info['center_lat']
                 self.center_lon = grid_info['center_lon']
@@ -1261,6 +1262,7 @@ class GridMapWidget(QWidget):
         if len(unique_grids) > 0 and center_on_last:
             last_grid = grids[-1]['grid']
             grid_info = self.maidenhead_to_lat_lon(last_grid, adjust_for_view=False)
+
             if grid_info:
                 self.center_lat = grid_info['center_lat']
                 self.center_lon = grid_info['center_lon']
@@ -1321,8 +1323,8 @@ class GridMapWidget(QWidget):
                 grid_square = grid_data['grid']
                 priority    = grid_data.get('priority', 1)
                 
-                # Use priority as weight for density calculation
-                weight = priority
+                # Use priority as weight for density calculation (minimum 1)
+                weight = max(priority, 1)
                 
                 if grid_square in grid_density:
                     grid_density[grid_square]['weight'] += weight
@@ -1348,6 +1350,7 @@ class GridMapWidget(QWidget):
         grid_positions = []
         for grid_square, data in grid_density.items():
             grid_info = self.maidenhead_to_lat_lon(grid_square, adjust_for_view=True)
+
             if not grid_info:
                 continue
             
@@ -1384,9 +1387,9 @@ class GridMapWidget(QWidget):
             density = self.calculate_local_density(grid_pos, grid_positions)
             
             # Use the grid's own weight as a multiplier
-            intensity = min(density * (grid_pos['weight'] / 5.0), 1.0)
-            
-            # log.debug(f"Grid {grid_pos['grid']}: density={density:.2f}, weight={grid_pos['weight']}, intensity={intensity:.2f}")
+            intensity = min(density * (grid_pos['weight'] / self.weight_scaling_factor), 1.0)
+
+            log.debug(f"Grid {grid_pos['grid']}: density={density:.2f}, weight={grid_pos['weight']}, intensity={intensity:.2f}")
             
             # Draw the heatmap blob
             self.draw_heatmap_blob(painter, grid_pos['x'], grid_pos['y'], intensity)
@@ -1399,7 +1402,6 @@ class GridMapWidget(QWidget):
         """
         density = 0.0
         # Pixels - grids within this distance influence density
-        influence_radius = 150  
         
         for other_grid in all_grids:
             # Calculate distance between grids
@@ -1407,23 +1409,22 @@ class GridMapWidget(QWidget):
             dy = center_grid['y'] - other_grid['y']
             distance = math.sqrt(dx * dx + dy * dy)
             
-            if distance <= influence_radius:
+            if distance <= self.influence_radius:
                 # Close grids contribute more to density
                 if distance == 0:
                     # The grid itself
                     contribution = 1.0
                 else:
                     # Inverse distance weighting with falloff
-                    contribution = (influence_radius - distance) / influence_radius
+                    contribution = (self.influence_radius - distance) / self.influence_radius
                     contribution = contribution ** 2  # Square for steeper falloff
                 
                 # Weight the contribution by the other grid's importance
-                weighted_contribution = contribution * (other_grid['weight'] / 5.0)
+                weighted_contribution = contribution * (other_grid['weight'] / self.weight_scaling_factor)
                 density += weighted_contribution
         
         # Normalize density to 0-1 range
-        max_possible_density = self.max_possible_density  # Adjust this to control sensitivity
-        return min(density / max_possible_density, 1.0)
+        return min(density / self.max_possible_density, 1.0)
     
     def get_gradient_color(self, intensity):
         """
@@ -1627,6 +1628,7 @@ class GridMapWidget(QWidget):
         for grid_data in self.highlighted_grids:
             grid_square = grid_data['grid']
             grid_info = self.maidenhead_to_lat_lon(grid_square, adjust_for_view=True)
+
             if not grid_info:
                 continue
             
@@ -1708,13 +1710,7 @@ class GridMapWindow(QMainWindow):
         main_layout.addWidget(self.map_widget)
         
         self.controls_widget = QWidget()
-        self.controls_widget.setObjectName("controls_widget")
-        self.controls_widget.setFixedHeight(50)
-        
-        horizontal_layout = QHBoxLayout(self.controls_widget)
-        horizontal_layout.setContentsMargins(10, 5, 10, 5)
-        horizontal_layout.setSpacing(0) 
-        horizontal_layout.addWidget(CustomQLabel("Grid maps"))
+        self.controls_widget.setObjectName("controls_widget")        
         
         self.grid_toggle = AnimatedToggle(
             checked_color=STATUS_MONITORING_COLOR,
@@ -1724,22 +1720,6 @@ class GridMapWindow(QMainWindow):
         self.grid_toggle.setChecked(self.map_widget.show_grid)
         self.grid_toggle.stateChanged.connect(self.toggle_grid)
         
-        horizontal_layout.addWidget(self.grid_toggle)        
-        horizontal_layout.addSpacing(20)        
-        horizontal_layout.addWidget(CustomQLabel("Heatmap"))
-        
-        self.heatmap_toggle = AnimatedToggle(
-            checked_color=STATUS_MONITORING_COLOR,
-            pulse_checked_color=f"{STATUS_MONITORING_COLOR}FF"
-        )
-        self.heatmap_toggle.setFixedSize(self.heatmap_toggle.sizeHint())
-        self.heatmap_toggle.setChecked(self.map_widget.show_heatmap)
-        self.heatmap_toggle.stateChanged.connect(self.toggle_heatmap)
-        
-        horizontal_layout.addWidget(self.heatmap_toggle)
-        horizontal_layout.addSpacing(20)        
-        horizontal_layout.addWidget(CustomQLabel("Worked Grids"))
-        
         self.worked_toggle = AnimatedToggle(
             checked_color=STATUS_MONITORING_COLOR,
             pulse_checked_color=f"{STATUS_MONITORING_COLOR}FF"
@@ -1748,20 +1728,106 @@ class GridMapWindow(QMainWindow):
         self.worked_toggle.setChecked(self.map_widget.show_worked)
         self.worked_toggle.stateChanged.connect(self.toggle_worked)
         
-        horizontal_layout.addWidget(self.worked_toggle)
-        horizontal_layout.addSpacing(20)        
-        horizontal_layout.addWidget(CustomQLabel("Greyline"))
-        
         self.night_toggle = AnimatedToggle(
             checked_color=STATUS_MONITORING_COLOR,
             pulse_checked_color=f"{STATUS_MONITORING_COLOR}FF"
         )
         self.night_toggle.setFixedSize(self.night_toggle.sizeHint())
         self.night_toggle.setChecked(self.map_widget.show_night)
-        self.night_toggle.stateChanged.connect(self.toggle_night)
+        self.night_toggle.stateChanged.connect(self.toggle_night)        
         
+        self.heatmap_toggle = AnimatedToggle(
+            checked_color=STATUS_MONITORING_COLOR,
+            pulse_checked_color=f"{STATUS_MONITORING_COLOR}FF"
+        )
+        self.heatmap_toggle.setFixedSize(self.heatmap_toggle.sizeHint())
+        self.heatmap_toggle.setChecked(self.map_widget.show_heatmap)
+        self.heatmap_toggle.stateChanged.connect(self.toggle_heatmap)        
+        
+        self.density_slider = QSlider(Qt.Orientation.Horizontal)
+        self.density_slider.setRange(10, 200)  # 1.0 to 20.0 in 0.1 steps
+        self.density_slider.setValue(int(self.map_widget.max_possible_density * 10))
+        self.density_slider.setFixedWidth(100)
+        self.density_slider.setStyleSheet(QSLIDER_QSS)
+        self.density_slider.valueChanged.connect(self.update_density)
+        
+        self.density_label = CustomQLabel(f"{self.map_widget.max_possible_density:.1f}")
+        self.density_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.density_label.setStyleSheet(SLIDER_VALUE_LABEL_QSS)
+        
+        self.radius_slider = QSlider(Qt.Orientation.Horizontal)
+        self.radius_slider.setRange(50, 1000)  # 50 to 1000 pixels
+        self.radius_slider.setValue(self.map_widget.influence_radius)
+        self.radius_slider.setFixedWidth(80)
+        self.radius_slider.setStyleSheet(QSLIDER_QSS)
+        self.radius_slider.valueChanged.connect(self.update_radius)        
+        
+        self.radius_label = CustomQLabel(f"{self.map_widget.influence_radius}")
+        self.radius_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.radius_label.setStyleSheet(SLIDER_VALUE_LABEL_QSS)
+
+        self.weight_slider = QSlider(Qt.Orientation.Horizontal)
+        self.weight_slider.setRange(10, 100)  # 1.0 to 10.0 in 0.1 steps
+        self.weight_slider.setValue(int(self.map_widget.weight_scaling_factor * 10))
+        self.weight_slider.setFixedWidth(80)
+        self.weight_slider.setStyleSheet(QSLIDER_QSS)
+        self.weight_slider.valueChanged.connect(self.update_weight)
+
+        self.weight_label = CustomQLabel(f"{self.map_widget.weight_scaling_factor:.1f}")
+        self.weight_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.weight_label.setStyleSheet(SLIDER_VALUE_LABEL_QSS)
+
+        # Set fixed height for controls widget
+        self.controls_widget.setFixedHeight(50)
+        
+        # Main horizontal layout
+        horizontal_layout = QHBoxLayout(self.controls_widget)
+        horizontal_layout.setContentsMargins(10, 5, 10, 5)
+        horizontal_layout.setSpacing(0) 
+
+        horizontal_layout.addWidget(CustomQLabel("Grid maps"))        
+        horizontal_layout.addWidget(self.grid_toggle)        
+        horizontal_layout.addSpacing(20)                
+        horizontal_layout.addWidget(CustomQLabel("Worked Grids"))
+        horizontal_layout.addWidget(self.worked_toggle)
+        horizontal_layout.addSpacing(20)        
+        horizontal_layout.addWidget(CustomQLabel("Greyline"))                
         horizontal_layout.addWidget(self.night_toggle)
+        horizontal_layout.addSpacing(20)     
+        horizontal_layout.addWidget(CustomQLabel("Heatmap"))        
+        horizontal_layout.addWidget(self.heatmap_toggle)
+        horizontal_layout.addSpacing(20)
+        
+        # Group heatmap controls in a container
+        self.heatmap_controls_widget = QWidget()
+        self.heatmap_controls_widget.setFixedHeight(40)  # Ensure fixed height
+        heatmap_controls_layout = QHBoxLayout(self.heatmap_controls_widget)
+        heatmap_controls_layout.setContentsMargins(0, 0, 0, 0)
+        heatmap_controls_layout.setSpacing(0)
+        
+        heatmap_controls_layout.addWidget(CustomQLabel("Density"))
+        heatmap_controls_layout.addSpacing(10)
+        heatmap_controls_layout.addWidget(self.density_slider)        
+        heatmap_controls_layout.addSpacing(10)
+        heatmap_controls_layout.addWidget(self.density_label)
+        heatmap_controls_layout.addSpacing(15)
+        heatmap_controls_layout.addWidget(CustomQLabel("Radius"))    
+        heatmap_controls_layout.addSpacing(10)    
+        heatmap_controls_layout.addWidget(self.radius_slider)
+        heatmap_controls_layout.addSpacing(10)        
+        heatmap_controls_layout.addWidget(self.radius_label)
+        heatmap_controls_layout.addSpacing(15)
+        heatmap_controls_layout.addWidget(CustomQLabel("Weight"))
+        heatmap_controls_layout.addSpacing(10)
+        heatmap_controls_layout.addWidget(self.weight_slider)                
+        heatmap_controls_layout.addSpacing(10)
+        heatmap_controls_layout.addWidget(self.weight_label)
+        heatmap_controls_layout.addSpacing(15)
+        
+        horizontal_layout.addWidget(self.heatmap_controls_widget)
         horizontal_layout.addStretch() 
+        
+        self.update_heatmap_controls_opacity()
         
         main_layout.addWidget(self.controls_widget)
     
@@ -1784,6 +1850,7 @@ class GridMapWindow(QMainWindow):
         self.map_widget.show_heatmap = checked
         self.map_widget.update()
         self.map_widget.save_grid_map_settings()
+        self.update_heatmap_controls_opacity()
     
     def toggle_worked(self, checked):
         self.map_widget.show_worked = checked
@@ -1796,6 +1863,36 @@ class GridMapWindow(QMainWindow):
         self.map_widget.show_night = checked
         self.map_widget.update()
         self.map_widget.save_grid_map_settings()
+    
+    def update_density(self, value):
+        self.map_widget.max_possible_density = value / 10.0
+        self.density_label.setText(f"{self.map_widget.max_possible_density:.1f}")
+        self.map_widget.clear_heatmap_cache()
+        self.map_widget.update()
+    
+    def update_radius(self, value):
+        self.map_widget.influence_radius = value
+        self.radius_label.setText(f"{self.map_widget.influence_radius}")
+        self.map_widget.clear_heatmap_cache()
+        self.map_widget.update()
+    
+    def update_weight(self, value):
+        self.map_widget.weight_scaling_factor = value / 10.0
+        self.weight_label.setText(f"{self.map_widget.weight_scaling_factor:.1f}")
+        self.map_widget.clear_heatmap_cache()
+        self.map_widget.update()
+    
+    def update_heatmap_controls_opacity(self):
+        """Update opacity of heatmap controls based on heatmap toggle state"""
+        if hasattr(self, 'heatmap_controls_widget'):
+            if self.map_widget.show_heatmap:
+                # Full opacity when heatmap is enabled
+                self.heatmap_controls_widget.setStyleSheet("QWidget { opacity: 1.0; }")
+                self.heatmap_controls_widget.setEnabled(True)
+            else:
+                # 50% opacity when heatmap is disabled
+                self.heatmap_controls_widget.setStyleSheet("QWidget { opacity: 0.5; }")
+                self.heatmap_controls_widget.setEnabled(False)
     
     def check_theme_change(self):
         current_dark_mode = self.theme_manager.is_dark_apperance()
