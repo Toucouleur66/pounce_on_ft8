@@ -195,26 +195,26 @@ CONTEXT_MENU_DARWIN_QSS         = f"""
         """
 
 QSLIDER_QSS                     = f"""            
-                QSlider::groove:horizontal {{
-                    border: 1px solid #999999;
-                    height: 10px;
-                }}
-                QSlider::handle:horizontal {{
-                    background: ■#fff;
-                    width: 10px;
-                    margin: -1px -1px;
-                    border: 1px solid #5555ff;
-                }}
-                QSlider::handle:horizontal:hover {{
-                    background: #000;
-                    border-color:#000;
-                }}
-                QSlider::add-page:horizontal {{
-                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #B1B1B1, stop:1 #c4c4c4);
-                }}                
-                QSlider::sub-page:horizontal {{
-                    background: {STATUS_MONITORING_COLOR};
-                }}                
+            QSlider::groove:horizontal {{
+                border: 1px solid #999999;
+                height: 10px;
+            }}
+            QSlider::handle:horizontal {{
+                background: ■#fff;
+                width: 10px;
+                margin: -1px -1px;
+                border: 1px solid #5555ff;
+            }}
+            QSlider::handle:horizontal:hover {{
+                background: #000;
+                border-color:#000;
+            }}
+            QSlider::add-page:horizontal {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #B1B1B1, stop:1 #c4c4c4);
+            }}                
+            QSlider::sub-page:horizontal {{
+                background: {STATUS_MONITORING_COLOR};
+            }}                
         """
 
 SLIDER_VALUE_LABEL_QSS          = f"""
@@ -222,7 +222,7 @@ SLIDER_VALUE_LABEL_QSS          = f"""
                 background-color: {STATUS_MONITORING_COLOR};
                 color: white;
                 border-radius: 8px;
-                padding: 5px 10px;
+                padding: 2px 5px;
                 height: 10px;
             }}
         """

@@ -15,7 +15,7 @@ from constants import (
     BG_COLOR_REGULAR_FOCUS
 )
 
-from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QSlider, QFrame
+from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QSlider, QFrame, QGraphicsOpacityEffect
 from PyQt6.QtCore import Qt, QPoint, QTimer, pyqtSignal
 from PyQt6.QtGui import QFont, QPainter, QWheelEvent, QMouseEvent, QKeyEvent, QColor, QBrush, QPen, QPainterPath
 
@@ -1389,7 +1389,7 @@ class GridMapWidget(QWidget):
             # Use the grid's own weight as a multiplier
             intensity = min(density * (grid_pos['weight'] / self.weight_scaling_factor), 1.0)
 
-            log.debug(f"Grid {grid_pos['grid']}: density={density:.2f}, weight={grid_pos['weight']}, intensity={intensity:.2f}")
+            # log.debug(f"Grid {grid_pos['grid']}: density={density:.2f}, weight={grid_pos['weight']}, intensity={intensity:.2f}")
             
             # Draw the heatmap blob
             self.draw_heatmap_blob(painter, grid_pos['x'], grid_pos['y'], intensity)
@@ -1683,6 +1683,10 @@ class GridMapWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle(GUI_LABEL_VERSION + " - Grid Monitoring")
         self.setGeometry(100, 100, 1200, 800)
+              
+        self.map_widget = GridMapWidget()
+        
+        self.setup_main_layout()
         
         self.theme_manager = ThemeManager()
         self.theme_manager.theme_changed.connect(self.apply_theme_to_all)
@@ -1692,10 +1696,6 @@ class GridMapWindow(QMainWindow):
         self.theme_timer.start(1_000) 
 
         self.apply_theme_to_all(self.theme_manager.dark_mode)
-        
-        self.map_widget = GridMapWidget()
-        
-        self.setup_main_layout()
         
         self.map_widget.setFocus()
         
@@ -1736,6 +1736,10 @@ class GridMapWindow(QMainWindow):
         self.night_toggle.setChecked(self.map_widget.show_night)
         self.night_toggle.stateChanged.connect(self.toggle_night)        
         
+        self.heatmap_controls_widget = QWidget()
+        self.heatmap_controls_widget.setFixedHeight(40)
+        self.heatmap_controls_widget.setObjectName("HeatMapControlsWidget")
+        
         self.heatmap_toggle = AnimatedToggle(
             checked_color=STATUS_MONITORING_COLOR,
             pulse_checked_color=f"{STATUS_MONITORING_COLOR}FF"
@@ -1745,7 +1749,7 @@ class GridMapWindow(QMainWindow):
         self.heatmap_toggle.stateChanged.connect(self.toggle_heatmap)        
         
         self.density_slider = QSlider(Qt.Orientation.Horizontal)
-        self.density_slider.setRange(10, 200)  # 1.0 to 20.0 in 0.1 steps
+        self.density_slider.setRange(10, 200) 
         self.density_slider.setValue(int(self.map_widget.max_possible_density * 10))
         self.density_slider.setFixedWidth(100)
         self.density_slider.setStyleSheet(QSLIDER_QSS)
@@ -1754,9 +1758,10 @@ class GridMapWindow(QMainWindow):
         self.density_label = CustomQLabel(f"{self.map_widget.max_possible_density:.1f}")
         self.density_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.density_label.setStyleSheet(SLIDER_VALUE_LABEL_QSS)
+        self.density_label.setFixedWidth(40)
         
         self.radius_slider = QSlider(Qt.Orientation.Horizontal)
-        self.radius_slider.setRange(50, 1000)  # 50 to 1000 pixels
+        self.radius_slider.setRange(50, 1000)  
         self.radius_slider.setValue(self.map_widget.influence_radius)
         self.radius_slider.setFixedWidth(80)
         self.radius_slider.setStyleSheet(QSLIDER_QSS)
@@ -1765,6 +1770,7 @@ class GridMapWindow(QMainWindow):
         self.radius_label = CustomQLabel(f"{self.map_widget.influence_radius}")
         self.radius_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.radius_label.setStyleSheet(SLIDER_VALUE_LABEL_QSS)
+        self.radius_label.setFixedWidth(40)
 
         self.weight_slider = QSlider(Qt.Orientation.Horizontal)
         self.weight_slider.setRange(10, 100)  # 1.0 to 10.0 in 0.1 steps
@@ -1776,6 +1782,30 @@ class GridMapWindow(QMainWindow):
         self.weight_label = CustomQLabel(f"{self.map_widget.weight_scaling_factor:.1f}")
         self.weight_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.weight_label.setStyleSheet(SLIDER_VALUE_LABEL_QSS)
+        self.weight_label.setFixedWidth(40)
+        
+        # Layout for heatmap controls widget (sliders only)
+        heatmap_layout = QHBoxLayout(self.heatmap_controls_widget)
+        heatmap_layout.setContentsMargins(0, 0, 0, 0)
+        heatmap_layout.setSpacing(0)
+        
+        heatmap_layout.addWidget(CustomQLabel("Density"))
+        heatmap_layout.addSpacing(10)
+        heatmap_layout.addWidget(self.density_slider)
+        heatmap_layout.addSpacing(10)
+        heatmap_layout.addWidget(self.density_label)
+        heatmap_layout.addSpacing(15)
+        heatmap_layout.addWidget(CustomQLabel("Radius"))
+        heatmap_layout.addSpacing(10)
+        heatmap_layout.addWidget(self.radius_slider)
+        heatmap_layout.addSpacing(10)
+        heatmap_layout.addWidget(self.radius_label)
+        heatmap_layout.addSpacing(15)
+        heatmap_layout.addWidget(CustomQLabel("Weight"))
+        heatmap_layout.addSpacing(10)
+        heatmap_layout.addWidget(self.weight_slider)
+        heatmap_layout.addSpacing(10)
+        heatmap_layout.addWidget(self.weight_label)
 
         # Set fixed height for controls widget
         self.controls_widget.setFixedHeight(50)
@@ -1785,6 +1815,7 @@ class GridMapWindow(QMainWindow):
         horizontal_layout.setContentsMargins(10, 5, 10, 5)
         horizontal_layout.setSpacing(0) 
 
+        # Left side: basic toggles
         horizontal_layout.addWidget(CustomQLabel("Grid maps"))        
         horizontal_layout.addWidget(self.grid_toggle)        
         horizontal_layout.addSpacing(20)                
@@ -1793,39 +1824,16 @@ class GridMapWindow(QMainWindow):
         horizontal_layout.addSpacing(20)        
         horizontal_layout.addWidget(CustomQLabel("Greyline"))                
         horizontal_layout.addWidget(self.night_toggle)
-        horizontal_layout.addSpacing(20)     
-        horizontal_layout.addWidget(CustomQLabel("Heatmap"))        
+        horizontal_layout.addSpacing(20)
+        horizontal_layout.addWidget(CustomQLabel("Heatmap"))
         horizontal_layout.addWidget(self.heatmap_toggle)
         horizontal_layout.addSpacing(20)
         
-        # Group heatmap controls in a container
-        self.heatmap_controls_widget = QWidget()
-        self.heatmap_controls_widget.setFixedHeight(40)  # Ensure fixed height
-        heatmap_controls_layout = QHBoxLayout(self.heatmap_controls_widget)
-        heatmap_controls_layout.setContentsMargins(0, 0, 0, 0)
-        heatmap_controls_layout.setSpacing(0)
+        # Add stretch to push heatmap controls to the right
+        horizontal_layout.addStretch()
         
-        heatmap_controls_layout.addWidget(CustomQLabel("Density"))
-        heatmap_controls_layout.addSpacing(10)
-        heatmap_controls_layout.addWidget(self.density_slider)        
-        heatmap_controls_layout.addSpacing(10)
-        heatmap_controls_layout.addWidget(self.density_label)
-        heatmap_controls_layout.addSpacing(15)
-        heatmap_controls_layout.addWidget(CustomQLabel("Radius"))    
-        heatmap_controls_layout.addSpacing(10)    
-        heatmap_controls_layout.addWidget(self.radius_slider)
-        heatmap_controls_layout.addSpacing(10)        
-        heatmap_controls_layout.addWidget(self.radius_label)
-        heatmap_controls_layout.addSpacing(15)
-        heatmap_controls_layout.addWidget(CustomQLabel("Weight"))
-        heatmap_controls_layout.addSpacing(10)
-        heatmap_controls_layout.addWidget(self.weight_slider)                
-        heatmap_controls_layout.addSpacing(10)
-        heatmap_controls_layout.addWidget(self.weight_label)
-        heatmap_controls_layout.addSpacing(15)
-        
+        # Right side: heatmap controls widget
         horizontal_layout.addWidget(self.heatmap_controls_widget)
-        horizontal_layout.addStretch() 
         
         self.update_heatmap_controls_opacity()
         
@@ -1883,16 +1891,32 @@ class GridMapWindow(QMainWindow):
         self.map_widget.update()
     
     def update_heatmap_controls_opacity(self):
-        """Update opacity of heatmap controls based on heatmap toggle state"""
         if hasattr(self, 'heatmap_controls_widget'):
             if self.map_widget.show_heatmap:
-                # Full opacity when heatmap is enabled
-                self.heatmap_controls_widget.setStyleSheet("QWidget { opacity: 1.0; }")
                 self.heatmap_controls_widget.setEnabled(True)
-            else:
-                # 50% opacity when heatmap is disabled
-                self.heatmap_controls_widget.setStyleSheet("QWidget { opacity: 0.5; }")
+                                
+                self.heatmap_controls_widget.setGraphicsEffect(None)
+                for child in self.heatmap_controls_widget.findChildren(QSlider):
+                    child.setGraphicsEffect(None)
+                for child in self.heatmap_controls_widget.findChildren(CustomQLabel):
+                    child.setGraphicsEffect(None)
+                    
+            else:                
                 self.heatmap_controls_widget.setEnabled(False)
+                
+                container_effect = QGraphicsOpacityEffect()
+                container_effect.setOpacity(0.5)
+                self.heatmap_controls_widget.setGraphicsEffect(container_effect)
+                                
+                for child in self.heatmap_controls_widget.findChildren(QSlider):
+                    effect = QGraphicsOpacityEffect()
+                    effect.setOpacity(0.5)
+                    child.setGraphicsEffect(effect)
+                    
+                for child in self.heatmap_controls_widget.findChildren(CustomQLabel):
+                    effect = QGraphicsOpacityEffect()
+                    effect.setOpacity(0.5)
+                    child.setGraphicsEffect(effect)
     
     def check_theme_change(self):
         current_dark_mode = self.theme_manager.is_dark_apperance()
@@ -1915,6 +1939,12 @@ class GridMapWindow(QMainWindow):
         self.setStyleSheet(f"""
             QMainWindow {{
                 background-color: {qt_bg_color};
+            }}
+        """)
+
+        self.heatmap_controls_widget.setStyleSheet(f"""
+            QWidget#HeatMapControlsWidget {{                
+                border-radius: 8px;
             }}
         """)
     

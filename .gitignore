@@ -1,6 +1,7 @@
 __pycache__/
 /dist/
 /vector_cache/
+/geoJson/
 /build*
 
 cty_sample.xml
@@ -10,6 +11,8 @@ pounce.log*
 *.csr
 *.json
 *.png
+
+test_*.*
 
 *.pkl
 
