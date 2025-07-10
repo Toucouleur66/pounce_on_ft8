@@ -929,9 +929,10 @@ class MainApp(QtWidgets.QMainWindow):
         output_table.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         output_table.horizontalHeader().setStyleSheet("""
             QHeaderView::section {
-                border: none;
+                border-top: none;
                 border-right: none;
                 border-left: none;
+                border-bottom: 1px solid palette(Mid);
             }
         """)
 
