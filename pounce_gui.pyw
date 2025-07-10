@@ -18,6 +18,7 @@ import pyperclip
 import sys
 import threading
 import webbrowser
+import time
 
 """
     Not to be deleted because it allows for one-off debugging
@@ -3353,6 +3354,9 @@ class MainApp(QtWidgets.QMainWindow):
         # Connect error signal
         self.error_occurred.connect(self.display_error)
         
+        # Initialize freeze detection
+        self.setup_freeze_detection()
+        
         log.info("Comprehensive error handling initialized")
     
     def handle_exception(self, exc_type, exc_value, exc_traceback):
@@ -3452,9 +3456,160 @@ class MainApp(QtWidgets.QMainWindow):
             log.error(error_msg)
             self.error_occurred.emit(error_msg)
             return None
+    
+    def setup_freeze_detection(self):
+        """
+        Setup comprehensive freeze detection mechanisms
+        """
+        # Main thread heartbeat
+        self.main_thread_heartbeat = time.time()
+        self.freeze_detection_enabled = True
+        
+        # Create freeze detection timer (runs in main thread)
+        self.heartbeat_timer = QtCore.QTimer()
+        self.heartbeat_timer.timeout.connect(self.update_main_thread_heartbeat)
+        self.heartbeat_timer.start(1000)  # Update every second
+        
+        # Create freeze monitoring thread
+        self.freeze_monitor_thread = threading.Thread(
+            target=self.monitor_for_freezes, 
+            daemon=True, 
+            name="FreezeMonitor"
+        )
+        self.freeze_monitor_thread.start()
+        
+        # Track GUI operations
+        self.gui_operation_start_time = None
+        self.gui_operation_description = None
+        
+        log.info("Freeze detection initialized - monitoring main thread responsiveness")
+    
+    def update_main_thread_heartbeat(self):
+        """
+        Called by timer in main thread to update heartbeat
+        """
+        self.main_thread_heartbeat = time.time()
+    
+    def monitor_for_freezes(self):
+        """
+        Background thread that monitors for main thread freezes
+        """
+        freeze_threshold = 10.0  # seconds
+        warning_threshold = 5.0  # seconds
+        
+        while self.freeze_detection_enabled:
+            try:
+                time.sleep(2)  # Check every 2 seconds
+                
+                current_time = time.time()
+                time_since_heartbeat = current_time - self.main_thread_heartbeat
+                
+                if time_since_heartbeat > freeze_threshold:
+                    freeze_msg = f"FREEZE DETECTED: Main thread unresponsive for {time_since_heartbeat:.1f}s"
+                    if self.gui_operation_description:
+                        freeze_msg += f" - Last operation: {self.gui_operation_description}"
+                    
+                    log.critical(freeze_msg)
+                    self.write_crash_log(freeze_msg)
+                    
+                    # Try to get thread stack traces
+                    stack_traces = self.get_all_thread_stacks()
+                    if stack_traces:
+                        log.critical(f"Thread stack traces:\n{stack_traces}")
+                        self.write_crash_log(f"Thread stack traces:\n{stack_traces}")
+                    
+                elif time_since_heartbeat > warning_threshold:
+                    warning_msg = f"WARNING: Main thread slow response ({time_since_heartbeat:.1f}s)"
+                    if self.gui_operation_description:
+                        warning_msg += f" - Current operation: {self.gui_operation_description}"
+                    log.warning(warning_msg)
+                    
+            except Exception as e:
+                log.error(f"Error in freeze monitor: {e}")
+                time.sleep(5)  # Wait before retrying
+    
+    def get_all_thread_stacks(self):
+        """
+        Get stack traces for all threads (for freeze debugging)
+        """
+        try:
+            import sys
+            import threading
+            
+            stacks = []
+            for thread_id, frame in sys._current_frames().items():
+                thread_name = "Unknown"
+                for thread in threading.enumerate():
+                    if thread.ident == thread_id:
+                        thread_name = thread.name
+                        break
+                
+                stack = traceback.format_stack(frame)
+                stacks.append(f"\n--- Thread: {thread_name} (ID: {thread_id}) ---")
+                stacks.extend(stack)
+            
+            return ''.join(stacks)
+        except Exception as e:
+            return f"Failed to get thread stacks: {e}"
+    
+    def track_gui_operation(self, operation_description):
+        """
+        Track start of potentially blocking GUI operation
+        """
+        self.gui_operation_start_time = time.time()
+        self.gui_operation_description = operation_description
+        log.debug(f"Starting GUI operation: {operation_description}")
+    
+    def finish_gui_operation(self):
+        """
+        Mark end of GUI operation
+        """
+        if self.gui_operation_start_time:
+            duration = time.time() - self.gui_operation_start_time
+            if duration > 1.0:  # Log slow operations
+                log.info(f"Slow GUI operation completed: {self.gui_operation_description} ({duration:.1f}s)")
+        
+        self.gui_operation_start_time = None
+        self.gui_operation_description = None
+    
+    def safe_gui_operation(self, operation_func, operation_name, *args, **kwargs):
+        """
+        Execute GUI operation with freeze tracking
+        """
+        self.track_gui_operation(operation_name)
+        try:
+            # Process events before operation
+            QtWidgets.QApplication.processEvents()
+            
+            result = operation_func(*args, **kwargs)
+            
+            # Process events after operation
+            QtWidgets.QApplication.processEvents()
+            
+            return result
+        finally:
+            self.finish_gui_operation()
+    
+    def cleanup_freeze_detection(self):
+        """
+            Clean up freeze detection on application exit
+        """
+        try:
+            if hasattr(self, 'freeze_detection_enabled'):
+                self.freeze_detection_enabled = False
+            
+            if hasattr(self, 'heartbeat_timer'):
+                self.heartbeat_timer.stop()
+                
+            log.info("Freeze detection cleanup completed")
+        except Exception as e:
+            log.error(f"Error during freeze detection cleanup: {e}")
 
 def on_about_to_quit(window):
-    log.info("Application is about to quit. Cleaning up...")    
+    log.info("Application is about to quit. Cleaning up...")
+    
+    if hasattr(window, 'cleanup_freeze_detection'):
+        window.cleanup_freeze_detection()
     
     if (
         hasattr(window, 'grid_monitor') and 

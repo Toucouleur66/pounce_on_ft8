@@ -23,6 +23,7 @@ from custom_qlabel import CustomQLabel
 from animated_toggle import AnimatedToggle
 from tiles_manager import TileCache, TileDownloader
 from theme_manager import ThemeManager
+from tooltip import CustomToolTip
 
 from logger import get_logger
 
@@ -37,6 +38,15 @@ class GridMapWidget(QWidget):
     def __init__(self):
         super().__init__()
         self.setMinimumSize(800, 600)
+        self.setMouseTracking(True)  # Enable mouse tracking for tooltips
+
+        # Tooltip management
+        self.tooltip_timer = QTimer()
+        self.tooltip_timer.setSingleShot(True)
+        self.tooltip_timer.timeout.connect(self.show_delayed_tooltip)
+        self.current_tooltip_pos = None
+        self.current_tooltip_grid = None
+        self.custom_tooltip = None
 
         self.zoom                       = 2
         self.center_lat                 = 0.0
@@ -1572,6 +1582,10 @@ class GridMapWidget(QWidget):
         # Ensure we have focus when clicked
         self.setFocus()
         
+        # Hide tooltip when clicking
+        self.tooltip_timer.stop()
+        self.hide_custom_tooltip()
+        
         if event.button() == Qt.MouseButton.LeftButton:
             self.mouse_pressed = True
             self.has_moved = False
@@ -1609,6 +1623,9 @@ class GridMapWidget(QWidget):
                 
                 self.last_pan_point = event.pos()
                 self.last_pan_time  = current_time
+        else:
+            # Handle tooltip for permanent squares when not dragging
+            self.handle_mouse_hover(event.pos())
     
     def mouseReleaseEvent(self, event: QMouseEvent):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -1662,6 +1679,120 @@ class GridMapWidget(QWidget):
                     # Update status menu with this grid's information
                     self.update_status_menu_for_grid(grid_data)
                 break
+    
+    def handle_mouse_hover(self, pos):
+        """
+        Handle mouse hover to show tooltips for permanent squares
+        """
+        grid_square = self.find_permanent_square_at_position(pos)
+        
+        if grid_square:
+            # If hovering over the same grid, don't restart timer
+            if grid_square == self.current_tooltip_grid:
+                return
+            
+            # Stop current timer and start new one
+            self.tooltip_timer.stop()
+            self.current_tooltip_pos = pos
+            self.current_tooltip_grid = grid_square
+            self.tooltip_timer.start(500)  # 500ms delay
+        else:
+            # Mouse moved away from permanent squares
+            self.tooltip_timer.stop()
+            self.current_tooltip_grid = None
+            self.hide_custom_tooltip()
+    
+    def show_delayed_tooltip(self):
+        """
+            Show tooltip after delay
+        """
+        if self.current_tooltip_grid and self.current_tooltip_pos:
+            callsigns = self.get_callsigns_for_grid(self.current_tooltip_grid)
+            if callsigns:
+                # Format tooltip text with <br/> for custom tooltip
+                tooltip_text = f"Grid: {self.current_tooltip_grid}<br/>"
+                if len(callsigns) > 1:
+                    tooltip_text += "Callsigns: "
+                else:
+                    tooltip_text += "Callsign: "
+                tooltip_text += ', '.join(callsigns)
+                                
+                self.hide_custom_tooltip()
+                
+                # Create and show custom tooltip
+                self.custom_tooltip = CustomToolTip(tooltip_text, "default")
+                global_pos = self.mapToGlobal(self.current_tooltip_pos)
+                self.custom_tooltip.showToolTip(global_pos)
+    
+    def hide_custom_tooltip(self):
+        """
+        Hide the custom tooltip
+        """
+        if self.custom_tooltip:
+            self.custom_tooltip.hideToolTip()
+            self.custom_tooltip = None
+    
+    def find_permanent_square_at_position(self, pos):
+        """
+            Find which permanent square is under the given position
+        """
+        for grid_square in self.permanent_squares:
+            if self.is_position_in_grid_square(pos, grid_square):
+                return grid_square
+        return None
+    
+    def is_position_in_grid_square(self, pos, grid_square):
+        """
+            Check if a screen position is within the given grid square
+        """
+        grid_info = self.maidenhead_to_lat_lon(grid_square, adjust_for_view=True)
+        if not grid_info:
+            return False
+        
+        # Get screen coordinates for all corners of the grid square
+        corners = [
+            (grid_info['min_lat'], grid_info['min_lon']),
+            (grid_info['min_lat'], grid_info['max_lon']),
+            (grid_info['max_lat'], grid_info['min_lon']),
+            (grid_info['max_lat'], grid_info['max_lon'])
+        ]
+        
+        screen_coords = []
+        for lat, lon in corners:
+            x, y = self.lat_lon_to_screen_stable(lat, lon)
+            screen_coords.append((x, y))
+        
+        min_x = min(coord[0] for coord in screen_coords)
+        max_x = max(coord[0] for coord in screen_coords)
+        min_y = min(coord[1] for coord in screen_coords)
+        max_y = max(coord[1] for coord in screen_coords)
+        
+        return min_x <= pos.x() <= max_x and min_y <= pos.y() <= max_y
+    
+    def get_callsigns_for_grid(self, grid_square):
+        """
+            Get callsigns that have been worked in the given grid square
+        """
+        if not self.adif_data or not self.current_band:
+            return []
+        
+        grid_data = self.adif_data.get('grid', {}).get(self.current_band, {}).get(grid_square, set())
+        
+        if isinstance(grid_data, set):
+            callsigns = sorted(list(grid_data))
+        else:
+            callsigns = []
+        
+        return callsigns[:10]  # Limit to 10 callsigns for tooltip
+    
+    def leaveEvent(self, event):
+        """
+            Hide tooltip when mouse leaves the widget
+        """
+        self.tooltip_timer.stop()
+        self.current_tooltip_grid = None
+        self.hide_custom_tooltip()
+        super().leaveEvent(event)
     
     def resizeEvent(self, event):
         super().resizeEvent(event)

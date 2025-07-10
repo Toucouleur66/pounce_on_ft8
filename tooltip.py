@@ -78,6 +78,9 @@ class CustomToolTip(QtWidgets.QWidget):
         window_flags = QtCore.Qt.WindowType.ToolTip | QtCore.Qt.WindowType.FramelessWindowHint
         if platform.system() == 'Windows':
             window_flags |= QtCore.Qt.WindowType.WindowStaysOnTopHint
+        elif platform.system() == 'Darwin':
+            # On macOS, add flags to minimize border appearance
+            window_flags |= QtCore.Qt.WindowType.WindowStaysOnTopHint | QtCore.Qt.WindowType.NoDropShadowWindowHint
         
         super().__init__(parent, window_flags)
         self.text = text
@@ -85,12 +88,18 @@ class CustomToolTip(QtWidgets.QWidget):
         self.custom_bg_color = bg_color
         self.custom_fg_color = fg_color
         self.padding = 8
-        self.radius = 3
+        # Reduce border radius on macOS for cleaner appearance
+        self.radius = 1 if platform.system() == 'Darwin' else 3
         
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_ShowWithoutActivating)
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+        
+        # Additional attributes for macOS to minimize border
+        if platform.system() == 'Darwin':
+            self.setAttribute(QtCore.Qt.WidgetAttribute.WA_MacAlwaysShowToolWindow, False)
+            self.setAttribute(QtCore.Qt.WidgetAttribute.WA_MacShowFocusRect, False)
         self.setFont(CUSTOM_FONT)
         
         self.color_map = {

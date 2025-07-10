@@ -1427,7 +1427,7 @@ class Listener(QObject):
       
         try:
             delta_f_paquet = pywsjtx.SetTxDeltaFreqPacket.Builder(self.the_packet.wsjtx_id, frequency)
-            log.warning(f"Sending SetTxDeltaFreqPacket (Df={frequency}): {delta_f_paquet}")
+            log.warning(f"Sending SetTxDeltaFreqPacket (Df={frequency}hz): {delta_f_paquet}")
             self.s.send_packet(self.origin_addr_port, delta_f_paquet)
         except Exception as e:
             log.error(f"Error sending packets: {e}\n{traceback.format_exc()}")
@@ -1584,7 +1584,6 @@ class Listener(QObject):
                 'type': 'adif_data_updated',
                 'adif_data': self.adif_data
             })
-            log.warning("update_adif_data done")
 
     """
         if self.adif_data.get('entity') and self.band:
