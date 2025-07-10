@@ -927,12 +927,19 @@ class MainApp(QtWidgets.QMainWindow):
         output_table.verticalHeader().setDefaultSectionSize(24)
         output_table.setAlternatingRowColors(True)
         output_table.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        output_table.horizontalHeader().setStyleSheet("""
+            QHeaderView::section {
+                border: none;
+                border-right: none;
+                border-left: none;
+            }
+        """)
 
-        column_widths = [160, 45, 60, 60, 80, 400, 50, 70, 60, 60]
+        column_widths = [160, 45, 60, 60, 80, 400, 10, 50, 70, 60, 60]  
         for i, width in enumerate(column_widths):
             if i < output_table.model().columnCount():                
-                output_table.setColumnWidth(i, width)
-                if i in [5, 6]:
+                output_table.setColumnWidth(i, width)                
+                if i in [5, 7]:  # Message (5) and Country (7) columns stretch
                     output_table.horizontalHeader().setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
 
         output_table.horizontalHeader().sectionClicked.connect(self.on_header_clicked)
@@ -1512,11 +1519,14 @@ class MainApp(QtWidgets.QMainWindow):
                     message_color      = None
 
                 
+                # Extract LoTW information
+                lotw = None
                 if callsign_info:
                     entity      = (callsign_info.get("entity") or callsign_info.get("name", "Unknown")).title()
                     cq_zone     = callsign_info.get("cqz")
                     continent   = callsign_info.get("cont")
                     entity_wkb4 = message.get('entity_wkb4')
+                    lotw        = callsign_info.get("lotw")
 
                 elif callsign_info is None:
                     entity      = "Where?"
@@ -1538,12 +1548,13 @@ class MainApp(QtWidgets.QMainWindow):
                     message.get('message', ''),
                     formatted_message,
                     entity,
+                    lotw,
                     cq_zone,
                     continent,
                     message.get('grid'),
                     message_type,
                     message_color,
-                    message.get('message_uid'),                     
+                    message.get('message_uid'),                    
                 )   
 
                 self.message_buffer.append(message)         
@@ -2536,12 +2547,13 @@ class MainApp(QtWidgets.QMainWindow):
             message,
             formatted_message,
             entity,
+            lotw,
             cq_zone,
             continent,
             grid,
             message_type,
             row_color         = None,
-            message_uid       = None
+            message_uid       = None,
         ):
 
         """
@@ -2561,6 +2573,7 @@ class MainApp(QtWidgets.QMainWindow):
             "message"           : message,
             "formatted_message" : formatted_message,
             "entity"            : entity,
+            "lotw"              : lotw,            
             "cq_zone"           : cq_zone,
             "continent"         : continent,
             "grid"              : grid,

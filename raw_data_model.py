@@ -36,6 +36,7 @@ class RawDataModel(QtCore.QAbstractTableModel):
             "DT",
             "Freq",
             "Message",
+            "", # LoTW
             "Country",
             "CQ Zone",
             "Continent",
@@ -76,7 +77,7 @@ class RawDataModel(QtCore.QAbstractTableModel):
                     return QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter
                 elif section in [1, 2, 3, 4]:
                     return QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter
-                elif section in [7, 8, 9]:
+                elif section in [6, 8, 9, 10]:  # Adjusted for new LoTW column (6) and shifted other columns
                     return QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter
                 else:
                     return QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter
@@ -119,12 +120,17 @@ class RawDataModel(QtCore.QAbstractTableModel):
             elif column == 5:
                 return f" {raw_data['message']}"
             elif column == 6:
-                return raw_data['entity']
+                # LoTW indicator column
+                lotw = raw_data.get('lotw')
+                return "•" if lotw else ""
             elif column == 7:
-                return str(raw_data['cq_zone'])
+                # Country column (moved from column 6)
+                return raw_data['entity']
             elif column == 8:
-                return raw_data['continent']
+                return str(raw_data['cq_zone'])
             elif column == 9:
+                return raw_data['continent']
+            elif column == 10:
                 return raw_data['wkb4_year'] or ""
         elif role == Qt.ItemDataRole.BackgroundRole:
             row_color = raw_data.get('row_color')
@@ -146,13 +152,13 @@ class RawDataModel(QtCore.QAbstractTableModel):
                     return QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter
             elif column in [1, 2, 3, 4]:
                 return QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter
-            elif column in [7, 8, 9]:
+            elif column in [6, 8, 9, 10]:  # LoTW column (6) and shifted columns
                 return QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter
             else:
                 return QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter
         
         elif role == QtCore.Qt.ItemDataRole.FontRole:
-            if column == 5 or column == 6:
+            if column == 5 or column == 7:  # Message column (5) and Country column (7)
                 return CUSTOM_FONT
             else:
                 return CUSTOM_FONT_SMALL
