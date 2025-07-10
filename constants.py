@@ -236,7 +236,8 @@ CONTEXT_MENU_HEADER_QSS         = f"""
         """
 
 DISCORD_SECTION                 = '<a href="https://discord.gg/fqCu24naCM">Support available on Discord</a>'
-DONATION_SECTION                = '<a href="https://www.paypal.com/donate/?cmd=_s-xclick&hosted_button_id=R4HK9ZTUPYHSL&ssrt=1732865689562">Donations are welcome</a>'
+DONATION_URL                    = "https://www.paypal.com/donate/?cmd=_s-xclick&hosted_button_id=R4HK9ZTUPYHSL&ssrt=1732865689562"
+DONATION_SECTION                = f'<a href="{DONATION_URL}">Donations are welcome</a>'
 
 if platform.system() == 'Windows':
     app = QtWidgets.QApplication([])

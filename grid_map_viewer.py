@@ -1759,6 +1759,7 @@ class GridMapWindow(QMainWindow):
         self.density_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.density_label.setStyleSheet(SLIDER_VALUE_LABEL_QSS)
         self.density_label.setFixedWidth(40)
+        self.density_label.setFixedHeight(25)
         
         self.radius_slider = QSlider(Qt.Orientation.Horizontal)
         self.radius_slider.setRange(50, 1000)  
@@ -1770,6 +1771,7 @@ class GridMapWindow(QMainWindow):
         self.radius_label = CustomQLabel(f"{self.map_widget.influence_radius}")
         self.radius_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.radius_label.setStyleSheet(SLIDER_VALUE_LABEL_QSS)
+        self.radius_label.setFixedHeight(25)
         self.radius_label.setFixedWidth(40)
 
         self.weight_slider = QSlider(Qt.Orientation.Horizontal)
@@ -1783,8 +1785,8 @@ class GridMapWindow(QMainWindow):
         self.weight_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.weight_label.setStyleSheet(SLIDER_VALUE_LABEL_QSS)
         self.weight_label.setFixedWidth(40)
+        self.weight_label.setFixedHeight(25)
         
-        # Layout for heatmap controls widget (sliders only)
         heatmap_layout = QHBoxLayout(self.heatmap_controls_widget)
         heatmap_layout.setContentsMargins(0, 0, 0, 0)
         heatmap_layout.setSpacing(0)

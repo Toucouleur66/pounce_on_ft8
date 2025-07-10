@@ -156,6 +156,7 @@ from constants import (
     # URL
     DISCORD_SECTION,
     DONATION_SECTION,
+    DONATION_URL,
     # Threshold
     HEARTBEAT_TIMEOUT_THRESHOLD,
     DECODE_PACKET_TIMEOUT_THRESHOLD
@@ -2873,6 +2874,11 @@ class MainApp(QtWidgets.QMainWindow):
         check_update_action.setShortcut("Ctrl+I")  
         check_update_action.triggered.connect(lambda: self.updater.check_expiration_or_update(True))
         main_menu.addAction(check_update_action)
+        
+        main_menu.addSeparator()
+        donate_action = QtGui.QAction("⭐️ Donate", self)
+        donate_action.triggered.connect(lambda: webbrowser.open(DONATION_URL))
+        main_menu.addAction(donate_action)
 
         # Add Online menu
         self.online_menu = self.menu_bar.addMenu("Online")
