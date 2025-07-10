@@ -1203,7 +1203,7 @@ class Listener(QObject):
                 """
                 if (
                     reply_to_packet and 
-                    snr >= self.minimum_report_for_reply and
+                    snr < self.minimum_report_for_reply and
                     directed != self.my_call
                 ):
                     log.error(f"SNR value is below than the expected minimum [ {self.minimum_report_for_reply}dB ] for [ {callsign } ]. SNR: [ {snr}dB ]")

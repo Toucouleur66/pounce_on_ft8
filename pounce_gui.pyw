@@ -2876,7 +2876,7 @@ class MainApp(QtWidgets.QMainWindow):
         main_menu.addAction(check_update_action)
         
         main_menu.addSeparator()
-        donate_action = QtGui.QAction("⭐️ Donate", self)
+        donate_action = QtGui.QAction(f"⭐️ Support {GUI_LABEL_NAME}", self)
         donate_action.triggered.connect(lambda: webbrowser.open(DONATION_URL))
         main_menu.addAction(donate_action)
 
