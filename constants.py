@@ -258,7 +258,7 @@ if platform.system() == 'Windows':
     CUSTOM_FONT_MONO_LG         = QtGui.QFont("Consolas", 16)
     CUSTOM_FONT_BOLD            = QtGui.QFont("Consolas", 13, QtGui.QFont.Weight.Bold)
 
-    CUSTOM_FONT_README          = QtGui.QFont("Consolas", 12)
+    CUSTOM_FONT_README          = QtGui.QFont("Consolas", 11)
 
     MENU_FONT                   = QtGui.QFont("Segoe UI")
 elif platform.system() == 'Darwin':
@@ -268,6 +268,6 @@ elif platform.system() == 'Darwin':
     CUSTOM_FONT_MONO_LG         = QtGui.QFont("Monaco", 18)
     CUSTOM_FONT_BOLD            = QtGui.QFont("Monaco", 12, QtGui.QFont.Weight.Bold)
 
-    CUSTOM_FONT_README          = QtGui.QFont("Menlo", 14)
+    CUSTOM_FONT_README          = QtGui.QFont("Menlo", 13)
 
     MENU_FONT                   = QtGui.QFont(".AppleSystemUIFont")

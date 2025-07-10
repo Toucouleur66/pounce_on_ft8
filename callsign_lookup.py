@@ -21,6 +21,7 @@ class CallsignLookup:
         xml_file_path=f"{CURRENT_DIR}/cty.xml",
         cq_zones_geojson_path=f"{CURRENT_DIR}/cq-zones.geojson",
         cache_file=f"{CURRENT_DIR}/lookup_cache.json",
+        lotw_cache_file=f"{CURRENT_DIR}/lotw_cache.json",
         cache_size=1_000,
         lookup_debug=False
     ):
@@ -33,17 +34,20 @@ class CallsignLookup:
         self.xml_file_path = xml_file_path
         self.cq_zones_geojson_path = cq_zones_geojson_path
         self.cache_file = cache_file
+        self.lotw_cache_file = lotw_cache_file
         self.cache_size = cache_size
         self.lookup_debug = lookup_debug
 
         self.sorted_prefixes = []
         self.cache = OrderedDict()
         self.zone_polygons = []
+        self.lotw_cache = {}
 
         self.cache_lock = threading.Lock()
 
         self.load_clublog_xml(self.xml_file_path)
         self.load_cache_from_disk()
+        self.load_lotw_cache()
         self.zone_polygons = self.load_cq_zones(self.cq_zones_geojson_path)
 
     def load_cache_from_disk(self):
@@ -67,6 +71,18 @@ class CallsignLookup:
         log.info(
             f"File {self.cache_file} loading is complete with {len(self.cache)} entries."
         )
+
+    def load_lotw_cache(self):
+        if not os.path.exists(self.lotw_cache_file):
+            return
+
+        try:
+            with open(self.lotw_cache_file, "r", encoding="utf-8") as f:
+                self.lotw_cache = json.load(f)
+            log.info(f"LoTW cache loaded with {len(self.lotw_cache)} entries.")
+        except Exception as e:
+            log.error(f"Failed to load LoTW cache file '{self.lotw_cache_file}': {e}")
+            self.lotw_cache = {}
 
     def save_cache(self):
         data_to_save = {}
@@ -407,6 +423,10 @@ class CallsignLookup:
                                 cached_result["cqz"] = new_zone
                         self.cache[callsign] = cached_result
                     
+                    # Update LoTW information in cached result
+                    if callsign in self.lotw_cache:
+                        cached_result['lotw'] = self.lotw_cache[callsign]
+                    
                     if self.lookup_debug:
                         log.debug(f"Cache hit for {callsign}")
                     return cached_result
@@ -429,6 +449,11 @@ class CallsignLookup:
                             new_zone = self.grid_to_cq_zone(grid)
                             if new_zone is not None and result.get("cqz") != new_zone:
                                 result["cqz"] = new_zone
+                        
+                        # Add LoTW information if available
+                        if callsign in self.lotw_cache:
+                            result['lotw'] = self.lotw_cache[callsign]
+                        
                         self._update_cache(callsign, result, enable_cache)
                         return result
 
@@ -452,6 +477,10 @@ class CallsignLookup:
                 new_zone = self.grid_to_cq_zone(grid)
                 if new_zone is not None and result.get("cqz") != new_zone:
                     result["cqz"] = new_zone
+
+            # Add LoTW information if available
+            if callsign in self.lotw_cache:
+                result['lotw'] = self.lotw_cache[callsign]
 
             self._update_cache(callsign, result, enable_cache)
             return result

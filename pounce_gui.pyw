@@ -48,6 +48,7 @@ from worker import Worker
 from monitoring_setting import MonitoringSettings
 from theme_manager import ThemeManager
 from clublog import ClubLogManager
+from lotw_manager import LoTWManager
 from setting_dialog import SettingsDialog
 from updater import Updater, UpdateManager
 from raw_data_model import RawDataModel
@@ -201,7 +202,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.grid_monitor_geometry = {}
 
         self.monitoring_settings = MonitoringSettings()       
-        self.clublog_manager     = ClubLogManager(self) 
+        self.clublog_manager     = ClubLogManager(self)
+        self.lotw_manager        = LoTWManager(self) 
         self.status_menu_agent   = None
 
         self.updater             = UpdateManager()
@@ -2887,7 +2889,11 @@ class MainApp(QtWidgets.QMainWindow):
         load_clublog_action = QtGui.QAction("Update DXCC Info", self)
         load_clublog_action.triggered.connect(self.clublog_manager.load_clublog_info)
         
+        load_lotw_action = QtGui.QAction("Update LoTW Info", self)
+        load_lotw_action.triggered.connect(self.lotw_manager.load_lotw_info)
+        
         self.online_menu.addAction(load_clublog_action)
+        self.online_menu.addAction(load_lotw_action)
 
         # Add Window menu
         self.window_menu = self.menu_bar.addMenu("Window")
