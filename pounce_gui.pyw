@@ -1463,7 +1463,7 @@ class MainApp(QtWidgets.QMainWindow):
                 self.update_var(self.wanted_callsigns_vars[self.operating_band], message.get('callsign'), message.get('action'))  
             elif message_type == 'adif_data_updated':
                 if self.grid_monitor is not None:
-                    log.warning("update_adif_data callback received")
+                    log.debug("update_adif_data callback received")
                     self.grid_monitor.map_widget.update_adif_data(message.get('adif_data', {}))
             elif message_type == 'update_status':
                 if self._running:
@@ -2339,6 +2339,9 @@ class MainApp(QtWidgets.QMainWindow):
         # Set flag to indicate app is shutting down
         self.app_shutting_down = True
         
+        # Cleanup monitoring threads
+        self.cleanup_monitoring()
+        
         # Close grid monitor without triggering toggle
         if hasattr(self, 'grid_monitor') and self.grid_monitor:
             self.grid_monitor.close()
@@ -2356,6 +2359,9 @@ class MainApp(QtWidgets.QMainWindow):
         
         # Set flag to indicate app is shutting down
         self.app_shutting_down = True
+        
+        # Cleanup monitoring threads
+        self.cleanup_monitoring()
         
         # Close grid monitor without triggering toggle
         if hasattr(self, 'grid_monitor') and self.grid_monitor:
@@ -3377,6 +3383,9 @@ class MainApp(QtWidgets.QMainWindow):
         # Initialize freeze detection
         self.setup_freeze_detection()
         
+        # Initialize listener monitoring
+        self.setup_listener_monitoring()
+        
         log.info("Comprehensive error handling initialized")
     
     def handle_exception(self, exc_type, exc_value, exc_traceback):
@@ -3591,6 +3600,148 @@ class MainApp(QtWidgets.QMainWindow):
         
         self.gui_operation_start_time = None
         self.gui_operation_description = None
+    
+    def setup_listener_monitoring(self):
+        """
+        Setup comprehensive monitoring for wsjtx_listener components
+        """
+        # Initialize listener monitoring variables
+        self.listener_monitoring_enabled = True
+        self.listener_last_activity = {}
+        self.listener_thread_health = {}
+        self.listener_packet_counts = {'received': 0, 'processed': 0}
+        self.listener_socket_health = {'last_successful_receive': time.time()}
+        
+        # Create listener monitoring thread
+        self.listener_monitor_thread = threading.Thread(
+            target=self.monitor_listener_health,
+            daemon=True,
+            name="ListenerMonitor"
+        )
+        self.listener_monitor_thread.start()
+        
+        log.info("Listener monitoring initialized - tracking receiver/processor threads and socket health")
+    
+    def monitor_listener_health(self):
+        """
+        Background thread that monitors wsjtx_listener health
+        """
+        check_interval = 5.0  # Check every 5 seconds
+        socket_timeout = 60.0  # Socket considered problematic after 60s without packets
+        packet_flow_timeout = 15.0  # Warn if no packets for 15s
+        
+        while self.listener_monitoring_enabled:
+            try:
+                time.sleep(check_interval)
+                current_time = time.time()
+                
+                # Check if listener worker exists and monitor its health
+                if hasattr(self, 'worker') and self.worker and hasattr(self.worker, 'listener'):
+                    listener = self.worker.listener
+                    
+                    # Monitor receiver thread health
+                    if hasattr(listener, 'receiver_thread'):
+                        thread_name = "ReceiverThread"
+                        is_running = listener.receiver_thread.isRunning()
+                        
+                        if not is_running and listener._running:
+                            error_msg = f"CRITICAL: {thread_name} has died while listener should be running"
+                            log.critical(error_msg)
+                            self.write_crash_log(error_msg)
+                            self.error_occurred.emit(error_msg)
+                    
+                    # Monitor processor thread health
+                    if hasattr(listener, 'processor_thread'):
+                        thread_name = "ProcessorThread"
+                        is_running = listener.processor_thread.isRunning()
+                        
+                        if not is_running and listener._running:
+                            error_msg = f"CRITICAL: {thread_name} has died while listener should be running"
+                            log.critical(error_msg)
+                            self.write_crash_log(error_msg)
+                            self.error_occurred.emit(error_msg)
+                    
+                    # Monitor packet flow
+                    if hasattr(listener, 'decode_packet_count'):
+                        current_count = listener.decode_packet_count
+                        last_count = self.listener_packet_counts.get('last_decode_count', 0)
+                        
+                        if current_count == last_count:
+                            # No new packets processed
+                            last_packet_time = getattr(listener, 'last_decode_packet_time', None)
+                            if last_packet_time:
+                                time_since_packet = current_time - last_packet_time.timestamp() if hasattr(last_packet_time, 'timestamp') else packet_flow_timeout + 1
+                                
+                                if time_since_packet > packet_flow_timeout:
+                                    warning_msg = f"WARNING: No packets processed for {time_since_packet:.1f}s (count: {current_count})"
+                                    log.warning(warning_msg)
+                                    
+                                    # Check if this might indicate a dead receiver
+                                    if time_since_packet > socket_timeout:
+                                        error_msg = f"CRITICAL: No packets for {time_since_packet:.1f}s - possible receiver thread failure"
+                                        log.critical(error_msg)
+                                        self.write_crash_log(error_msg)
+                        else:
+                            # Update packet count tracking
+                            self.listener_packet_counts['last_decode_count'] = current_count
+                            self.listener_socket_health['last_successful_receive'] = current_time
+                    
+                    # Monitor packet queue health
+                    if hasattr(listener, 'packet_queue'):
+                        queue_size = listener.packet_queue.qsize()
+                        max_queue_size = 1000  # From wsjtx_listener.py
+                        
+                        if queue_size > max_queue_size * 0.8:
+                            warning_msg = f"WARNING: Packet queue nearly full ({queue_size}/{max_queue_size}) - possible processor slowdown"
+                            log.warning(warning_msg)
+                        elif queue_size == max_queue_size:
+                            error_msg = f"CRITICAL: Packet queue full ({queue_size}/{max_queue_size}) - packets being dropped"
+                            log.critical(error_msg)
+                            self.write_crash_log(error_msg)
+                    
+                    # Monitor socket health
+                    if hasattr(listener, 's') and hasattr(listener.s, 'sock'):
+                        try:
+                            # Check if socket is still valid
+                            if listener.s.sock is None:
+                                error_msg = "CRITICAL: Listener socket is None - connection lost"
+                                log.critical(error_msg)
+                                self.write_crash_log(error_msg)
+                        except Exception as e:
+                            error_msg = f"CRITICAL: Error checking listener socket: {e}"
+                            log.critical(error_msg)
+                            self.write_crash_log(error_msg)
+                    
+                    # Check for heartbeat timeout (if listener supports heartbeat)
+                    if hasattr(listener, 'last_heartbeat_time') and listener.last_heartbeat_time:
+                        time_since_heartbeat = current_time - listener.last_heartbeat_time.timestamp() if hasattr(listener.last_heartbeat_time, 'timestamp') else 0
+                        heartbeat_threshold = 30.0  # seconds
+                        
+                        if time_since_heartbeat > heartbeat_threshold:
+                            error_msg = f"WARNING: No heartbeat from WSJT-X for {time_since_heartbeat:.1f}s"
+                            log.warning(error_msg)
+                
+            except Exception as e:
+                log.error(f"Error in listener health monitor: {e}")
+                time.sleep(10)  # Wait before retrying after error
+    
+    def cleanup_monitoring(self):
+        """
+        Clean up monitoring threads when shutting down
+        """
+        # Stop freeze detection
+        if hasattr(self, 'freeze_detection_enabled'):
+            self.freeze_detection_enabled = False
+        
+        # Stop listener monitoring
+        if hasattr(self, 'listener_monitoring_enabled'):
+            self.listener_monitoring_enabled = False
+            
+        # Stop heartbeat timer
+        if hasattr(self, 'heartbeat_timer'):
+            self.heartbeat_timer.stop()
+        
+        log.info("Monitoring threads cleanup initiated")
     
     def safe_gui_operation(self, operation_func, operation_name, *args, **kwargs):
         """

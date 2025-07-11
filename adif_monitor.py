@@ -18,10 +18,20 @@ class AdifMonitor:
         self.adif_file_path             = adif_file_path
         self.adif_worked_callsigns_file = adif_worked_callsigns_file
 
-        self.adif_last_mtime = {
-            adif_file_path              : None,
-            adif_worked_callsigns_file  : None
-        }
+        # Get unique file paths to avoid duplicate processing
+        self.unique_file_paths = []
+        seen_paths = set()
+        
+        for file_path in [adif_file_path, adif_worked_callsigns_file]:
+            if file_path:
+                abs_path = os.path.abspath(file_path)
+                if abs_path not in seen_paths:
+                    seen_paths.add(abs_path)
+                    self.unique_file_paths.append(abs_path)
+        
+        log.info(f"Monitoring unique ADIF files: {self.unique_file_paths}")
+
+        self.adif_last_mtime = {path: None for path in self.unique_file_paths}
 
         self.adif_data_by_file   = {}
         self.callbacks          = []
@@ -40,30 +50,57 @@ class AdifMonitor:
         self._lookup = lookup
 
     def stop(self):
+        log.info("Stopping ADIF monitor")
         self._running = False
         self.stop_event.set()
-        self.monitoring_thread.join()
+        
+        # Give the thread time to finish gracefully
+        if self.monitoring_thread.is_alive():
+            self.monitoring_thread.join(timeout=5)
+            if self.monitoring_thread.is_alive():
+                log.warning("ADIF monitoring thread did not stop gracefully")
+        
+        log.info("ADIF monitor stopped")
 
     def register_callback(self, callback):
         self.callbacks.append(callback)
     
     def notify_callbacks(self):
-        with self.data_lock:
-            data_copy = copy.deepcopy(self.get_adif_data())
-        
-        for callback in self.callbacks:
-            try:
-                callback(data_copy)
-            except Exception as e:
-                log.error(f"Error in callback {callback}: {e}\n{traceback.format_exc()}")  
+        try:
+            with self.data_lock:
+                data_copy = copy.deepcopy(self.get_adif_data())
+            
+            callback_count = len(self.callbacks)
+            log.debug(f"Notifying {callback_count} callbacks with ADIF data")
+            
+            for i, callback in enumerate(self.callbacks):
+                try:
+                    log.debug(f"Calling callback {i+1}/{callback_count}: {callback}")
+                    callback(data_copy)
+                    log.debug(f"Callback {i+1} completed successfully")
+                except Exception as e:
+                    log.error(f"Error in callback {i+1} ({callback}): {e}\n{traceback.format_exc()}")
+                    # Continue with other callbacks even if one fails
+                    
+        except Exception as e:
+            log.error(f"Critical error in notify_callbacks: {e}\n{traceback.format_exc()}")  
 
     def monitor_adif_files(self):
-        while self._running:    
-            self.process_adif_file()
-            self.stop_event.wait(15)
+        log.info("ADIF monitoring thread started")
+        try:
+            while self._running:    
+                self.process_adif_file()
+                if self._running:  # Check again before waiting
+                    self.stop_event.wait(15)
+        except Exception as e:
+            log.error(f"Critical error in ADIF monitoring thread: {e}\n{traceback.format_exc()}")
+        finally:
+            log.info("ADIF monitoring thread stopped")
 
     def process_adif_file(self):
-        for file_path in [self.adif_file_path, self.adif_worked_callsigns_file]:
+        files_processed = []
+        
+        for file_path in self.unique_file_paths:
             if os.path.exists(file_path):
                 try:
                     current_mtime = os.path.getmtime(file_path)
@@ -76,9 +113,14 @@ class AdifMonitor:
                             self.adif_data_by_file[file_path] = parsed_data
                         
                         log.info(f"Processed ({processing_time:.4f}s): {file_path}")
-                        self.notify_callbacks()                            
+                        files_processed.append(file_path)
                 except Exception as e:
                     log.error(f"Error processing {file_path}: {e}\n{traceback.format_exc()}")
+        
+        # Only notify callbacks once after all files are processed
+        if files_processed:
+            log.debug(f"Files processed this cycle: {files_processed}")
+            self.notify_callbacks()
 
     def get_adif_data(self):
         merged_data = {
