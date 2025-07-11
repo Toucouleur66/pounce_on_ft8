@@ -9,8 +9,9 @@ from shapely.geometry import shape, Point
 from shapely.ops import unary_union
 from functools import lru_cache
 
-from utils import get_app_data_dir
+from utils import get_data_file_path
 from logger import get_logger
+import sys
 
 log = get_logger(__name__)
 
@@ -18,10 +19,10 @@ log = get_logger(__name__)
 class CallsignLookup:
     def __init__(
         self,
-        xml_file_path = os.path.join(get_app_data_dir(), "cty.xml"),
-        cq_zones_geojson_path = os.path.join(get_app_data_dir(), "cq-zones.geojson"),
-        cache_file = os.path.join(get_app_data_dir(), "lookup_cache.json"),
-        lotw_cache_file = os.path.join(get_app_data_dir(), "lotw_cache.json"),
+        xml_file_path = get_data_file_path("cty.xml"),
+        cq_zones_geojson_path = get_data_file_path("cq-zones.geojson"),
+        cache_file = get_data_file_path("lookup_cache.json"),
+        lotw_cache_file = get_data_file_path("lotw_cache.json"),
         cache_size = 2_000,
         lookup_debug=False
     ):

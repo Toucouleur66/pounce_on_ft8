@@ -13,15 +13,16 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
 from PyQt6 import QtWidgets
 
+from utils import get_app_data_dir
+
 from constants import (
-    CURRENT_DIR,
     CTY_XML_URL
     )
 
 class ClubLogManager:
     def __init__(self, parent):
         self.parent = parent
-        self.xml_file_path = os.path.join(CURRENT_DIR, "cty.xml")
+        self.xml_file_path = os.path.join(get_app_data_dir(), "cty.xml")
         self.url = CTY_XML_URL
 
     def load_clublog_info(self):

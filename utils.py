@@ -58,7 +58,20 @@ def get_app_data_dir():
     if not os.path.exists(app_data_dir):
         os.makedirs(app_data_dir)
 
-    return app_data_dir
+    return app_data_dir    
+
+
+def get_data_file_path(filename):
+    """
+        Get path to data file, checking bundled resources first, then app data directory
+    """
+    if getattr(sys, 'frozen', False):
+        bundled_path = os.path.join(sys._MEIPASS, filename)
+        if os.path.exists(bundled_path):
+            return bundled_path
+    
+    # Fall back to app data directory
+    return os.path.join(get_app_data_dir(), filename)
 
 def get_log_filename():
     return os.path.join(get_app_data_dir(), f"pounce.log")
