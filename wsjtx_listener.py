@@ -219,7 +219,6 @@ class Listener(QObject):
             Check ADIF file to handle Worked B4 
         """
         if adif_file_path:            
-            log.error("Monitoring ADIF file: {}".format(adif_file_path))
             self.adif_monitor               = AdifMonitor(adif_file_path, ADIF_WORKED_CALLSIGNS_FILE)
             if (
                 self.enable_marathon and 
@@ -513,6 +512,12 @@ class Listener(QObject):
         self.processor_worker.stop()
         self.receiver_thread.quit()
         self.processor_thread.quit()
+        
+        # Stop ADIF monitor to prevent duplicate processing
+        if hasattr(self, 'adif_monitor') and self.adif_monitor:
+            log.info("Stopping ADIF monitor")
+            self.adif_monitor.stop()
+            self.adif_monitor = None
 
     def listen(self):
         self.receiver_thread.start()

@@ -28,8 +28,6 @@ class AdifMonitor:
                 if abs_path not in seen_paths:
                     seen_paths.add(abs_path)
                     self.unique_file_paths.append(abs_path)
-        
-        log.info(f"Monitoring unique ADIF files: {self.unique_file_paths}")
 
         self.adif_last_mtime = {path: None for path in self.unique_file_paths}
 
@@ -54,7 +52,6 @@ class AdifMonitor:
         self._running = False
         self.stop_event.set()
         
-        # Give the thread time to finish gracefully
         if self.monitoring_thread.is_alive():
             self.monitoring_thread.join(timeout=5)
             if self.monitoring_thread.is_alive():
@@ -70,17 +67,11 @@ class AdifMonitor:
             with self.data_lock:
                 data_copy = copy.deepcopy(self.get_adif_data())
             
-            callback_count = len(self.callbacks)
-            log.debug(f"Notifying {callback_count} callbacks with ADIF data")
-            
             for i, callback in enumerate(self.callbacks):
                 try:
-                    log.debug(f"Calling callback {i+1}/{callback_count}: {callback}")
                     callback(data_copy)
-                    log.debug(f"Callback {i+1} completed successfully")
                 except Exception as e:
-                    log.error(f"Error in callback {i+1} ({callback}): {e}\n{traceback.format_exc()}")
-                    # Continue with other callbacks even if one fails
+                    log.error(f"Error in callback ({callback}): {e}\n{traceback.format_exc()}")
                     
         except Exception as e:
             log.error(f"Critical error in notify_callbacks: {e}\n{traceback.format_exc()}")  
@@ -90,7 +81,7 @@ class AdifMonitor:
         try:
             while self._running:    
                 self.process_adif_file()
-                if self._running:  # Check again before waiting
+                if self._running: 
                     self.stop_event.wait(15)
         except Exception as e:
             log.error(f"Critical error in ADIF monitoring thread: {e}\n{traceback.format_exc()}")
@@ -104,7 +95,9 @@ class AdifMonitor:
             if os.path.exists(file_path):
                 try:
                     current_mtime = os.path.getmtime(file_path)
-                    if self.adif_last_mtime[file_path] is None or current_mtime != self.adif_last_mtime[file_path]:
+                    last_mtime = self.adif_last_mtime[file_path]                
+                    
+                    if last_mtime is None or current_mtime != last_mtime:
                         log.info(f"Start processing: {file_path}")
                         self.adif_last_mtime[file_path] = current_mtime
                         processing_time, parsed_data = parse_adif(file_path, self._lookup)
@@ -114,12 +107,12 @@ class AdifMonitor:
                         
                         log.info(f"Processed ({processing_time:.4f}s): {file_path}")
                         files_processed.append(file_path)
+                    else:
+                        log.debug(f"  No change detected for {file_path}")
                 except Exception as e:
                     log.error(f"Error processing {file_path}: {e}\n{traceback.format_exc()}")
         
-        # Only notify callbacks once after all files are processed
         if files_processed:
-            log.debug(f"Files processed this cycle: {files_processed}")
             self.notify_callbacks()
 
     def get_adif_data(self):

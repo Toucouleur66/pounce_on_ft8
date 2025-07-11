@@ -1463,7 +1463,7 @@ class MainApp(QtWidgets.QMainWindow):
                 self.update_var(self.wanted_callsigns_vars[self.operating_band], message.get('callsign'), message.get('action'))  
             elif message_type == 'adif_data_updated':
                 if self.grid_monitor is not None:
-                    log.debug("update_adif_data callback received")
+                    log.debug("Received request to update ADIF data in Grid Monitor")
                     self.grid_monitor.map_widget.update_adif_data(message.get('adif_data', {}))
             elif message_type == 'update_status':
                 if self._running:
@@ -3390,7 +3390,7 @@ class MainApp(QtWidgets.QMainWindow):
     
     def handle_exception(self, exc_type, exc_value, exc_traceback):
         """
-        Handle uncaught exceptions
+            Handle uncaught exceptions
         """
         if issubclass(exc_type, KeyboardInterrupt):
             # Allow Ctrl+C to work normally
@@ -3488,18 +3488,15 @@ class MainApp(QtWidgets.QMainWindow):
     
     def setup_freeze_detection(self):
         """
-        Setup comprehensive freeze detection mechanisms
+            Setup comprehensive freeze detection mechanisms
         """
-        # Main thread heartbeat
         self.main_thread_heartbeat = time.time()
         self.freeze_detection_enabled = True
         
-        # Create freeze detection timer (runs in main thread)
         self.heartbeat_timer = QtCore.QTimer()
         self.heartbeat_timer.timeout.connect(self.update_main_thread_heartbeat)
         self.heartbeat_timer.start(1000)  # Update every second
         
-        # Create freeze monitoring thread
         self.freeze_monitor_thread = threading.Thread(
             target=self.monitor_for_freezes, 
             daemon=True, 
@@ -3507,7 +3504,6 @@ class MainApp(QtWidgets.QMainWindow):
         )
         self.freeze_monitor_thread.start()
         
-        # Track GUI operations
         self.gui_operation_start_time = None
         self.gui_operation_description = None
         
@@ -3515,13 +3511,13 @@ class MainApp(QtWidgets.QMainWindow):
     
     def update_main_thread_heartbeat(self):
         """
-        Called by timer in main thread to update heartbeat
+            Called by timer in main thread to update heartbeat
         """
         self.main_thread_heartbeat = time.time()
     
     def monitor_for_freezes(self):
         """
-        Background thread that monitors for main thread freezes
+            Background thread that monitors for main thread freezes
         """
         freeze_threshold = 10.0  # seconds
         warning_threshold = 5.0  # seconds
@@ -3559,7 +3555,7 @@ class MainApp(QtWidgets.QMainWindow):
     
     def get_all_thread_stacks(self):
         """
-        Get stack traces for all threads (for freeze debugging)
+            Get stack traces for all threads (for freeze debugging)
         """
         try:
             import sys
@@ -3583,7 +3579,7 @@ class MainApp(QtWidgets.QMainWindow):
     
     def track_gui_operation(self, operation_description):
         """
-        Track start of potentially blocking GUI operation
+            Track start of potentially blocking GUI operation
         """
         self.gui_operation_start_time = time.time()
         self.gui_operation_description = operation_description
@@ -3591,7 +3587,7 @@ class MainApp(QtWidgets.QMainWindow):
     
     def finish_gui_operation(self):
         """
-        Mark end of GUI operation
+            Mark end of GUI operation
         """
         if self.gui_operation_start_time:
             duration = time.time() - self.gui_operation_start_time
@@ -3603,9 +3599,8 @@ class MainApp(QtWidgets.QMainWindow):
     
     def setup_listener_monitoring(self):
         """
-        Setup comprehensive monitoring for wsjtx_listener components
+            Setup comprehensive monitoring for wsjtx_listener components
         """
-        # Initialize listener monitoring variables
         self.listener_monitoring_enabled = True
         self.listener_last_activity = {}
         self.listener_thread_health = {}
@@ -3623,13 +3618,8 @@ class MainApp(QtWidgets.QMainWindow):
         log.info("Listener monitoring initialized - tracking receiver/processor threads and socket health")
     
     def monitor_listener_health(self):
-        """
-        Background thread that monitors wsjtx_listener health
-        """
-        check_interval = 5.0  # Check every 5 seconds
-        socket_timeout = 60.0  # Socket considered problematic after 60s without packets
-        packet_flow_timeout = 15.0  # Warn if no packets for 15s
-        
+        check_interval = 5.0        # Check every 5 seconds
+    
         while self.listener_monitoring_enabled:
             try:
                 time.sleep(check_interval)
@@ -3660,45 +3650,7 @@ class MainApp(QtWidgets.QMainWindow):
                             log.critical(error_msg)
                             self.write_crash_log(error_msg)
                             self.error_occurred.emit(error_msg)
-                    
-                    # Monitor packet flow
-                    if hasattr(listener, 'decode_packet_count'):
-                        current_count = listener.decode_packet_count
-                        last_count = self.listener_packet_counts.get('last_decode_count', 0)
-                        
-                        if current_count == last_count:
-                            # No new packets processed
-                            last_packet_time = getattr(listener, 'last_decode_packet_time', None)
-                            if last_packet_time:
-                                time_since_packet = current_time - last_packet_time.timestamp() if hasattr(last_packet_time, 'timestamp') else packet_flow_timeout + 1
-                                
-                                if time_since_packet > packet_flow_timeout:
-                                    warning_msg = f"WARNING: No packets processed for {time_since_packet:.1f}s (count: {current_count})"
-                                    log.warning(warning_msg)
-                                    
-                                    # Check if this might indicate a dead receiver
-                                    if time_since_packet > socket_timeout:
-                                        error_msg = f"CRITICAL: No packets for {time_since_packet:.1f}s - possible receiver thread failure"
-                                        log.critical(error_msg)
-                                        self.write_crash_log(error_msg)
-                        else:
-                            # Update packet count tracking
-                            self.listener_packet_counts['last_decode_count'] = current_count
-                            self.listener_socket_health['last_successful_receive'] = current_time
-                    
-                    # Monitor packet queue health
-                    if hasattr(listener, 'packet_queue'):
-                        queue_size = listener.packet_queue.qsize()
-                        max_queue_size = 1000  # From wsjtx_listener.py
-                        
-                        if queue_size > max_queue_size * 0.8:
-                            warning_msg = f"WARNING: Packet queue nearly full ({queue_size}/{max_queue_size}) - possible processor slowdown"
-                            log.warning(warning_msg)
-                        elif queue_size == max_queue_size:
-                            error_msg = f"CRITICAL: Packet queue full ({queue_size}/{max_queue_size}) - packets being dropped"
-                            log.critical(error_msg)
-                            self.write_crash_log(error_msg)
-                    
+                
                     # Monitor socket health
                     if hasattr(listener, 's') and hasattr(listener.s, 'sock'):
                         try:
@@ -3727,7 +3679,7 @@ class MainApp(QtWidgets.QMainWindow):
     
     def cleanup_monitoring(self):
         """
-        Clean up monitoring threads when shutting down
+            Clean up monitoring threads when shutting down
         """
         # Stop freeze detection
         if hasattr(self, 'freeze_detection_enabled'):
@@ -3745,7 +3697,7 @@ class MainApp(QtWidgets.QMainWindow):
     
     def safe_gui_operation(self, operation_func, operation_name, *args, **kwargs):
         """
-        Execute GUI operation with freeze tracking
+            Execute GUI operation with freeze tracking
         """
         self.track_gui_operation(operation_name)
         try:
@@ -3829,7 +3781,6 @@ def main():
 
     app.aboutToQuit.connect(lambda: on_about_to_quit(window))
 
-    log.info("Starting application event loop")
     exit_code = app.exec()
 
     log.info("Application event loop finished with exit code %s", exit_code)
