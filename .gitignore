@@ -10,6 +10,7 @@ pounce.log*
 *.cer*
 *.csr
 *.json
+!lotw_cache.json
 *.png
 
 test_*.*
