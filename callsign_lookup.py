@@ -52,6 +52,7 @@ class CallsignLookup:
 
     def load_cache_from_disk(self):
         if not os.path.exists(self.cache_file):
+            log.info(f"Cache file '{self.cache_file}' does not exist. Skipping load.")
             return
 
         try:
@@ -74,6 +75,7 @@ class CallsignLookup:
 
     def load_lotw_cache(self):
         if not os.path.exists(self.lotw_cache_file):
+            log.warning(f"LoTW cache file '{self.lotw_cache_file}' does not exist. Skipping load.")    
             return
 
         try:
@@ -118,6 +120,10 @@ class CallsignLookup:
         return new_dict
 
     def load_clublog_xml(self, xml_file_path):
+        if not os.path.exists(xml_file_path):
+            log.info(f"Clublog XML file '{self.cache_file}' does not exist. Skipping load.")
+            return
+        
         try:
             tree = ET.parse(xml_file_path)
             root = tree.getroot()

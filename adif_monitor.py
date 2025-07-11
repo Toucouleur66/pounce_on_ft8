@@ -107,8 +107,6 @@ class AdifMonitor:
                         
                         log.info(f"Processed ({processing_time:.4f}s): {file_path}")
                         files_processed.append(file_path)
-                    else:
-                        log.debug(f"  No change detected for {file_path}")
                 except Exception as e:
                     log.error(f"Error processing {file_path}: {e}\n{traceback.format_exc()}")
         
