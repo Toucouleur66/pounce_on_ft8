@@ -9,7 +9,7 @@ from shapely.geometry import shape, Point
 from shapely.ops import unary_union
 from functools import lru_cache
 
-from constants import CURRENT_DIR
+from utils import get_app_data_dir
 from logger import get_logger
 
 log = get_logger(__name__)
@@ -18,11 +18,11 @@ log = get_logger(__name__)
 class CallsignLookup:
     def __init__(
         self,
-        xml_file_path=f"{CURRENT_DIR}/cty.xml",
-        cq_zones_geojson_path=f"{CURRENT_DIR}/cq-zones.geojson",
-        cache_file=f"{CURRENT_DIR}/lookup_cache.json",
-        lotw_cache_file=f"{CURRENT_DIR}/lotw_cache.json",
-        cache_size=1_000,
+        xml_file_path = os.path.join(get_app_data_dir(), "cty.xml"),
+        cq_zones_geojson_path = os.path.join(get_app_data_dir(), "cq-zones.geojson"),
+        cache_file = os.path.join(get_app_data_dir(), "lookup_cache.json"),
+        lotw_cache_file = os.path.join(get_app_data_dir(), "lotw_cache.json"),
+        cache_size = 2_000,
         lookup_debug=False
     ):
         self.callsign_exceptions = {}
@@ -70,18 +70,19 @@ class CallsignLookup:
             self.cache.move_to_end(k)
 
         log.info(
-            f"File {self.cache_file} loading is complete with {len(self.cache)} entries."
+            f"File {self.cache_file} loading is complete with {len(self.cache):,} entries."
         )
 
     def load_lotw_cache(self):
         if not os.path.exists(self.lotw_cache_file):
-            log.warning(f"LoTW cache file '{self.lotw_cache_file}' does not exist. Skipping load.")    
+            log.warning(f"'{self.lotw_cache_file}' does not exist. Skipping load.")    
             return
 
         try:
             with open(self.lotw_cache_file, "r", encoding="utf-8") as f:
                 self.lotw_cache = json.load(f)
-            log.info(f"LoTW cache loaded with {len(self.lotw_cache)} entries.")
+
+            log.info(f"File {self.lotw_cache_file} loading is complete with {len(self.lotw_cache):,} entries.")                
         except Exception as e:
             log.error(f"Failed to load LoTW cache file '{self.lotw_cache_file}': {e}")
             self.lotw_cache = {}

@@ -2,21 +2,24 @@
 
 import os
 import csv
-from datetime import datetime
 
+from datetime import datetime
 from updater import DownloadDialog
 
 from PyQt6.QtWidgets import QDialog, QVBoxLayout, QGridLayout, QLabel, QPushButton, QSpacerItem, QSizePolicy
+
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
 from PyQt6 import QtWidgets
+
+from utils import get_app_data_dir
 
 from constants import CURRENT_DIR
 
 class LoTWManager:
     def __init__(self, parent):
         self.parent = parent
-        self.csv_file_path = os.path.join(CURRENT_DIR, "lotw-user-activity.csv")
+        self.csv_file_path = os.path.join(get_app_data_dir(), "lotw-user-activity.csv")
         self.url = "https://lotw.arrl.org/lotw-user-activity.csv"
 
     def load_lotw_info(self):
@@ -77,7 +80,7 @@ class LoTWManager:
             )
 
     def save_lotw_cache(self, lotw_data):
-        cache_file = os.path.join(CURRENT_DIR, "lotw_cache.json")
+        cache_file = os.path.join(get_app_data_dir(), "lotw_cache.json")
         try:
             import json
             with open(cache_file, 'w', encoding='utf-8') as f:

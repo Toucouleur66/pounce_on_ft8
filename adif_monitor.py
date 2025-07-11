@@ -67,7 +67,7 @@ class AdifMonitor:
             with self.data_lock:
                 data_copy = copy.deepcopy(self.get_adif_data())
             
-            for i, callback in enumerate(self.callbacks):
+            for callback in self.callbacks:
                 try:
                     callback(data_copy)
                 except Exception as e:
