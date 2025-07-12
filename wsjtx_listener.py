@@ -911,11 +911,11 @@ class Listener(QObject):
             log.debug("DecodePacket: {}".format(formatted_message))
 
             """
-                Parse message, might need "lookup" to parse message
+                Parse message
             """
             parsed_messages = parse_wsjtx_message(
                 message,
-                lookup,
+                lookup, # need lookup to parse message
                 self.wanted_callsigns,
                 self.worked_callsigns.get(self.band, {}),
                 self.excluded_callsigns,
@@ -943,16 +943,17 @@ class Listener(QObject):
                 monitored         = parsed_message['monitored']
                 monitored_cq_zone = parsed_message['monitored_cq_zone']
 
-                """
-                    Might need to handle in priority callsign set rather than callsign
-                    automatically added
-                """
                 current_year      = str(datetime.now().year)
 
                 wkb4_year         = None
+                entity_wkb4       = False
 
-                entity_code       = callsign_info.get('entity') if callsign_info else None       
-                entity_wkb4       = False        
+                if callsign_info:
+                    entity_code   = callsign_info.get('entity') 
+                    lotw          = callsign_info.get('lotw', None) 
+                else:
+                    entity_code   = None
+                    lotw          = None                
              
                 """
                     Check if wanted and is Worked b4
@@ -1226,6 +1227,7 @@ class Listener(QObject):
                         'wanted'            : wanted,
                         'wanted_cq_zone'    : wanted_cq_zone,
                         'marathon'          : marathon,
+                        'lotw'              : lotw,
                         'wkb4_year'         : wkb4_year,
                         'grid'              : grid,
                         'cqing'             : cqing,
@@ -1290,6 +1292,8 @@ class Listener(QObject):
             message['priority'],
             # If wkb4_year is None, return inf, which ranks this message before those with a numerical year
             float('inf') if message.get('wkb4_year') is None else -message['wkb4_year'],
+            # If LoTW is not None, return 1
+            1 if message.get('lotw') else 0,
             # In case of a tie on the first two criteria, the message with the lowest packet_id (the first received) is selected
             -message['packet_id']
         )
@@ -1572,10 +1576,12 @@ class Listener(QObject):
             wkb4_year = f"wkb4y:{message.get('wkb4_year')}"
         else:
             wkb4_year = ""
+        
+        lotw = "*" if message.get('lotw') else " "
 
         return (            
             f"[ {message.get('priority')} ] {decode_time_str} "
-            f"de:{message.get('callsign'):<10}"
+            f"de:{message.get('callsign'):<10}{lotw}"
             f"\tdir:{directed_or_grid:<4}" 
             f"\tpid:{message.get('packet_id'):<6}"
             f"\t{wkb4_year}"                                           

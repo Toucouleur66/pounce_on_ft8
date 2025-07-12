@@ -57,7 +57,7 @@ elif platform.system() == 'Darwin':
         "--add-data=sounds:sounds",
         "--add-data=cty.xml:.",
         "--add-data=cq-zones.geojson:.",
-        "--add-data=lotw_cache.json;.",
+        "--add-data=lotw_cache.json:.",
         f'--add-binary={qt_plugins_path}:PyQt6/Qt6/plugins/multimedia',
         '--hidden-import=Foundation',
         '--hidden-import=objc',

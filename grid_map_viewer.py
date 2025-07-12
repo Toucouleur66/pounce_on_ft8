@@ -1489,7 +1489,6 @@ class GridMapWidget(QWidget):
         self.update()
     
     def clear_heatmap_cache(self):
-        """Clear heatmap cache to force regeneration"""
         self.heatmap_cache = {}
         self.heatmap_cache_key = None
     
@@ -1682,7 +1681,7 @@ class GridMapWidget(QWidget):
     
     def handle_mouse_hover(self, pos):
         """
-        Handle mouse hover to show tooltips for permanent squares
+            Handle mouse hover to show tooltips for permanent squares
         """
         grid_square = self.find_permanent_square_at_position(pos)
         
@@ -1695,7 +1694,7 @@ class GridMapWidget(QWidget):
             self.tooltip_timer.stop()
             self.current_tooltip_pos = pos
             self.current_tooltip_grid = grid_square
-            self.tooltip_timer.start(500)  # 500ms delay
+            self.tooltip_timer.start(250) 
         else:
             # Mouse moved away from permanent squares
             self.tooltip_timer.stop()
