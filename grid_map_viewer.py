@@ -1681,9 +1681,13 @@ class GridMapWidget(QWidget):
     
     def handle_mouse_hover(self, pos):
         """
-            Handle mouse hover to show tooltips for permanent squares
+            Handle mouse hover to show tooltips for permanent squares and highlighted grids
         """
         grid_square = self.find_permanent_square_at_position(pos)
+        
+        # If no permanent square found, check for highlighted grids
+        if not grid_square:
+            grid_square = self.find_highlighted_grid_at_position(pos)
         
         if grid_square:
             # If hovering over the same grid, don't restart timer
@@ -1696,7 +1700,7 @@ class GridMapWidget(QWidget):
             self.current_tooltip_grid = grid_square
             self.tooltip_timer.start(250) 
         else:
-            # Mouse moved away from permanent squares
+            # Mouse moved away from permanent squares and highlighted grids
             self.tooltip_timer.stop()
             self.current_tooltip_grid = None
             self.hide_custom_tooltip()
@@ -1706,22 +1710,52 @@ class GridMapWidget(QWidget):
             Show tooltip after delay
         """
         if self.current_tooltip_grid and self.current_tooltip_pos:
-            callsigns = self.get_callsigns_for_grid(self.current_tooltip_grid)
-            if callsigns:
-                # Format tooltip text with <br/> for custom tooltip
+            tooltip_text = ""
+            
+            # Check if this is a highlighted grid
+            highlighted_data = self.get_highlighted_grid_data(self.current_tooltip_grid)
+            if highlighted_data:
+                # Show highlighted grid information
                 tooltip_text = f"Grid: {self.current_tooltip_grid}<br/>"
-                if len(callsigns) > 1:
-                    tooltip_text += "Callsigns: "
-                else:
-                    tooltip_text += "Callsign: "
-                tooltip_text += ', '.join(callsigns)
-                                
-                self.hide_custom_tooltip()
+                if 'callsign' in highlighted_data:
+                    tooltip_text += f"Callsign: {highlighted_data['callsign']}<br/>"
+                if 'frequency' in highlighted_data:
+                    tooltip_text += f"Frequency: {highlighted_data['frequency']}<br/>"
+                if 'message' in highlighted_data:
+                    tooltip_text += f"Message: {highlighted_data['message']}"
                 
-                # Create and show custom tooltip
-                self.custom_tooltip = CustomToolTip(tooltip_text, "default")
+                # Use the same colors as the highlighted grid
+                color = QColor(FG_TIMER_COLOR)
+                border_color = darken_color(color, 0.5)
+                fill_color = complementary_color(color)
+                
+                self.hide_custom_tooltip()
+                self.custom_tooltip = CustomToolTip(
+                    tooltip_text, 
+                    "default",
+                    bg_color=fill_color.name(),
+                    fg_color=border_color.name()
+                )
                 global_pos = self.mapToGlobal(self.current_tooltip_pos)
                 self.custom_tooltip.showToolTip(global_pos)
+            else:
+                # Check for permanent grid callsigns
+                callsigns = self.get_callsigns_for_grid(self.current_tooltip_grid)
+                if callsigns:
+                    # Format tooltip text with <br/> for custom tooltip
+                    tooltip_text = f"Grid: {self.current_tooltip_grid}<br/>"
+                    if len(callsigns) > 1:
+                        tooltip_text += "Callsigns: "
+                    else:
+                        tooltip_text += "Callsign: "
+                    tooltip_text += ', '.join(callsigns)
+                                    
+                    self.hide_custom_tooltip()
+                    
+                    # Create and show custom tooltip
+                    self.custom_tooltip = CustomToolTip(tooltip_text, "default")
+                    global_pos = self.mapToGlobal(self.current_tooltip_pos)
+                    self.custom_tooltip.showToolTip(global_pos)
     
     def hide_custom_tooltip(self):
         """
@@ -1738,6 +1772,25 @@ class GridMapWidget(QWidget):
         for grid_square in self.permanent_squares:
             if self.is_position_in_grid_square(pos, grid_square):
                 return grid_square
+        return None
+    
+    def find_highlighted_grid_at_position(self, pos):
+        """
+            Find which highlighted grid is under the given position
+        """
+        for grid_data in self.highlighted_grids:
+            grid_square = grid_data['grid']
+            if self.is_position_in_grid_square(pos, grid_square):
+                return grid_square
+        return None
+    
+    def get_highlighted_grid_data(self, grid_square):
+        """
+            Get the data for a highlighted grid
+        """
+        for grid_data in self.highlighted_grids:
+            if grid_data['grid'] == grid_square:
+                return grid_data
         return None
     
     def is_position_in_grid_square(self, pos, grid_square):
