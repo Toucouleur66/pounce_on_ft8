@@ -1147,7 +1147,9 @@ class MainApp(QtWidgets.QMainWindow):
         if not latest_messages:
             return
         
-        if hasattr(self, 'grid_monitor') and self.grid_monitor:        
+        if self.grid_monitor:    
+            log.error(latest_messages)
+
             self.grid_monitor.map_widget.set_highlighted_grids([message for message in latest_messages if "grid" in message])
 
     def hide_container_tab(self):
@@ -2343,7 +2345,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.cleanup_monitoring()
         
         # Close grid monitor without triggering toggle
-        if hasattr(self, 'grid_monitor') and self.grid_monitor:
+        if self.grid_monitor:
             self.grid_monitor.close()
         
         QtWidgets.QApplication.quit()
@@ -2364,7 +2366,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.cleanup_monitoring()
         
         # Close grid monitor without triggering toggle
-        if hasattr(self, 'grid_monitor') and self.grid_monitor:
+        if self.grid_monitor:
             self.grid_monitor.close()
 
         QtCore.QProcess.startDetached(sys.executable, sys.argv)

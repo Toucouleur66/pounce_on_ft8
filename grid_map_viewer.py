@@ -88,10 +88,15 @@ class GridMapWidget(QWidget):
         self.heatmap_cache              = {}
         self.heatmap_cache_key          = None
 
-        self.max_possible_density       = 10.0  # For 20 grids max intensity
-        self.influence_radius            = 250  # was 150
+        self.max_possible_density       = 10.0 
+        self.influence_radius            = 250 
         self.weight_scaling_factor      = 5.0  
+
+        hightlight_color                = QColor(FG_TIMER_COLOR)
         
+        self.highlighted_color_fill      = complementary_color(hightlight_color)
+        self.highlighted_color_border   = darken_color(hightlight_color, 0.5)
+
         # First value is intensity
         # Viridis
         self.heatmap_gradient = {
@@ -1141,20 +1146,19 @@ class GridMapWidget(QWidget):
         self.draw_grid_square(painter, grid_square, color)
     
     def draw_highlighted_grids_block(self, painter):
-        for grid_color in self.highlighted_grids:
-            grid_square     = grid_color['grid']
+        for grid in self.highlighted_grids:
+            grid_square     = grid['grid']
             
             # Skip the clicked grid if it's currently blinking
             if self.clicked_grid and grid_square == self.clicked_grid:
-                continue
-                
-            # color_hex     = grid_color['color']            
-            color           = QColor(FG_TIMER_COLOR)
-            border_color    = darken_color(color, 0.5)
-            fill_color       = complementary_color(color)
-            fill_color.setAlpha(255) 
+                continue            
             
-            self.draw_grid_square(painter, grid_square, fill_color, border_color)
+            self.draw_grid_square(
+                painter,
+                grid_square,
+                self.highlighted_color_fill,
+                self.highlighted_color_border
+            )
     
     def draw_clicked_grid(self, painter):
         if not self.clicked_grid:
@@ -1712,37 +1716,28 @@ class GridMapWidget(QWidget):
         if self.current_tooltip_grid and self.current_tooltip_pos:
             tooltip_text = ""
             
-            # Check if this is a highlighted grid
             highlighted_data = self.get_highlighted_grid_data(self.current_tooltip_grid)
             if highlighted_data:
-                # Show highlighted grid information
                 tooltip_text = f"Grid: {self.current_tooltip_grid}<br/>"
                 if 'callsign' in highlighted_data:
                     tooltip_text += f"Callsign: {highlighted_data['callsign']}<br/>"
                 if 'frequency' in highlighted_data:
                     tooltip_text += f"Frequency: {highlighted_data['frequency']}<br/>"
                 if 'message' in highlighted_data:
-                    tooltip_text += f"Message: {highlighted_data['message']}"
-                
-                # Use the same colors as the highlighted grid
-                color = QColor(FG_TIMER_COLOR)
-                border_color = darken_color(color, 0.5)
-                fill_color = complementary_color(color)
+                    tooltip_text += f"Message: {highlighted_data['message']}"                
                 
                 self.hide_custom_tooltip()
                 self.custom_tooltip = CustomToolTip(
                     tooltip_text, 
                     "default",
-                    bg_color=fill_color.name(),
-                    fg_color=border_color.name()
+                    bg_color=self.highlighted_color_fill.name(),
+                    fg_color=self.highlighted_color_border.name()
                 )
                 global_pos = self.mapToGlobal(self.current_tooltip_pos)
                 self.custom_tooltip.showToolTip(global_pos)
             else:
-                # Check for permanent grid callsigns
                 callsigns = self.get_callsigns_for_grid(self.current_tooltip_grid)
                 if callsigns:
-                    # Format tooltip text with <br/> for custom tooltip
                     tooltip_text = f"Grid: {self.current_tooltip_grid}<br/>"
                     if len(callsigns) > 1:
                         tooltip_text += "Callsigns: "
@@ -1752,14 +1747,13 @@ class GridMapWidget(QWidget):
                                     
                     self.hide_custom_tooltip()
                     
-                    # Create and show custom tooltip
                     self.custom_tooltip = CustomToolTip(tooltip_text, "default")
                     global_pos = self.mapToGlobal(self.current_tooltip_pos)
                     self.custom_tooltip.showToolTip(global_pos)
     
     def hide_custom_tooltip(self):
         """
-        Hide the custom tooltip
+            Hide the custom tooltip
         """
         if self.custom_tooltip:
             self.custom_tooltip.hideToolTip()
