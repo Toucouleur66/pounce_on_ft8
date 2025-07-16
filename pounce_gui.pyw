@@ -1148,9 +1148,14 @@ class MainApp(QtWidgets.QMainWindow):
             return
         
         if self.grid_monitor:    
-            log.error(latest_messages)
-
-            self.grid_monitor.map_widget.set_highlighted_grids([message for message in latest_messages if "grid" in message])
+            # More robust grid filtering with error handling
+            valid_grid_messages = []
+            for message in latest_messages:
+                if isinstance(message, dict) and message.get("grid"):
+                    valid_grid_messages.append(message)
+            
+            if valid_grid_messages:
+                self.grid_monitor.map_widget.set_highlighted_grids(valid_grid_messages)
 
     def hide_container_tab(self):
         self.compact_mode_visible = False

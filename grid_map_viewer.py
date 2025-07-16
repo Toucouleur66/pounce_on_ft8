@@ -1253,41 +1253,52 @@ class GridMapWidget(QWidget):
             self.parent().update_toggle_labels()
     
     def set_highlighted_grids(self, grids, center_on_last=False):
-        self.set_heatmap_group_indicators(grids)       
+        try:
+            if self.blink_timer:
+                self.blink_timer.stop()
+            
+            self.set_heatmap_group_indicators(grids)       
 
-        self.highlighted_grids = []
-        
-        self.blink_timer.stop()
-        self.blink_count = 0
-        self.blink_visible = True
-        
-        unique_grids = []
+            self.highlighted_grids = []
+            self.blink_count = 0
+            self.blink_visible = True
+            
+            unique_grids = []
 
-        if grids:            
-            seen_grids = set()
-            for grid_data in grids:
-                grid_key = grid_data['grid']
-                if grid_key not in seen_grids:
-                    seen_grids.add(grid_key)
-                    unique_grids.append(grid_data)            
+            if grids:            
+                seen_grids = set()
+                for grid_data in grids:
+                    # More robust grid key extraction
+                    grid_key = grid_data.get('grid')
+                    if grid_key and grid_key not in seen_grids:
+                        seen_grids.add(grid_key)
+                        unique_grids.append(grid_data)            
 
-        self.highlighted_grids = unique_grids
-        
-        if len(unique_grids) > 0 and center_on_last:
-            last_grid = grids[-1]['grid']
-            grid_info = self.maidenhead_to_lat_lon(last_grid, adjust_for_view=False)
-
-            if grid_info:
-                self.center_lat = grid_info['center_lat']
-                self.center_lon = grid_info['center_lon']
-                self.center_pixel_offset_x = 0.0
-                self.center_pixel_offset_y = 0.0
-                self.apply_pan_movement(0, 0)
-        
-        if grids:
-            self.blink_timer.start(300)  
-        
-        self.update()
+            self.highlighted_grids = unique_grids
+            
+            # Handle centering operation separately to avoid blocking
+            if len(unique_grids) > 0 and center_on_last:
+                try:
+                    last_grid = grids[-1].get('grid')
+                    if last_grid:
+                        grid_info = self.maidenhead_to_lat_lon(last_grid, adjust_for_view=False)
+                        if grid_info:
+                            self.center_lat = grid_info['center_lat']
+                            self.center_lon = grid_info['center_lon']
+                            self.center_pixel_offset_x = 0.0
+                            self.center_pixel_offset_y = 0.0
+                            self.apply_pan_movement(0, 0)
+                except Exception as e:
+                    log.error(f"Error centering on grid: {e}")
+                        
+            if grids and self.blink_timer:
+                self.blink_timer.start(300)  
+            
+            self.update()
+            
+        except Exception as e:
+            log.error(f"Error to handle grids: {e}")
+            self.update()
     
     def clear_highlighted_grids(self):
         self.set_highlighted_grids([])
