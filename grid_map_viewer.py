@@ -174,11 +174,8 @@ class GridMapWidget(QWidget):
         self.tile_downloader            = TileDownloader(self.file_cache, max_workers=8)
         self.tile_downloader.tile_downloaded.connect(self.on_tile_downloaded)
         
-        self.setMouseTracking(True)
-        
+        self.setMouseTracking(True)        
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        
-        # Ensure focus is maintained
         self.setFocus()
         
         self.update_timer               = QTimer()
@@ -1210,20 +1207,23 @@ class GridMapWidget(QWidget):
     
     def update_adif_data(self, adif_data):
         self.adif_data = adif_data
-        self.update_grid_squares_for_band()
+        self.update_grids_for_band()
         if hasattr(self.parent(), 'update_toggle_labels'):
             self.parent().update_toggle_labels()
     
     def update_current_band(self, band):
         if self.current_band != band:
             self.current_band = band
-            self.update_grid_squares_for_band()
+            self.update_grids_for_band()            
+            self.clear_highlighted_grids()
+            self.clear_heatmap_indicators()    
+
             if hasattr(self.parent(), 'update_toggle_labels'):
                 self.parent().update_toggle_labels()
     
-    def update_grid_squares_for_band(self):
+    def update_grids_for_band(self):
         if not self.current_band or not self.adif_data:
-            self.set_permanent_squares([])
+            self.set_permanent_grids([])
             return
 
         """
@@ -1231,9 +1231,9 @@ class GridMapWidget(QWidget):
         """
         grid_squares = list(self.adif_data.get('grid', {}).get(self.current_band, {}).keys())
 
-        self.set_permanent_squares(grid_squares, center_on_last=False)
+        self.set_permanent_grids(grid_squares, center_on_last=False)
     
-    def set_permanent_squares(self, squares, center_on_last=True):
+    def set_permanent_grids(self, squares, center_on_last=True):
         self.permanent_squares = squares
         
         if len(squares) > 0 and center_on_last:
@@ -1294,11 +1294,12 @@ class GridMapWidget(QWidget):
             if grids and self.blink_timer:
                 self.blink_timer.start(300)  
             
-            self.update()
-            
+            self.update()            
         except Exception as e:
             log.error(f"Error to handle grids: {e}")
             self.update()
+        finally:
+            log.debug(f"GridMapWidget: {len(grids)} updated grids")
     
     def clear_highlighted_grids(self):
         self.set_highlighted_grids([])
@@ -2053,9 +2054,9 @@ class GridMapWindow(QMainWindow):
     def toggle_worked(self, checked):
         self.map_widget.show_worked = checked
         if checked:
-            self.map_widget.update_grid_squares_for_band()
+            self.map_widget.update_grids_for_band()
         else:
-            self.map_widget.set_permanent_squares([])
+            self.map_widget.set_permanent_grids([])
     
     def toggle_night(self, checked):
         self.map_widget.show_night = checked

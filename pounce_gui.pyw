@@ -1148,14 +1148,7 @@ class MainApp(QtWidgets.QMainWindow):
             return
         
         if self.grid_monitor:    
-            # More robust grid filtering with error handling
-            valid_grid_messages = []
-            for message in latest_messages:
-                if isinstance(message, dict) and message.get("grid"):
-                    valid_grid_messages.append(message)
-            
-            if valid_grid_messages:
-                self.grid_monitor.map_widget.set_highlighted_grids(valid_grid_messages)
+            self.grid_monitor.map_widget.set_highlighted_grids([message for message in latest_messages if "grid" in message])
 
     def hide_container_tab(self):
         self.compact_mode_visible = False
@@ -1357,9 +1350,8 @@ class MainApp(QtWidgets.QMainWindow):
             self.monitoring_settings.set_operating_band(band)
             
             if self.grid_monitor is not None:
-                self.grid_monitor.map_widget.update_current_band(band)
-                self.grid_monitor.map_widget.clear_highlighted_grids()
-                self.grid_monitor.map_widget.clear_heatmap_indicators()
+                self.grid_monitor.map_widget.update_current_band(band)                                
+                self.update_map_with_new_grids(self.message_buffer)
             
             self.update_tab_widget_labels_style()
         
