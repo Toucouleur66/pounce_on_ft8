@@ -62,15 +62,11 @@ def get_app_data_dir():
 
 
 def get_data_file_path(filename):
-    """
-        Get path to data file, checking bundled resources first, then app data directory
-    """
     if getattr(sys, 'frozen', False):
         bundled_path = os.path.join(sys._MEIPASS, filename)
         if os.path.exists(bundled_path):
             return bundled_path
     
-    # Fall back to app data directory
     return os.path.join(get_app_data_dir(), filename)
 
 def get_log_filename():
@@ -519,14 +515,18 @@ def has_significant_change(first_str, second_str):
     return True
 
 def parse_adif_record(record, lookup):    
-    fields = {field.upper(): value.strip() for field, value in ADIF_FIELD_RE.findall(record)}
+    fields = {
+        field.upper(): value.strip() for field, value in ADIF_FIELD_RE.findall(record)
+    }
     
     call        = fields.get('CALL')
     band        = fields.get('BAND')
     qso_date    = fields.get('QSO_DATE')
     time_on     = fields.get('TIME_ON')
     grid        = fields.get('GRIDSQUARE') 
-    
+    lotw_rcvd   = fields.get('LOTW_QSL_RCVD')
+    qsl_rcvd    = fields.get('QSL_RCVD')
+
     qso_datetime = None
     if qso_date and len(qso_date) >= 8:
         year_str = qso_date[0:4]
@@ -551,6 +551,7 @@ def parse_adif_record(record, lookup):
     grid = grid.upper()[:4] if grid else None
     band = band.lower() if band else None
     year = qso_date[0:4] if qso_date and len(qso_date) >= 4 else None
+    confirmed = True if lotw_rcvd == 'Y' or lotw_rcvd == 'V' or qsl_rcvd == 'Y' else False
 
     info = {}
     if lookup and call:
@@ -559,7 +560,7 @@ def parse_adif_record(record, lookup):
         else:
             info = lookup.lookup_callsign(call)
 
-    return year, band, grid, call, info
+    return year, band, grid, call, confirmed, info
 
 def parse_adif(file_path, lookup=None):
     start_time = time.time()
@@ -577,7 +578,7 @@ def parse_adif(file_path, lookup=None):
         record = record.strip()
         if record:
             record = " ".join(record.split())
-            year, band, grid, call, info = parse_adif_record(record, lookup)
+            year, band, grid, call, confirmed, info = parse_adif_record(record, lookup)
 
             if lookup and year and band and info and info.get('entity'):
                 parsed_entity_data[year][band].add(info.get('entity'))
