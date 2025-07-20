@@ -47,7 +47,6 @@ class RawDataModel(QtCore.QAbstractTableModel):
         self._max_size_bytes            = max_size_bytes
         self._max_num_rows              = max_num_rows
         self._current_size_bytes        = None
-        self._enforcing_size_limit      = False
 
     def rowCount(self, parent=None):
         return len(self._data)
@@ -184,32 +183,21 @@ class RawDataModel(QtCore.QAbstractTableModel):
         self.add_raw_data(raw_data)  
 
     def add_raw_data(self, raw_data):
-        # Avoid race condition with enforce_size_limit by using QTimer.singleShot
-        if hasattr(self, '_enforcing_size_limit') and self._enforcing_size_limit:
-            # If size limit enforcement is running, defer this insertion
-            QtCore.QTimer.singleShot(10, lambda: self.add_raw_data(raw_data))
-            return
-            
         self.beginInsertRows(QtCore.QModelIndex(), self.rowCount(), self.rowCount())
         self._data.append(raw_data)
         self.endInsertRows()
 
-    def enforce_size_limit(self):
-        self._enforcing_size_limit = True
+    def enforce_size_limit(self):        
+        # No need to check the size unless we are close to 70%
+        if len(self._data) / self._max_num_rows > 0.7:
+            self._current_size_bytes = asizeof.asizeof(self._data)
         
-        try:
-            # No need to check the size unless we are close to 70%
-            if len(self._data) / self._max_num_rows > 0.7:
-                self._current_size_bytes = asizeof.asizeof(self._data)
-            
-            rows_to_remove = len(self._data) - self._max_num_rows
-            
-            if rows_to_remove > 0:
-                self.beginRemoveRows(QtCore.QModelIndex(), 0, rows_to_remove - 1)
-                del self._data[0:rows_to_remove]
-                self.endRemoveRows()
-        finally:
-            self._enforcing_size_limit = False
+        rows_to_remove = self._max_num_rows // 100
+        
+        if rows_to_remove > 0:
+            self.beginRemoveRows(QtCore.QModelIndex(), 0, rows_to_remove - 1)
+            del self._data[0:rows_to_remove]
+            self.endRemoveRows()
 
     def remove_raw_data_at(self, index):
         self.beginRemoveRows(QtCore.QModelIndex(), index, index)
