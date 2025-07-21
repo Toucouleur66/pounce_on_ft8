@@ -2289,6 +2289,8 @@ class MainApp(QtWidgets.QMainWindow):
             
     def on_close(self, event):
         self.save_window_position()
+        if self.grid_monitor:
+            self.grid_monitor.close()
         if self._running:
             self.stop_monitoring()
         event.accept()

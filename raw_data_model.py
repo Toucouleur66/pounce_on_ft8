@@ -188,13 +188,10 @@ class RawDataModel(QtCore.QAbstractTableModel):
         self.endInsertRows()
 
     def enforce_size_limit(self):        
-        # No need to check the size unless we are close to 70%
-        if len(self._data) / self._max_num_rows > 0.7:
-            self._current_size_bytes = asizeof.asizeof(self._data)
+        if len(self._data) / self._max_num_rows > 1.0:
+            self._current_size_bytes = asizeof.asizeof(self._data)        
+            rows_to_remove = self._max_num_rows // 100
         
-        rows_to_remove = self._max_num_rows // 100
-        
-        if rows_to_remove > 0:
             self.beginRemoveRows(QtCore.QModelIndex(), 0, rows_to_remove - 1)
             del self._data[0:rows_to_remove]
             self.endRemoveRows()
