@@ -1212,14 +1212,13 @@ class GridMapWidget(QWidget):
             self.parent().update_toggle_labels()
     
     def update_current_band(self, band):
-        if self.current_band != band:
-            self.current_band = band
-            self.update_grids_for_band()            
-            self.clear_highlighted_grids()
-            self.clear_heatmap_indicators()    
+        self.current_band = band
+        self.update_grids_for_band()            
+        self.clear_highlighted_grids()
+        self.clear_heatmap_indicators()    
 
-            if hasattr(self.parent(), 'update_toggle_labels'):
-                self.parent().update_toggle_labels()
+        if hasattr(self.parent(), 'update_toggle_labels'):
+            self.parent().update_toggle_labels()
     
     def update_grids_for_band(self):
         if not self.current_band or not self.adif_data:
@@ -2152,7 +2151,7 @@ class GridMapWindow(QMainWindow):
             self.map_widget.parent_app and 
             not getattr(self.map_widget.parent_app, 'app_shutting_down', False)
         ):            
-            self.map_widget.parent_app.update_grid_map_preference(False)
+            self.map_widget.parent_app.update_grid_monitor_preference(False)
         self.map_widget.closeEvent(event)
         event.accept()
 

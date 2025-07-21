@@ -272,6 +272,8 @@ class MainApp(QtWidgets.QMainWindow):
         self._synch_signal                      = True
         self._synched_addr_port                 = None
 
+        self.latest_messages                    = []
+
         self.before_synch_wanted_callsigns      = {}
         self.before_synch_wanted_cq_zones       = {}
 
@@ -475,7 +477,7 @@ class MainApp(QtWidgets.QMainWindow):
             checked_color=STATUS_MONITORING_COLOR,
             pulse_checked_color=f"{STATUS_MONITORING_COLOR}FF"
         )
-        self.grid_monitor_toggle.stateChanged.connect(self.update_grid_map_preference)
+        self.grid_monitor_toggle.stateChanged.connect(self.update_grid_monitor_preference)
         self.grid_monitor_toggle.setFixedSize(self.grid_monitor_toggle.sizeHint())
         self.grid_monitor_toggle.setChecked(self.enable_grid_monitor)
 
@@ -1101,7 +1103,7 @@ class MainApp(QtWidgets.QMainWindow):
             
             if self.operating_band:
                 self.grid_monitor.map_widget.update_current_band(self.operating_band)
-                self.update_map_with_new_grids(self.message_buffer)
+                self.update_grid_monitor_with_grids(self.latest_messages)
             
             if self.grid_monitor_geometry:
                 self.grid_monitor.setGeometry(
@@ -1133,7 +1135,7 @@ class MainApp(QtWidgets.QMainWindow):
                 self.grid_monitor.close()
                 self.grid_monitor = None
 
-    def update_grid_map_preference(self, checked) :    
+    def update_grid_monitor_preference(self, checked) :    
         self.toggle_grid_monitor(checked)
 
         if self.enable_grid_monitor != checked:
@@ -1143,12 +1145,12 @@ class MainApp(QtWidgets.QMainWindow):
 
             self.save_unique_param('enable_grid_monitor', checked)
             
-    def update_map_with_new_grids(self, latest_messages):
-        if not latest_messages:
+    def update_grid_monitor_with_grids(self, messages):
+        if not messages:
             return
         
         if self.grid_monitor:    
-            self.grid_monitor.map_widget.set_highlighted_grids([message for message in latest_messages if "grid" in message])
+            self.grid_monitor.map_widget.set_highlighted_grids([message for message in messages if "grid" in message])
 
     def hide_container_tab(self):
         self.compact_mode_visible = False
@@ -1350,8 +1352,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.monitoring_settings.set_operating_band(band)
             
             if self.grid_monitor is not None:
-                self.grid_monitor.map_widget.update_current_band(band)                                
-                self.update_map_with_new_grids(self.message_buffer)
+                self.grid_monitor.map_widget.update_current_band(band)
             
             self.update_tab_widget_labels_style()
         
@@ -1647,9 +1648,12 @@ class MainApp(QtWidgets.QMainWindow):
             return None
         else:
             max_decode_time_str = max(message['decode_time_str'] for message in self.message_buffer)            
-            latest_messages = [message for message in self.message_buffer if message['decode_time_str'] == max_decode_time_str]
+            self.latest_messages = [message for message in self.message_buffer if message['decode_time_str'] == max_decode_time_str]
 
-            selected_message = max(latest_messages, key=lambda message: message['priority'], default=None)
+            selected_message = max(
+                self.latest_messages,
+                key=lambda message: message['priority'], default=None
+            )
 
         if (
             selected_message and
@@ -1702,7 +1706,7 @@ class MainApp(QtWidgets.QMainWindow):
             Update map with new grid squares
         """
         if self.grid_monitor is not None:
-            self.update_map_with_new_grids(latest_messages)
+            self.update_grid_monitor_with_grids(self.latest_messages)
         
         """
             Clear buffer
@@ -2951,7 +2955,7 @@ class MainApp(QtWidgets.QMainWindow):
         grid_monitor_action.setShortcut(QtGui.QKeySequence("Ctrl+G"))
         grid_monitor_action.setCheckable(True)
         grid_monitor_action.setChecked(self.enable_grid_monitor)
-        grid_monitor_action.triggered.connect(self.update_grid_map_preference)
+        grid_monitor_action.triggered.connect(self.update_grid_monitor_preference)
 
         self.grid_monitor_action = grid_monitor_action
 
@@ -3652,10 +3656,7 @@ def on_about_to_quit(window):
     if hasattr(window, 'cleanup_freeze_detection'):
         window.cleanup_freeze_detection()
     
-    if (
-        hasattr(window, 'grid_monitor') and 
-        window.grid_monitor
-    ):
+    if window.grid_monitor:
         window.app_shutting_down = True
         window.grid_monitor.close()
 
