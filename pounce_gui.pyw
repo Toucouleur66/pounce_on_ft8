@@ -1150,7 +1150,7 @@ class MainApp(QtWidgets.QMainWindow):
             return
         
         if self.grid_monitor:    
-            self.grid_monitor.map_widget.set_highlighted_grids([message for message in messages if "grid" in message])
+            self.grid_monitor.map_widget.set_new_grids([message for message in messages if "grid" in message])
 
     def hide_container_tab(self):
         self.compact_mode_visible = False

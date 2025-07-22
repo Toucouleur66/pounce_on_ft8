@@ -8,7 +8,10 @@ from constants import (
     CUSTOM_FONT,
     GUI_LABEL_VERSION,
     STATUS_MONITORING_COLOR,
-    FG_TIMER_COLOR,
+    BG_COLOR_BLACK_ON_YELLOW,
+    BG_COLOR_BLACK_ON_PURPLE,
+    BG_COLOR_BLACK_ON_CYAN,
+    STATUS_DECODING_COLOR,
     QSLIDER_QSS,
     SLIDER_VALUE_LABEL_QSS,
     FG_COLOR_REGULAR_FOCUS,
@@ -17,7 +20,7 @@ from constants import (
 
 from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QSlider, QFrame, QGraphicsOpacityEffect
 from PyQt6.QtCore import Qt, QPoint, QTimer, pyqtSignal
-from PyQt6.QtGui import QFont, QPainter, QWheelEvent, QMouseEvent, QKeyEvent, QColor, QBrush, QPen, QPainterPath
+from PyQt6.QtGui import QFont, QPainter, QWheelEvent, QMouseEvent, QKeyEvent, QColor, QBrush, QPen, QPainterPath, QPolygon
 
 from custom_qlabel import CustomQLabel
 from animated_toggle import AnimatedToggle
@@ -76,7 +79,7 @@ class GridMapWidget(QWidget):
         self.test_time                  = None
         
         self.permanent_squares          = []
-        self.highlighted_grids          = []
+        self.new_grids          = []
         self.current_band               = None
         self.adif_data                  = {}
 
@@ -91,11 +94,14 @@ class GridMapWidget(QWidget):
         self.max_possible_density       = 10.0 
         self.influence_radius            = 250 
         self.weight_scaling_factor      = 5.0  
-
-        hightlight_color                = QColor(FG_TIMER_COLOR)
         
-        self.highlighted_color_fill      = complementary_color(hightlight_color)
-        self.highlighted_color_border   = darken_color(hightlight_color, 0.5)
+        self.new_grid_color_fill         = QColor(BG_COLOR_BLACK_ON_YELLOW)
+        self.new_grid_border_color      = darken_color(self.new_grid_color_fill, 0.7)
+
+        self.worked_grid_color_fill      = QColor(STATUS_DECODING_COLOR)
+        self.worked_grid_border_color   = darken_color(self.worked_grid_color_fill, 0.7)
+
+        self.permanent_color_fill        = QColor(91, 105, 171, 128)
 
         # First value is intensity
         # Viridis
@@ -397,12 +403,12 @@ class GridMapWidget(QWidget):
             self.draw_maidenhead_grid(painter)
             
         for square in self.permanent_squares:
-            self.fill_grid_square_with_color(painter, square, QColor(91, 105, 171, 128))
+            self.fill_grid_square_with_color(painter, square, self.permanent_color_fill)
         
         self.set_heatmap_indicators(painter)
         
-        if self.highlighted_grids:
-            self.draw_highlighted_grids_block(painter)
+        if self.new_grids:
+            self.draw_new_grids_block(painter)
         
         if self.clicked_grid and self.blink_visible:
             self.draw_clicked_grid(painter)
@@ -1100,11 +1106,7 @@ class GridMapWidget(QWidget):
         except (ZeroDivisionError, ValueError):
             return 0.0
     
-    def draw_grid_square(self, painter, grid_square, fill_color, border_color=None):
-        if isinstance(fill_color, str):
-            fill_color = QColor(fill_color)
-            fill_color.setAlpha(255)
-        
+    def draw_grid_square(self, painter, grid_square, fill_color, border_color=None):       
         grid_info = self.maidenhead_to_lat_lon(grid_square)
 
         if not grid_info:
@@ -1139,23 +1141,74 @@ class GridMapWidget(QWidget):
                 painter.setPen(pen)
                 painter.drawRect(rect_x, rect_y, rect_width - 1, rect_height - 1)
     
+    def draw_grid_square_diagonal(self, painter, grid_square, highlight_color, border_color=None):       
+        grid_info = self.maidenhead_to_lat_lon(grid_square)
+        if not grid_info:
+            return
+            
+        min_lat = grid_info['min_lat']
+        max_lat = grid_info['max_lat']
+        min_lon = grid_info['min_lon']
+        max_lon = grid_info['max_lon']
+    
+        top_left_x, top_left_y         = self.lat_lon_to_screen_stable(max_lat, min_lon)
+        top_right_x, top_right_y       = self.lat_lon_to_screen_stable(max_lat, max_lon)
+        bottom_left_x, bottom_left_y   = self.lat_lon_to_screen_stable(min_lat, min_lon)
+        bottom_right_x, bottom_right_y = self.lat_lon_to_screen_stable(min_lat, max_lon)
+        
+        if (max(top_left_x, top_right_x, bottom_left_x, bottom_right_x) >= -50 and
+            min(top_left_x, top_right_x, bottom_left_x, bottom_right_x) <= self.width() + 50 and
+            max(top_left_y, top_right_y, bottom_left_y, bottom_right_y) >= -50 and
+            min(top_left_y, top_right_y, bottom_left_y, bottom_right_y) <= self.height() + 50):
+            
+            rect_x = int(min(top_left_x, top_right_x, bottom_left_x, bottom_right_x))
+            rect_y = int(min(top_left_y, top_right_y, bottom_left_y, bottom_right_y))
+            rect_width = int(max(top_left_x, top_right_x, bottom_left_x, bottom_right_x) - rect_x) 
+            rect_height = int(max(top_left_y, top_right_y, bottom_left_y, bottom_right_y) - rect_y)
+            
+            triangle_points = [
+                QPoint(rect_x + rect_width, rect_y),               # top-right
+                QPoint(rect_x, rect_y + rect_height),              # bottom-left
+                QPoint(rect_x + rect_width, rect_y + rect_height)  # bottom-right
+            ]
+            
+            triangle_polygon = QPolygon(triangle_points)
+            
+            if border_color:
+                highlight_brush = QBrush(highlight_color)
+                pen = QPen(border_color)
+                pen.setWidth(1)
+                painter.setBrush(highlight_brush)
+                painter.setPen(pen)
+                painter.drawPolygon(triangle_polygon)                        
+    
     def fill_grid_square_with_color(self, painter, grid_square, color):
         self.draw_grid_square(painter, grid_square, color)
     
-    def draw_highlighted_grids_block(self, painter):
-        for grid in self.highlighted_grids:
-            grid_square     = grid['grid']
+    def draw_new_grids_block(self, painter):
+        for grid in self.new_grids:
+            grid_square = grid['grid']
             
             # Skip the clicked grid if it's currently blinking
             if self.clicked_grid and grid_square == self.clicked_grid:
                 continue            
             
-            self.draw_grid_square(
-                painter,
-                grid_square,
-                self.highlighted_color_fill,
-                self.highlighted_color_border
-            )
+            
+            if self.show_worked and grid_square in self.permanent_squares:
+                self.draw_grid_square(
+                    painter,
+                    grid_square,
+                    self.worked_grid_color_fill,
+                    self.worked_grid_border_color
+                )
+            else:
+                # Draw regular rectangle for highlighted grid
+                self.draw_grid_square(
+                    painter,
+                    grid_square,
+                    self.new_grid_color_fill,
+                    self.new_grid_border_color
+                )
     
     def draw_clicked_grid(self, painter):
         if not self.clicked_grid:
@@ -1214,7 +1267,7 @@ class GridMapWidget(QWidget):
     def update_current_band(self, band):
         self.current_band = band
         self.update_grids_for_band()            
-        self.clear_highlighted_grids()
+        self.clear_new_grids()
         self.clear_heatmap_indicators()    
 
         if hasattr(self.parent(), 'update_toggle_labels'):
@@ -1251,14 +1304,14 @@ class GridMapWidget(QWidget):
         if hasattr(self.parent(), 'update_toggle_labels'):
             self.parent().update_toggle_labels()
     
-    def set_highlighted_grids(self, grids, center_on_last=False):
+    def set_new_grids(self, grids, center_on_last=False):
         try:
             if self.blink_timer:
                 self.blink_timer.stop()
             
             self.set_heatmap_group_indicators(grids)       
 
-            self.highlighted_grids = []
+            self.new_grids = []
             self.blink_count = 0
             self.blink_visible = True
             
@@ -1273,7 +1326,7 @@ class GridMapWidget(QWidget):
                         seen_grids.add(grid_key)
                         unique_grids.append(grid_data)            
 
-            self.highlighted_grids = unique_grids
+            self.new_grids = unique_grids
             
             # Handle centering operation separately to avoid blocking
             if len(unique_grids) > 0 and center_on_last:
@@ -1300,8 +1353,8 @@ class GridMapWidget(QWidget):
         finally:
             log.debug(f"GridMapWidget: {len(grids)} updated grids")
     
-    def clear_highlighted_grids(self):
-        self.set_highlighted_grids([])
+    def clear_new_grids(self):
+        self.set_new_grids([])
         # Update status bar if parent has one
         if hasattr(self.parent(), 'update_toggle_labels'):
             self.parent().update_toggle_labels()
@@ -1656,7 +1709,7 @@ class GridMapWidget(QWidget):
     def handle_grid_click(self, pos):
         lat, lon = self.screen_to_lat_lon(pos.x(), pos.y())
 
-        for grid_data in self.highlighted_grids:
+        for grid_data in self.new_grids:
             grid_square = grid_data['grid']
             grid_info = self.maidenhead_to_lat_lon(grid_square, adjust_for_view=True)
 
@@ -1702,7 +1755,7 @@ class GridMapWidget(QWidget):
         
         # If no permanent square found, check for highlighted grids
         if not grid_square:
-            grid_square = self.find_highlighted_grid_at_position(pos)
+            grid_square = self.find_new_grid_at_position(pos)
         
         if grid_square:
             # If hovering over the same grid, don't restart timer
@@ -1727,7 +1780,7 @@ class GridMapWidget(QWidget):
         if self.current_tooltip_grid and self.current_tooltip_pos:
             tooltip_text = ""
             
-            highlighted_data = self.get_highlighted_grid_data(self.current_tooltip_grid)
+            highlighted_data = self.get_new_grid_data(self.current_tooltip_grid)
             if highlighted_data:
                 tooltip_text = f"Grid: {self.current_tooltip_grid}<br/>"
                 if 'callsign' in highlighted_data:
@@ -1741,8 +1794,8 @@ class GridMapWidget(QWidget):
                 self.custom_tooltip = CustomToolTip(
                     tooltip_text, 
                     "default",
-                    bg_color=self.highlighted_color_fill.name(),
-                    fg_color=self.highlighted_color_border.name()
+                    bg_color=self.new_grid_color_fill.name(),
+                    fg_color=self.new_grid_border_color.name()
                 )
                 global_pos = self.mapToGlobal(self.current_tooltip_pos)
                 self.custom_tooltip.showToolTip(global_pos)
@@ -1779,21 +1832,21 @@ class GridMapWidget(QWidget):
                 return grid_square
         return None
     
-    def find_highlighted_grid_at_position(self, pos):
+    def find_new_grid_at_position(self, pos):
         """
             Find which highlighted grid is under the given position
         """
-        for grid_data in self.highlighted_grids:
+        for grid_data in self.new_grids:
             grid_square = grid_data['grid']
             if self.is_position_in_grid_square(pos, grid_square):
                 return grid_square
         return None
     
-    def get_highlighted_grid_data(self, grid_square):
+    def get_new_grid_data(self, grid_square):
         """
             Get the data for a highlighted grid
         """
-        for grid_data in self.highlighted_grids:
+        for grid_data in self.new_grids:
             if grid_data['grid'] == grid_square:
                 return grid_data
         return None
@@ -2056,6 +2109,9 @@ class GridMapWindow(QMainWindow):
             self.map_widget.update_grids_for_band()
         else:
             self.map_widget.set_permanent_grids([])
+        
+        # Redraw highlighted grids to apply/remove diagonal drawing
+        self.map_widget.update()
     
     def toggle_night(self, checked):
         self.map_widget.show_night = checked
