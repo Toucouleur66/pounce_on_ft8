@@ -937,6 +937,7 @@ class Listener(QObject):
                 report            = parsed_message['report']
                 msg               = parsed_message['msg']
                 cqing             = parsed_message['cqing']
+                exactly_matched   = parsed_message['exactly_matched']
                 wanted            = parsed_message['wanted']
                 wanted_cq_zone    = parsed_message['wanted_cq_zone']
                 excluded          = parsed_message['excluded']
@@ -970,7 +971,7 @@ class Listener(QObject):
                             self.worked_before_preference == WKB4_REPLY_MODE_CURRENT_YEAR
                         )
                     ):
-                        wanted         = False
+                        wanted         = exactly_matched
                         wanted_cq_zone = False
                         callsign_wkb4  = True
 

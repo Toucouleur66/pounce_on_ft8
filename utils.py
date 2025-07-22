@@ -253,6 +253,7 @@ def parse_single_wsjtx_message(
             is_excluded = True            
 
         wanted            = is_wanted and not is_excluded and not is_worked
+        exactly_matched   = is_exact_match(wanted_callsigns, callsign) if wanted else False
         monitored         = is_monitored
         wanted_cq_zone    = is_wanted_cq_zone and not is_excluded and not is_worked
         monitored_cq_zone = is_monitored_cq_zone and not is_excluded
@@ -267,6 +268,7 @@ def parse_single_wsjtx_message(
         'msg'                : msg,
         'cqing'              : cqing,
         'wanted'             : wanted,
+        'exactly_matched'    : exactly_matched,
         'wanted_cq_zone'     : wanted_cq_zone,
         'excluded'           : excluded,
         'monitored'          : monitored,
@@ -349,6 +351,10 @@ def parse_combined_wsjtx_message(message):
 
 def matches_any(patterns, callsign):
     return any(fnmatch.fnmatch(callsign, pattern) for pattern in patterns)
+
+def is_exact_match(patterns, callsign):
+    patterns = [p.strip().upper() for p in patterns if p.strip()]
+    return callsign.upper() in patterns
 
 def int_to_array(pattern):
     array = []
