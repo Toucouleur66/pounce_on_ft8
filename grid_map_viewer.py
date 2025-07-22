@@ -230,14 +230,32 @@ class GridMapWidget(QWidget):
             self.show_night     = params.get('grid_map_show_night', self.show_night)
 
             self.zoom           = params.get('grid_map_zoom', self.zoom)
-            self.center_lat     = params.get('grid_map_center_lat', self.center_lat)
-            self.center_lon     = params.get('grid_map_center_lon', self.center_lon)
+            self.center_lat     = max(-85, min(85, params.get('grid_map_center_lat', self.center_lat)))
+            self.center_lon     = max(-180, min(180, params.get('grid_map_center_lon', self.center_lon)))
             
-            # Reset pixel offsets and recalculate coordinate system when loading settings
             self.center_pixel_offset_x = 0.0
             self.center_pixel_offset_y = 0.0
-            # Apply pan movement with 0 delta to properly initialize the coordinate system
+            
+            self.validate_and_adjust_position()            
             self.apply_pan_movement(0, 0)
+    
+    def validate_and_adjust_position(self):
+        center_tile_x, center_tile_y = self.deg2num(self.center_lat, self.center_lon, self.zoom)
+        
+        max_tile = 2 ** self.zoom
+        
+        visible_tiles_y = math.ceil(600 / self.tile_size) + 2  
+        visible_tiles_x = math.ceil(800 / self.tile_size) + 2  
+        
+        min_safe_tile_y = visible_tiles_y // 2 + 1
+        max_safe_tile_y = max_tile - (visible_tiles_y // 2) - 1
+        
+        if center_tile_y < min_safe_tile_y:
+            safe_lat, _ = self.num2deg(center_tile_x, min_safe_tile_y, self.zoom)
+            self.center_lat = safe_lat
+        elif center_tile_y > max_safe_tile_y:
+            safe_lat, _ = self.num2deg(center_tile_x, max_safe_tile_y, self.zoom)
+            self.center_lat = safe_lat
     
     def deg2num(self, lat_deg, lon_deg, zoom):
         lat_rad = math.radians(lat_deg)
@@ -314,6 +332,7 @@ class GridMapWidget(QWidget):
         center_pixel_y = center_tile_y * self.tile_size + self.center_pixel_offset_y
         
         half_height = self.height() / 2
+        half_width = self.width() / 2
         
         center_pixel_y = max(half_height, min(world_size - half_height, center_pixel_y))
         
@@ -325,8 +344,9 @@ class GridMapWidget(QWidget):
         
         new_lat, new_lon = self.num2deg(new_tile_x, new_tile_y, self.zoom)
         
-        self.center_lat = new_lat
-        self.center_lon = new_lon
+        # Constrain coordinates to valid bounds to prevent showing grey areas
+        self.center_lat = max(-85, min(85, new_lat))
+        self.center_lon = max(-180, min(180, new_lon))
     
     def paintEvent(self, event):
         painter = QPainter(self)
