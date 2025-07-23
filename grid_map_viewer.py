@@ -9,9 +9,11 @@ from constants import (
     GUI_LABEL_VERSION,
     STATUS_MONITORING_COLOR,
     BG_COLOR_BLACK_ON_YELLOW,
+    BG_COLOR_WHITE_ON_BLUE_VIOLET,
     BG_COLOR_BLACK_ON_PURPLE,
     BG_COLOR_BLACK_ON_CYAN,
     STATUS_DECODING_COLOR,
+    FG_COLOR_REGULAR_FOCUS,
     QSLIDER_QSS,
     SLIDER_VALUE_LABEL_QSS,
     FG_COLOR_REGULAR_FOCUS,
@@ -98,7 +100,7 @@ class GridMapWidget(QWidget):
         self.new_grid_color_fill         = QColor(BG_COLOR_BLACK_ON_YELLOW)
         self.new_grid_border_color      = darken_color(self.new_grid_color_fill, 0.7)
 
-        self.worked_grid_color_fill      = QColor(STATUS_DECODING_COLOR)
+        self.worked_grid_color_fill      = QColor(FG_COLOR_REGULAR_FOCUS)
         self.worked_grid_border_color   = darken_color(self.worked_grid_color_fill, 0.7)
 
         self.permanent_color_fill        = QColor(91, 105, 171, 128)

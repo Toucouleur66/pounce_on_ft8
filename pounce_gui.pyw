@@ -192,6 +192,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.base_title          = GUI_LABEL_VERSION
         self.window_title        = None
+        self.window_size         = None
 
         self.worker              = None
         self.timer               = None
@@ -324,15 +325,13 @@ class MainApp(QtWidgets.QMainWindow):
         self.media_player = QMediaPlayer()
         self.media_player.setAudioOutput(self.audio_output)
 
-        
         self.enable_pounce_log                  = params.get('enable_pounce_log', True)
         self.enable_filter_gui                   = params.get('enable_filter_gui', False)        
         self.enable_grid_monitor                = params.get('enable_grid_monitor', False)
-
-        self.enable_minimized_gui               = False
+        self.enable_compact_view                = params.get('enable_compact_view', False)   
         self.enable_global_sound                = params.get('enable_global_sound', True)
-        self.datetime_column_setting            = params.get('datetime_column_setting', DATE_COLUMN_DATETIME)
         self.enable_show_all_decoded            = params.get('enable_show_all_decoded', DEFAULT_SHOW_ALL_DECODED)
+        self.datetime_column_setting            = params.get('datetime_column_setting', DATE_COLUMN_DATETIME)
 
         self.adif_file_path                      = params.get('adif_file_path', None)
         self.worked_before_preference           = params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS)
@@ -365,9 +364,9 @@ class MainApp(QtWidgets.QMainWindow):
         """
             Top layout for focus_frame and timer_value_label
         """
-        top_layout = QtWidgets.QHBoxLayout()
-        top_layout.setContentsMargins(0, 0, 0, 5)
-        top_layout.setSpacing(0)
+        self.top_layout = QtWidgets.QHBoxLayout()
+        self.top_layout.setContentsMargins(0, 0, 0, 5)
+        self.top_layout.setSpacing(0)
         
         self.focus_frame = QtWidgets.QFrame()
         self.focus_frame_layout = QtWidgets.QHBoxLayout()
@@ -381,8 +380,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.focus_frame_layout.addWidget(self.focus_value_label) 
         self.focus_frame.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
         
-        top_layout.addWidget(self.focus_frame)
-        top_layout.addSpacing(15)
+        self.top_layout.addWidget(self.focus_frame)
+        self.top_layout.addSpacing(15)
 
         """
             Timer label
@@ -400,7 +399,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.timer_value_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.timer_value_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Minimum)
 
-        top_layout.addWidget(self.timer_value_label)
+        self.top_layout.addWidget(self.timer_value_label)
 
         self.create_main_menu() 
 
@@ -481,6 +480,15 @@ class MainApp(QtWidgets.QMainWindow):
         self.grid_monitor_toggle.setFixedSize(self.grid_monitor_toggle.sizeHint())
         self.grid_monitor_toggle.setChecked(self.enable_grid_monitor)
 
+        self.alternate_compact_view_toggle = AnimatedToggle(
+            checked_color=STATUS_MONITORING_COLOR,
+            pulse_checked_color=f"{STATUS_MONITORING_COLOR}FF"
+        )
+        self.alternate_compact_view_toggle.stateChanged.connect(self.toggle_alternate_compact_view)
+        self.alternate_compact_view_toggle.setFixedSize(self.alternate_compact_view_toggle.sizeHint())
+        self.alternate_compact_view_toggle.setChecked(False)
+
+        # Regular toggle buttons layout (shown in normal mode)
         self.toggle_buttons_layout = QtWidgets.QWidget()
         self.toggle_buttons_layout.setFixedHeight(50)
 
@@ -488,21 +496,48 @@ class MainApp(QtWidgets.QMainWindow):
         horizontal_layout.setContentsMargins(0, 0, 0, 0)
         horizontal_layout.setSpacing(0)  
 
-        horizontal_layout.addWidget(CustomQLabel("Sounds"))
+        self.sounds_label = CustomQLabel("Sounds")
+        horizontal_layout.addWidget(self.sounds_label)
         horizontal_layout.addWidget(self.global_sound_toggle)
-        horizontal_layout.addSpacing(20)
-        horizontal_layout.addWidget(CustomQLabel("All"))  
+        
+        horizontal_layout_spacer = QtWidgets.QWidget()
+        horizontal_layout_spacer.setFixedWidth(20)
+        horizontal_layout.addWidget(horizontal_layout_spacer)
+        
+        self.all_label = CustomQLabel("All")
+        horizontal_layout.addWidget(self.all_label)
         horizontal_layout.addWidget(self.show_all_toggle)
-        horizontal_layout.addSpacing(20)
-        horizontal_layout.addWidget(CustomQLabel("Filters"))  
+        
+        horizontal_layout.addWidget(horizontal_layout_spacer)
+        
+        self.filters_label = CustomQLabel("Filters")
+        horizontal_layout.addWidget(self.filters_label)
         horizontal_layout.addWidget(self.filter_gui_toggle)
-        horizontal_layout.addSpacing(20)
-        horizontal_layout.addWidget(CustomQLabel("Map"))  
+        
+        horizontal_layout.addWidget(horizontal_layout_spacer)
+        
+        self.map_label = CustomQLabel("Map")
+        horizontal_layout.addWidget(self.map_label)
         horizontal_layout.addWidget(self.grid_monitor_toggle)
 
-        # Apply layout to the widget
         self.toggle_buttons_layout.setLayout(horizontal_layout)
         self.toggle_buttons_layout.setFixedHeight(44)
+
+        self.toggle_alternate_buttons_layout = QtWidgets.QWidget()
+        self.toggle_alternate_buttons_layout.setFixedHeight(50)
+
+        horizontal_layout = QtWidgets.QHBoxLayout()
+        horizontal_layout.setContentsMargins(0, 0, 0, 0)
+        horizontal_layout.setSpacing(0)
+        horizontal_layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter)
+        
+        self.alternate_compact_view_label = CustomQLabel("Alternate Compact View")
+        horizontal_layout.addWidget(self.alternate_compact_view_label)
+        horizontal_layout.addWidget(self.alternate_compact_view_toggle)
+        
+        self.toggle_alternate_buttons_layout.setLayout(horizontal_layout)
+        self.toggle_alternate_buttons_layout.setFixedHeight(44)
+        self.toggle_alternate_buttons_layout.setVisible(False) 
         
         """
             Bottom layout
@@ -546,18 +581,20 @@ class MainApp(QtWidgets.QMainWindow):
         # button_layout.addWidget(self.quit_button)
 
         bottom_layout.addWidget(self.toggle_buttons_layout)
+        bottom_layout.addWidget(self.toggle_alternate_buttons_layout)
         bottom_layout.addStretch()  
         bottom_layout.addLayout(button_layout)
 
         bottom_widget = QtWidgets.QWidget()
         bottom_widget.setLayout(bottom_layout)
-        bottom_layout.setContentsMargins(0, 10, 0, 0)
+        bottom_layout.setContentsMargins(0, 0, 0, 0)
         bottom_widget.setFixedHeight(50)    
 
         """
-            Spacer
+            Bottom layout spacer (controllable widget)
         """
-        spacer = QtWidgets.QSpacerItem(0, 5, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)        
+        self.bottom_layout_spacer = QtWidgets.QWidget()
+        self.bottom_layout_spacer.setFixedHeight(10)        
 
         """
             Central, Outer and Main Layout
@@ -568,8 +605,8 @@ class MainApp(QtWidgets.QMainWindow):
         outer_layout = QtWidgets.QHBoxLayout()
         central_widget.setLayout(outer_layout)
 
-        main_layout = QtWidgets.QGridLayout()
-        outer_layout.addLayout(main_layout)
+        self.main_layout = QtWidgets.QGridLayout()
+        outer_layout.addLayout(self.main_layout)
         
         """
             Main layout
@@ -595,21 +632,35 @@ class MainApp(QtWidgets.QMainWindow):
        
         self.container_tab = QtWidgets.QWidget()
         container_layout = QtWidgets.QHBoxLayout(self.container_tab)
-        container_layout.setContentsMargins(0, 10, 0, 20)  
+        container_layout.setContentsMargins(0, 0, 0, 0)  
         container_layout.setSpacing(10)
         container_layout.addWidget(self.tab_widget) 
         container_layout.addWidget(self.worked_history_widget) 
 
-        main_layout.setSpacing(0) 
-        main_layout.addLayout(top_layout, 0, 0, 1, 1)
+        self.main_layout.setSpacing(0) 
+        self.main_layout.addLayout(self.top_layout, 0, 0, 1, 1)
+                
+        self.top_layout_spacer = QtWidgets.QWidget()
+        self.top_layout_spacer.setFixedHeight(10)
+        self.main_layout.addWidget(self.top_layout_spacer, 1, 0)
         
-        main_layout.addWidget(self.container_tab, 1, 0)
-        main_layout.addWidget(self.output_table, 2, 0)
-        main_layout.setRowStretch(2, 1)
-        main_layout.addWidget(self.filter_widget, 3, 0)
-        main_layout.addWidget(bottom_widget, 4, 0)
+        self.main_layout.addWidget(self.container_tab, 2, 0)
+        
+        # Add container layout spacer after container_tab
+        self.container_layout_spacer = QtWidgets.QWidget()
+        self.container_layout_spacer.setFixedHeight(20)
+        self.main_layout.addWidget(self.container_layout_spacer, 3, 0)
+        
+        self.main_layout.addWidget(self.output_table, 4, 0)
+        self.main_layout.setRowStretch(4, 1)
+        self.main_layout.addWidget(self.filter_widget, 5, 0)
+        
+        # Add bottom spacer between filter and bottom widget
+        self.main_layout.addWidget(self.bottom_layout_spacer, 6, 0)
+        
+        self.main_layout.addWidget(bottom_widget, 7, 0)
 
-        main_layout.setContentsMargins(5, 0, 5, 0)  
+        self.main_layout.setContentsMargins(5, 0, 5, 0)  
 
         """
             Activity Bar
@@ -651,6 +702,9 @@ class MainApp(QtWidgets.QMainWindow):
         
         # Set focus policy for main window to handle keyboard events
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
+
+        if self.enable_compact_view:
+            self.toggle_compact_view(True)
 
         if self.enable_auto_start_monitoring:
             self.start_monitoring()
@@ -1063,11 +1117,6 @@ class MainApp(QtWidgets.QMainWindow):
             self.filter_gui_action.setChecked(checked)
             self.save_unique_param('enable_filter_gui', checked)     
 
-    def toggle_minimize_gui(self):    
-        visible = self.output_table.isVisible()
-        self.output_table.setVisible(not visible)      
-        self.enable_minimized_gui = not visible
-
     def toggle_wkb4_column_visibility(self):
         if self.worked_before_preference == WKB4_REPLY_MODE_ALWAYS:
             self.output_table.setColumnHidden(9, True)
@@ -1084,16 +1133,62 @@ class MainApp(QtWidgets.QMainWindow):
         self.animate_layout_height(self.filter_widget, target_height=60)  
         QtCore.QTimer.singleShot(0, self.callsign_input.setFocus)
 
-    def toggle_compact_mode(self, checked):
+    def toggle_compact_view(self, checked = True):       
         if checked:
-            self.hide_container_tab()
-            self.setMinimumSize(780, 300)
+            self.enable_compact_view = True
+
+            self.window_size = self.size()
+
+            self.setMinimumSize(790, 360)            
+            self.setMaximumSize(790, 360)
+            
+            self.hide_container_tab()     
+            self.top_layout_spacer.setVisible(False)
+            self.activity_bar.setVisible(False)       
+            
+            self.toggle_buttons_layout.setVisible(False)
+            self.toggle_alternate_buttons_layout.setVisible(True)
         else:
+            self.enable_compact_view = False
+
+            self.setMinimumSize(790, 600)
+            self.setMaximumSize(16777215, 16777215) 
+
+            if self.window_size is not None:
+                self.resize(self.window_size)           
+            
+            self.top_layout_spacer.setVisible(True) 
+            
+            self.show_output_table()        
+            self.show_top_layout()     
+            
+            self.activity_bar.setVisible(True)              
+            self.toggle_buttons_layout.setVisible(True)
+            self.toggle_alternate_buttons_layout.setVisible(False)
+            
+            self.alternate_compact_view_toggle.setChecked(False)
+            
+            self.show_container_tab()   
+
+        self.save_unique_param('enable_compact_view', self.enable_compact_view)                       
+
+    def toggle_alternate_compact_view(self, checked):
+        if checked:
+            self.hide_output_table()
+            self.hide_top_layout()
             self.show_container_tab()
-            self.setMinimumSize(780, 600)
+            self.worked_history_widget.setVisible(False)
+            self.container_layout_spacer.setVisible(False)
+            self.bottom_layout_spacer.setVisible(False)
+        else:
+            self.show_output_table()
+            self.worked_history_widget.setVisible(True)
+            self.show_top_layout()
+            self.hide_container_tab()
+            self.container_layout_spacer.setVisible(True)
+            self.bottom_layout_spacer.setVisible(True)
 
     def toggle_grid_monitor(self, checked):    
-        checked = bool(checked) if isinstance(checked, int) else checked
         if checked:
             if self.grid_monitor is None:
                 self.grid_monitor = GridMapWindow()
@@ -1154,13 +1249,15 @@ class MainApp(QtWidgets.QMainWindow):
 
     def hide_container_tab(self):
         self.compact_mode_visible = False
-        self.animate_layout_height(self.container_tab, target_height=10)
+        self.container_tab.setVisible(False)
+        # self.animate_layout_height(self.container_tab, target_height=10)
 
     def show_container_tab(self):
         self.compact_mode_visible = True
-        self.animate_layout_height(self.container_tab, target_height=290)
+        self.container_tab.setVisible(True)
+        # self.animate_layout_height(self.container_tab, target_height=290)
 
-    def animate_layout_height(self, widget, target_height, duration=300):
+    def animate_layout_height(self, widget, target_height, duration=800):
         widget.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
         widget.setMinimumHeight(0)
         widget.setMaximumHeight(widget.height())
@@ -1188,6 +1285,34 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.current_animation = animation
         animation.start(QtCore.QAbstractAnimation.DeletionPolicy.DeleteWhenStopped)
+
+    def hide_output_table(self):
+        self.output_table.setVisible(False)
+        
+    def show_output_table(self):
+        self.output_table.setVisible(True)
+        
+    def hide_top_layout(self):
+        for i in range(self.top_layout.count()):
+            item = self.top_layout.itemAt(i)
+            if item and item.widget():
+                item.widget().setVisible(False)
+                
+    def show_top_layout(self):
+        for i in range(self.top_layout.count()):
+            item = self.top_layout.itemAt(i)
+            if item and item.widget():
+                item.widget().setVisible(True)
+                
+    def hide_other_toggles(self):
+        self.sounds_label.setVisible(False)
+        self.global_sound_toggle.setVisible(False)
+        self.toggle_buttons_layout.setVisible(False)
+        
+    def show_other_toggles(self):
+        self.sounds_label.setVisible(True)
+        self.global_sound_toggle.setVisible(True)
+        self.toggle_buttons_layout.setVisible(True)
 
     def toggle_clear_button_visibility(self, button, text):
         button.setVisible(bool(text.strip()))
@@ -2728,11 +2853,22 @@ class MainApp(QtWidgets.QMainWindow):
 
     def save_window_position(self):
         try:
+            if self.enable_compact_view:
+                if self.window_size:
+                    width   = self.window_size.width()
+                    height  = self.window_size.height()
+                else:
+                    width   = max(self.geometry().width(), 900)  
+                    height  = max(self.geometry().height(), 700)
+            else:
+                width       = self.geometry().width()
+                height      = self.geometry().height()
+                
             position_data = {
                 'x'               : self.geometry().x(),
                 'y'               : self.geometry().y(), 
-                'width'           : self.geometry().width(),
-                'height'          : self.geometry().height()
+                'width'           : width,
+                'height'          : height
             }
             
             position_data['grid_map_window'] = self.grid_monitor_geometry
@@ -2923,11 +3059,13 @@ class MainApp(QtWidgets.QMainWindow):
         # Add Window menu
         self.window_menu = self.menu_bar.addMenu("Window")
 
-        compact_mode_action = QtGui.QAction("Compact mode", self)
-        compact_mode_action.setCheckable(True)
-        compact_mode_action.setChecked(False)
-        compact_mode_action.triggered.connect(self.toggle_compact_mode)
-        self.window_menu.addAction(compact_mode_action)
+        self.compact_mode_action = QtGui.QAction("Compact view", self)
+        self.compact_mode_action.setShortcut(QtGui.QKeySequence("Ctrl+C"))
+        self.compact_mode_action.setCheckable(True)
+        self.compact_mode_action.setChecked(self.enable_compact_view)
+        self.compact_mode_action.triggered.connect(self.toggle_compact_view)
+
+        self.window_menu.addAction(self.compact_mode_action)
 
         self.window_menu.addSeparator()
 
