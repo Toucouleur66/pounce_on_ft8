@@ -329,6 +329,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.enable_filter_gui                   = params.get('enable_filter_gui', False)        
         self.enable_grid_monitor                = params.get('enable_grid_monitor', False)
         self.enable_compact_view                = params.get('enable_compact_view', False)   
+        self.enable_alternate_compact_view      = False
         self.enable_global_sound                = params.get('enable_global_sound', True)
         self.enable_show_all_decoded            = params.get('enable_show_all_decoded', DEFAULT_SHOW_ALL_DECODED)
         self.datetime_column_setting            = params.get('datetime_column_setting', DATE_COLUMN_DATETIME)
@@ -531,7 +532,7 @@ class MainApp(QtWidgets.QMainWindow):
         horizontal_layout.setSpacing(0)
         horizontal_layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter)
         
-        self.alternate_compact_view_label = CustomQLabel("Alternate Compact View")
+        self.alternate_compact_view_label = CustomQLabel("Alternate View")
         horizontal_layout.addWidget(self.alternate_compact_view_label)
         horizontal_layout.addWidget(self.alternate_compact_view_toggle)
         
@@ -1105,6 +1106,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_table.scrollToBottom()            
 
     def update_filter_gui_preference(self, checked):
+        if not self.output_table.isVisible():
+            return 
+        
         if checked:
             self.show_filter_layout()
         else:
@@ -1140,7 +1144,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.window_size = self.size()
 
             self.setMinimumSize(790, 360)            
-            self.setMaximumSize(790, 360)
+            self.setMaximumSize(2048, 360)
             
             self.hide_container_tab()     
             self.top_layout_spacer.setVisible(False)
@@ -1148,11 +1152,13 @@ class MainApp(QtWidgets.QMainWindow):
             
             self.toggle_buttons_layout.setVisible(False)
             self.toggle_alternate_buttons_layout.setVisible(True)
+
+            self.alternate_compact_view_action.setEnabled(True)
         else:
             self.enable_compact_view = False
 
             self.setMinimumSize(790, 600)
-            self.setMaximumSize(16777215, 16777215) 
+            self.setMaximumSize(2048, 2048) 
 
             if self.window_size is not None:
                 self.resize(self.window_size)           
@@ -1163,10 +1169,13 @@ class MainApp(QtWidgets.QMainWindow):
             self.show_top_layout()     
             
             self.activity_bar.setVisible(True)              
+            
             self.toggle_buttons_layout.setVisible(True)
             self.toggle_alternate_buttons_layout.setVisible(False)
-            
+
+            self.alternate_compact_view_action.setChecked(False)            
             self.alternate_compact_view_toggle.setChecked(False)
+            self.alternate_compact_view_action.setEnabled(False)
             
             self.show_container_tab()   
 
@@ -1174,6 +1183,10 @@ class MainApp(QtWidgets.QMainWindow):
 
     def toggle_alternate_compact_view(self, checked):
         if checked:
+            self.update_filter_gui_preference(False)
+            if self.filter_gui_action.isEnabled():
+                self.filter_gui_action.setChecked(False)
+
             self.hide_output_table()
             self.hide_top_layout()
             self.show_container_tab()
@@ -1186,7 +1199,11 @@ class MainApp(QtWidgets.QMainWindow):
             self.show_top_layout()
             self.hide_container_tab()
             self.container_layout_spacer.setVisible(True)
+            self.filter_gui_action.setEnabled(True)
             self.bottom_layout_spacer.setVisible(True)
+
+        self.alternate_compact_view_toggle.setChecked(checked)
+        self.alternate_compact_view_action.setChecked(checked)
 
     def toggle_grid_monitor(self, checked):    
         if checked:
@@ -3059,13 +3076,22 @@ class MainApp(QtWidgets.QMainWindow):
         # Add Window menu
         self.window_menu = self.menu_bar.addMenu("Window")
 
-        self.compact_mode_action = QtGui.QAction("Compact view", self)
-        self.compact_mode_action.setShortcut(QtGui.QKeySequence("Ctrl+C"))
-        self.compact_mode_action.setCheckable(True)
-        self.compact_mode_action.setChecked(self.enable_compact_view)
-        self.compact_mode_action.triggered.connect(self.toggle_compact_view)
+        self.compact_view_action = QtGui.QAction("Compact view", self)
+        self.compact_view_action.setShortcut(QtGui.QKeySequence("Ctrl+C"))
+        self.compact_view_action.setCheckable(True)
+        self.compact_view_action.setChecked(self.enable_compact_view)
+        self.compact_view_action.triggered.connect(self.toggle_compact_view)
 
-        self.window_menu.addAction(self.compact_mode_action)
+        self.window_menu.addAction(self.compact_view_action)
+
+        self.alternate_compact_view_action = QtGui.QAction("Alternate view", self)
+        self.alternate_compact_view_action.setShortcut(QtGui.QKeySequence("Ctrl+V"))
+        self.alternate_compact_view_action.setCheckable(self.enable_compact_view)
+        self.alternate_compact_view_action.setChecked(self.enable_alternate_compact_view)
+        self.alternate_compact_view_action.setEnabled(self.enable_compact_view)
+        self.alternate_compact_view_action.triggered.connect(self.toggle_alternate_compact_view)
+
+        self.window_menu.addAction(self.alternate_compact_view_action)
 
         self.window_menu.addSeparator()
 
