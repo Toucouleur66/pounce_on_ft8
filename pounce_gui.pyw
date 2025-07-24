@@ -3085,7 +3085,10 @@ class MainApp(QtWidgets.QMainWindow):
         self.window_menu.addAction(self.compact_view_action)
 
         self.alternate_compact_view_action = QtGui.QAction("Alternate view", self)
-        self.alternate_compact_view_action.setShortcut(QtGui.QKeySequence("Ctrl+V"))
+        if sys.platform == 'win32':
+            self.alternate_compact_view_action.setShortcut(QtGui.QKeySequence("Ctrl+Alt+V"))
+        else:
+            self.alternate_compact_view_action.setShortcut(QtGui.QKeySequence("Ctrl+V"))
         self.alternate_compact_view_action.setCheckable(self.enable_compact_view)
         self.alternate_compact_view_action.setChecked(self.enable_alternate_compact_view)
         self.alternate_compact_view_action.setEnabled(self.enable_compact_view)
