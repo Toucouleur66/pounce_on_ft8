@@ -649,7 +649,7 @@ class MainApp(QtWidgets.QMainWindow):
         
         # Add container layout spacer after container_tab
         self.container_layout_spacer = QtWidgets.QWidget()
-        self.container_layout_spacer.setFixedHeight(20)
+        self.container_layout_spacer.setFixedHeight(8)
         self.main_layout.addWidget(self.container_layout_spacer, 3, 0)
         
         self.main_layout.addWidget(self.output_table, 4, 0)
@@ -3084,11 +3084,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.window_menu.addAction(self.compact_view_action)
 
-        self.alternate_compact_view_action = QtGui.QAction("Alternate view", self)
-        if sys.platform == 'win32':
-            self.alternate_compact_view_action.setShortcut(QtGui.QKeySequence("Ctrl+Alt+V"))
-        else:
-            self.alternate_compact_view_action.setShortcut(QtGui.QKeySequence("Ctrl+V"))
+        self.alternate_compact_view_action = QtGui.QAction("Alternate view", self)        
         self.alternate_compact_view_action.setCheckable(self.enable_compact_view)
         self.alternate_compact_view_action.setChecked(self.enable_alternate_compact_view)
         self.alternate_compact_view_action.setEnabled(self.enable_compact_view)
