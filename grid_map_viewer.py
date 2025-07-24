@@ -2,17 +2,15 @@ import sys
 import math
 import time
 import numpy as np
+
 from datetime import datetime, timezone
 
 from constants import (
     CUSTOM_FONT,
+    CUSTOM_FONT_SMALL,
     GUI_LABEL_VERSION,
     STATUS_MONITORING_COLOR,
     BG_COLOR_BLACK_ON_YELLOW,
-    BG_COLOR_WHITE_ON_BLUE_VIOLET,
-    BG_COLOR_BLACK_ON_PURPLE,
-    BG_COLOR_BLACK_ON_CYAN,
-    STATUS_DECODING_COLOR,
     FG_COLOR_REGULAR_FOCUS,
     QSLIDER_QSS,
     SLIDER_VALUE_LABEL_QSS,
@@ -22,13 +20,14 @@ from constants import (
 
 from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QSlider, QFrame, QGraphicsOpacityEffect
 from PyQt6.QtCore import Qt, QPoint, QTimer, pyqtSignal
-from PyQt6.QtGui import QFont, QPainter, QWheelEvent, QMouseEvent, QKeyEvent, QColor, QBrush, QPen, QPainterPath, QPolygon
+from PyQt6.QtGui import QFont, QPainter, QWheelEvent, QMouseEvent, QKeyEvent, QColor, QBrush, QPen, QPainterPath, QPolygon, QCursor
 
 from custom_qlabel import CustomQLabel
 from animated_toggle import AnimatedToggle
 from tiles_manager import TileCache, TileDownloader
 from theme_manager import ThemeManager
 from tooltip import CustomToolTip
+from custom_status_bar import CustomStatusBar
 
 from logger import get_logger
 
@@ -80,8 +79,8 @@ class GridMapWidget(QWidget):
         # Test mode for night area
         self.test_time                  = None
         
-        self.permanent_squares          = []
-        self.new_grids          = []
+        self.permanent_grids            = []
+        self.new_grids                  = []
         self.current_band               = None
         self.adif_data                  = {}
 
@@ -424,8 +423,8 @@ class GridMapWidget(QWidget):
         if self.show_grid:
             self.draw_maidenhead_grid(painter)
             
-        for square in self.permanent_squares:
-            self.fill_grid_square_with_color(painter, square, self.permanent_color_fill)
+        for grid in self.permanent_grids:
+            self.fill_grid_square_with_color(painter, grid, self.permanent_color_fill)
         
         self.set_heatmap_indicators(painter)
         
@@ -1204,8 +1203,8 @@ class GridMapWidget(QWidget):
                 painter.setPen(pen)
                 painter.drawPolygon(triangle_polygon)                        
     
-    def fill_grid_square_with_color(self, painter, grid_square, color):
-        self.draw_grid_square(painter, grid_square, color)
+    def fill_grid_square_with_color(self, painter, grid, color):
+        self.draw_grid_square(painter, grid, color)
     
     def draw_new_grids_block(self, painter):
         for grid in self.new_grids:
@@ -1214,9 +1213,8 @@ class GridMapWidget(QWidget):
             # Skip the clicked grid if it's currently blinking
             if self.clicked_grid and grid_square == self.clicked_grid:
                 continue            
-            
-            
-            if self.show_worked and grid_square in self.permanent_squares:
+                        
+            if self.show_worked and grid_square in self.permanent_grids:
                 self.draw_grid_square(
                     painter,
                     grid_square,
@@ -1308,7 +1306,7 @@ class GridMapWidget(QWidget):
         self.set_permanent_grids(grid_squares, center_on_last=False)
     
     def set_permanent_grids(self, squares, center_on_last=True):
-        self.permanent_squares = squares
+        self.permanent_grids = squares
         
         if len(squares) > 0 and center_on_last:
             last_square = squares[-1]
@@ -1374,6 +1372,13 @@ class GridMapWidget(QWidget):
             self.update()
         finally:
             log.debug(f"GridMapWidget: {len(grids)} updated grids")
+            
+            # Update status bar when grids change
+            window = self.parent()
+            while window and not isinstance(window, GridMapWindow):
+                window = window.parent()
+            if window and hasattr(window, 'check_grid_monitoring_status'):
+                window.check_grid_monitoring_status()
     
     def clear_new_grids(self):
         self.set_new_grids([])
@@ -1849,7 +1854,7 @@ class GridMapWidget(QWidget):
         """
             Find which permanent square is under the given position
         """
-        for grid_square in self.permanent_squares:
+        for grid_square in self.permanent_grids:
             if self.is_position_in_grid_square(pos, grid_square):
                 return grid_square
         return None
@@ -1949,7 +1954,20 @@ class GridMapWindow(QMainWindow):
               
         self.map_widget = GridMapWidget()
         
+        self.status_bar = CustomStatusBar()
+        self.status_bar_label_updated_grids = CustomQLabel()
+        self.status_bar_label_last_decoded = CustomQLabel()
+        self.status_bar_label_total_worked = CustomQLabel()
+        
+        self.last_decode_time = None
+        
         self.setup_main_layout()
+        self.init_status_bar()
+        
+        # Timer to update status bar periodically
+        self.status_bar_timer = QTimer(self)
+        self.status_bar_timer.timeout.connect(self.check_grid_monitoring_status)
+        self.status_bar_timer.start(5_000)  
         
         self.theme_manager = ThemeManager()
         self.theme_manager.theme_changed.connect(self.apply_theme_to_all)
@@ -2104,6 +2122,45 @@ class GridMapWindow(QMainWindow):
         
         main_layout.addWidget(self.controls_widget)
     
+    def init_status_bar(self):
+        self.setStatusBar(self.status_bar)
+
+        for label in (
+            self.status_bar_label_updated_grids,
+            self.status_bar_label_last_decoded,
+            self.status_bar_label_total_worked
+        ):
+            label.setMouseTracking(True)
+            label.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+            label.setStyleSheet(f"""
+                QLabel {{
+                    font-family: {CUSTOM_FONT_SMALL.family()};
+                    font-size: {CUSTOM_FONT_SMALL.pointSize()}pt;            
+                    padding-left: 5px;
+                    padding-right: 5px;      
+                    border: none;
+                }}
+            """)
+        
+        self.status_bar.addWidget(self.status_bar_label_updated_grids, 1)                         
+        self.status_bar.addWidget(self.status_bar_label_last_decoded, 2)    
+        self.status_bar_label_last_decoded.setFixedWidth(160)         
+        self.status_bar.addWidget(self.status_bar_label_total_worked, 2)          
+        self.status_bar_label_total_worked.setFixedWidth(170)     
+
+        self.status_bar.setContentsMargins(10, 3, 10, 3)
+
+    def update_status_bar_color(self, style):
+        if hasattr(self, 'status_bar'):
+            self.status_bar.setStyleSheet(style)
+    
+    def check_grid_monitoring_status(self):
+        self.status_bar_label_updated_grids.setText(f"Grids Buffered: {sum(len(group) for group in
+  self.map_widget.heatmap_buffer)}")        
+
+        if self.map_widget.current_band:
+            self.status_bar_label_total_worked.setText(f"Worked grids (<u>{self.map_widget.current_band}</u>): {len(self.map_widget.permanent_grids)}")
+    
     def update_toggle_labels(self):
         if hasattr(self, 'grid_toggle'):
             self.grid_toggle.setChecked(self.map_widget.show_grid)
@@ -2113,6 +2170,9 @@ class GridMapWindow(QMainWindow):
             self.worked_toggle.setChecked(self.map_widget.show_worked)
         if hasattr(self, 'night_toggle'):
             self.night_toggle.setChecked(self.map_widget.show_night)
+        
+        # Update status bar labels
+        self.check_grid_monitoring_status()
     
     def toggle_grid(self, checked):
         self.map_widget.show_grid = checked
@@ -2224,6 +2284,8 @@ class GridMapWindow(QMainWindow):
     
     def closeEvent(self, event):
         log.warning("Closing GridMapWindow")        
+        if hasattr(self, 'status_bar_timer'):
+            self.status_bar_timer.stop()
         if (
             hasattr(self.map_widget, 'parent_app') and 
             self.map_widget.parent_app and 

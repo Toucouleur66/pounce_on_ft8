@@ -1262,8 +1262,9 @@ class MainApp(QtWidgets.QMainWindow):
             return
         
         if self.grid_monitor:    
-            self.grid_monitor.map_widget.set_new_grids([message for message in messages if "grid" in message])
-
+            grid_messages = [message for message in messages if "grid" in message]
+            self.grid_monitor.map_widget.set_new_grids(grid_messages)
+                       
     def hide_container_tab(self):
         self.compact_mode_visible = False
         self.container_tab.setVisible(False)
@@ -2158,7 +2159,10 @@ class MainApp(QtWidgets.QMainWindow):
             }}
         """
 
-        self.status_bar.setStyleSheet(style)           
+        self.status_bar.setStyleSheet(style)
+        
+        if self.grid_monitor:
+            self.grid_monitor.update_status_bar_color(style)           
 
     def set_notice_to_focus_value_label(
             self,
@@ -2393,6 +2397,12 @@ class MainApp(QtWidgets.QMainWindow):
                     self.update_status_bar_style(BG_COLOR_BLACK_ON_YELLOW, "black")
                 else:
                     self.update_status_bar_style(STATUS_MONITORING_COLOR, "white")                
+
+        """
+            Handle grid monitor status
+        """
+        if self.grid_monitor:
+            self.grid_monitor.status_bar_label_last_decoded.setText(self.status_bar_label_decode_packet.text())
 
         """
             Handle change for status_button when transmitting
