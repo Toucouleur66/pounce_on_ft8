@@ -71,6 +71,7 @@ class Listener(QObject):
             max_working_delay,
             enable_log_all_valid_contact,
             enable_reply_to_valid_callsign,
+            enable_reply_to_lotw_only,
             enable_gap_finder,
             enable_watchdog_bypass,
             enable_debug_output,
@@ -141,6 +142,7 @@ class Listener(QObject):
         self.enable_polite_reply                = enable_polite_reply
         self.enable_log_all_valid_contact       = enable_log_all_valid_contact
         self.enable_reply_to_valid_callsign     = enable_reply_to_valid_callsign
+        self.enable_reply_to_lotw_only          = enable_reply_to_lotw_only
         self.enable_gap_finder                   = enable_gap_finder
         self.enable_watchdog_bypass             = enable_watchdog_bypass
         self.enable_debug_output                = enable_debug_output
@@ -954,8 +956,8 @@ class Listener(QObject):
                     lotw          = callsign_info.get('lotw', None) 
                 else:
                     entity_code   = None
-                    lotw          = None                
-             
+                    lotw          = None       
+                                        
                 """
                     Check if wanted and is Worked b4
                 """
@@ -1046,6 +1048,18 @@ class Listener(QObject):
                     and not (wanted and wanted_cq_zone)                    
                 ):
                     wanted = wanted_cq_zone = False
+
+                """
+                    Ignore if callsign is not a LoTW user
+                """
+                if (
+                    not exactly_matched and                     
+                    not lotw and 
+                    self.enable_reply_to_lotw_only 
+                ):
+                    if wanted or wanted_cq_zone:
+                        log.warning(f"Skipping [ {callsign} ] as it is not a LoTW user")
+                        wanted = wanted_cq_zone = False                    
 
                 """
                     Callsign already logged, we can move over new Wanted callsign

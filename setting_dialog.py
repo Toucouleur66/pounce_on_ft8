@@ -224,6 +224,29 @@ class SettingsDialog(QtWidgets.QDialog):
         general_settings_group.layout().setContentsMargins(0, 0, 0, 0)
         general_settings_group.layout().addWidget(general_settings_widget)
 
+        # LoTW Settings Group
+        lotw_settings_group = QtWidgets.QGroupBox("LoTW Settings")
+        
+        lotw_settings_widget = QtWidgets.QWidget()
+        lotw_settings_layout = QtWidgets.QGridLayout(lotw_settings_widget)
+        
+        lotw_notice_text = f"Enable this option to limit alerts and only respond to callsigns using LoTW if you use a wildcard in your searched callsigns. Therefore, {GUI_LABEL_NAME} will always respond to the callsign if it exactly matches a wanted callsign that is not LoTW."
+        lotw_notice_label = QtWidgets.QLabel(lotw_notice_text)
+        lotw_notice_label.setWordWrap(True)
+        lotw_notice_label.setFont(CUSTOM_FONT_SMALL)
+        lotw_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
+        lotw_notice_label.setStyleSheet(SETTING_QSS)
+        lotw_notice_label.setAutoFillBackground(True)
+        
+        self.enable_reply_to_lotw_only = QtWidgets.QCheckBox("Enable reply only for callsigns that use LoTW")
+        self.enable_reply_to_lotw_only.setChecked(False)
+        
+        lotw_settings_layout.addWidget(self.enable_reply_to_lotw_only, 0, 0, 1, 2)
+        
+        lotw_settings_group.setLayout(QtWidgets.QVBoxLayout())
+        lotw_settings_group.layout().setContentsMargins(0, 0, 0, 0)
+        lotw_settings_group.layout().addWidget(lotw_settings_widget)
+
         self.freq_range_type_group = QtWidgets.QGroupBox("Select range of frequency being used for offset updater")
 
         udp_freq_range_type_widget = QtWidgets.QWidget()
@@ -348,6 +371,8 @@ class SettingsDialog(QtWidgets.QDialog):
 
         tab_2_layout.addWidget(general_notice_label)
         tab_2_layout.addWidget(general_settings_group)
+        tab_2_layout.addWidget(lotw_notice_label)
+        tab_2_layout.addWidget(lotw_settings_group)
         tab_2_layout.addWidget(minimum_report_notice)
         tab_2_layout.addWidget(minimum_report_group)
         tab_2_layout.addWidget(self.freq_range_type_group)
@@ -967,6 +992,9 @@ class SettingsDialog(QtWidgets.QDialog):
         )  
         self.enable_reply_to_valid_callsign.setChecked(
             self.params.get('enable_reply_to_valid_callsign', True)
+        )
+        self.enable_reply_to_lotw_only.setChecked(
+            self.params.get('enable_reply_to_lotw_only', False)
         )               
         self.delay_between_sound_for_monitored.setText(
             str(self.params.get('delay_between_sound_for_monitored', DEFAULT_DELAY_BETWEEN_SOUND))
@@ -1083,6 +1111,7 @@ class SettingsDialog(QtWidgets.QDialog):
             'enable_polite_reply'                        : self.enable_polite_reply.isChecked(),
             'enable_log_all_valid_contact'               : self.enable_log_all_valid_contact.isChecked(),
             'enable_reply_to_valid_callsign'             : self.enable_reply_to_valid_callsign.isChecked(),
+            'enable_reply_to_lotw_only'                  : self.enable_reply_to_lotw_only.isChecked(),
             'max_reply_attemps_to_callsign'              : max_reply_attemps,
             'max_waiting_delay'                          : max_waiting_delay,
             'minimum_report_for_reply'                   : minimum_report_for_reply,

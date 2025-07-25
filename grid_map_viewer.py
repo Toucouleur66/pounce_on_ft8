@@ -2155,7 +2155,7 @@ class GridMapWindow(QMainWindow):
             self.status_bar.setStyleSheet(style)
     
     def check_grid_monitoring_status(self):
-        self.status_bar_label_updated_grids.setText(f"Grids Buffered: {sum(len(group) for group in
+        self.status_bar_label_updated_grids.setText(f"Buffered: {sum(len(group) for group in
   self.map_widget.heatmap_buffer)}")        
 
         if self.map_widget.current_band:

@@ -3371,7 +3371,8 @@ class MainApp(QtWidgets.QMainWindow):
         enable_pounce_log                   = params.get('enable_pounce_log', DEFAULT_POUNCE_LOG)
         enable_log_packet_data              = params.get('enable_log_packet_data', DEFAULT_LOG_PACKET_DATA)
         enable_log_all_valid_contact        = params.get('enable_log_all_valid_contact', DEFAULT_LOG_ALL_VALID_CONTACT) 
-        enable_reply_to_valid_callsign       = params.get('enable_reply_to_valid_callsign', DEFAULT_LOG_ALL_VALID_CONTACT)        
+        enable_reply_to_valid_callsign      = params.get('enable_reply_to_valid_callsign', DEFAULT_LOG_ALL_VALID_CONTACT)
+        enable_reply_to_lotw_only           = params.get('enable_reply_to_lotw_only', False)        
 
         self.adif_file_path                  = params.get('adif_file_path', None)
         self.adif_worked_backup_file_path    = params.get('adif_worked_backup_file_path', None)
@@ -3402,6 +3403,7 @@ class MainApp(QtWidgets.QMainWindow):
             max_working_delay,
             enable_log_all_valid_contact,
             enable_reply_to_valid_callsign,
+            enable_reply_to_lotw_only,
             enable_gap_finder,
             enable_watchdog_bypass,
             enable_debug_output,
