@@ -81,6 +81,8 @@ class Listener(QObject):
             freq_range_mode,
             enable_marathon,
             marathon_preference,
+            enable_grid_tracker,
+            grid_tracker_preference,
             adif_file_path,
             adif_worked_backup_file_path,
             worked_before_preference,
@@ -190,6 +192,7 @@ class Listener(QObject):
         self.monitored_cq_zones             = None
         self.excluded_cq_zones              = None
         self.worked_callsigns               = {}
+        self.worked_grids                   = {}
 
         self.wanted_callsigns_per_entity   = {}
 
@@ -198,9 +201,12 @@ class Listener(QObject):
 
         self.worked_before_preference       = worked_before_preference      
         self.marathon_preference            = marathon_preference
+        self.enable_grid_tracker            = enable_grid_tracker
+        self.grid_tracker_preference        = grid_tracker_preference
         self.minimum_report_for_reply       = minimum_report_for_reply
 
-        self.adif_data                      = {}        
+        self.adif_data                      = {} 
+        self.adif_monitor                   = None          
 
         self._running                       = True     
         
@@ -411,6 +417,12 @@ class Listener(QObject):
                 marathon_preference = None                
             log_output.append(f"Marathon={marathon_preference}")
 
+        if self.enable_grid_tracker:
+            grid_tracker_preference = self.grid_tracker_preference.get(self.band)
+            if not grid_tracker_preference:
+                grid_tracker_preference = None                
+            log_output.append(f"GridTracker={grid_tracker_preference}")
+
         log_output.append(f"PriorityOrder={self.priority_order}")            
 
         log.warning(f"\n\t".join(log_output))
@@ -516,7 +528,7 @@ class Listener(QObject):
         self.processor_thread.quit()
         
         # Stop ADIF monitor to prevent duplicate processing
-        if hasattr(self, 'adif_monitor') and self.adif_monitor:
+        if self.adif_monitor:
             log.info("Stopping ADIF monitor")
             self.adif_monitor.stop()
             self.adif_monitor = None
@@ -573,6 +585,10 @@ class Listener(QObject):
                     self.last_band_time_change = datetime.now()
                     self.reset_targeted_call()
                     self.synched_settings = None
+
+                    if self.adif_data.get('grid'):
+                        self.worked_grids[self.band] = list(self.adif_data.get('grid', {}).get(self.band, {}).keys())
+                        # log.info(f"Grids for {self.band} band: {self.worked_grids[self.band]}")
 
                 if self.message_callback:
                     self.message_callback({
@@ -1609,7 +1625,7 @@ class Listener(QObject):
             self.message_callback({
                 'type': 'adif_data_updated',
                 'adif_data': self.adif_data
-            })
+            })        
 
     """
         if self.adif_data.get('entity') and self.band:

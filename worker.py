@@ -45,6 +45,8 @@ class Worker(QObject):
             worked_before_preference,
             enable_marathon,
             marathon_preference,
+            enable_grid_tracker,
+            grid_tracker_preference,
             minimum_report_for_reply,
             priority_order=None
         ):
@@ -90,6 +92,8 @@ class Worker(QObject):
         self.worked_before_preference           = worked_before_preference
         self.enable_marathon                    = enable_marathon
         self.marathon_preference                = marathon_preference
+        self.enable_grid_tracker                = enable_grid_tracker
+        self.grid_tracker_preference            = grid_tracker_preference
         self.minimum_report_for_reply           = minimum_report_for_reply
         self.priority_order                     = priority_order
 
@@ -134,6 +138,9 @@ class Worker(QObject):
                 
                 enable_marathon                 = self.enable_marathon,                
                 marathon_preference             = self.marathon_preference,
+                
+                enable_grid_tracker             = self.enable_grid_tracker,
+                grid_tracker_preference         = self.grid_tracker_preference,
                 
                 adif_file_path                   = self.adif_file_path,
                 adif_worked_backup_file_path     = self.adif_worked_backup_file_path,                

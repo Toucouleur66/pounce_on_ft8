@@ -336,6 +336,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.worked_before_preference           = params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS)
         self.enable_marathon                    = params.get('enable_marathon', False)
         self.marathon_preference                = params.get('marathon_preference', {})
+        self.enable_grid_tracker                = params.get('enable_grid_tracker', False)
+        self.grid_tracker_preference            = params.get('grid_tracker_preference', {})
 
         self.enable_auto_start_monitoring       = params.get('enable_auto_start_monitoring', DEFAULT_AUTO_START_MONITORING)
         
@@ -3370,6 +3372,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.adif_worked_backup_file_path    = params.get('adif_worked_backup_file_path', None)
         self.worked_before_preference       = params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS)
         self.marathon_preference            = params.get('marathon_preference', {})
+        self.enable_grid_tracker            = params.get('enable_grid_tracker', False)
+        self.grid_tracker_preference        = params.get('grid_tracker_preference', {})
         minimum_report_for_reply            = params.get('minimum_report_for_reply', DEFAULT_MINIMUM_REPORT)
         priority_order                      = params.get('priority_order', None)
         
@@ -3406,6 +3410,8 @@ class MainApp(QtWidgets.QMainWindow):
             self.worked_before_preference,
             self.enable_marathon,
             self.marathon_preference,
+            self.enable_grid_tracker,
+            self.grid_tracker_preference,
             minimum_report_for_reply,
             priority_order           
         )

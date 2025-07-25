@@ -87,6 +87,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.menu_list.addItem("Priority Manager")
         self.menu_list.addItem("Logbook of The World®")
         self.menu_list.addItem("DX Marathon")
+        self.menu_list.addItem("Grid Tracker")
         self.menu_list.addItem("Logbook Analysis")
         self.menu_list.addItem("Logbook Backup")
         self.menu_list.addItem("Debugging")
@@ -102,6 +103,7 @@ class SettingsDialog(QtWidgets.QDialog):
         priority_page     = QtWidgets.QWidget()
         lotw_page         = QtWidgets.QWidget()
         marathon_page     = QtWidgets.QWidget()
+        grid_tracker_page = QtWidgets.QWidget()
         log_analysis_page = QtWidgets.QWidget()
         backup_page       = QtWidgets.QWidget()
         debugging_page    = QtWidgets.QWidget()
@@ -112,6 +114,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.stacked_widget.addWidget(priority_page)
         self.stacked_widget.addWidget(lotw_page)
         self.stacked_widget.addWidget(marathon_page)
+        self.stacked_widget.addWidget(grid_tracker_page)
         self.stacked_widget.addWidget(log_analysis_page)
         self.stacked_widget.addWidget(backup_page)
         self.stacked_widget.addWidget(debugging_page)
@@ -122,6 +125,7 @@ class SettingsDialog(QtWidgets.QDialog):
         priority_layout      = QtWidgets.QVBoxLayout(priority_page)
         lotw_layout          = QtWidgets.QVBoxLayout(lotw_page)
         marathon_layout_main = QtWidgets.QVBoxLayout(marathon_page)
+        grid_tracker_layout_main = QtWidgets.QVBoxLayout(grid_tracker_page)
         log_analysis_layout  = QtWidgets.QVBoxLayout(log_analysis_page)
         backup_layout        = QtWidgets.QVBoxLayout(backup_page)
         debugging_layout     = QtWidgets.QVBoxLayout(debugging_page)
@@ -692,9 +696,46 @@ class SettingsDialog(QtWidgets.QDialog):
         marathon_layout_main.addStretch()  
 
         """
+            Grid Tracker Settings
+        """
+        grid_tracker_notice_text = (
+            f"<p>{GUI_LABEL_NAME} will analyze your log and check for any missing grids you haven't worked on selected band. If a missing grid is decoded, <u>it will automatically add the callsign to your Wanted Callsigns</u>. Once grid is worked, {GUI_LABEL_NAME} will remove all entries automatically added to your Wanted Callsigns which refer to this grid.</p><p>Note that rules set for Worked B4 will remain in effect.</p>"
+        )
+        grid_tracker_notice_label = QtWidgets.QLabel(grid_tracker_notice_text)
+        grid_tracker_notice_label.setStyleSheet(SETTING_QSS)
+        grid_tracker_notice_label.setWordWrap(True)
+        grid_tracker_notice_label.setFont(CUSTOM_FONT_SMALL)
+        grid_tracker_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
+
+        self.grid_tracker_group = QtWidgets.QGroupBox("Enable Grid Tracker for selected bands")
+        grid_tracker_layout = QtWidgets.QGridLayout()
+
+        self.grid_tracker_band_buttons = {}
+        max_cols = 4
+        row = 0
+        col = 0
+
+        for amateur_band in list(AMATEUR_BANDS.keys())[:-2]:
+            btn = CustomButton(amateur_band)
+            btn.setCheckable(True)         
+            btn.toggled.connect(lambda checked, btn=btn, name=amateur_band: self.on_grid_tracker_band_toggled(btn, name, checked))
+            self.grid_tracker_band_buttons[amateur_band] = btn
+            grid_tracker_layout.addWidget(btn, row, col)
+            
+            col += 1
+            if col >= max_cols:
+                col = 0
+                row += 1
+
+        self.grid_tracker_group.setLayout(grid_tracker_layout)
+
+        grid_tracker_layout_main.addWidget(grid_tracker_notice_label)
+        grid_tracker_layout_main.addWidget(self.grid_tracker_group)
+        grid_tracker_layout_main.addStretch()
+
+        """
             Backup Settings
         """
-
         adif_backup_selection_group = QtWidgets.QGroupBox(f"{GUI_LABEL_NAME} Backup File")
         adif_backup_selection_group.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
@@ -900,6 +941,12 @@ class SettingsDialog(QtWidgets.QDialog):
                 self.band_buttons[MARATHON_UNLIMITED].setChecked(False)
                 self.band_buttons[MARATHON_UNLIMITED].setEnabled(True)
 
+        if checked:
+            button.updateStyle(band_name, STATUS_TRX_COLOR, "#FFFFFF")
+        else:
+            button.resetStyle()
+
+    def on_grid_tracker_band_toggled(self, button, band_name, checked):
         if checked:
             button.updateStyle(band_name, STATUS_TRX_COLOR, "#FFFFFF")
         else:
@@ -1117,6 +1164,14 @@ class SettingsDialog(QtWidgets.QDialog):
         for band_name, btn in self.band_buttons.items():
             checked = self.marathon_preference.get(band_name, False)
             btn.setChecked(checked)
+
+        self.grid_tracker_preference = self.params.get('grid_tracker_preference', {})
+
+        if isinstance(self.grid_tracker_preference, bool):
+            self.grid_tracker_preference = {}
+        for band_name, btn in self.grid_tracker_band_buttons.items():
+            checked = self.grid_tracker_preference.get(band_name, False)
+            btn.setChecked(checked)
             
         self.populate_priority_list()
     
@@ -1146,6 +1201,10 @@ class SettingsDialog(QtWidgets.QDialog):
         marathon_preference = {}
         for band_name, btn in self.band_buttons.items():
             marathon_preference[band_name] = btn.isChecked()
+
+        grid_tracker_preference = {}
+        for band_name, btn in self.grid_tracker_band_buttons.items():
+            grid_tracker_preference[band_name] = btn.isChecked()
             
         # Get priority order - convert display names to property keys
         priority_order = []
@@ -1188,5 +1247,7 @@ class SettingsDialog(QtWidgets.QDialog):
             'freq_range_mode'                            : freq_range_mode,
             'worked_before_preference'                   : worked_before_preference,
             'marathon_preference'                        : marathon_preference,
+            'enable_grid_tracker'                        : any(grid_tracker_preference.values()),
+            'grid_tracker_preference'                    : grid_tracker_preference,
             'priority_order'                             : priority_order            
         }
