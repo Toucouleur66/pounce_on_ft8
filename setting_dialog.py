@@ -12,6 +12,7 @@ from PyQt6.QtCore import Qt
 from custom_button import CustomButton
 from priority_table import PriorityTableWidget
 from adif_summary_dialog import AdifSummaryDialog
+from lotw_manager import LoTWManager
 
 from datetime import datetime
 
@@ -58,7 +59,9 @@ from constants import (
     DEFAULT_MINIMUM_REPORT,
     # Fonts
     CUSTOM_FONT_SMALL,
+    # Style,
     SETTING_QSS,
+    ODD_COLOR,
     # ADIF
     ADIF_WORKED_CALLSIGNS_FILE
 )
@@ -82,14 +85,16 @@ class SettingsDialog(QtWidgets.QDialog):
         tab_5 = QtWidgets.QWidget()
         tab_6 = QtWidgets.QWidget()
         tab_7 = QtWidgets.QWidget()
+        tab_8 = QtWidgets.QWidget()
 
         self.tab_widget.addTab(tab_1, "Server")
         self.tab_widget.addTab(tab_2, "General")
         self.tab_widget.addTab(tab_3, "Priority")        
-        self.tab_widget.addTab(tab_4, "Sound Alerts")
-        self.tab_widget.addTab(tab_5, "Log Analysis")
-        self.tab_widget.addTab(tab_6, "Backup")
-        self.tab_widget.addTab(tab_7, "Debugging")
+        self.tab_widget.addTab(tab_4, "Logbook of The World")
+        self.tab_widget.addTab(tab_5, "Sounds")
+        self.tab_widget.addTab(tab_6, "Log Analysis")
+        self.tab_widget.addTab(tab_7, "Backup")
+        self.tab_widget.addTab(tab_8, "Debugging")
 
         tab_1_layout = QtWidgets.QVBoxLayout(tab_1)
         tab_2_layout = QtWidgets.QVBoxLayout(tab_2)
@@ -98,6 +103,7 @@ class SettingsDialog(QtWidgets.QDialog):
         tab_5_layout = QtWidgets.QVBoxLayout(tab_5)
         tab_6_layout = QtWidgets.QVBoxLayout(tab_6)
         tab_7_layout = QtWidgets.QVBoxLayout(tab_7)
+        tab_8_layout = QtWidgets.QVBoxLayout(tab_8)
         
         """
             Server Settings
@@ -224,28 +230,6 @@ class SettingsDialog(QtWidgets.QDialog):
         general_settings_group.layout().setContentsMargins(0, 0, 0, 0)
         general_settings_group.layout().addWidget(general_settings_widget)
 
-        # LoTW Settings Group
-        lotw_settings_group = QtWidgets.QGroupBox("LoTW Settings")
-        
-        lotw_settings_widget = QtWidgets.QWidget()
-        lotw_settings_layout = QtWidgets.QGridLayout(lotw_settings_widget)
-        
-        lotw_notice_text = f"Enable this option to limit alerts and only respond to callsigns using LoTW if you use a wildcard in your searched callsigns. Therefore, {GUI_LABEL_NAME} will always respond to the callsign if it exactly matches a wanted callsign that is not LoTW."
-        lotw_notice_label = QtWidgets.QLabel(lotw_notice_text)
-        lotw_notice_label.setWordWrap(True)
-        lotw_notice_label.setFont(CUSTOM_FONT_SMALL)
-        lotw_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
-        lotw_notice_label.setStyleSheet(SETTING_QSS)
-        lotw_notice_label.setAutoFillBackground(True)
-        
-        self.enable_reply_to_lotw_only = QtWidgets.QCheckBox("Enable reply only for callsigns that use LoTW")
-        self.enable_reply_to_lotw_only.setChecked(False)
-        
-        lotw_settings_layout.addWidget(self.enable_reply_to_lotw_only, 0, 0, 1, 2)
-        
-        lotw_settings_group.setLayout(QtWidgets.QVBoxLayout())
-        lotw_settings_group.layout().setContentsMargins(0, 0, 0, 0)
-        lotw_settings_group.layout().addWidget(lotw_settings_widget)
 
         self.freq_range_type_group = QtWidgets.QGroupBox("Select range of frequency being used for offset updater")
 
@@ -371,8 +355,6 @@ class SettingsDialog(QtWidgets.QDialog):
 
         tab_2_layout.addWidget(general_notice_label)
         tab_2_layout.addWidget(general_settings_group)
-        tab_2_layout.addWidget(lotw_notice_label)
-        tab_2_layout.addWidget(lotw_settings_group)
         tab_2_layout.addWidget(minimum_report_notice)
         tab_2_layout.addWidget(minimum_report_group)
         tab_2_layout.addWidget(self.freq_range_type_group)
@@ -487,6 +469,49 @@ class SettingsDialog(QtWidgets.QDialog):
         tab_3_layout.addStretch()
         
         """
+            LoTW Settings
+        """
+        last_update, entry_count = LoTWManager.get_cache_info()
+        if last_update:
+            lotw_cache_text = f"LoTW Cache Status: {entry_count:,} callsigns<br />Last updated: {last_update}"
+        else:
+            lotw_cache_text = "No LoTW data available yet"
+        
+        lotw_notice_text = f"LoTW (Logbook of The World®) is ARRL's online QSO confirmation system.</p><p>Enable this option to limit alerts and only respond to callsigns using LoTW if you use a wildcard in your searched callsigns. Therefore, {GUI_LABEL_NAME} will always respond to the callsign if it exactly matches a wanted callsign that is not LoTW."
+        lotw_notice_label = QtWidgets.QLabel(lotw_notice_text)
+        lotw_notice_label.setWordWrap(True)
+        lotw_notice_label.setFont(CUSTOM_FONT_SMALL)
+        lotw_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
+        lotw_notice_label.setStyleSheet(SETTING_QSS)
+        lotw_notice_label.setAutoFillBackground(True)
+
+        lotw_cache_info = QtWidgets.QLabel(lotw_cache_text)
+        lotw_cache_info.setWordWrap(True)
+        lotw_cache_info.setFont(CUSTOM_FONT_SMALL)
+        lotw_cache_info.setTextFormat(QtCore.Qt.TextFormat.RichText)
+        lotw_cache_info.setStyleSheet(SETTING_QSS + f"background-color: {ODD_COLOR};")
+        lotw_cache_info.setAutoFillBackground(True)
+        
+        lotw_settings_group = QtWidgets.QGroupBox("LoTW Settings")
+        
+        lotw_settings_widget = QtWidgets.QWidget()
+        lotw_settings_layout = QtWidgets.QGridLayout(lotw_settings_widget)
+        
+        self.enable_reply_to_lotw_only = QtWidgets.QCheckBox("Enable reply only for callsigns that use LoTW")
+        self.enable_reply_to_lotw_only.setChecked(False)
+        
+        lotw_settings_layout.addWidget(self.enable_reply_to_lotw_only, 0, 0, 1, 2)
+        
+        lotw_settings_group.setLayout(QtWidgets.QVBoxLayout())
+        lotw_settings_group.layout().setContentsMargins(0, 0, 0, 0)
+        lotw_settings_group.layout().addWidget(lotw_settings_widget)
+        
+        tab_4_layout.addWidget(lotw_notice_label)
+        tab_4_layout.addWidget(lotw_cache_info)        
+        tab_4_layout.addWidget(lotw_settings_group)
+        tab_4_layout.addStretch()
+        
+        """
             Sound Settings
         """
         sound_notice_text = (
@@ -535,9 +560,9 @@ class SettingsDialog(QtWidgets.QDialog):
         sound_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
         sound_settings_group.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
-        tab_4_layout.addWidget(sound_notice_label)
-        tab_4_layout.addWidget(sound_settings_group)
-        tab_4_layout.addStretch()  
+        tab_5_layout.addWidget(sound_notice_label)
+        tab_5_layout.addWidget(sound_settings_group)
+        tab_5_layout.addStretch()  
 
         """
             Worked B4 Settings
@@ -628,12 +653,12 @@ class SettingsDialog(QtWidgets.QDialog):
 
         self.marathon_group.setLayout(marathon_layout)
 
-        tab_5_layout.addWidget(worked_b4_notice_label)
-        tab_5_layout.addWidget(file_selection_group)
-        tab_5_layout.addWidget(self.adif_wkb4_group)
-        tab_5_layout.addWidget(marathon_notice_label)
-        tab_5_layout.addWidget(self.marathon_group)
-        tab_5_layout.addStretch()  
+        tab_6_layout.addWidget(worked_b4_notice_label)
+        tab_6_layout.addWidget(file_selection_group)
+        tab_6_layout.addWidget(self.adif_wkb4_group)
+        tab_6_layout.addWidget(marathon_notice_label)
+        tab_6_layout.addWidget(self.marathon_group)
+        tab_6_layout.addStretch()  
 
         """
             Backup Settings
@@ -678,9 +703,9 @@ class SettingsDialog(QtWidgets.QDialog):
         adif_backup_selection_group.layout().setContentsMargins(0, 0, 0, 0)
         adif_backup_selection_group.layout().addWidget(adif_backup_widget)
 
-        tab_6_layout.addWidget(working_log_notice_label)
-        tab_6_layout.addWidget(adif_backup_selection_group)
-        tab_6_layout.addStretch()  
+        tab_7_layout.addWidget(working_log_notice_label)
+        tab_7_layout.addWidget(adif_backup_selection_group)
+        tab_7_layout.addStretch()  
         
         """
             Debug Settings
@@ -715,9 +740,9 @@ class SettingsDialog(QtWidgets.QDialog):
 
         log_settings_group.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
-        tab_7_layout.addWidget(debug_notice_label)
-        tab_7_layout.addWidget(log_settings_group)
-        tab_7_layout.addStretch()  
+        tab_8_layout.addWidget(debug_notice_label)
+        tab_8_layout.addWidget(log_settings_group)
+        tab_8_layout.addStretch()  
 
         self.load_params()
 
@@ -855,6 +880,10 @@ class SettingsDialog(QtWidgets.QDialog):
             button.setChecked(True)        
 
     def on_tab_changed(self, index):
+        # Clear focus from any widget to prevent unwanted field focus
+        if self.focusWidget():
+            self.focusWidget().clearFocus()
+        
         if sys.platform == 'darwin':
             current_tab = self.tab_widget.widget(index)
             current_tab.adjustSize()  

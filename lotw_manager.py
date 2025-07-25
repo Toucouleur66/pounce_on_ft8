@@ -145,3 +145,28 @@ class LoTWManager:
         main_layout.addLayout(button_layout)
 
         dialog.exec()
+
+    @staticmethod
+    def get_cache_info():
+        """
+            Get LoTW cache information including last update date and entry count
+        """
+        cache_file = os.path.join(get_app_data_dir(), "lotw_cache.json")
+        
+        if not os.path.exists(cache_file):
+            return None, 0
+        
+        try:
+            mod_time = os.path.getmtime(cache_file)
+            last_update = datetime.fromtimestamp(mod_time).strftime('%Y-%m-%d')
+            
+            import json
+            with open(cache_file, 'r', encoding='utf-8') as f:
+                cache_data = json.load(f)
+                entry_count = len(cache_data)
+            
+            return last_update, entry_count
+            
+        except Exception as e:
+            print(f"Error reading LoTW cache: {e}")
+            return None, 0
