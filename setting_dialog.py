@@ -79,31 +79,34 @@ class SettingsDialog(QtWidgets.QDialog):
         layout.addWidget(self.tab_widget)
 
         tab_1 = QtWidgets.QWidget()
-        tab_2 = QtWidgets.QWidget()
-        tab_3 = QtWidgets.QWidget()        
-        tab_4 = QtWidgets.QWidget()
+        tab_3 = QtWidgets.QWidget()
+        tab_4 = QtWidgets.QWidget()        
         tab_5 = QtWidgets.QWidget()
-        tab_6 = QtWidgets.QWidget()
+        tab_2 = QtWidgets.QWidget()
         tab_7 = QtWidgets.QWidget()
+        tab_6 = QtWidgets.QWidget()
         tab_8 = QtWidgets.QWidget()
+        tab_9 = QtWidgets.QWidget()
 
         self.tab_widget.addTab(tab_1, "Server")
-        self.tab_widget.addTab(tab_2, "General")
-        self.tab_widget.addTab(tab_3, "Priority")        
-        self.tab_widget.addTab(tab_4, "Logbook of The World")
-        self.tab_widget.addTab(tab_5, "Sounds")
-        self.tab_widget.addTab(tab_6, "Log Analysis")
-        self.tab_widget.addTab(tab_7, "Backup")
-        self.tab_widget.addTab(tab_8, "Debugging")
+        self.tab_widget.addTab(tab_2, "Sound Alerts")        
+        self.tab_widget.addTab(tab_3, "General")
+        self.tab_widget.addTab(tab_4, "Priority")        
+        self.tab_widget.addTab(tab_5, "LoTW®")
+        self.tab_widget.addTab(tab_6, "Marathon")        
+        self.tab_widget.addTab(tab_7, "Log Analysis")
+        self.tab_widget.addTab(tab_8, "Log Backup")
+        # self.tab_widget.addTab(tab_9, "Debugging")
 
         tab_1_layout = QtWidgets.QVBoxLayout(tab_1)
-        tab_2_layout = QtWidgets.QVBoxLayout(tab_2)
-        tab_3_layout = QtWidgets.QVBoxLayout(tab_3)        
-        tab_4_layout = QtWidgets.QVBoxLayout(tab_4)
+        tab_3_layout = QtWidgets.QVBoxLayout(tab_3)
+        tab_4_layout = QtWidgets.QVBoxLayout(tab_4)        
         tab_5_layout = QtWidgets.QVBoxLayout(tab_5)
-        tab_6_layout = QtWidgets.QVBoxLayout(tab_6)
+        tab_2_layout = QtWidgets.QVBoxLayout(tab_2)
         tab_7_layout = QtWidgets.QVBoxLayout(tab_7)
+        tab_6_layout = QtWidgets.QVBoxLayout(tab_6)
         tab_8_layout = QtWidgets.QVBoxLayout(tab_8)
+        tab_9_layout = QtWidgets.QVBoxLayout(tab_9)
         
         """
             Server Settings
@@ -353,13 +356,13 @@ class SettingsDialog(QtWidgets.QDialog):
         
         minimum_report_group.setLayout(minimum_report_layout)
 
-        tab_2_layout.addWidget(general_notice_label)
-        tab_2_layout.addWidget(general_settings_group)
-        tab_2_layout.addWidget(minimum_report_notice)
-        tab_2_layout.addWidget(minimum_report_group)
-        tab_2_layout.addWidget(self.freq_range_type_group)
+        tab_3_layout.addWidget(general_notice_label)
+        tab_3_layout.addWidget(general_settings_group)
+        tab_3_layout.addWidget(minimum_report_notice)
+        tab_3_layout.addWidget(minimum_report_group)
+        tab_3_layout.addWidget(self.freq_range_type_group)
 
-        tab_2_layout.addStretch() 
+        tab_3_layout.addStretch() 
 
         """
             Priority Manager Group
@@ -463,10 +466,10 @@ class SettingsDialog(QtWidgets.QDialog):
         self.priority_manager_group.setLayout(priority_layout)
 
         # Move priority-related widgets to Priority tab
-        tab_3_layout.addWidget(max_reply_notice_label)
-        tab_3_layout.addWidget(self.max_reply_group)
-        tab_3_layout.addWidget(self.priority_manager_group)
-        tab_3_layout.addStretch()
+        tab_4_layout.addWidget(max_reply_notice_label)
+        tab_4_layout.addWidget(self.max_reply_group)
+        tab_4_layout.addWidget(self.priority_manager_group)
+        tab_4_layout.addStretch()
         
         """
             LoTW Settings
@@ -477,7 +480,7 @@ class SettingsDialog(QtWidgets.QDialog):
         else:
             lotw_cache_text = "No LoTW data available yet"
         
-        lotw_notice_text = f"LoTW (Logbook of The World®) is ARRL's online QSO confirmation system.</p><p>Enable this option to limit alerts and only respond to callsigns using LoTW if you use a wildcard in your searched callsigns. Therefore, {GUI_LABEL_NAME} will always respond to the callsign if it exactly matches a wanted callsign that is not LoTW."
+        lotw_notice_text = f"<p>LoTW (Logbook of The World®) is ARRL's online QSO confirmation system.</p><p>Enable this option to limit alerts and only respond to callsigns using LoTW if you use a wildcard in your searched callsigns. Therefore, {GUI_LABEL_NAME} will always respond to the callsign if it exactly matches a wanted callsign that is not LoTW.</p>"
         lotw_notice_label = QtWidgets.QLabel(lotw_notice_text)
         lotw_notice_label.setWordWrap(True)
         lotw_notice_label.setFont(CUSTOM_FONT_SMALL)
@@ -506,10 +509,10 @@ class SettingsDialog(QtWidgets.QDialog):
         lotw_settings_group.layout().setContentsMargins(0, 0, 0, 0)
         lotw_settings_group.layout().addWidget(lotw_settings_widget)
         
-        tab_4_layout.addWidget(lotw_notice_label)
-        tab_4_layout.addWidget(lotw_cache_info)        
-        tab_4_layout.addWidget(lotw_settings_group)
-        tab_4_layout.addStretch()
+        tab_5_layout.addWidget(lotw_notice_label)
+        tab_5_layout.addWidget(lotw_cache_info)        
+        tab_5_layout.addWidget(lotw_settings_group)
+        tab_5_layout.addStretch()
         
         """
             Sound Settings
@@ -560,9 +563,9 @@ class SettingsDialog(QtWidgets.QDialog):
         sound_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
         sound_settings_group.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
-        tab_5_layout.addWidget(sound_notice_label)
-        tab_5_layout.addWidget(sound_settings_group)
-        tab_5_layout.addStretch()  
+        tab_2_layout.addWidget(sound_notice_label)
+        tab_2_layout.addWidget(sound_settings_group)
+        tab_2_layout.addStretch()  
 
         """
             Worked B4 Settings
@@ -653,9 +656,14 @@ class SettingsDialog(QtWidgets.QDialog):
 
         self.marathon_group.setLayout(marathon_layout)
 
-        tab_6_layout.addWidget(worked_b4_notice_label)
-        tab_6_layout.addWidget(file_selection_group)
-        tab_6_layout.addWidget(self.adif_wkb4_group)
+        tab_7_layout.addWidget(worked_b4_notice_label)
+        tab_7_layout.addWidget(file_selection_group)
+        tab_7_layout.addWidget(self.adif_wkb4_group)
+        tab_7_layout.addStretch()
+        
+        """
+            Marathon Settings
+        """
         tab_6_layout.addWidget(marathon_notice_label)
         tab_6_layout.addWidget(self.marathon_group)
         tab_6_layout.addStretch()  
@@ -703,9 +711,9 @@ class SettingsDialog(QtWidgets.QDialog):
         adif_backup_selection_group.layout().setContentsMargins(0, 0, 0, 0)
         adif_backup_selection_group.layout().addWidget(adif_backup_widget)
 
-        tab_7_layout.addWidget(working_log_notice_label)
-        tab_7_layout.addWidget(adif_backup_selection_group)
-        tab_7_layout.addStretch()  
+        tab_8_layout.addWidget(working_log_notice_label)
+        tab_8_layout.addWidget(adif_backup_selection_group)
+        tab_8_layout.addStretch()  
         
         """
             Debug Settings
@@ -740,9 +748,9 @@ class SettingsDialog(QtWidgets.QDialog):
 
         log_settings_group.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
-        tab_8_layout.addWidget(debug_notice_label)
-        tab_8_layout.addWidget(log_settings_group)
-        tab_8_layout.addStretch()  
+        tab_9_layout.addWidget(debug_notice_label)
+        tab_9_layout.addWidget(log_settings_group)
+        tab_9_layout.addStretch()  
 
         self.load_params()
 

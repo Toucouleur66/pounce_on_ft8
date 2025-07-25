@@ -515,7 +515,7 @@ class MainApp(QtWidgets.QMainWindow):
         
         horizontal_layout.addWidget(horizontal_layout_spacer)
         
-        self.map_label = CustomQLabel("Map")
+        self.map_label = CustomQLabel("Grid Monitor")
         horizontal_layout.addWidget(self.map_label)
         horizontal_layout.addWidget(self.grid_monitor_toggle)
 
@@ -2494,9 +2494,6 @@ class MainApp(QtWidgets.QMainWindow):
         # Set flag to indicate app is shutting down
         self.app_shutting_down = True
         
-        # Cleanup monitoring threads
-        self.cleanup_monitoring()
-        
         # Close grid monitor without triggering toggle
         if self.grid_monitor:
             self.grid_monitor.close()
@@ -2514,9 +2511,6 @@ class MainApp(QtWidgets.QMainWindow):
         
         # Set flag to indicate app is shutting down
         self.app_shutting_down = True
-        
-        # Cleanup monitoring threads
-        self.cleanup_monitoring()
         
         # Close grid monitor without triggering toggle
         if self.grid_monitor:
