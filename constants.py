@@ -92,7 +92,7 @@ MODE_NORMAL                     = "Regular"
 MODE_FOX_HOUND                  = "Hound"
 MODE_SUPER_FOX                  = "SuperFox"
 
-MARATHON_UNLIMITED              = "Unlimited Class"
+MARATHON_UNLIMITED              = "Unlimited"
 
 WKB4_REPLY_MODE_ALWAYS          = 1
 WKB4_REPLY_MODE_CURRENT_YEAR    = 2
@@ -146,7 +146,7 @@ PRIORITY_LIST                   = {
 }
 
 SETTING_QSS                     = f"""
-                background-color: #9DFFFE; 
+                background-color: {EVEN_COLOR}; 
                 color: #555BC2;
                 padding: 6px;
                 margin-bottom: 10px;

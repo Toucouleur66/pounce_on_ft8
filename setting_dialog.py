@@ -75,43 +75,66 @@ class SettingsDialog(QtWidgets.QDialog):
 
         layout = QtWidgets.QVBoxLayout(self)
 
-        self.tab_widget = QtWidgets.QTabWidget()
-        layout.addWidget(self.tab_widget)
+        main_horizontal_layout = QtWidgets.QHBoxLayout()
+        layout.addLayout(main_horizontal_layout)
 
-        tab_1 = QtWidgets.QWidget()
-        tab_3 = QtWidgets.QWidget()
-        tab_4 = QtWidgets.QWidget()        
-        tab_5 = QtWidgets.QWidget()
-        tab_2 = QtWidgets.QWidget()
-        tab_7 = QtWidgets.QWidget()
-        tab_6 = QtWidgets.QWidget()
-        tab_8 = QtWidgets.QWidget()
-        tab_9 = QtWidgets.QWidget()
-
-        self.tab_widget.addTab(tab_1, "Server")
-        self.tab_widget.addTab(tab_2, "Sound Alerts")        
-        self.tab_widget.addTab(tab_3, "General")
-        self.tab_widget.addTab(tab_4, "Priority")        
-        self.tab_widget.addTab(tab_5, "LoTW®")
-        self.tab_widget.addTab(tab_6, "Marathon")        
-        self.tab_widget.addTab(tab_7, "Log Analysis")
-        self.tab_widget.addTab(tab_8, "Log Backup")
-        # self.tab_widget.addTab(tab_9, "Debugging")
-
-        tab_1_layout = QtWidgets.QVBoxLayout(tab_1)
-        tab_3_layout = QtWidgets.QVBoxLayout(tab_3)
-        tab_4_layout = QtWidgets.QVBoxLayout(tab_4)        
-        tab_5_layout = QtWidgets.QVBoxLayout(tab_5)
-        tab_2_layout = QtWidgets.QVBoxLayout(tab_2)
-        tab_7_layout = QtWidgets.QVBoxLayout(tab_7)
-        tab_6_layout = QtWidgets.QVBoxLayout(tab_6)
-        tab_8_layout = QtWidgets.QVBoxLayout(tab_8)
-        tab_9_layout = QtWidgets.QVBoxLayout(tab_9)
+        self.menu_list = QtWidgets.QListWidget()
+        self.menu_list.setFixedWidth(180)
+        self.menu_list.setAlternatingRowColors(True)
+        self.menu_list.addItem("Server")
+        self.menu_list.addItem("General Settings")
+        self.menu_list.addItem("Sound Alerts")        
+        self.menu_list.addItem("Priority Manager")
+        self.menu_list.addItem("Logbook of The World®")
+        self.menu_list.addItem("DX Marathon")
+        self.menu_list.addItem("Logbook Analysis")
+        self.menu_list.addItem("Logbook Backup")
+        self.menu_list.addItem("Debugging")
+        
+        self.stacked_widget = QtWidgets.QStackedWidget()
+        
+        main_horizontal_layout.addWidget(self.menu_list)
+        main_horizontal_layout.addWidget(self.stacked_widget)
+        
+        server_page       = QtWidgets.QWidget()
+        general_page      = QtWidgets.QWidget()
+        sound_page        = QtWidgets.QWidget()        
+        priority_page     = QtWidgets.QWidget()
+        lotw_page         = QtWidgets.QWidget()
+        marathon_page     = QtWidgets.QWidget()
+        log_analysis_page = QtWidgets.QWidget()
+        backup_page       = QtWidgets.QWidget()
+        debugging_page    = QtWidgets.QWidget()
+        
+        self.stacked_widget.addWidget(server_page)
+        self.stacked_widget.addWidget(general_page)
+        self.stacked_widget.addWidget(sound_page)        
+        self.stacked_widget.addWidget(priority_page)
+        self.stacked_widget.addWidget(lotw_page)
+        self.stacked_widget.addWidget(marathon_page)
+        self.stacked_widget.addWidget(log_analysis_page)
+        self.stacked_widget.addWidget(backup_page)
+        self.stacked_widget.addWidget(debugging_page)
+        
+        server_layout        = QtWidgets.QVBoxLayout(server_page)
+        general_layout       = QtWidgets.QVBoxLayout(general_page)
+        sound_layout         = QtWidgets.QVBoxLayout(sound_page)        
+        priority_layout      = QtWidgets.QVBoxLayout(priority_page)
+        lotw_layout          = QtWidgets.QVBoxLayout(lotw_page)
+        marathon_layout_main = QtWidgets.QVBoxLayout(marathon_page)
+        log_analysis_layout  = QtWidgets.QVBoxLayout(log_analysis_page)
+        backup_layout        = QtWidgets.QVBoxLayout(backup_page)
+        debugging_layout     = QtWidgets.QVBoxLayout(debugging_page)
+        
+        self.menu_list.currentRowChanged.connect(self.stacked_widget.setCurrentIndex)
+        self.menu_list.setCurrentRow(0)  # Select first item by default
+        
+        self.setMinimumWidth(700)
+        self.resize(700, 600)
         
         """
             Server Settings
         """
-
         jtdx_notice_text = (
             "<p>For JTDX users, you have to disable automatic logging of QSO (Make sure <u>Settings > Reporting > Logging > Enable automatic logging of QSO</u> is unchecked).</p><p>You might also need to accept UDP Reply messages from any messages (<u>Misc Menu > Accept UDP Reply Messages > any messages</u>).</p>"
         )
@@ -179,11 +202,11 @@ class SettingsDialog(QtWidgets.QDialog):
 
         logging_group.setLayout(logging_layout)
 
-        tab_1_layout.addWidget(jtdx_notice_label)
-        tab_1_layout.addWidget(primary_group)
-        tab_1_layout.addWidget(secondary_group)
-        tab_1_layout.addWidget(logging_group)
-        tab_1_layout.addStretch() 
+        server_layout.addWidget(jtdx_notice_label)
+        server_layout.addWidget(primary_group)
+        server_layout.addWidget(secondary_group)
+        server_layout.addWidget(logging_group)
+        server_layout.addStretch() 
 
         """
             Main Settings
@@ -356,19 +379,19 @@ class SettingsDialog(QtWidgets.QDialog):
         
         minimum_report_group.setLayout(minimum_report_layout)
 
-        tab_3_layout.addWidget(general_notice_label)
-        tab_3_layout.addWidget(general_settings_group)
-        tab_3_layout.addWidget(minimum_report_notice)
-        tab_3_layout.addWidget(minimum_report_group)
-        tab_3_layout.addWidget(self.freq_range_type_group)
+        general_layout.addWidget(general_notice_label)
+        general_layout.addWidget(general_settings_group)
+        general_layout.addWidget(minimum_report_notice)
+        general_layout.addWidget(minimum_report_group)
+        general_layout.addWidget(self.freq_range_type_group)
 
-        tab_3_layout.addStretch() 
+        general_layout.addStretch() 
 
         """
             Priority Manager Group
         """
         self.priority_manager_group = QtWidgets.QGroupBox("Priority Manager")
-        priority_layout = QtWidgets.QVBoxLayout()
+        priority_group_layout = QtWidgets.QVBoxLayout()
         
         priority_notice_text = (
             "<p>Set the priority order for reply decisions when decoding several potential callsigns for a same period.</p><p>Drag and drop blocks to reorder them. The first row has the highest priority, and the last row refers to the lowest priority.</p>"
@@ -393,8 +416,8 @@ class SettingsDialog(QtWidgets.QDialog):
 
         max_reply_layout = QtWidgets.QVBoxLayout()
 
-        max_reply_label = QtWidgets.QLabel("Maximum number of attempts for a Wanted Callsign")
-        max_reply_label.setFixedWidth(400)
+        max_reply_label = QtWidgets.QLabel("Maximum number of attempts")
+        max_reply_label.setFixedWidth(200)
 
         self.max_reply_attemps_combo = QtWidgets.QComboBox()
         self.max_reply_attemps_combo.setEditable(False)  
@@ -411,7 +434,7 @@ class SettingsDialog(QtWidgets.QDialog):
         max_reply_layout.addLayout(reply_attempts_layout)
 
         max_waiting_delay_label = QtWidgets.QLabel("Maximum waiting delay")
-        max_waiting_delay_label.setFixedWidth(400)
+        max_waiting_delay_label.setFixedWidth(200)
         
         self.max_waiting_delay_combo = QtWidgets.QComboBox()
         self.max_waiting_delay_combo.setEditable(False)  
@@ -461,15 +484,15 @@ class SettingsDialog(QtWidgets.QDialog):
         
         self.priority_table.rowsMoved.connect(self.update_priority_labels)
         
-        priority_layout.addWidget(priority_notice_label)
-        priority_layout.addWidget(self.priority_table)
-        self.priority_manager_group.setLayout(priority_layout)
+        priority_group_layout.addWidget(priority_notice_label)
+        priority_group_layout.addWidget(self.priority_table)
+        self.priority_manager_group.setLayout(priority_group_layout)
 
-        # Move priority-related widgets to Priority tab
-        tab_4_layout.addWidget(max_reply_notice_label)
-        tab_4_layout.addWidget(self.max_reply_group)
-        tab_4_layout.addWidget(self.priority_manager_group)
-        tab_4_layout.addStretch()
+        # Move priority-related widgets to Priority page
+        priority_layout.addWidget(max_reply_notice_label)
+        priority_layout.addWidget(self.max_reply_group)
+        priority_layout.addWidget(self.priority_manager_group)
+        priority_layout.addStretch()
         
         """
             LoTW Settings
@@ -509,10 +532,10 @@ class SettingsDialog(QtWidgets.QDialog):
         lotw_settings_group.layout().setContentsMargins(0, 0, 0, 0)
         lotw_settings_group.layout().addWidget(lotw_settings_widget)
         
-        tab_5_layout.addWidget(lotw_notice_label)
-        tab_5_layout.addWidget(lotw_cache_info)        
-        tab_5_layout.addWidget(lotw_settings_group)
-        tab_5_layout.addStretch()
+        lotw_layout.addWidget(lotw_notice_label)
+        lotw_layout.addWidget(lotw_cache_info)        
+        lotw_layout.addWidget(lotw_settings_group)
+        lotw_layout.addStretch()
         
         """
             Sound Settings
@@ -528,7 +551,7 @@ class SettingsDialog(QtWidgets.QDialog):
         sound_notice_label.setStyleSheet(SETTING_QSS)
         sound_notice_label.setAutoFillBackground(True)
 
-        sound_settings_group = QtWidgets.QGroupBox("Sound Alerts Settings")
+        sound_settings_group = QtWidgets.QGroupBox("Sound Alert Settings")
         sound_settings_layout = QtWidgets.QGridLayout()
 
         play_sound_notice_label = QtWidgets.QLabel("Play Sounds when:")
@@ -563,9 +586,9 @@ class SettingsDialog(QtWidgets.QDialog):
         sound_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
         sound_settings_group.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
-        tab_2_layout.addWidget(sound_notice_label)
-        tab_2_layout.addWidget(sound_settings_group)
-        tab_2_layout.addStretch()  
+        sound_layout.addWidget(sound_notice_label)
+        sound_layout.addWidget(sound_settings_group)
+        sound_layout.addStretch()  
 
         """
             Worked B4 Settings
@@ -656,17 +679,17 @@ class SettingsDialog(QtWidgets.QDialog):
 
         self.marathon_group.setLayout(marathon_layout)
 
-        tab_7_layout.addWidget(worked_b4_notice_label)
-        tab_7_layout.addWidget(file_selection_group)
-        tab_7_layout.addWidget(self.adif_wkb4_group)
-        tab_7_layout.addStretch()
+        log_analysis_layout.addWidget(worked_b4_notice_label)
+        log_analysis_layout.addWidget(file_selection_group)
+        log_analysis_layout.addWidget(self.adif_wkb4_group)
+        log_analysis_layout.addStretch()
         
         """
             Marathon Settings
         """
-        tab_6_layout.addWidget(marathon_notice_label)
-        tab_6_layout.addWidget(self.marathon_group)
-        tab_6_layout.addStretch()  
+        marathon_layout_main.addWidget(marathon_notice_label)
+        marathon_layout_main.addWidget(self.marathon_group)
+        marathon_layout_main.addStretch()  
 
         """
             Backup Settings
@@ -711,9 +734,9 @@ class SettingsDialog(QtWidgets.QDialog):
         adif_backup_selection_group.layout().setContentsMargins(0, 0, 0, 0)
         adif_backup_selection_group.layout().addWidget(adif_backup_widget)
 
-        tab_8_layout.addWidget(working_log_notice_label)
-        tab_8_layout.addWidget(adif_backup_selection_group)
-        tab_8_layout.addStretch()  
+        backup_layout.addWidget(working_log_notice_label)
+        backup_layout.addWidget(adif_backup_selection_group)
+        backup_layout.addStretch()  
         
         """
             Debug Settings
@@ -748,9 +771,10 @@ class SettingsDialog(QtWidgets.QDialog):
 
         log_settings_group.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
-        tab_9_layout.addWidget(debug_notice_label)
-        tab_9_layout.addWidget(log_settings_group)
-        tab_9_layout.addStretch()  
+        # Add debug settings to debugging page
+        debugging_layout.addWidget(debug_notice_label)
+        debugging_layout.addWidget(log_settings_group)
+        debugging_layout.addStretch()  
 
         self.load_params()
 
@@ -766,8 +790,8 @@ class SettingsDialog(QtWidgets.QDialog):
         self.ok_button.clicked.connect(self.accept)
         self.cancel_button.clicked.connect(self.reject)
 
-        self.on_tab_changed(self.tab_widget.currentIndex())  
-        self.tab_widget.currentChanged.connect(self.on_tab_changed)        
+        self.on_page_changed(0)  
+        self.menu_list.currentRowChanged.connect(self.on_page_changed)        
 
     def get_ordinal(self, number):
         if number == 0:
@@ -887,20 +911,18 @@ class SettingsDialog(QtWidgets.QDialog):
         if isinstance(button, QtWidgets.QRadioButton):
             button.setChecked(True)        
 
-    def on_tab_changed(self, index):
+    def on_page_changed(self, index):
         # Clear focus from any widget to prevent unwanted field focus
         if self.focusWidget():
             self.focusWidget().clearFocus()
         
         if sys.platform == 'darwin':
-            current_tab = self.tab_widget.widget(index)
-            current_tab.adjustSize()  
+            current_page = self.stacked_widget.widget(index)
 
-            tab_size            = current_tab.sizeHint()
-            tab_bar_height      = self.tab_widget.tabBar().sizeHint().height()
+            page_size           = current_page.sizeHint()
             button_box_height   = self.button_box.sizeHint().height()
             margins             = self.layout().contentsMargins()
-            total_height        = tab_size.height() + tab_bar_height + button_box_height + margins.top() + margins.bottom()
+            total_height        = page_size.height() + button_box_height + margins.top() + margins.bottom()
 
             self.setFixedHeight(total_height)
 
