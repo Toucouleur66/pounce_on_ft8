@@ -847,7 +847,10 @@ class SettingsDialog(QtWidgets.QDialog):
             return f"{number+1}th"
     
     def update_priority_labels(self):
+        row_height = 30
         for i in range(self.priority_table.rowCount()):
+            self.priority_table.setRowHeight(i, row_height)
+            
             priority_item = QTableWidgetItem(self.get_ordinal(i))
             priority_item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
             priority_item.setFlags(priority_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
@@ -955,7 +958,7 @@ class SettingsDialog(QtWidgets.QDialog):
             button.resetStyle()
 
         self.marathon_preference[band_name] = checked
-        
+
         self.populate_priority_list()
 
     def on_grid_tracker_band_toggled(self, button, band_name, checked):
