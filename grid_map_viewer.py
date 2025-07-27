@@ -1371,7 +1371,7 @@ class GridMapWidget(QWidget):
             log.error(f"Error to handle grids: {e}")
             self.update()
         finally:
-            # log.debug(f"GridMapWidget: {len(grids)} updated grids")
+            log.debug(f"GridMapWidget: {len(grids)} updated grids")
             
             # Update status bar when grids change
             window = self.parent()

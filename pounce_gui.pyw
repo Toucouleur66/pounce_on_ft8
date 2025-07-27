@@ -1209,10 +1209,9 @@ class MainApp(QtWidgets.QMainWindow):
         if checked:
             if self.grid_monitor is None:
                 self.grid_monitor = GridMapWindow()
+                self.grid_monitor.map_widget.set_parent_app(self)
+                self.grid_monitor.map_widget.grid_clicked.connect(self.scroll_to_message_uid)
                 
-            self.grid_monitor.map_widget.set_parent_app(self)
-            self.grid_monitor.map_widget.grid_clicked.connect(self.scroll_to_message_uid)
-            
             if self.operating_band:
                 self.grid_monitor.map_widget.update_current_band(self.operating_band)
                 self.update_grid_monitor_with_grids(self.latest_messages)
@@ -2783,7 +2782,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_table.scrollTo(proxy_index, QtWidgets.QAbstractItemView.ScrollHint.PositionAtBottom)        
         self.output_table.setCurrentIndex(proxy_index)
         
-        # Bring grid map viewer back to front if it exists and is visible
         if self.grid_monitor and self.grid_monitor.isVisible():
             self.grid_monitor.show()
             self.grid_monitor.raise_()

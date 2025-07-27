@@ -497,7 +497,7 @@ class HaltTxPacket(GenericWSJTXPacket):
     def Builder(cls,to_wsjtx_id='WSJT-X', auto_tx_only=False):
         # build the packet to send
         pkt = PacketWriter()
-        print('To_wsjtx_id ',to_wsjtx_id,' auto_tx_only ',auto_tx_only)
+        # print('To_wsjtx_id ',to_wsjtx_id,' auto_tx_only ',auto_tx_only)
         pkt.write_QInt32(FreeTextPacket.TYPE_VALUE)
         pkt.write_QString(to_wsjtx_id)
         pkt.write_QInt8(auto_tx_only)

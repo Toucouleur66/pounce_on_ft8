@@ -72,6 +72,9 @@ class SettingsDialog(QtWidgets.QDialog):
         self.setWindowTitle("Settings")
 
         self.params = params or {}
+        
+        self.marathon_preference     = self.params.get('marathon_preference', {})
+        self.grid_tracker_preference = self.params.get('grid_tracker_preference', {})
 
         layout = QtWidgets.QVBoxLayout(self)
 
@@ -877,7 +880,14 @@ class SettingsDialog(QtWidgets.QDialog):
         
         available_items = []
         if self.enable_sending_reply.isChecked():
-            available_items.extend(list(PRIORITY_LIST.keys()))
+            for display_name, key in PRIORITY_LIST.items():
+                if key == "marathon":
+                    if not self.marathon_preference or not any(self.marathon_preference.values()):
+                        continue
+                elif key == "wanted_grid":
+                    if not self.grid_tracker_preference or not any(self.grid_tracker_preference.values()):
+                        continue
+                available_items.append(display_name)
             if not self.enable_polite_reply.isChecked():
                  if available_items: 
                     available_items.pop()
@@ -895,7 +905,6 @@ class SettingsDialog(QtWidgets.QDialog):
         for i, item_name in enumerate(final_order):
             self.priority_table.setRowHeight(i, row_height)
             
-            # Priority column
             priority_item = QTableWidgetItem(self.get_ordinal(i))
             priority_item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
             priority_item.setFlags(priority_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
@@ -928,25 +937,36 @@ class SettingsDialog(QtWidgets.QDialog):
                 for name, btn in self.band_buttons.items():
                     if name != MARATHON_UNLIMITED:
                         btn.setChecked(False)
+                        self.marathon_preference[name] = False
             else:
                 for name, btn in self.band_buttons.items():
                     if name != MARATHON_UNLIMITED and name in self._previous_band_states:
                         btn.setChecked(self._previous_band_states[name])
+                        self.marathon_preference[name] = self._previous_band_states[name]
         else:
             if checked:
                 self.band_buttons[MARATHON_UNLIMITED].setChecked(False)
                 self.band_buttons[MARATHON_UNLIMITED].setEnabled(True)
+                self.marathon_preference[MARATHON_UNLIMITED] = False
 
         if checked:
             button.updateStyle(band_name, STATUS_TRX_COLOR, "#FFFFFF")
         else:
             button.resetStyle()
+
+        self.marathon_preference[band_name] = checked
+        
+        self.populate_priority_list()
 
     def on_grid_tracker_band_toggled(self, button, band_name, checked):
         if checked:
             button.updateStyle(band_name, STATUS_TRX_COLOR, "#FFFFFF")
         else:
             button.resetStyle()
+
+        self.grid_tracker_preference[band_name] = checked 
+
+        self.populate_priority_list()            
 
     def on_table_row_selected(self, row, column):
         button = self.mode_table_widget.cellWidget(row, 0)
