@@ -2175,7 +2175,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_table.scrollToBottom()
         self.last_focus_value_message_uid = None
 
-    def set_message_to_focus_value_label(self, message):   
+    def set_message_to_focus_value_label(self, message):  
         contains_my_call = message.get('directed') == message.get('my_call') and message.get('directed') is not None
         contains_alert   = message.get('type') == 'gui_alert'
         
@@ -2200,11 +2200,15 @@ class MainApp(QtWidgets.QMainWindow):
 
         formatted_message = message.get('formatted_message').strip()
         focus_type        = message.get('focus_type', None)
-        if focus_type == 'grid_wanted':
-            formatted_message+= " ** Grid"
-        elif focus_type == 'marathon_wanted':
-            formatted_message+= " ** Marathon"  
-        
+        if focus_type:
+            if focus_type == 'grid_wanted':
+                focus_message = "Grid"
+            elif focus_type == 'marathon_wanted':
+                focus_message = "Marathon"  
+            elif focus_type == 'wanted_wildcard':
+                focus_message = "Wildcard"                  
+            formatted_message+= f" / {focus_message.upper()}"
+            
         self.focus_value_label.setText(formatted_message)
 
         self.update_status_menu_message(message.get('message', ''), bg_color_hex, fg_color_hex)

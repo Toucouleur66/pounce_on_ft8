@@ -1009,7 +1009,7 @@ class Listener(QObject):
                 if (
                     self.enable_marathon 
                     and self.adif_data.get('entity')
-                    and not callsign_wkb4 
+                    and not entity_wkb4
                     and not excluded 
                     and entity_code 
                     and not (wanted and wanted_cq_zone)                    
@@ -1035,12 +1035,10 @@ class Listener(QObject):
                             self.wanted_callsigns_per_entity[self.band][entity_code].append(callsign)
                             # save_marathon_wanted_data(MARATHON_FILE, self.wanted_callsigns_per_entity)
 
-                            # log.info(f"Entity Code Wanted={entity_code} ({self.band}/{current_year})\n\tAdding Wanted Callsign={callsign}\n\tWorked ({self.band}/{current_year}):{self.adif_data.get('entity', {}).get(current_year, {}).get(self.band, {})}")
-                            
-                    if marathon:
+                    if marathon:                        
                         reply_to_packet = True
-                        focus_type      = 'marathon_wanted'
-
+                        focus_type      = 'marathon_wanted'                        
+                
                 """
                     Check if grid is needed
                 """
@@ -1276,6 +1274,12 @@ class Listener(QObject):
                 """
                     Send messages to GUI                    
                 """
+                if wanted and not exactly_matched:
+                    focus_type = 'wanted_wildcard'
+
+                if reply_to_packet and message_type is None:
+                    message_type = 'wanted_callsign_decoded'
+
                 if wanted and callsign not in self.wanted_callsigns:
                     self.message_callback({    
                         'type'          : 'update_wanted_callsign',
