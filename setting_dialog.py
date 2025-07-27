@@ -84,10 +84,10 @@ class SettingsDialog(QtWidgets.QDialog):
         self.menu_list.addItem("Server")
         self.menu_list.addItem("General Settings")
         self.menu_list.addItem("Sound Alerts")        
-        self.menu_list.addItem("Priority Manager")
         self.menu_list.addItem("Logbook of The World®")
         self.menu_list.addItem("DX Marathon")
         self.menu_list.addItem("Grid Tracker")
+        self.menu_list.addItem("Priority Manager")        
         self.menu_list.addItem("Logbook Analysis")
         self.menu_list.addItem("Logbook Backup")
         self.menu_list.addItem("Debugging")
@@ -100,10 +100,10 @@ class SettingsDialog(QtWidgets.QDialog):
         server_page       = QtWidgets.QWidget()
         general_page      = QtWidgets.QWidget()
         sound_page        = QtWidgets.QWidget()        
-        priority_page     = QtWidgets.QWidget()
         lotw_page         = QtWidgets.QWidget()
         marathon_page     = QtWidgets.QWidget()
         grid_tracker_page = QtWidgets.QWidget()
+        priority_page     = QtWidgets.QWidget()        
         log_analysis_page = QtWidgets.QWidget()
         backup_page       = QtWidgets.QWidget()
         debugging_page    = QtWidgets.QWidget()
@@ -111,10 +111,10 @@ class SettingsDialog(QtWidgets.QDialog):
         self.stacked_widget.addWidget(server_page)
         self.stacked_widget.addWidget(general_page)
         self.stacked_widget.addWidget(sound_page)        
-        self.stacked_widget.addWidget(priority_page)
         self.stacked_widget.addWidget(lotw_page)
         self.stacked_widget.addWidget(marathon_page)
         self.stacked_widget.addWidget(grid_tracker_page)
+        self.stacked_widget.addWidget(priority_page)        
         self.stacked_widget.addWidget(log_analysis_page)
         self.stacked_widget.addWidget(backup_page)
         self.stacked_widget.addWidget(debugging_page)
@@ -124,8 +124,8 @@ class SettingsDialog(QtWidgets.QDialog):
         sound_layout         = QtWidgets.QVBoxLayout(sound_page)        
         priority_layout      = QtWidgets.QVBoxLayout(priority_page)
         lotw_layout          = QtWidgets.QVBoxLayout(lotw_page)
-        marathon_layout_main = QtWidgets.QVBoxLayout(marathon_page)
-        grid_tracker_layout_main = QtWidgets.QVBoxLayout(grid_tracker_page)
+        marathon_layout      = QtWidgets.QVBoxLayout(marathon_page)
+        grid_tracker_layout  = QtWidgets.QVBoxLayout(grid_tracker_page)
         log_analysis_layout  = QtWidgets.QVBoxLayout(log_analysis_page)
         backup_layout        = QtWidgets.QVBoxLayout(backup_page)
         debugging_layout     = QtWidgets.QVBoxLayout(debugging_page)
@@ -469,7 +469,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.priority_table.setColumnCount(2)
         self.priority_table.setShowGrid(False)
         self.priority_table.setHorizontalHeaderLabels(["Priority", "Reply to"])
-        self.priority_table.setMaximumHeight(120)
+        self.priority_table.setMaximumHeight(190)
         self.priority_table.setAlternatingRowColors(True)
         self.priority_table.verticalHeader().setVisible(False)
         self.priority_table.horizontalHeader().setStretchLastSection(True)
@@ -656,7 +656,7 @@ class SettingsDialog(QtWidgets.QDialog):
         marathon_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
         self.marathon_group = QtWidgets.QGroupBox("Enable Marathon for selected bands")
-        marathon_layout = QtWidgets.QGridLayout()
+        marathon_select_layout = QtWidgets.QGridLayout()
 
         self.band_buttons = {}
         max_cols = 4
@@ -668,7 +668,7 @@ class SettingsDialog(QtWidgets.QDialog):
             btn.setCheckable(True)         
             btn.toggled.connect(lambda checked, btn=btn, name=amateur_band: self.on_band_toggled(btn, name, checked))
             self.band_buttons[amateur_band] = btn
-            marathon_layout.addWidget(btn, row, col)
+            marathon_select_layout.addWidget(btn, row, col)
             
             col += 1
             if col >= max_cols:
@@ -679,9 +679,9 @@ class SettingsDialog(QtWidgets.QDialog):
         btn.setCheckable(True)         
         btn.toggled.connect(lambda checked, btn=btn, name=MARATHON_UNLIMITED: self.on_band_toggled(btn, MARATHON_UNLIMITED, checked))
         self.band_buttons[MARATHON_UNLIMITED] = btn
-        marathon_layout.addWidget(btn, row, col)        
+        marathon_select_layout.addWidget(btn, row, col)        
 
-        self.marathon_group.setLayout(marathon_layout)
+        self.marathon_group.setLayout(marathon_select_layout)
 
         log_analysis_layout.addWidget(worked_b4_notice_label)
         log_analysis_layout.addWidget(file_selection_group)
@@ -691,9 +691,9 @@ class SettingsDialog(QtWidgets.QDialog):
         """
             Marathon Settings
         """
-        marathon_layout_main.addWidget(marathon_notice_label)
-        marathon_layout_main.addWidget(self.marathon_group)
-        marathon_layout_main.addStretch()  
+        marathon_layout.addWidget(marathon_notice_label)
+        marathon_layout.addWidget(self.marathon_group)
+        marathon_layout.addStretch()  
 
         """
             Grid Tracker Settings
@@ -708,7 +708,7 @@ class SettingsDialog(QtWidgets.QDialog):
         grid_tracker_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
         self.grid_tracker_group = QtWidgets.QGroupBox("Enable Grid Tracker for selected bands")
-        grid_tracker_layout = QtWidgets.QGridLayout()
+        grid_tracker_select_layout = QtWidgets.QGridLayout()
 
         self.grid_tracker_band_buttons = {}
         max_cols = 4
@@ -720,18 +720,17 @@ class SettingsDialog(QtWidgets.QDialog):
             btn.setCheckable(True)         
             btn.toggled.connect(lambda checked, btn=btn, name=amateur_band: self.on_grid_tracker_band_toggled(btn, name, checked))
             self.grid_tracker_band_buttons[amateur_band] = btn
-            grid_tracker_layout.addWidget(btn, row, col)
+            grid_tracker_select_layout.addWidget(btn, row, col)
             
             col += 1
             if col >= max_cols:
                 col = 0
                 row += 1
 
-        self.grid_tracker_group.setLayout(grid_tracker_layout)
-
-        grid_tracker_layout_main.addWidget(grid_tracker_notice_label)
-        grid_tracker_layout_main.addWidget(self.grid_tracker_group)
-        grid_tracker_layout_main.addStretch()
+        self.grid_tracker_group.setLayout(grid_tracker_select_layout)
+        grid_tracker_layout.addWidget(grid_tracker_notice_label)
+        grid_tracker_layout.addWidget(self.grid_tracker_group)
+        grid_tracker_layout.addStretch()
 
         """
             Backup Settings
@@ -876,7 +875,6 @@ class SettingsDialog(QtWidgets.QDialog):
                 except KeyError:
                     pass
         
-        # Get available items based on checkboxes
         available_items = []
         if self.enable_sending_reply.isChecked():
             available_items.extend(list(PRIORITY_LIST.keys()))
@@ -884,7 +882,6 @@ class SettingsDialog(QtWidgets.QDialog):
                  if available_items: 
                     available_items.pop()
         
-        # Build final order: current order first, then new items
         final_order = []
         for item in current_order:
             if item in available_items:
@@ -894,8 +891,7 @@ class SettingsDialog(QtWidgets.QDialog):
         
         self.priority_table.setRowCount(len(final_order))
         
-        # Set row height to match frequency table
-        row_height = 22
+        row_height = 30
         for i, item_name in enumerate(final_order):
             self.priority_table.setRowHeight(i, row_height)
             

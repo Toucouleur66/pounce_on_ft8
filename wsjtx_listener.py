@@ -87,8 +87,8 @@ class Listener(QObject):
             adif_worked_backup_file_path,
             worked_before_preference,
             minimum_report_for_reply,
-            priority_order=None,
-            message_callback=None
+            priority_order,
+            message_callback
         ):
         super().__init__()
 
@@ -153,7 +153,7 @@ class Listener(QObject):
         self.enable_marathon                    = enable_marathon
 
         # Convert display names to property keys if needed
-        if priority_order:
+        if priority_order is not None:
             self.priority_order = [PRIORITY_LIST.get(name, name) for name in priority_order]
         else:
             self.priority_order = list(PRIORITY_LIST.values())
@@ -271,7 +271,7 @@ class Listener(QObject):
                 pass
             raise
 
-        if self.message_callback and server_message_error:
+        if server_message_error:
             self.message_callback({
                 'type'              : 'gui_alert',
                 'formatted_message' : server_message_error
@@ -314,12 +314,11 @@ class Listener(QObject):
                     log.debug(f'Set instance [ {_instance} ] with [ {type(pywsjtx.WSJTXPacketClassFactory.from_udp_packet(self.origin_addr_port, pkt)).__name__} ] from {self.origin_addr_port}')
 
                     self._instance = _instance                 
-                    if self.message_callback:
-                        self.message_callback({
-                            'type'      : 'instance_status',
-                            'status'    : self._instance,
-                            'addr_port' : addr_port
-                        })
+                    self.message_callback({
+                        'type'      : 'instance_status',
+                        'status'    : self._instance,
+                        'addr_port' : addr_port
+                    })
 
                 if self.enable_log_packet_data:
                     message = f"Received packet of length {len(pkt)} from {addr_port}\nPacket data: {pkt.hex()}"
@@ -332,8 +331,7 @@ class Listener(QObject):
                     return None, None
                 error_message = f"Exception in receive_packets: {e}\n{traceback.format_exc()}"
                 log.info(error_message)
-                if self.message_callback:
-                    self.message_callback(error_message)
+                self.message_callback(error_message)
                 return None, None
         try:
             self.s.sock.close()
@@ -356,8 +354,7 @@ class Listener(QObject):
             except Exception as e:
                 error_message = f"Exception in process_packets: {e}\n{traceback.format_exc()}"
                 log.info(error_message)
-                if self.message_callback:
-                    self.message_callback(error_message)
+                self.message_callback(error_message)
             finally:
                 self.packet_queue.task_done()
         log.info("Processor thread stopped")
@@ -383,8 +380,7 @@ class Listener(QObject):
         except Exception as e:
             error_message = f"Can't forward packet: {e}"
             log.info(error_message)
-            if self.message_callback:
-                self.message_callback(error_message)    
+            self.message_callback(error_message)    
 
     def update_listener_settings(self):
         self.wanted_callsigns       = self.monitoring_settings.get_wanted_callsigns()
@@ -494,11 +490,10 @@ class Listener(QObject):
 
             if self._instance == MASTER:
                 settings_packet = self.add_packet_header() + settings_packet
-                if self.message_callback:
-                    self.message_callback({
-                        'type'      : 'instance_synched',
-                        'addr_port' : addr_port
-                    })
+                self.message_callback({
+                    'type'      : 'instance_synched',
+                    'addr_port' : addr_port
+                })
 
             self.s.send_packet(
                 addr_port,
@@ -570,11 +565,10 @@ class Listener(QObject):
             # Updating mode
             if self.last_mode != self.mode:
                 self.last_mode = self.mode
-                if self.message_callback:
-                    self.message_callback({
-                        'type'      : 'update_mode',
-                        'mode'      : self.mode
-                    })
+                self.message_callback({
+                    'type'      : 'update_mode',
+                    'mode'      : self.mode
+                })
 
             # Updating frequency
             if self.last_frequency != self.frequency:
@@ -586,15 +580,14 @@ class Listener(QObject):
                     self.reset_targeted_call()
                     self.synched_settings = None
 
-                    if self.adif_data.get('grid'):
+                    if self.enable_grid_tracker and self.adif_data.get('grid'):
                         self.worked_grids[self.band] = list(self.adif_data.get('grid', {}).get(self.band, {}).keys())
                         # log.info(f"Grids for {self.band} band: {self.worked_grids[self.band]}")
 
-                if self.message_callback:
-                    self.message_callback({
-                        'type'      : 'update_frequency',
-                        'frequency' : self.frequency
-                    })       
+                self.message_callback({
+                    'type'      : 'update_frequency',
+                    'frequency' : self.frequency
+                })       
 
             """
                 If we are running Listerner as a slave instance we have to request settings
@@ -656,7 +649,7 @@ class Listener(QObject):
                     error_found = True
                     log.error('We should call [ {} ] not [ {} ]'.format(self.targeted_call, self.dx_call))   
 
-                if error_found and self.message_callback:
+                if error_found:
                     self.message_callback({
                         'type': 'error_occurred',                
                     })
@@ -717,15 +710,14 @@ class Listener(QObject):
             return True
                
     def callback_status_update(self):
-        if self.message_callback:
-            self.message_callback({
-                'type'                      : 'update_status',
-                'frequency'                 : self.frequency,
-                'decode_packet_count'       : self.decode_packet_count,
-                'last_decode_packet_time'   : self.last_decode_packet_time,
-                'last_heartbeat_time'       : self.last_heartbeat_time,
-                'transmitting'              : self.transmitting
-            })
+        self.message_callback({
+            'type'                      : 'update_status',
+            'frequency'                 : self.frequency,
+            'decode_packet_count'       : self.decode_packet_count,
+            'last_decode_packet_time'   : self.last_decode_packet_time,
+            'last_heartbeat_time'       : self.last_heartbeat_time,
+            'transmitting'              : self.transmitting
+        })
 
     def handle_request_setting_packet(self, addr_port):    
         log.debug(f"Received RequestSettingPacket method from {addr_port}.")  
@@ -734,12 +726,11 @@ class Listener(QObject):
             
     def callback_stop_monitoring(self):
         log.debug("Received ClosePacket method")
-        if self.message_callback:
-            self.message_callback({
-                'type'                      : 'stop_monitoring',
-                'decode_packet_count'       : self.decode_packet_count,
-                'last_decode_packet_time'   : self.last_decode_packet_time
-            })
+        self.message_callback({
+            'type'                      : 'stop_monitoring',
+            'decode_packet_count'       : self.decode_packet_count,
+            'last_decode_packet_time'   : self.last_decode_packet_time
+        })
 
     def reset_targeted_call(self):
         """
@@ -858,11 +849,10 @@ class Listener(QObject):
                         wanted_cq_zones and isinstance(wanted_cq_zones, (list, tuple))
                     ):
                         self.synch_time = synch_time
-                        if self.message_callback:
-                            self.message_callback({
-                                'type'     : 'instance_settings',
-                                'settings' : self.synched_settings
-                            })   
+                        self.message_callback({
+                            'type'     : 'instance_settings',
+                            'settings' : self.synched_settings
+                        })   
                         log.info(f"SettingPacket has been processed")     
             except Exception as e:
                 log.error(f"Error processing SettingPacket: {e}")          
@@ -903,6 +893,8 @@ class Listener(QObject):
         """
         try:
             message_type                 = None 
+            focus_type                   = None  
+
             reply_to_packet              = False
             self.packet_counter         += 1
             packet_id                    = self.packet_counter
@@ -966,6 +958,7 @@ class Listener(QObject):
 
                 wkb4_year         = None
                 entity_wkb4       = False
+                wanted_grid       = False 
 
                 if callsign_info:
                     entity_code   = callsign_info.get('entity') 
@@ -1043,17 +1036,27 @@ class Listener(QObject):
                             # save_marathon_wanted_data(MARATHON_FILE, self.wanted_callsigns_per_entity)
 
                             # log.info(f"Entity Code Wanted={entity_code} ({self.band}/{current_year})\n\tAdding Wanted Callsign={callsign}\n\tWorked ({self.band}/{current_year}):{self.adif_data.get('entity', {}).get(current_year, {}).get(self.band, {})}")
-
-                        if callsign not in self.wanted_callsigns:
-                            if self.message_callback:
-                                self.message_callback({    
-                                'type'          : 'update_wanted_callsign',
-                                'callsign'      : callsign,
-                                'action'        : 'add'
-                            })   
                             
                     if marathon:
-                        wanted = True
+                        reply_to_packet = True
+                        focus_type      = 'marathon_wanted'
+
+                """
+                    Check if grid is needed
+                """
+                if (
+                    self.enable_grid_tracker
+                    and not callsign_wkb4 
+                    and not excluded 
+                    and grid 
+                    and not (wanted and wanted_cq_zone)
+                    and self.grid_tracker_preference.get(self.band)
+                    and grid not in self.adif_data.get('grid', {}).get(self.band, {}) 
+                ):
+                        log.info(f"Grid [ {grid} ] not found in ADIF data for {self.band} band")
+                        focus_type      = 'grid_wanted'
+                        reply_to_packet = True
+                        wanted_grid     = True
 
                 """
                     Ignore if callsign is not valid
@@ -1213,7 +1216,7 @@ class Listener(QObject):
                     log.warning(debug_message)
 
                     # Use message_callback to communicate with the GUI
-                    if self.message_callback and self.enable_debug_output:
+                    if self.enable_debug_output:
                         self.message_callback(debug_message)
 
                 elif monitored or monitored_cq_zone:
@@ -1257,6 +1260,7 @@ class Listener(QObject):
                         'directed'          : directed,
                         'wanted'            : wanted,
                         'wanted_cq_zone'    : wanted_cq_zone,
+                        'wanted_grid'       : wanted_grid,
                         'marathon'          : marathon,
                         'lotw'              : lotw,
                         'wkb4_year'         : wkb4_year,
@@ -1270,35 +1274,42 @@ class Listener(QObject):
                 # log.debug(f"Priority for: {formatted_message} for {callsign:<15}\nEntityWkB4\t= {entity_wkb4}\nWanted\t\t= {wanted}\nWantedCQZone\t= {wanted_cq_zone}\nMarathon\t= {marathon}\nExcluded\t= {excluded}\nMonitored\t= {monitored}")
 
                 """
-                    Send message to GUI
-                """                      
-                if self.message_callback:                    
-                    self.message_callback({           
-                    'wsjtx_id'          : self.the_packet.wsjtx_id,
-                    'my_call'           : self.my_call,     
-                    'packet_id'         : packet_id,     
-                    'decode_time'       : decode_time,              
-                    'decode_time_str'   : decode_time_str,
-                    'excluded'          : excluded,
-                    'callsign'          : callsign,
-                    'callsign_info'     : callsign_info,
-                    'grid'              : grid,
-                    'directed'          : directed,
-                    'wanted'            : wanted,
-                    'wanted_cq_zone'    : wanted_cq_zone,
-                    'monitored'         : monitored,
-                    'monitored_cq_zone' : monitored_cq_zone,
-                    'wkb4_year'         : wkb4_year,
-                    'entity_wkb4'       : entity_wkb4,
-                    'delta_time'        : delta_t,
-                    'delta_freq'        : delta_f,
-                    'snr'               : snr,                
-                    'message'           : message,
-                    'message_uid'       : str(uuid.uuid4()), 
-                    'message_type'      : message_type,
-                    'priority'          : priority,
-                    'formatted_message' : formatted_message
-                })        
+                    Send messages to GUI                    
+                """
+                if wanted and callsign not in self.wanted_callsigns:
+                    self.message_callback({    
+                        'type'          : 'update_wanted_callsign',
+                        'callsign'      : callsign,
+                        'action'        : 'add'
+                    })   
+
+                self.message_callback({           
+                'wsjtx_id'          : self.the_packet.wsjtx_id,
+                'my_call'           : self.my_call,     
+                'packet_id'         : packet_id,     
+                'decode_time'       : decode_time,              
+                'decode_time_str'   : decode_time_str,
+                'excluded'          : excluded,
+                'callsign'          : callsign,
+                'callsign_info'     : callsign_info,
+                'grid'              : grid,
+                'directed'          : directed,
+                'wanted'            : wanted,
+                'wanted_cq_zone'    : wanted_cq_zone,
+                'monitored'         : monitored,
+                'monitored_cq_zone' : monitored_cq_zone,
+                'wkb4_year'         : wkb4_year,
+                'entity_wkb4'       : entity_wkb4,
+                'delta_time'        : delta_t,
+                'delta_freq'        : delta_f,
+                'snr'               : snr,                
+                'message'           : message,
+                'message_uid'       : str(uuid.uuid4()), 
+                'message_type'      : message_type,
+                'focus_type'        : focus_type,
+                'priority'          : priority,
+                'formatted_message' : formatted_message
+            })        
 
         except TypeError as e:
             log.error("Caught a type error in parsing packet: {}; error {}\n{}".format(
@@ -1312,7 +1323,7 @@ class Listener(QObject):
         
         for i, property_name in enumerate(self.priority_order):
             if filtered_message.get(property_name, False):
-                priority_bonus = 4 - i
+                priority_bonus = len(self.priority_order) - i
                 break
                 
         return priority_bonus
@@ -1343,12 +1354,14 @@ class Listener(QObject):
             Handle priority: Make sure to keep priority higher
             than the one being used, for monitored messages
         """        
+        highest_priority = len(self.priority_order)
+
         for filtered_message in filtered_messages:
             if filtered_message['directed'] == self.my_call:
                 if filtered_message['callsign'] == self.targeted_call:
-                    filtered_message['priority'] = 5
+                    filtered_message['priority'] = highest_priority + 1
                 else:
-                    filtered_message['priority'] = 4
+                    filtered_message['priority'] = highest_priority
             else:
                 if filtered_message.get('cqing'):
                     filtered_message['priority'] = 1
@@ -1481,12 +1494,11 @@ class Listener(QObject):
         entity_callsigns = self.wanted_callsigns_per_entity.get(self.band, {}).get(entity_code, [])
 
         for callsign in entity_callsigns:
-            if self.message_callback:
-                self.message_callback({        
-                'type'              : 'update_wanted_callsign',
-                'callsign'          : callsign,
-                'action'            : 'remove'
-            })       
+            self.message_callback({        
+            'type'              : 'update_wanted_callsign',
+            'callsign'          : callsign,
+            'action'            : 'remove'
+        })       
         
         if entity_code in self.wanted_callsigns_per_entity.get(self.band, {}):
             del self.wanted_callsigns_per_entity[self.band][entity_code]     
@@ -1621,11 +1633,10 @@ class Listener(QObject):
     def update_adif_data(self, parsed_message):
         self.adif_data = parsed_message
         
-        if self.message_callback:
-            self.message_callback({
-                'type': 'adif_data_updated',
-                'adif_data': self.adif_data
-            })        
+        self.message_callback({
+            'type': 'adif_data_updated',
+            'adif_data': self.adif_data
+        })        
 
     """
         if self.adif_data.get('entity') and self.band:

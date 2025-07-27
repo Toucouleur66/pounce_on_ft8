@@ -142,7 +142,8 @@ PRIORITY_LIST                   = {
     "Wanted Callsign(s)"        : "wanted",
     "Wanted CQ Zone(s)"         : "wanted_cq_zone",
     "Marathon"                  : "marathon",
-    "Politeness reply"          : "polite_reply"
+    "New Grid"                  : "wanted_grid",        
+    "Politeness reply"          : "polite_reply",
 }
 
 SETTING_QSS                     = f"""
