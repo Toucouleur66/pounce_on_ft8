@@ -1382,7 +1382,7 @@ class GridMapWidget(QWidget):
     
     def clear_new_grids(self):
         self.set_new_grids([])
-        # Update status bar if parent has one
+        
         if hasattr(self.parent(), 'update_toggle_labels'):
             self.parent().update_toggle_labels()
     

@@ -1257,12 +1257,13 @@ class MainApp(QtWidgets.QMainWindow):
             self.save_unique_param('enable_grid_monitor', checked)
             
     def update_grid_monitor_with_grids(self, messages):
-        if not messages:
+        if not messages or not self.grid_monitor:
             return
         
-        if self.grid_monitor:    
-            grid_messages = [message for message in messages if "grid" in message]
-            self.grid_monitor.map_widget.set_new_grids(grid_messages)
+        grid_messages = [message for message in messages if "grid" in message]
+        self.grid_monitor.map_widget.set_new_grids(grid_messages)
+
+        log.debug(f"MainApp: {len(grid_messages)} updated grids")
                        
     def hide_container_tab(self):
         self.compact_mode_visible = False
@@ -1847,8 +1848,7 @@ class MainApp(QtWidgets.QMainWindow):
         """
             Update map with new grid squares
         """
-        if self.grid_monitor is not None:
-            self.update_grid_monitor_with_grids(self.latest_messages)
+        self.update_grid_monitor_with_grids(self.latest_messages)
         
         """
             Clear buffer
