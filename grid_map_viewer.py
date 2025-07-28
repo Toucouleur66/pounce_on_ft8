@@ -1387,9 +1387,9 @@ class GridMapWidget(QWidget):
             self.parent().update_toggle_labels()
     
     def clear_heatmap_indicators(self):
-        self.heatmap_buffer = []
-        self.heatmap_cache = {}
-        self.heatmap_cache_key = None
+        self.heatmap_buffer     = []
+        self.heatmap_cache      = {}
+        self.heatmap_cache_key  = None
         self.update()
     
     def set_heatmap_group_indicators(self, grids):

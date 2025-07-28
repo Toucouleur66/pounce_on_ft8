@@ -749,9 +749,9 @@ class MainApp(QtWidgets.QMainWindow):
 
     def blinking_grid(self):
         if (
-            self.last_focus_value_message_uid and 
-            self.grid_monitor and 
-            self.grid_monitor.isVisible()
+            self.last_focus_value_message_uid
+            and self.grid_monitor
+            and self.grid_monitor.isVisible()
         ):            
             self.grid_monitor.map_widget.trigger_grid_blink(self.last_focus_value_message_uid)
 
@@ -1235,7 +1235,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.grid_monitor.raise_()
             self.grid_monitor.activateWindow()
         else:                      
-            if self.grid_monitor is not None:                                
+            if self.grid_monitor is not None:         
                 self.grid_monitor_geometry = {
                     'x'     : self.grid_monitor.geometry().x(),
                     'y'     : self.grid_monitor.geometry().y(),
@@ -3087,7 +3087,7 @@ class MainApp(QtWidgets.QMainWindow):
         # Add Window menu
         self.window_menu = self.menu_bar.addMenu("Window")
 
-        self.compact_view_action = QtGui.QAction("Compact view", self)
+        self.compact_view_action = QtGui.QAction("Compact View", self)
         self.compact_view_action.setShortcut(QtGui.QKeySequence("Ctrl+C"))
         self.compact_view_action.setCheckable(True)
         self.compact_view_action.setChecked(self.enable_compact_view)
@@ -3095,7 +3095,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.window_menu.addAction(self.compact_view_action)
 
-        self.alternate_compact_view_action = QtGui.QAction("Alternate view", self)        
+        self.alternate_compact_view_action = QtGui.QAction("Alternate View", self)        
         self.alternate_compact_view_action.setCheckable(self.enable_compact_view)
         self.alternate_compact_view_action.setChecked(self.enable_alternate_compact_view)
         self.alternate_compact_view_action.setEnabled(self.enable_compact_view)

@@ -93,6 +93,7 @@ def parse_single_wsjtx_message(
 
     cqing                   = False
     wanted                  = False
+    exactly_matched         = False
     wanted_cq_zone          = False
     excluded                = False
     monitored               = False
