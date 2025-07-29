@@ -1790,8 +1790,8 @@ class MainApp(QtWidgets.QMainWindow):
         if not self.message_buffer:
             return None
         else:
-            max_decode_time_str = max(message['decode_time_str'] for message in self.message_buffer)            
-            self.latest_messages = [message for message in self.message_buffer if message['decode_time_str'] == max_decode_time_str]
+            max_decode_time = max(message['decode_time'] for message in self.message_buffer)            
+            self.latest_messages = [message for message in self.message_buffer if message['decode_time'] == max_decode_time]
 
             selected_message = max(
                 self.latest_messages,
