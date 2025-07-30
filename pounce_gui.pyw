@@ -1599,7 +1599,7 @@ class MainApp(QtWidgets.QMainWindow):
                 self.play_sound("error_occurred")
                 self.stop_monitoring()     
 
-            elif message_type == 'upate_wanted_callsign':
+            elif message_type == 'update_wanted_callsign':
                 log.debug(f"Received request to update ({message.get('action')}) Wanted Callsigns with [ {message.get('callsign')} ]")
                 self.update_var(self.wanted_callsigns_vars[self.operating_band], message.get('callsign'), message.get('action'))  
             elif message_type == 'adif_data_updated':
@@ -1788,15 +1788,21 @@ class MainApp(QtWidgets.QMainWindow):
         if not self.message_buffer:
             return None
         else:
+            """
+                Get the latest message from last 5 seconds
+            """
             max_decode_time = max(message['decode_time'] for message in self.message_buffer)            
-            self.latest_messages = [message for message in self.message_buffer if message['decode_time'] == max_decode_time]
+            self.latest_messages = [
+                message for message in self.message_buffer if message['decode_time'] >= (max_decode_time - timedelta(seconds=5))
+            ]
 
+            """
+                Select the latest message with the highest priority
+            """
             selected_message = max(
                 self.latest_messages,
                 key=lambda message: message['priority'], default=None
             )
-            log.info(self.message_buffer)
-            log.error(selected_message)
 
         if (
             selected_message and

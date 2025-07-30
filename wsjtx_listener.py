@@ -1266,8 +1266,19 @@ class Listener(QObject):
                         'cqing'             : cqing,
                         'msg'               : msg
                     }) 
-                    
-                    log.warning(f"Reply to [ {callsign} ] with priority = [ {priority} ]")
+
+                    """
+                        Add callsign to wanted callsigns if not already in it
+                    if (
+                        callsign not in self.wanted_callsigns
+                        and (marathon or wanted_grid)
+                    ):
+                        self.message_callback({    
+                            'type'          : 'update_wanted_callsign',
+                            'callsign'      : callsign,
+                            'action'        : 'add'
+                        })   
+                    """
                 elif message_type:
                     priority = 1
                 
@@ -1281,13 +1292,6 @@ class Listener(QObject):
 
                 if reply_to_packet and message_type is None:
                     message_type = 'wanted_callsign_decoded'
-
-                if wanted and callsign not in self.wanted_callsigns:
-                    self.message_callback({    
-                        'type'          : 'update_wanted_callsign',
-                        'callsign'      : callsign,
-                        'action'        : 'add'
-                    })   
 
                 self.message_callback({           
                 'wsjtx_id'          : self.the_packet.wsjtx_id,
@@ -1375,9 +1379,6 @@ class Listener(QObject):
                     filtered_message['priority'] = 0                    
 
             filtered_message['priority'] += self.get_priority_bonus(filtered_message)
-
-            log.warning(f"{filtered_message['callsign']} with priority = {filtered_message['priority']} after bonus, pid = {filtered_message['packet_id']}") 
-
         """
             Selects the message with the highest priority
         """      
@@ -1392,15 +1393,17 @@ class Listener(QObject):
         )   
 
         """
-            Proceed with selected message
+            Get priority of the current message
         """
-        # Find the current message in filtered_messages to return its priority
-        awaited_message_priority = -1
+        priority = -1
         for filtered_message in filtered_messages:
             if filtered_message['packet_id'] == message['packet_id']:
-                awaited_message_priority = filtered_message['priority']
+                priority = filtered_message['priority']
                 break
-        
+
+        """
+            Proceed with selected message
+        """               
         if selected_message and (
             self.last_selected_message is None or
             selected_message['priority'] > self.last_selected_message['priority'] or
@@ -1416,8 +1419,8 @@ class Listener(QObject):
                 args=[selected_message, filtered_messages] 
             )
             self._reply_timer.start()
-        
-        return awaited_message_priority 
+          
+        return priority
                 
     def process_pending_reply(self, selected_message, filtered_messages):    
         if filtered_messages:

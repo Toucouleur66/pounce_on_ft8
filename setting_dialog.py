@@ -110,6 +110,7 @@ class SettingsDialog(QtWidgets.QDialog):
         log_analysis_page = QtWidgets.QWidget()
         backup_page       = QtWidgets.QWidget()
         debugging_page    = QtWidgets.QWidget()
+        debugging_page.setMinimumHeight(250)
         
         self.stacked_widget.addWidget(server_page)
         self.stacked_widget.addWidget(general_page)
@@ -650,7 +651,7 @@ class SettingsDialog(QtWidgets.QDialog):
             Marathon Settings
         """
         marathon_notice_text = (
-            f"<p>Marathon feature has to be used with caution.</p><p>{GUI_LABEL_NAME} will analyze your log and check for any missing entities you haven't worked on selected band. If a missing entity is decoded, <u>it will automatically add the callsign to your Wanted Callsigns</u>. Once entity is worked, {GUI_LABEL_NAME} will remove all entries automatically added to your Wanted Callsigns which refer to this entity.</p><p>Note that rules set for Worked B4 will remain in effect.</p>"
+            f"<p>Marathon feature has to be used with caution.</p><p>{GUI_LABEL_NAME} will analyze your log and check for any missing entities you haven't worked on selected band. If a missing entity is decoded, {GUI_LABEL_NAME} will reply to this callsign.</p><p>Note that rules set for Worked B4 will remain in effect.</p>"
         )
         marathon_notice_label = QtWidgets.QLabel(marathon_notice_text)
         marathon_notice_label.setStyleSheet(SETTING_QSS)
@@ -702,7 +703,7 @@ class SettingsDialog(QtWidgets.QDialog):
             Grid Tracker Settings
         """
         grid_tracker_notice_text = (
-            f"<p>{GUI_LABEL_NAME} will analyze your log and check for any missing grids you haven't worked on selected band. If a missing grid is decoded, <u>it will automatically add the callsign to your Wanted Callsigns</u>. Once grid is worked, {GUI_LABEL_NAME} will remove all entries automatically added to your Wanted Callsigns which refer to this grid.</p><p>Note that rules set for Worked B4 will remain in effect.</p>"
+            f"<p>{GUI_LABEL_NAME} will analyze your log and check for any missing grids you haven't worked on selected band.</p><p>If a callsign with a missing grid is decoded, {GUI_LABEL_NAME} will reply to this callsign for this grid.</p>"
         )
         grid_tracker_notice_label = QtWidgets.QLabel(grid_tracker_notice_text)
         grid_tracker_notice_label.setStyleSheet(SETTING_QSS)
@@ -785,7 +786,7 @@ class SettingsDialog(QtWidgets.QDialog):
             Debug Settings
         """
         debug_notice_text = (
-            "<p>Do not enable <u>Save all received Packet</u> unless you want to study every packet data received from your WSJT-X/JTDX instance.</p>"
+            "<p>There is no need to enable <u>Save all received Packet</u> unless you want to study every packet data received from your WSJT-X/JTDX instance.</p><p>If issue encountered while using this program, please provide the <u>pounce.log</u> as reference.</p>"
         )
         debug_notice_label = QtWidgets.QLabel(debug_notice_text)
         debug_notice_label.setWordWrap(True)
@@ -795,7 +796,7 @@ class SettingsDialog(QtWidgets.QDialog):
         debug_notice_label.setAutoFillBackground(True)
 
         log_settings_group = QtWidgets.QGroupBox("Log Settings")
-        log_settings_layout = QtWidgets.QGridLayout()
+        log_settings_layout = QtWidgets.QVBoxLayout()
 
         self.enable_debug_output = QtWidgets.QCheckBox("Show debug output")
         self.enable_debug_output.setChecked(DEFAULT_DEBUG_OUTPUT)
@@ -806,19 +807,17 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_log_packet_data = QtWidgets.QCheckBox("Save all received Packet Data to log")
         self.enable_log_packet_data.setChecked(DEFAULT_LOG_PACKET_DATA)
 
-        log_settings_layout.addWidget(self.enable_pounce_log, 0, 0, 1, 2)
-        log_settings_layout.addWidget(self.enable_log_packet_data, 1, 0, 1, 2)
-        log_settings_layout.addWidget(self.enable_debug_output, 2, 0, 1, 2)
-
+        log_settings_layout.addWidget(self.enable_pounce_log)
+        log_settings_layout.addWidget(self.enable_log_packet_data)
+        log_settings_layout.addWidget(self.enable_debug_output)
+    
         log_settings_group.setLayout(log_settings_layout)
-
-        log_settings_group.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
         # Add debug settings to debugging page
         debugging_layout.addWidget(debug_notice_label)
         debugging_layout.addWidget(log_settings_group)
-        debugging_layout.addStretch()  
-
+        debugging_layout.addStretch()
+        
         self.load_params()
 
         self.button_box = QtWidgets.QDialogButtonBox()
@@ -971,7 +970,7 @@ class SettingsDialog(QtWidgets.QDialog):
 
         self.populate_priority_list()            
 
-    def on_table_row_selected(self, row, column):
+    def on_table_row_selected(self, row, _column):
         button = self.mode_table_widget.cellWidget(row, 0)
         
         if isinstance(button, QtWidgets.QRadioButton):
