@@ -1262,8 +1262,6 @@ class MainApp(QtWidgets.QMainWindow):
         
         grid_messages = [message for message in messages if "grid" in message]
         self.grid_monitor.map_widget.set_new_grids(grid_messages)
-
-        log.debug(f"MainApp: {len(grid_messages)} updated grids")
                        
     def hide_container_tab(self):
         self.compact_mode_visible = False
@@ -1797,6 +1795,8 @@ class MainApp(QtWidgets.QMainWindow):
                 self.latest_messages,
                 key=lambda message: message['priority'], default=None
             )
+            log.info(self.message_buffer)
+            log.error(selected_message)
 
         if (
             selected_message and
@@ -1854,10 +1854,25 @@ class MainApp(QtWidgets.QMainWindow):
             Clear buffer
         """
         if selected_message:
-            self.message_buffer = deque(
-                [same_time_message for same_time_message in self.message_buffer
-                    if abs((same_time_message['decode_time'] - selected_message['decode_time']).total_seconds()) <= 120]
-            )  
+            selected_time = selected_message['decode_time']
+            filtered_messages = []
+            
+            for message in self.message_buffer:
+                message_time = message['decode_time']
+                time_diff = abs((message_time - selected_time).total_seconds())
+
+                if time_diff > 43200:
+                    if message_time > selected_time:
+                        alt_time_diff = abs((message_time - timedelta(days=1) - selected_time).total_seconds())
+                    else:
+                        alt_time_diff = abs((message_time + timedelta(days=1) - selected_time).total_seconds())
+                    
+                    time_diff = min(time_diff, alt_time_diff)
+                
+                if time_diff <= 120:
+                    filtered_messages.append(message)
+            
+            self.message_buffer = deque(filtered_messages)  
 
         """
             Reset timer
