@@ -1037,7 +1037,7 @@ class Listener(QObject):
 
                     if marathon:                        
                         reply_to_packet = True
-                        focus_type      = 'marathon_wanted'                        
+                        focus_type      = 'marathon_wanted' if focus_type is None else focus_type                       
                 
                 """
                     Check if grid is needed
@@ -1052,9 +1052,9 @@ class Listener(QObject):
                     and grid not in self.adif_data.get('grid', {}).get(self.band, {}) 
                 ):
                         log.info(f"Grid [ {grid} ] not found in ADIF data for {self.band} band")
-                        focus_type      = 'grid_wanted'
                         reply_to_packet = True
-                        wanted_grid     = True
+                        wanted_grid     = True                        
+                        focus_type      = 'grid_wanted' if focus_type is None else focus_type
 
                 """
                     Ignore if callsign is not valid
@@ -1266,6 +1266,8 @@ class Listener(QObject):
                         'cqing'             : cqing,
                         'msg'               : msg
                     }) 
+                    
+                    log.warning(f"Reply to [ {callsign} ] with priority = [ {priority} ]")
                 elif message_type:
                     priority = 1
                 
@@ -1275,7 +1277,7 @@ class Listener(QObject):
                     Send messages to GUI                    
                 """
                 if wanted and not exactly_matched:
-                    focus_type = 'wanted_wildcard'
+                    focus_type = 'wanted_wildcard' if focus_type is None else focus_type
 
                 if reply_to_packet and message_type is None:
                     message_type = 'wanted_callsign_decoded'
@@ -1374,6 +1376,8 @@ class Listener(QObject):
 
             filtered_message['priority'] += self.get_priority_bonus(filtered_message)
 
+            log.warning(f"{filtered_message['callsign']} with priority = {filtered_message['priority']} after bonus, pid = {filtered_message['packet_id']}") 
+
         """
             Selects the message with the highest priority
         """      
@@ -1390,6 +1394,13 @@ class Listener(QObject):
         """
             Proceed with selected message
         """
+        # Find the current message in filtered_messages to return its priority
+        awaited_message_priority = -1
+        for filtered_message in filtered_messages:
+            if filtered_message['packet_id'] == message['packet_id']:
+                awaited_message_priority = filtered_message['priority']
+                break
+        
         if selected_message and (
             self.last_selected_message is None or
             selected_message['priority'] > self.last_selected_message['priority'] or
@@ -1405,14 +1416,8 @@ class Listener(QObject):
                 args=[selected_message, filtered_messages] 
             )
             self._reply_timer.start()
-
-            # Log filtered messages
-            
-
-            # Return priority for GUI callback
-            return selected_message['priority']
-        else:
-            return -1 
+        
+        return awaited_message_priority 
                 
     def process_pending_reply(self, selected_message, filtered_messages):    
         if filtered_messages:
