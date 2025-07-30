@@ -9,7 +9,7 @@ from shapely.geometry import shape, Point
 from shapely.ops import unary_union
 from functools import lru_cache
 
-from utils import get_data_file_path
+from utils import get_data_file_path, latlon_to_grid
 from logger import get_logger
 import sys
 
@@ -23,6 +23,7 @@ class CallsignLookup:
         cq_zones_geojson_path = get_data_file_path("cq-zones.geojson"),
         cache_file = get_data_file_path("lookup_cache.json"),
         lotw_cache_file = get_data_file_path("lotw_cache.json"),
+        cty_dat_file = get_data_file_path("CTY_WT_MOD.DAT"),
         cache_size = 2_000,
         lookup_debug=False
     ):
@@ -31,11 +32,15 @@ class CallsignLookup:
         self.entities = {}
         self.invalid_operations = {}
         self.zone_exceptions = {}
+        self.cty_entities = {}
+        self.cty_prefixes = {}
+        self.cty_exact_calls = {}
 
         self.xml_file_path = xml_file_path
         self.cq_zones_geojson_path = cq_zones_geojson_path
         self.cache_file = cache_file
         self.lotw_cache_file = lotw_cache_file
+        self.cty_dat_file = cty_dat_file
         self.cache_size = cache_size
         self.lookup_debug = lookup_debug
 
@@ -47,6 +52,7 @@ class CallsignLookup:
         self.cache_lock = threading.Lock()
 
         self.load_clublog_xml(self.xml_file_path)
+        self.load_cty_mod_dat(self.cty_dat_file)
         self.load_cache_from_disk()
         self.load_lotw_cache()
         self.zone_polygons = self.load_cq_zones(self.cq_zones_geojson_path)
@@ -308,6 +314,201 @@ class CallsignLookup:
         except Exception as e:
             log.error(f"Fail to load file: {e}")
 
+    def load_cty_mod_dat(self, cty_dat_file):
+        if not os.path.exists(cty_dat_file):
+            log.info(f"CTY DAT file '{cty_dat_file}' does not exist. Skipping load.")
+            return
+        
+        try:
+            with open(cty_dat_file, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+            
+            # Remove comments and empty lines first
+            cleaned_lines = []
+            for line in content.split('\n'):
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    cleaned_lines.append(line)
+            
+            # Join back and split by semicolons
+            cleaned_content = '\n'.join(cleaned_lines)
+            records = cleaned_content.split(';')
+            
+            for record in records:
+                record = record.strip()
+                if not record:
+                    continue
+                
+                # Split the record into lines
+                lines = [line.strip() for line in record.split('\n') if line.strip()]
+                if not lines:
+                    continue
+                
+                # Find the main country line (contains colons for the format)
+                main_line = None
+                prefix_lines = []
+                
+                for line in lines:
+                    if ':' in line and line.count(':') >= 7:
+                        main_line = line
+                    else:
+                        prefix_lines.append(line)
+                
+                if not main_line:
+                    if self.lookup_debug:
+                        log.debug(f"No main line found in record: {lines}")
+                    continue
+                
+                # Parse main country information
+                # Format: Country Name:CQ:ITU:Continent:Latitude:Longitude:GMT offset:Main prefix:
+                try:
+                    if self.lookup_debug:
+                        log.debug(f"Processing main line: {main_line}")
+                    parts = main_line.split(':')
+                    if len(parts) < 8:
+                        continue
+                    
+                    country_name = parts[0].strip()
+                    cq_zone = int(parts[1]) if parts[1].strip() else None
+                    itu_zone = int(parts[2]) if parts[2].strip() else None
+                    continent = parts[3].strip()
+                    latitude = float(parts[4]) if parts[4].strip() else None
+                    longitude = -float(parts[5]) if parts[5].strip() else None  # CTY format: + for West, so negate
+                    gmt_offset = float(parts[6]) if parts[6].strip() else None
+                    main_prefix = parts[7].strip()
+                    
+                    # Create entity data
+                    entity_data = {
+                        'entity': country_name,
+                        'call': main_prefix,
+                        'cqz': cq_zone,
+                        'itu': itu_zone,
+                        'cont': continent,
+                        'lat': latitude,
+                        'long': longitude,
+                        'gmt_offset': gmt_offset
+                    }
+                    
+                    # Store main entity
+                    self.cty_entities[main_prefix] = entity_data
+                    
+                    # Also add main prefix to the prefix list
+                    self.cty_prefixes[main_prefix.upper()] = entity_data.copy()
+                    
+                    # Parse prefixes from prefix lines
+                    prefixes = []
+                    for line in prefix_lines:
+                        # Remove trailing comma and spaces
+                        line = line.rstrip(',').strip()
+                        if line:
+                            # Split by comma to get individual prefixes
+                            line_prefixes = [p.strip() for p in line.split(',') if p.strip()]
+                            prefixes.extend(line_prefixes)
+                    
+                    if self.lookup_debug and len(prefixes) > 0:
+                        log.debug(f"Found {len(prefixes)} prefixes for {country_name}: {prefixes[:5]}")
+                    
+                    # Process each prefix
+                    for prefix in prefixes:
+                        if not prefix:
+                            continue
+                        
+                        # Handle special prefixes with multiple overrides
+                        # Format: =W1UL(4)[7]<32.93/97.25>~6.0~
+                        base_prefix = prefix
+                        override_data = entity_data.copy()
+                        is_exact_call = False
+                        
+                        # Handle exact callsign match (starts with =)
+                        if base_prefix.startswith('='):
+                            base_prefix = base_prefix[1:]
+                            is_exact_call = True
+                        
+                        # Parse all override patterns
+                        working_prefix = base_prefix
+                        
+                        # Check for CQ zone override in parentheses: (4)
+                        if '(' in working_prefix and ')' in working_prefix:
+                            zone_match = working_prefix.find('(')
+                            zone_end = working_prefix.find(')')
+                            if zone_match != -1 and zone_end != -1:
+                                zone_str = working_prefix[zone_match+1:zone_end]
+                                try:
+                                    override_data['cqz'] = int(zone_str)
+                                except ValueError:
+                                    pass
+                                working_prefix = working_prefix[:zone_match] + working_prefix[zone_end+1:]
+                        
+                        # Check for ITU zone override in square brackets: [7]
+                        if '[' in working_prefix and ']' in working_prefix:
+                            bracket_match = working_prefix.find('[')
+                            bracket_end = working_prefix.find(']')
+                            if bracket_match != -1 and bracket_end != -1:
+                                bracket_content = working_prefix[bracket_match+1:bracket_end]
+                                # Check if it's coordinates (contains /) or just ITU zone
+                                if '/' in bracket_content:
+                                    try:
+                                        lat_str, lon_str = bracket_content.split('/')
+                                        override_data['lat'] = float(lat_str)
+                                        override_data['long'] = -float(lon_str)  # CTY format: + for West, so negate
+                                    except (ValueError, IndexError):
+                                        pass
+                                else:
+                                    try:
+                                        override_data['itu'] = int(bracket_content)
+                                    except ValueError:
+                                        pass
+                                working_prefix = working_prefix[:bracket_match] + working_prefix[bracket_end+1:]
+                        
+                        # Check for lat/lon override in angle brackets: <32.93/97.25>
+                        if '<' in working_prefix and '>' in working_prefix:
+                            coord_match = working_prefix.find('<')
+                            coord_end = working_prefix.find('>')
+                            if coord_match != -1 and coord_end != -1:
+                                coord_str = working_prefix[coord_match+1:coord_end]
+                                try:
+                                    lat_str, lon_str = coord_str.split('/')
+                                    override_data['lat'] = float(lat_str)
+                                    override_data['long'] = -float(lon_str)  # CTY format: + for West, so negate
+                                except (ValueError, IndexError):
+                                    pass
+                                working_prefix = working_prefix[:coord_match] + working_prefix[coord_end+1:]
+                        
+                        # Check for GMT offset override in tildes: ~6.0~
+                        if '~' in working_prefix:
+                            first_tilde = working_prefix.find('~')
+                            second_tilde = working_prefix.find('~', first_tilde + 1)
+                            if first_tilde != -1 and second_tilde != -1:
+                                offset_str = working_prefix[first_tilde+1:second_tilde]
+                                try:
+                                    override_data['gmt_offset'] = float(offset_str)
+                                except ValueError:
+                                    pass
+                                working_prefix = working_prefix[:first_tilde] + working_prefix[second_tilde+1:]
+                        
+                        # Clean up the working prefix (remove any trailing characters)
+                        base_prefix = working_prefix.strip()
+                        
+                        # Store prefix data
+                        override_data['call'] = base_prefix
+                        
+                        if is_exact_call:
+                            self.cty_exact_calls[base_prefix.upper()] = override_data
+                        else:
+                            self.cty_prefixes[base_prefix.upper()] = override_data
+                
+                except (ValueError, IndexError) as e:
+                    log.debug(f"Error parsing CTY record: {e}")
+                    continue
+            
+            log.info(f"File {cty_dat_file} loading is complete with {len(self.cty_entities)} entities, {len(self.cty_prefixes)} prefixes, and {len(self.cty_exact_calls)} exact calls.")
+            
+            if self.lookup_debug and len(self.cty_entities) == 0:
+                log.debug(f"No entities parsed. First few cleaned lines: {cleaned_lines[:5]}")
+            
+        except Exception as e:
+            log.error(f"Failed to load CTY DAT file '{cty_dat_file}': {e}")
+
     def expand_prefixes(self, prefix_str):
         prefixes = []
         parts = prefix_str.replace(",", " ").split()
@@ -465,6 +666,16 @@ class CallsignLookup:
                         self._update_cache(callsign, result, enable_cache)
                         return result
 
+            cty_result = self._lookup_cty_data(callsign, grid)
+            if cty_result:
+                # log.debug(f"CTY data found for {callsign}: {cty_result}")
+                if callsign in self.lotw_cache:
+                    cty_result['lotw'] = self.lotw_cache[callsign]
+                
+                self._update_cache(callsign, cty_result, enable_cache)
+                
+                return cty_result
+
             result = None
             for prefix in self.sorted_prefixes:
                 if callsign.startswith(prefix):
@@ -496,6 +707,74 @@ class CallsignLookup:
         except Exception as e:
             log.error(f"Fail to extract '{callsign}': {e}")
             return None
+
+    def _lookup_cty_data(self, callsign, grid=None):
+        """
+            Lookup callsign in CTY data with exact and prefix matching.
+            Updates CQ zone, latitude, longitude, and recalculates grid if needed.
+        """
+        # First try exact callsign match
+        if callsign.upper() in self.cty_exact_calls:
+            result = self.cty_exact_calls[callsign.upper()].copy()
+            
+            # Update with provided grid if available
+            if grid:
+                result["grid"] = grid
+                new_zone = self.grid_to_cq_zone(grid)
+                if new_zone is not None and result.get("cqz") != new_zone:
+                    result["cqz"] = new_zone
+            elif result.get("lat") is not None and result.get("long") is not None:
+                # Calculate grid from lat/lon if not provided
+                try:
+                    calculated_grid = latlon_to_grid(result["lat"], result["long"])
+                    result["grid"] = calculated_grid
+                except:
+                    pass
+            
+            return result
+        
+        # Then try exact prefix match
+        if callsign.upper() in self.cty_prefixes:
+            result = self.cty_prefixes[callsign.upper()].copy()
+            
+            # Update with provided grid if available
+            if grid:
+                result["grid"] = grid
+                new_zone = self.grid_to_cq_zone(grid)
+                if new_zone is not None and result.get("cqz") != new_zone:
+                    result["cqz"] = new_zone
+            elif result.get("lat") is not None and result.get("long") is not None:
+                try:
+                    calculated_grid = latlon_to_grid(result["lat"], result["long"])
+                    result["grid"] = calculated_grid
+                except:
+                    pass
+            
+            return result
+        
+        sorted_cty_prefixes = sorted(self.cty_prefixes.keys(), key=lambda x: -len(x))
+        for prefix in sorted_cty_prefixes:
+            if callsign.upper().startswith(prefix):
+                result = self.cty_prefixes[prefix].copy()
+                result["call"] = prefix 
+                
+                # Update with provided grid if available
+                if grid:
+                    result["grid"] = grid
+                    new_zone = self.grid_to_cq_zone(grid)
+                    if new_zone is not None and result.get("cqz") != new_zone:
+                        result["cqz"] = new_zone
+                elif result.get("lat") is not None and result.get("long") is not None:
+                    # Calculate grid from lat/lon if not provided
+                    try:
+                        calculated_grid = latlon_to_grid(result["lat"], result["long"])
+                        result["grid"] = calculated_grid
+                    except:
+                        pass
+                
+                return result
+        
+        return None
 
     def _update_cache(self, callsign, info, enable_cache):
         if enable_cache and info is not None:
