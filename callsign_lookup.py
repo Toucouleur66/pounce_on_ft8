@@ -501,7 +501,7 @@ class CallsignLookup:
                     log.debug(f"Error parsing CTY record: {e}")
                     continue
             
-            log.info(f"File {cty_dat_file} loading is complete with {len(self.cty_entities)} entities, {len(self.cty_prefixes)} prefixes, and {len(self.cty_exact_calls)} exact calls.")
+            log.info(f"File {cty_dat_file} loading is complete with {len(self.cty_entities):,} entities, {len(self.cty_prefixes):,} prefixes, and {len(self.cty_exact_calls):,} exact callsigns.")
             
             if self.lookup_debug and len(self.cty_entities) == 0:
                 log.debug(f"No entities parsed. First few cleaned lines: {cleaned_lines[:5]}")

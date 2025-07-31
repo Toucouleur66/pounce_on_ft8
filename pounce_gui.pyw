@@ -1801,7 +1801,10 @@ class MainApp(QtWidgets.QMainWindow):
             """
             log_output = []
             for message in self.message_buffer:
-                log_output.append(f"process_message_buffer: [{message['priority']}]{message['callsign']:<13}@{message['decode_time']}")
+                callsign    = message.get('callsign') or "?"
+                priority    = message.get('priority') or 0
+                decode_time = message.get('decode_time') or "?"
+                log_output.append(f"process_message_buffer: [{priority}]{callsign:<13}@{decode_time}")
             log.info(f"\n\t".join(log_output))
 
             """
@@ -1809,7 +1812,7 @@ class MainApp(QtWidgets.QMainWindow):
             """
             selected_message = max(
                 self.latest_messages,
-                key=lambda message: message['priority'], default=None
+                key=lambda message: message.get('priority', 0), default=None
             )
 
         if (
