@@ -1797,6 +1797,14 @@ class MainApp(QtWidgets.QMainWindow):
             ]
 
             """
+                For debug
+            """
+            log_output = []
+            for message in self.message_buffer:
+                log_output.append(f"process_message_buffer: [{message['priority']}]{message['callsign']:<13}@{message['decode_time']}")
+            log.info(f"\n\t".join(log_output))
+
+            """
                 Select the latest message with the highest priority
             """
             selected_message = max(
