@@ -2159,7 +2159,7 @@ class GridMapWindow(QMainWindow):
   self.map_widget.heatmap_buffer)}")        
 
         if self.map_widget.current_band:
-            self.status_bar_label_total_worked.setText(f"Worked grids (<u>{self.map_widget.current_band}</u>): {len(self.map_widget.permanent_grids)}")
+            self.status_bar_label_total_worked.setText(f"Worked grids (<u>{self.map_widget.current_band}</u>): {len(self.map_widget.permanent_grids):,}")
     
     def update_toggle_labels(self):
         if hasattr(self, 'grid_toggle'):

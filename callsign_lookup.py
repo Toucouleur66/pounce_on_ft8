@@ -3,15 +3,17 @@ import datetime
 import json
 import os
 import threading
+import sys
+import re
 
 from collections import OrderedDict
-from shapely.geometry import shape, Point
+from shapely.geometry import shape, Point, Polygon
 from shapely.ops import unary_union
+
 from functools import lru_cache
 
 from utils import get_data_file_path, latlon_to_grid
 from logger import get_logger
-import sys
 
 log = get_logger(__name__)
 
@@ -19,43 +21,44 @@ log = get_logger(__name__)
 class CallsignLookup:
     def __init__(
         self,
-        xml_file_path = get_data_file_path("cty.xml"),
-        cq_zones_geojson_path = get_data_file_path("cq-zones.geojson"),
-        cache_file = get_data_file_path("lookup_cache.json"),
-        lotw_cache_file = get_data_file_path("lotw_cache.json"),
-        cty_dat_file = get_data_file_path("CTY_WT_MOD.DAT"),
-        cache_size = 2_000,
-        lookup_debug=False
+        xml_file_path       = get_data_file_path("cty.xml"),
+        # https://raw.githubusercontent.com/logocomune/go-cq-zone/refs/heads/main/data.go
+        cq_zones_file_path  = get_data_file_path("cq-zones.go"),
+        cache_file          = get_data_file_path("lookup_cache.json"),
+        lotw_cache_file     = get_data_file_path("lotw_cache.json"),
+        cty_dat_file        = get_data_file_path("CTY_WT_MOD.DAT"),
+        cache_size         = 2_000,
+        lookup_debug       = False
     ):
         self.callsign_exceptions = {}
-        self.prefixes = {}
-        self.entities = {}
-        self.invalid_operations = {}
-        self.zone_exceptions = {}
-        self.cty_entities = {}
-        self.cty_prefixes = {}
-        self.cty_exact_calls = {}
+        self.prefixes             = {}
+        self.entities            = {}
+        self.invalid_operations  = {}
+        self.zone_exceptions     = {}
+        self.cty_entities        = {}
+        self.cty_prefixes         = {}
+        self.cty_exact_calls     = {}
 
-        self.xml_file_path = xml_file_path
-        self.cq_zones_geojson_path = cq_zones_geojson_path
-        self.cache_file = cache_file
-        self.lotw_cache_file = lotw_cache_file
-        self.cty_dat_file = cty_dat_file
-        self.cache_size = cache_size
-        self.lookup_debug = lookup_debug
+        self.xml_file_path        = xml_file_path
+        self.cq_zones_file_path   = cq_zones_file_path
+        self.cache_file           = cache_file
+        self.lotw_cache_file      = lotw_cache_file
+        self.cty_dat_file         = cty_dat_file
+        self.cache_size          = cache_size
+        self.lookup_debug        = lookup_debug
 
-        self.sorted_prefixes = []
-        self.cache = OrderedDict()
-        self.zone_polygons = []
-        self.lotw_cache = {}
+        self.sorted_prefixes      = []
+        self.cache               = OrderedDict()
+        self.zone_polygons       = []
+        self.lotw_cache          = {}
 
-        self.cache_lock = threading.Lock()
+        self.cache_lock          = threading.Lock()
+        self.zone_polygons       = self.load_cq_zones(self.cq_zones_file_path)
 
         self.load_clublog_xml(self.xml_file_path)
         self.load_cty_mod_dat(self.cty_dat_file)
         self.load_cache_from_disk()
         self.load_lotw_cache()
-        self.zone_polygons = self.load_cq_zones(self.cq_zones_geojson_path)
 
     def load_cache_from_disk(self):
         if not os.path.exists(self.cache_file):
@@ -541,30 +544,53 @@ class CallsignLookup:
             log.error(f"Fail to extract date '{date_str}': {e}")
             return None
 
-    def load_cq_zones(self, geojson_path: str):
-        from shapely.geometry import shape
-
-        if not os.path.exists(geojson_path):
-            log.error(f"GeoJSON not found: {geojson_path}")
-            return []
-
-        try:
-            with open(geojson_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-        except Exception as e:
-            log.error(f"Failed to load {geojson_path}: {e}")
-            return []
-
-        zone_polygons = []
-        for feature in data.get("features", []):
-            zone_id = feature.get("properties", {}).get("cq_zone_number")
-            geom = shape(feature.get("geometry", {}))
-            if not geom.is_valid:
-                geom = geom.buffer(0)
-            zone_polygons.append((zone_id, geom))
-
-        log.info(f"File {geojson_path} loading is complete.")
-        return zone_polygons
+    def load_cq_zones(self, go_file_path: str):
+        if os.path.exists(go_file_path):
+            try:
+                with open(go_file_path, 'r') as f:
+                    content = f.read()
+                
+                zone_polygons = []
+                
+                zone_entries = re.split(r'(?=\{name: `)', content)[1:]  
+                
+                for entry in zone_entries:
+                    number_match = re.search(r'number: (\d+)', entry)
+                    if not number_match:
+                        continue
+                        
+                    zone_number = int(number_match.group(1))                
+                    polygon_match = re.search(r'polygon: \[]Coordinate\{(.+?)\}\}', entry, re.DOTALL)
+                    if not polygon_match:
+                        continue
+                        
+                    polygon_data = polygon_match.group(1)
+                
+                    coord_matches = re.findall(r'\{Lat: ([^,]+), Lng: ([^}]+)\}', polygon_data)
+                    
+                    coordinates = []
+                    for lat_str, lng_str in coord_matches:
+                        try:
+                            lat = float(lat_str.strip())
+                            lng = float(lng_str.strip())
+                            coordinates.append((lng, lat))  
+                        except ValueError:
+                            continue
+                    
+                    if len(coordinates) >= 3: 
+                        try:
+                            polygon = Polygon(coordinates)
+                            if not polygon.is_valid:
+                                polygon = polygon.buffer(0) 
+                            zone_polygons.append((zone_number, polygon))
+                        except Exception as e:
+                            log.debug(f"Error creating polygon for zone {zone_number}: {e}")
+                            continue
+                
+                log.info(f"File {go_file_path} loading is complete with {len(zone_polygons)} zones.")
+                return zone_polygons
+            except Exception as e:
+                log.warning(f"Failed to load Go zone data from {go_file_path}: {e}, falling back to GeoJSON")        
 
     def locator_to_lat_lon_partial(self, grid: str):
         grid = grid.strip().upper()
@@ -601,9 +627,27 @@ class CallsignLookup:
 
     def lat_lon_to_cq_zone(self, lat: float, lon: float):
         pt = Point(lon, lat)
+        
+        # First try exact containment
         for zone_id, poly in self.zone_polygons:
             if poly.contains(pt):
                 return zone_id
+                
+        # If not contained in any polygon, find the closest zone
+        # This handles gaps in polygon boundaries
+        closest_zone = None
+        min_distance = float('inf')
+        
+        for zone_id, poly in self.zone_polygons:
+            distance = pt.distance(poly)
+            if distance < min_distance:
+                min_distance = distance
+                closest_zone = zone_id
+                
+        # Only use closest zone if it's reasonably close (within ~0.5 degrees)
+        if min_distance < 0.5:
+            return closest_zone
+            
         return None
 
     def grid_to_cq_zone(self, grid: str):
