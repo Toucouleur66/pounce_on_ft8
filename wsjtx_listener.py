@@ -1287,6 +1287,9 @@ class Listener(QObject):
                 """
                     Send messages to GUI                    
                 """
+                if wanted_cq_zone:
+                    focus_type = 'wanted_cq_zone' if focus_type is None else focus_type
+                
                 if wanted and not exactly_matched:
                     focus_type = 'wanted_wildcard' if focus_type is None else focus_type
 

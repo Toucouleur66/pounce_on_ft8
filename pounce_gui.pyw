@@ -2236,6 +2236,8 @@ class MainApp(QtWidgets.QMainWindow):
                 focus_message = "Grid"
             elif focus_type == 'marathon_wanted':
                 focus_message = "Marathon"  
+            elif focus_type == 'wanted_cq_zone':
+                focus_message = "CQ Zone"
             elif focus_type == 'wanted_wildcard':
                 focus_message = "Wildcard"                  
             formatted_message+= f" / {focus_message.upper()}"

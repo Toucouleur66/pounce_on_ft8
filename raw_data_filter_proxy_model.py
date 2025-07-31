@@ -33,7 +33,7 @@ class RawDataFilterProxyModel(QSortFilterProxyModel):
         self.invalidateFilter()
 
     def clearProxyFilters(self):
-        self.filters = self.default_filters
+        self.filters = self.default_filters.copy()
         self.invalidateFilter()
 
     def clearTableView(self):    
