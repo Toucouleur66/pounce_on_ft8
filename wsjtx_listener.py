@@ -331,7 +331,10 @@ class Listener(QObject):
                     return None, None
                 error_message = f"Exception in receive_packets: {e}\n{traceback.format_exc()}"
                 log.info(error_message)
-                self.message_callback(error_message)
+                self.message_callback({
+                    'type': 'error',
+                    'message': error_message
+                })
                 return None, None
         try:
             self.s.sock.close()
@@ -354,7 +357,10 @@ class Listener(QObject):
             except Exception as e:
                 error_message = f"Exception in process_packets: {e}\n{traceback.format_exc()}"
                 log.info(error_message)
-                self.message_callback(error_message)
+                self.message_callback({
+                    'type': 'error',
+                    'message': error_message
+                })
             finally:
                 self.packet_queue.task_done()
         log.info("Processor thread stopped")
@@ -380,7 +386,10 @@ class Listener(QObject):
         except Exception as e:
             error_message = f"Can't forward packet: {e}"
             log.info(error_message)
-            self.message_callback(error_message)    
+            self.message_callback({
+                'type': 'error',
+                'message': error_message
+            })    
 
     def update_listener_settings(self):
         self.wanted_callsigns       = self.monitoring_settings.get_wanted_callsigns()
@@ -1215,7 +1224,10 @@ class Listener(QObject):
 
                     # Use message_callback to communicate with the GUI
                     if self.enable_debug_output:
-                        self.message_callback(debug_message)
+                        self.message_callback({
+                            'type': 'debug',
+                            'message': debug_message
+                        })
 
                 elif monitored or monitored_cq_zone:
                     message_type = 'monitored_callsign_decoded'   
