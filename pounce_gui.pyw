@@ -324,6 +324,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.media_player.setAudioOutput(self.audio_output)
 
         self.enable_pounce_log                  = params.get('enable_pounce_log', True)
+        self.enable_extra_gui_debug_output      = params.get('enable_extra_gui_debug_output', False)
         self.enable_filter_gui                   = params.get('enable_filter_gui', False)        
         self.enable_grid_monitor                = params.get('enable_grid_monitor', False)
         self.enable_compact_view                = params.get('enable_compact_view', False)   
@@ -1799,13 +1800,14 @@ class MainApp(QtWidgets.QMainWindow):
             """
                 For debug
             """
-            log_output = []
-            for message in self.message_buffer:
-                callsign    = message.get('callsign') or "?"
-                priority    = message.get('priority') or 0
-                decode_time = message.get('decode_time') or "?"
-                log_output.append(f"process_message_buffer: [{priority}]{callsign:<13}@{decode_time}")
-            log.info(f"\n\t".join(log_output))
+            if self.enable_extra_gui_debug_output:
+                log_output = []
+                for message in self.message_buffer:
+                    callsign    = message.get('callsign') or "?"
+                    priority    = message.get('priority') or 0
+                    decode_time = message.get('decode_time') or "?"
+                    log_output.append(f"process_message_buffer: [{priority}]{callsign:<13}@{decode_time}")
+                log.info(f"\n\t".join(log_output))            
 
             """
                 Select the latest message with the highest priority
@@ -2506,7 +2508,8 @@ class MainApp(QtWidgets.QMainWindow):
             new_params = dialog.get_result()
         
             previous_enable_pounce_log = self.enable_pounce_log
-            self.enable_pounce_log = new_params.get('enable_pounce_log', True)
+            self.enable_pounce_log                  = new_params.get('enable_pounce_log', True)
+            self.enable_extra_gui_debug_output      = new_params.get('enable_extra_gui_debug_output', False)
 
             params.update(new_params)
             self.save_params(params)
