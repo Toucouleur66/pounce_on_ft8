@@ -330,7 +330,7 @@ class Listener(QObject):
                 if hasattr(e, 'winerror') and e.winerror == 10038:
                     return None, None
                 error_message = f"Exception in receive_packets: {e}\n{traceback.format_exc()}"
-                log.info(error_message)
+                log.error(error_message)
                 self.message_callback({
                     'type': 'error',
                     'message': error_message
@@ -356,7 +356,7 @@ class Listener(QObject):
                     self.forward_packet(packet)                          
             except Exception as e:
                 error_message = f"Exception in process_packets: {e}\n{traceback.format_exc()}"
-                log.info(error_message)
+                log.error(error_message)
                 self.message_callback({
                     'type': 'error',
                     'message': error_message
@@ -385,7 +385,7 @@ class Listener(QObject):
                 ))
         except Exception as e:
             error_message = f"Can't forward packet: {e}"
-            log.info(error_message)
+            log.error(error_message)
             self.message_callback({
                 'type': 'error',
                 'message': error_message
