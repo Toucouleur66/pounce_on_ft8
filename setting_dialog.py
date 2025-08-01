@@ -58,6 +58,7 @@ from constants import (
     DEFAULT_MAX_WAITING_DELAY,
     DEFAULT_MINIMUM_REPORT,
     # Fonts
+    CUSTOM_FONT,
     CUSTOM_FONT_SMALL,
     # Style,
     SETTING_QSS,
@@ -154,17 +155,23 @@ class SettingsDialog(QtWidgets.QDialog):
         jtdx_notice_label.setAutoFillBackground(True)
 
         primary_group = QtWidgets.QGroupBox("Main UDP instance (the one set as Primary UDP Server on JTDX)")
+        primary_group.setFont(CUSTOM_FONT)
         primary_layout = QtWidgets.QGridLayout()
 
         self.primary_udp_server_address = QtWidgets.QLineEdit()
         self.primary_udp_server_port = QtWidgets.QLineEdit()
 
         self.enable_auto_start_monitoring = QtWidgets.QCheckBox("Enable auto start monitoring when program launched")
+        self.enable_auto_start_monitoring.setFont(CUSTOM_FONT)
         self.enable_auto_start_monitoring.setChecked(DEFAULT_AUTO_START_MONITORING)
 
-        primary_layout.addWidget(QtWidgets.QLabel("UDP Server:"), 0, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
+        udp_server_label = QtWidgets.QLabel("UDP Server:")
+        udp_server_label.setFont(CUSTOM_FONT)
+        primary_layout.addWidget(udp_server_label, 0, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
         primary_layout.addWidget(self.primary_udp_server_address, 0, 1)
-        primary_layout.addWidget(QtWidgets.QLabel("UDP Server port number:"), 1, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
+        udp_server_port_label = QtWidgets.QLabel("UDP Server port number:")
+        udp_server_port_label.setFont(CUSTOM_FONT)
+        primary_layout.addWidget(udp_server_port_label, 1, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
         primary_layout.addWidget(self.primary_udp_server_port, 1, 1)
         primary_layout.addWidget(self.enable_auto_start_monitoring, 2, 0, 1, 2)
         primary_layout.setColumnMinimumWidth(0, 200)
@@ -173,17 +180,23 @@ class SettingsDialog(QtWidgets.QDialog):
         primary_group.setLayout(primary_layout)
 
         secondary_group = QtWidgets.QGroupBox("Secondary UDP Server (used to forward UDP packets)")
+        secondary_group.setFont(CUSTOM_FONT)
         secondary_layout = QtWidgets.QGridLayout()
 
         self.secondary_udp_server_address = QtWidgets.QLineEdit()
         self.secondary_udp_server_port = QtWidgets.QLineEdit()
 
         self.enable_secondary_udp_server = QtWidgets.QCheckBox("Enable forwarding to Secondary UDP Server")
+        self.enable_secondary_udp_server.setFont(CUSTOM_FONT)
         self.enable_secondary_udp_server.setChecked(DEFAULT_SECONDARY_UDP_SERVER)
 
-        secondary_layout.addWidget(QtWidgets.QLabel("UDP Server:"), 0, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
+        secondary_udp_server_label = QtWidgets.QLabel("UDP Server:")
+        secondary_udp_server_label.setFont(CUSTOM_FONT)
+        secondary_layout.addWidget(secondary_udp_server_label, 0, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
         secondary_layout.addWidget(self.secondary_udp_server_address, 0, 1)
-        secondary_layout.addWidget(QtWidgets.QLabel("UDP Server port number:"), 1, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
+        secondary_udp_server_port_label = QtWidgets.QLabel("UDP Server port number:")
+        secondary_udp_server_port_label.setFont(CUSTOM_FONT)
+        secondary_layout.addWidget(secondary_udp_server_port_label, 1, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
         secondary_layout.addWidget(self.secondary_udp_server_port, 1, 1)
         secondary_layout.addWidget(self.enable_secondary_udp_server, 2, 0, 1, 2)
         secondary_layout.setColumnMinimumWidth(0, 200)
@@ -192,17 +205,23 @@ class SettingsDialog(QtWidgets.QDialog):
         secondary_group.setLayout(secondary_layout)
 
         logging_group = QtWidgets.QGroupBox("UDP instance for external logging program (e.g. Logger32, RUMlogNG)")
+        logging_group.setFont(CUSTOM_FONT)
         logging_layout = QtWidgets.QGridLayout()
 
         self.logging_udp_server_address = QtWidgets.QLineEdit()
         self.logging_udp_server_port = QtWidgets.QLineEdit()
 
         self.enable_logging_udp_server = QtWidgets.QCheckBox("Enable sending QSO data for logging program")
+        self.enable_logging_udp_server.setFont(CUSTOM_FONT)
         self.enable_logging_udp_server.setChecked(DEFAULT_SECONDARY_UDP_SERVER)
 
-        logging_layout.addWidget(QtWidgets.QLabel("UDP Server:"), 0, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
+        logging_udp_server_label = QtWidgets.QLabel("UDP Server:")
+        logging_udp_server_label.setFont(CUSTOM_FONT)
+        logging_layout.addWidget(logging_udp_server_label, 0, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
         logging_layout.addWidget(self.logging_udp_server_address, 0, 1)
-        logging_layout.addWidget(QtWidgets.QLabel("UDP Server port number:"), 1, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
+        logging_udp_server_port_label = QtWidgets.QLabel("UDP Server port number:")
+        logging_udp_server_port_label.setFont(CUSTOM_FONT)
+        logging_layout.addWidget(logging_udp_server_port_label, 1, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
         logging_layout.addWidget(self.logging_udp_server_port, 1, 1)
         logging_layout.addWidget(self.enable_logging_udp_server, 2, 0, 1, 2)
         logging_layout.setColumnMinimumWidth(0, 200)
@@ -230,27 +249,34 @@ class SettingsDialog(QtWidgets.QDialog):
         general_notice_label.setAutoFillBackground(True)
 
         general_settings_group = QtWidgets.QGroupBox(f"General {GUI_LABEL_NAME} Settings")
+        general_settings_group.setFont(CUSTOM_FONT)
         
         general_settings_widget = QtWidgets.QWidget()
         general_settings_layout = QtWidgets.QGridLayout(general_settings_widget)
         
         self.enable_sending_reply = QtWidgets.QCheckBox("Enable reply")
+        self.enable_sending_reply.setFont(CUSTOM_FONT)
         self.enable_sending_reply.setChecked(DEFAULT_SENDING_REPLY)
         
         self.enable_polite_reply = QtWidgets.QCheckBox("Enable polite reply")
+        self.enable_polite_reply.setFont(CUSTOM_FONT)
         self.enable_polite_reply.setChecked(DEFAULT_POLITE_REPLY)
         self.enable_polite_reply.toggled.connect(self.populate_priority_list)
         
         self.enable_gap_finder = QtWidgets.QCheckBox("Enable frequencies offset updater")
+        self.enable_gap_finder.setFont(CUSTOM_FONT)
         self.enable_gap_finder.setChecked(DEFAULT_GAP_FINDER)
 
         self.enable_watchdog_bypass = QtWidgets.QCheckBox("Enable watchdog bypass")
+        self.enable_watchdog_bypass.setFont(CUSTOM_FONT)
         self.enable_watchdog_bypass.setChecked(DEFAULT_WATCHDOG_BYPASS)
 
         self.enable_log_all_valid_contact = QtWidgets.QCheckBox("Log all valid contacts (not only from Wanted)")
+        self.enable_log_all_valid_contact.setFont(CUSTOM_FONT)
         self.enable_log_all_valid_contact.setChecked(True)
 
         self.enable_reply_to_valid_callsign = QtWidgets.QCheckBox("Ignore callsign if prefix is invalid")
+        self.enable_reply_to_valid_callsign.setFont(CUSTOM_FONT)
         self.enable_reply_to_valid_callsign.setChecked(True)
 
         general_settings_layout.addWidget(self.enable_sending_reply, 0, 0, 1, 2)
@@ -266,6 +292,7 @@ class SettingsDialog(QtWidgets.QDialog):
 
 
         self.freq_range_type_group = QtWidgets.QGroupBox("Select range of frequency being used for offset updater")
+        self.freq_range_type_group.setFont(CUSTOM_FONT)
 
         udp_freq_range_type_widget = QtWidgets.QWidget()
         udp_freq_range_type_layout = QtWidgets.QVBoxLayout(udp_freq_range_type_widget)
@@ -366,9 +393,11 @@ class SettingsDialog(QtWidgets.QDialog):
         minimum_report_notice.setAutoFillBackground(True)
 
         minimum_report_group = QtWidgets.QGroupBox("Minimum dB signal for reply")
+        minimum_report_group.setFont(CUSTOM_FONT)
         minimum_report_layout = QtWidgets.QHBoxLayout()
         
         minimum_report_label = QtWidgets.QLabel("Minimum report")
+        minimum_report_label.setFont(CUSTOM_FONT)
         minimum_report_label.setFixedWidth(400)        
         
         self.minimum_report_combo = QtWidgets.QComboBox()
@@ -399,6 +428,7 @@ class SettingsDialog(QtWidgets.QDialog):
             Priority Manager Group
         """
         self.priority_manager_group = QtWidgets.QGroupBox("Priority Manager")
+        self.priority_manager_group.setFont(CUSTOM_FONT)
         priority_group_layout = QtWidgets.QVBoxLayout()
         
         priority_notice_text = (
@@ -421,10 +451,12 @@ class SettingsDialog(QtWidgets.QDialog):
         max_reply_notice_label.setAutoFillBackground(True)
 
         self.max_reply_group = QtWidgets.QGroupBox(f"Sequencing")
+        self.max_reply_group.setFont(CUSTOM_FONT)
 
         max_reply_layout = QtWidgets.QVBoxLayout()
 
         max_reply_label = QtWidgets.QLabel("Maximum number of attempts")
+        max_reply_label.setFont(CUSTOM_FONT)
         max_reply_label.setFixedWidth(200)
 
         self.max_reply_attemps_combo = QtWidgets.QComboBox()
@@ -437,11 +469,14 @@ class SettingsDialog(QtWidgets.QDialog):
         reply_attempts_layout = QtWidgets.QHBoxLayout()
         reply_attempts_layout.addWidget(max_reply_label)
         reply_attempts_layout.addWidget(self.max_reply_attemps_combo)
-        reply_attempts_layout.addWidget(QtWidgets.QLabel("times"))
+        times_label = QtWidgets.QLabel("times")
+        times_label.setFont(CUSTOM_FONT)
+        reply_attempts_layout.addWidget(times_label)
 
         max_reply_layout.addLayout(reply_attempts_layout)
 
         max_waiting_delay_label = QtWidgets.QLabel("Maximum waiting delay")
+        max_waiting_delay_label.setFont(CUSTOM_FONT)
         max_waiting_delay_label.setFixedWidth(200)
         
         self.max_waiting_delay_combo = QtWidgets.QComboBox()
@@ -460,7 +495,9 @@ class SettingsDialog(QtWidgets.QDialog):
         waiting_delay_layout = QtWidgets.QHBoxLayout()
         waiting_delay_layout.addWidget(max_waiting_delay_label)
         waiting_delay_layout.addWidget(self.max_waiting_delay_combo)
-        waiting_delay_layout.addWidget(QtWidgets.QLabel("minutes"))
+        minutes_label = QtWidgets.QLabel("minutes")
+        minutes_label.setFont(CUSTOM_FONT)
+        waiting_delay_layout.addWidget(minutes_label)
 
         max_reply_layout.addLayout(waiting_delay_layout)
 
@@ -527,11 +564,13 @@ class SettingsDialog(QtWidgets.QDialog):
         lotw_cache_info.setAutoFillBackground(True)
         
         lotw_settings_group = QtWidgets.QGroupBox("LoTW Settings")
+        lotw_settings_group.setFont(CUSTOM_FONT)
         
         lotw_settings_widget = QtWidgets.QWidget()
         lotw_settings_layout = QtWidgets.QGridLayout(lotw_settings_widget)
         
         self.enable_reply_to_lotw_only = QtWidgets.QCheckBox("Enable reply only for callsigns that use LoTW")
+        self.enable_reply_to_lotw_only.setFont(CUSTOM_FONT)
         self.enable_reply_to_lotw_only.setChecked(False)
         
         lotw_settings_layout.addWidget(self.enable_reply_to_lotw_only, 0, 0, 1, 2)
@@ -560,18 +599,23 @@ class SettingsDialog(QtWidgets.QDialog):
         sound_notice_label.setAutoFillBackground(True)
 
         sound_settings_group = QtWidgets.QGroupBox("Sound Alert Settings")
+        sound_settings_group.setFont(CUSTOM_FONT)
         sound_settings_layout = QtWidgets.QGridLayout()
 
         play_sound_notice_label = QtWidgets.QLabel("Play Sounds when:")
+        play_sound_notice_label.setFont(CUSTOM_FONT)
         play_sound_notice_label.setFont(CUSTOM_FONT_SMALL)
 
         self.enable_sound_wanted_callsigns = QtWidgets.QCheckBox("Message from any Wanted Callsign")
+        self.enable_sound_wanted_callsigns.setFont(CUSTOM_FONT)
         self.enable_sound_wanted_callsigns.setChecked(True)
 
         self.enable_sound_directed_my_callsign = QtWidgets.QCheckBox("Message directed to my Callsign")
+        self.enable_sound_directed_my_callsign.setFont(CUSTOM_FONT)
         self.enable_sound_directed_my_callsign.setChecked(True)
 
         self.enable_sound_monitored_callsigns = QtWidgets.QCheckBox("Message from any Monitored Callsign")
+        self.enable_sound_monitored_callsigns.setFont(CUSTOM_FONT)
         self.enable_sound_monitored_callsigns.setChecked(True)
 
         self.delay_between_sound_for_monitored = QtWidgets.QLineEdit()
@@ -579,14 +623,18 @@ class SettingsDialog(QtWidgets.QDialog):
 
         delay_layout = QtWidgets.QHBoxLayout()
         delay_layout.addWidget(self.delay_between_sound_for_monitored)
-        delay_layout.addWidget(QtWidgets.QLabel("seconds"))
+        seconds_label = QtWidgets.QLabel("seconds")
+        seconds_label.setFont(CUSTOM_FONT)
+        delay_layout.addWidget(seconds_label)
         delay_layout.addStretch()
 
         sound_settings_layout.addWidget(play_sound_notice_label, 0, 0, 1, 2)
         sound_settings_layout.addWidget(self.enable_sound_wanted_callsigns, 1, 0, 1, 2)
         sound_settings_layout.addWidget(self.enable_sound_directed_my_callsign, 2, 0, 1, 2)
         sound_settings_layout.addWidget(self.enable_sound_monitored_callsigns, 3, 0, 1, 2)
-        sound_settings_layout.addWidget(QtWidgets.QLabel("Delay between each monitored callsigns detected:"), 4, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
+        delay_between_label = QtWidgets.QLabel("Delay between each monitored callsigns detected:")
+        delay_between_label.setFont(CUSTOM_FONT)
+        sound_settings_layout.addWidget(delay_between_label, 4, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
         sound_settings_layout.addLayout(delay_layout, 4, 1, 1, 2)
 
         sound_settings_group.setLayout(sound_settings_layout)
@@ -612,6 +660,7 @@ class SettingsDialog(QtWidgets.QDialog):
         worked_b4_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
         file_selection_group = QtWidgets.QGroupBox("ADIF File to check Worked B4 Callsigns")
+        file_selection_group.setFont(CUSTOM_FONT)
         file_selection_group.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
         file_selection_widget = QtWidgets.QWidget()
@@ -632,6 +681,7 @@ class SettingsDialog(QtWidgets.QDialog):
         file_selection_group.layout().addWidget(file_selection_widget)
                
         self.adif_wkb4_group = QtWidgets.QGroupBox("What should we do with Worked B4?")
+        self.adif_wkb4_group.setFont(CUSTOM_FONT)
         adif_wkb4_layout = QtWidgets.QVBoxLayout()
         adif_wkb4_layout.setSpacing(10)
 
@@ -660,6 +710,7 @@ class SettingsDialog(QtWidgets.QDialog):
         marathon_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
         self.marathon_group = QtWidgets.QGroupBox("Enable Marathon for selected bands")
+        self.marathon_group.setFont(CUSTOM_FONT)
         marathon_select_layout = QtWidgets.QGridLayout()
 
         self.band_buttons = {}
@@ -712,6 +763,7 @@ class SettingsDialog(QtWidgets.QDialog):
         grid_tracker_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
         self.grid_tracker_group = QtWidgets.QGroupBox("Enable Grid Tracker for selected bands")
+        self.grid_tracker_group.setFont(CUSTOM_FONT)
         grid_tracker_select_layout = QtWidgets.QGridLayout()
 
         self.grid_tracker_band_buttons = {}
@@ -740,6 +792,7 @@ class SettingsDialog(QtWidgets.QDialog):
             Backup Settings
         """
         adif_backup_selection_group = QtWidgets.QGroupBox(f"{GUI_LABEL_NAME} Backup File")
+        adif_backup_selection_group.setFont(CUSTOM_FONT)
         adif_backup_selection_group.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
         working_log_notice_text = (
@@ -796,15 +849,19 @@ class SettingsDialog(QtWidgets.QDialog):
         debug_notice_label.setAutoFillBackground(True)
 
         log_settings_group = QtWidgets.QGroupBox("Log Settings")
+        log_settings_group.setFont(CUSTOM_FONT)
         log_settings_layout = QtWidgets.QVBoxLayout()
 
         self.enable_debug_output = QtWidgets.QCheckBox("Show debug output")
+        self.enable_debug_output.setFont(CUSTOM_FONT)
         self.enable_debug_output.setChecked(DEFAULT_DEBUG_OUTPUT)
 
         self.enable_pounce_log = QtWidgets.QCheckBox(f"Save log to {get_log_filename()}")
+        self.enable_pounce_log.setFont(CUSTOM_FONT)
         self.enable_pounce_log.setChecked(DEFAULT_POUNCE_LOG)
 
         self.enable_log_packet_data = QtWidgets.QCheckBox("Save all received Packet Data to log")
+        self.enable_log_packet_data.setFont(CUSTOM_FONT)
         self.enable_log_packet_data.setChecked(DEFAULT_LOG_PACKET_DATA)
 
         log_settings_layout.addWidget(self.enable_pounce_log)
