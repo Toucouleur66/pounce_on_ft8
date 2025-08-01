@@ -13,7 +13,6 @@ class RawDataFilterProxyModel(QSortFilterProxyModel):
         self.enable_show_all_decoded    = False
         self.show_cleared_data          = False
         self.current_clear_index        = 0
-        self.filters                     = None
         self.default_filters             = {
             'callsign'  : None,
             'country'   : None,
@@ -22,6 +21,7 @@ class RawDataFilterProxyModel(QSortFilterProxyModel):
             'row_color' : None,
             'band'      : DEFAULT_FILTER_VALUE
         }
+        self.filters                     = {}
         self.clearProxyFilters()
 
     def setEnableShowAllDecoded(self, enabled):
@@ -33,7 +33,8 @@ class RawDataFilterProxyModel(QSortFilterProxyModel):
         self.invalidateFilter()
 
     def clearProxyFilters(self):
-        self.filters = self.default_filters.copy()
+        self.filters.clear()
+        self.filters.update(self.default_filters)
         self.invalidateFilter()
 
     def clearTableView(self):    
@@ -44,7 +45,6 @@ class RawDataFilterProxyModel(QSortFilterProxyModel):
 
     def showAllData(self):
         self.show_cleared_data = True
-        self.clearProxyFilters()
         self.invalidateFilter()        
 
     def hideErasedData(self):

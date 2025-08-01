@@ -1107,7 +1107,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_table.scrollToBottom()            
 
     def update_filter_gui_preference(self, checked):
-        if not self.output_table.isVisible():
+        if self.enable_alternate_compact_view:
             return 
         
         if checked:
