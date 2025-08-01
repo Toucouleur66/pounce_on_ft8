@@ -157,15 +157,23 @@ SETTING_QSS                     = f"""
 
 TABLE_SETTING_QSS               = f"""
             QTableWidget {{
-                border: none;
+                gridline-color: transparent;
+                selection-background-color: {BG_COLOR_BLACK_ON_PURPLE};
+                outline: none;
             }}
             QTableWidget::item:selected {{
                 background-color: {BG_COLOR_BLACK_ON_PURPLE}; 
                 color: {FG_COLOR_BLACK_ON_PURPLE};
+                padding: 0px;                
+                padding-left: 8px;
+                border: 0px solid transparent;
+                outline: none;
             }}
             QTableWidget::item {{
-                selection-background-color: transparent;
+                padding: 0px;
                 padding-left: 8px;
+                border: 0px solid transparent;
+                outline: none;
             }}
         """
 

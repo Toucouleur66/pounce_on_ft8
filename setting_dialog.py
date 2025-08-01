@@ -140,7 +140,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.menu_list.setCurrentRow(0)  # Select first item by default
         
         self.setMinimumWidth(700)
-        self.resize(780, 600)
+        self.resize(700, 700)
         
         """
             Server Settings
@@ -335,11 +335,31 @@ class SettingsDialog(QtWidgets.QDialog):
         self.mode_table_widget.verticalHeader().setVisible(False)
         self.mode_table_widget.setAlternatingRowColors(True)
         self.mode_table_widget.setFont(CUSTOM_FONT_SMALL)
+        
+        self.mode_table_widget.horizontalHeader().setHighlightSections(False)
+        self.mode_table_widget.verticalHeader().setHighlightSections(False)
+        self.mode_table_widget.setFrameStyle(QtWidgets.QFrame.Shape.NoFrame)
 
         headers = ["", "Min Frequency", "Max Frequency", "Mode"]
         self.mode_table_widget.setHorizontalHeaderLabels(headers)
+        self.mode_table_widget.horizontalHeader().setFont(CUSTOM_FONT_SMALL)  
         self.mode_table_widget.horizontalHeader().setVisible(True)
         self.mode_table_widget.horizontalHeader().setDefaultAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
+
+        self.mode_table_widget.setStyleSheet("""
+            QTableWidget {
+                gridline-color: transparent;
+                border: none;
+            }
+            QTableWidget::item {
+                border: none;
+                border-right: none;
+                border-left: none;
+            }
+            QTableWidget QTableCornerButton::section {
+                border: none;
+            }
+        """)
 
         self.mode_table_widget.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Expanding,
