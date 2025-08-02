@@ -224,9 +224,15 @@ def parse_single_wsjtx_message(
             Check if the callsign matches
         """
         is_wanted    = matches_any(wanted_callsigns, callsign)
-        is_excluded  = matches_any(excluded_callsigns, callsign)
+        is_excluded  = matches_any(excluded_callsigns, callsign) 
         is_worked    = matches_any(worked_callsigns, callsign)
         is_monitored = matches_any(monitored_callsigns, callsign)
+
+        """
+            Check if the callsign is really valid
+        """
+        is_excluded   = has_portable_suffix(callsign) or is_excluded
+        callsign_info = None
 
         """
             Check if no grid is provided
@@ -356,6 +362,35 @@ def matches_any(patterns, callsign):
 def is_exact_match(patterns, callsign):
     patterns = [p.strip().upper() for p in patterns if p.strip()]
     return callsign.upper() in patterns
+
+def has_portable_suffix(callsign):
+    """
+        Check if callsign has a portable/mobile suffix like /R, /P, /M, /3, /1A, etc. Returns True if the callsign contains a suffix that indicates portable/mobile operation.
+    """
+    if not callsign or '/' not in callsign:
+        return False
+    
+    parts = callsign.split('/')
+    if len(parts) < 2:
+        return False
+    
+    suffix = parts[-1].upper()
+    
+    # Check for common portable/mobile suffixes
+    # Single letters: P (Portable), M (Mobile), R (Repeater), etc.
+    if len(suffix) == 1 and suffix.isalpha():
+        return True
+    
+    # Single digit: /1, /2, /3, etc. (district numbers)
+    if len(suffix) == 1 and suffix.isdigit():
+        return True
+    
+    # Two characters: digit + letter (/1A, /2B, etc.) or letter + digit (/A1, /B2, etc.)
+    if len(suffix) == 2:
+        if (suffix[0].isdigit() and suffix[1].isalpha()) or (suffix[0].isalpha() and suffix[1].isdigit()):
+            return True
+    
+    return False
 
 def int_to_array(pattern):
     array = []

@@ -3512,19 +3512,21 @@ class MainApp(QtWidgets.QMainWindow):
         self.hide_status_menu()
 
         if self.worker:
-            if self.worker:
-                self.worker.stop()  
-                try:
-                    self.worker.finished.disconnect()
-                    self.worker.error.disconnect()
-                    self.worker.message.disconnect()
-                except RuntimeError:
-                    pass
-                self.worker = None
+            self.worker.stop()  
+            try:
+                self.worker.finished.disconnect()
+                self.worker.error.disconnect()
+                self.worker.message.disconnect()
+            except RuntimeError:
+                pass
+            self.worker = None
 
         if self.thread:
-            self.thread.started.disconnect()
-            self.thread.finished.disconnect()
+            try:
+                self.thread.started.disconnect()
+                self.thread.finished.disconnect()
+            except RuntimeError:
+                pass
         
         if self.timer: 
             self.timer.stop()
@@ -3572,8 +3574,10 @@ class MainApp(QtWidgets.QMainWindow):
                 try:
                     if self.thread.isRunning():
                         self.thread.quit()
-                        self.thread.wait()
-                        self.thread = None
+                        # Wait with timeout to prevent indefinite hanging
+                        if not self.thread.wait(5000):  # 5-second timeout
+                            log.warning("Thread did not stop gracefully within timeout")
+                            self.thread.terminate()
                 except RuntimeError as e:
                     log.error(f"RuntimeError when stopping thread: {e}")                        
                 finally:

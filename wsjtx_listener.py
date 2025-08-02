@@ -279,7 +279,12 @@ class Listener(QObject):
 
     def receive_packets(self):
         while self._running:
-            try:                
+            try:
+                # Check if socket is available before attempting to receive
+                if not self.s or not self.s.sock:
+                    log.error("Socket not available, stopping packet reception")
+                    break
+                    
                 pkt, addr_port = self.s.sock.recvfrom(8192)
                 _instance = None
                 header_end = pkt.find(b'|')
@@ -337,7 +342,8 @@ class Listener(QObject):
                 })
                 return None, None
         try:
-            self.s.sock.close()
+            if self.s and self.s.sock:
+                self.s.sock.close()
         except Exception:
             pass
         log.info("Receiver thread stopped")
@@ -522,7 +528,8 @@ class Listener(QObject):
         self.synched_settings = False
 
         try:
-            self.s.sock.close()
+            if self.s and self.s.sock:
+                self.s.sock.close()
         except Exception:
             pass
         
@@ -1071,7 +1078,7 @@ class Listener(QObject):
                 if (
                     self.enable_reply_to_valid_callsign 
                     and entity_code is None
-                    and not (wanted and wanted_cq_zone)                    
+                    and not (wanted and wanted_cq_zone)
                 ):
                     wanted = wanted_cq_zone = False
 
