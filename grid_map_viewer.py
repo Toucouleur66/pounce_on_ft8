@@ -6,6 +6,7 @@ import numpy as np
 from datetime import datetime, timezone
 
 from constants import (
+    CURRENT_VERSION_NUMBER,
     CUSTOM_FONT,
     CUSTOM_FONT_SMALL,
     GUI_LABEL_VERSION,
@@ -34,6 +35,17 @@ from logger import get_logger
 from utils import darken_color, complementary_color
 
 log     = get_logger(__name__)
+
+
+""""
+    Need to be provided for showing the icon in the taskbar for Windows 11
+"""
+try:
+    from ctypes import windll  
+    myappid = f"f5ukw.waitandpounce.{CURRENT_VERSION_NUMBER}"
+    windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+except ImportError:
+    pass
 
 class GridMapWidget(QWidget):
     # Signal to emit message_uid when grid is clicked
