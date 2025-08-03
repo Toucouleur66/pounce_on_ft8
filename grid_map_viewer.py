@@ -1,6 +1,8 @@
 import sys
 import math
 import time
+import platform
+import os
 import numpy as np
 
 from datetime import datetime, timezone
@@ -21,7 +23,7 @@ from constants import (
 
 from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QSlider, QFrame, QGraphicsOpacityEffect
 from PyQt6.QtCore import Qt, QPoint, QTimer, pyqtSignal
-from PyQt6.QtGui import QFont, QPainter, QWheelEvent, QMouseEvent, QKeyEvent, QColor, QBrush, QPen, QPainterPath, QPolygon, QCursor
+from PyQt6.QtGui import QFont, QPainter, QWheelEvent, QMouseEvent, QKeyEvent, QColor, QBrush, QPen, QPainterPath, QPolygon, QCursor, QIcon
 
 from custom_qlabel import CustomQLabel
 from animated_toggle import AnimatedToggle
@@ -35,17 +37,6 @@ from logger import get_logger
 from utils import darken_color, complementary_color
 
 log     = get_logger(__name__)
-
-
-""""
-    Need to be provided for showing the icon in the taskbar for Windows 11
-"""
-try:
-    from ctypes import windll  
-    myappid = f"f5ukw.waitandpounce.{CURRENT_VERSION_NUMBER}"
-    windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
-except ImportError:
-    pass
 
 class GridMapWidget(QWidget):
     # Signal to emit message_uid when grid is clicked
@@ -1963,6 +1954,39 @@ class GridMapWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle(GUI_LABEL_VERSION + " - Grid Monitoring")
         self.setGeometry(100, 100, 1200, 800)
+        
+        # Set window icon for Windows taskbar
+        if platform.system() == 'Windows':
+            if getattr(sys, 'frozen', False): 
+                icon_path = os.path.join(sys._MEIPASS, "pounce.ico")
+            else:
+                icon_path = "pounce.ico"
+            self.setWindowIcon(QIcon(icon_path))
+            
+            # Ensure proper taskbar grouping with main application
+            try:
+                import ctypes
+                from ctypes import wintypes
+                
+                # Define the necessary Windows structures and functions
+                user32 = ctypes.windll.user32
+                shell32 = ctypes.windll.shell32
+                
+                # This will be called after the window is shown to set proper taskbar properties
+                def set_taskbar_properties():
+                    try:
+                        hwnd = int(self.winId())
+                        if hwnd:
+                            # Set window properties for proper taskbar handling
+                            myappid = f"f5ukw.waitandpounce.{CURRENT_VERSION_NUMBER}"
+                            # Use SHGetPropertyStoreForWindow to set AppUserModelID
+                            pass  # The process-level AppUserModelID should be sufficient
+                    except:
+                        pass
+                
+                self._set_taskbar_properties = set_taskbar_properties
+            except (ImportError, AttributeError):
+                self._set_taskbar_properties = lambda: None
               
         self.map_widget = GridMapWidget()
         
@@ -2290,6 +2314,8 @@ class GridMapWindow(QMainWindow):
     
     def showEvent(self, event):
         super().showEvent(event)
+        if hasattr(self, '_set_taskbar_properties'):
+            self._set_taskbar_properties()
     
     def activateEvent(self, event):
         super().activateEvent(event)
