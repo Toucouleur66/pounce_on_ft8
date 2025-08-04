@@ -84,7 +84,7 @@ class GridMapWidget(QWidget):
         
         self.permanent_grids            = []
         self.new_grids                  = []
-        self.current_band               = None
+        self.operating_band             = None
         self.adif_data                  = {}
 
         # Buffer to store multiple heatmap groups
@@ -1287,24 +1287,32 @@ class GridMapWidget(QWidget):
         if hasattr(self.parent(), 'update_toggle_labels'):
             self.parent().update_toggle_labels()
     
-    def update_current_band(self, band):
-        self.current_band = band
+    def update_operating_band(self, band):
+        last_band = self.operating_band
+        self.operating_band = band
+        log.debug(f"GridMapWidget: Band changed from {last_band} to {band}")
+        
         self.update_grids_for_band()            
-        self.clear_new_grids()
-        self.clear_heatmap_indicators()    
+        
+        # Only clear new grids and heatmap if the band actually changed
+        # This prevents clearing grids unnecessarily during initialization
+        if last_band != band:
+            log.debug(f"GridMapWidget: Clearing grids for band change [ {last_band} ] to [ {band} ]")
+            self.clear_new_grids()
+            self.clear_heatmap_indicators()    
 
         if hasattr(self.parent(), 'update_toggle_labels'):
             self.parent().update_toggle_labels()
     
     def update_grids_for_band(self):
-        if not self.current_band or not self.adif_data:
+        if not self.operating_band or not self.adif_data:
             self.set_permanent_grids([])
             return
 
         """
             Update the highlighted squares based on the current band and ADIF data.
         """
-        grid_squares = list(self.adif_data.get('grid', {}).get(self.current_band, {}).keys())
+        grid_squares = list(self.adif_data.get('grid', {}).get(self.operating_band, {}).keys())
 
         self.set_permanent_grids(grid_squares, center_on_last=False)
     
@@ -1374,7 +1382,12 @@ class GridMapWidget(QWidget):
             log.error(f"Error to handle grids: {e}")
             self.update()
         finally:
-            log.debug(f"GridMapWidget: {len(grids)} updated grids")
+            grid_count = len(grids) if grids else 0
+            log.debug(f"GridMapWidget: {grid_count} updated grids")
+            
+            # Additional debug info to help diagnose grid monitoring issues
+            if grid_count == 0 and hasattr(self, 'operating_band') and self.operating_band:
+                log.debug(f"GridMapWidget: No grids received for band {self.operating_band}")
             
             # Update status bar when grids change
             window = self.parent()
@@ -1913,10 +1926,10 @@ class GridMapWidget(QWidget):
         """
             Get callsigns that have been worked in the given grid square
         """
-        if not self.adif_data or not self.current_band:
+        if not self.adif_data or not self.operating_band:
             return []
         
-        grid_data = self.adif_data.get('grid', {}).get(self.current_band, {}).get(grid_square, set())
+        grid_data = self.adif_data.get('grid', {}).get(self.operating_band, {}).get(grid_square, set())
         
         if isinstance(grid_data, set):
             callsigns = sorted(list(grid_data))
@@ -2194,8 +2207,8 @@ class GridMapWindow(QMainWindow):
         self.status_bar_label_updated_grids.setText(f"Buffered: {sum(len(group) for group in
   self.map_widget.heatmap_buffer)}")        
 
-        if self.map_widget.current_band:
-            self.status_bar_label_total_worked.setText(f"Worked grids (<u>{self.map_widget.current_band}</u>): {len(self.map_widget.permanent_grids):,}")
+        if self.map_widget.operating_band:
+            self.status_bar_label_total_worked.setText(f"Worked grids (<u>{self.map_widget.operating_band}</u>): {len(self.map_widget.permanent_grids):,}")
     
     def update_toggle_labels(self):
         if hasattr(self, 'grid_toggle'):

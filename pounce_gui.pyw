@@ -1214,7 +1214,7 @@ class MainApp(QtWidgets.QMainWindow):
                 self.grid_monitor.map_widget.grid_clicked.connect(self.scroll_to_message_uid)
                 
             if self.operating_band:
-                self.grid_monitor.map_widget.update_current_band(self.operating_band)
+                self.grid_monitor.map_widget.update_operating_band(self.operating_band)
                 self.update_grid_monitor_with_grids(self.latest_messages)
             
             if self.grid_monitor_geometry:
@@ -1258,11 +1258,15 @@ class MainApp(QtWidgets.QMainWindow):
             self.save_unique_param('enable_grid_monitor', checked)
             
     def update_grid_monitor_with_grids(self, messages):
-        if not messages or not self.grid_monitor:
+        if not self.grid_monitor:
+            return
+            
+        if not messages:
             return
         
         grid_messages = [message for message in messages if "grid" in message]
-        self.grid_monitor.map_widget.set_new_grids(grid_messages)
+        if grid_messages:
+            self.grid_monitor.map_widget.set_new_grids(grid_messages)
                        
     def hide_container_tab(self):
         self.compact_mode_visible = False
@@ -1493,8 +1497,12 @@ class MainApp(QtWidgets.QMainWindow):
 
             self.monitoring_settings.set_operating_band(band)
             
+            self.latest_messages = [] 
+
             if self.grid_monitor is not None:
-                self.grid_monitor.map_widget.update_current_band(band)
+                self.grid_monitor.map_widget.update_operating_band(band)
+                # Ensure grid monitor shows correct worked grids for new band
+                # Don't clear new grids immediately - let new messages populate them
             
             self.update_tab_widget_labels_style()
         
