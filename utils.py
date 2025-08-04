@@ -231,8 +231,9 @@ def parse_single_wsjtx_message(
         """
             Check if the callsign is really valid
         """
-        is_excluded   = has_portable_suffix(callsign) or is_excluded
-        callsign_info = None
+        if has_portable_suffix(callsign):
+            is_excluded   = True
+            callsign_info = None
 
         """
             Check if no grid is provided

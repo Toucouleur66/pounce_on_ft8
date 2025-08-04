@@ -1029,27 +1029,30 @@ class Listener(QObject):
                     and not excluded 
                     and entity_code 
                     and not (wanted and wanted_cq_zone)                    
-                ):            
-                    if callsign in self.wanted_callsigns_per_entity.get(self.band, {}).get(entity_code, {}):
-                        marathon = True
-                    elif ((   
-                            self.marathon_preference.get(self.band) and
-                            entity_code not in self.adif_data.get('entity', {}).get(current_year, {}).get(self.band, {}) 
-                        ) or (
-                            self.marathon_preference.get(MARATHON_UNLIMITED) and 
-                            not is_entity_worked_b4(self.adif_data, entity_code, current_year)
-                        )):
-                        marathon = True
+                ):                              
+                    if callsign_wkb4 and self.worked_before_preference == WKB4_REPLY_MODE_NEVER:
+                        log.warning(f"Skipping [ {callsign} ] as it is wkb4 [ {wkb4_year}]")
+                    else:                        
+                        if callsign in self.wanted_callsigns_per_entity.get(self.band, {}).get(entity_code, {}):
+                            marathon = True
+                        elif ((   
+                                self.marathon_preference.get(self.band) and
+                                entity_code not in self.adif_data.get('entity', {}).get(current_year, {}).get(self.band, {}) 
+                            ) or (
+                                self.marathon_preference.get(MARATHON_UNLIMITED) and 
+                                not is_entity_worked_b4(self.adif_data, entity_code, current_year)
+                            )):
+                            marathon = True
 
-                        if not self.wanted_callsigns_per_entity.get(self.band):
-                            self.wanted_callsigns_per_entity[self.band] = {}
+                            if not self.wanted_callsigns_per_entity.get(self.band):
+                                self.wanted_callsigns_per_entity[self.band] = {}
 
-                        if not self.wanted_callsigns_per_entity[self.band].get(entity_code):
-                            self.wanted_callsigns_per_entity[self.band][entity_code] = []
+                            if not self.wanted_callsigns_per_entity[self.band].get(entity_code):
+                                self.wanted_callsigns_per_entity[self.band][entity_code] = []
 
-                        if callsign not in self.wanted_callsigns_per_entity[self.band][entity_code]:
-                            self.wanted_callsigns_per_entity[self.band][entity_code].append(callsign)
-                            # save_marathon_wanted_data(MARATHON_FILE, self.wanted_callsigns_per_entity)
+                            if callsign not in self.wanted_callsigns_per_entity[self.band][entity_code]:
+                                self.wanted_callsigns_per_entity[self.band][entity_code].append(callsign)
+                                # save_marathon_wanted_data(MARATHON_FILE, self.wanted_callsigns_per_entity)
 
                     if marathon:                        
                         reply_to_packet = True
@@ -1301,7 +1304,7 @@ class Listener(QObject):
                 elif message_type:
                     priority = 1
                 
-                # log.debug(f"Priority for: {formatted_message} for {callsign:<15}\nEntityWkB4\t= {entity_wkb4}\nWanted\t\t= {wanted}\nWantedCQZone\t= {wanted_cq_zone}\nMarathon\t= {marathon}\nExcluded\t= {excluded}\nMonitored\t= {monitored}")
+                # log.debug(f"Priority for: {formatted_message} for {callsign:<15}\nWorkedB4\t= {callsign_wkb4}\nCallsignInfo\t= {callsign_info}\nEntityCode\t= {entity_code}\nEntityWkB4\t= {entity_wkb4}\nWanted\t\t= {wanted}\nWantedCQZone\t= {wanted_cq_zone}\nMarathon\t= {marathon}\nExcluded\t= {excluded}\nMonitored\t= {monitored}")
 
                 """
                     Send messages to GUI                    
