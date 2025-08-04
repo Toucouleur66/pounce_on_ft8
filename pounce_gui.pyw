@@ -1261,12 +1261,7 @@ class MainApp(QtWidgets.QMainWindow):
         if not self.grid_monitor:
             return
             
-        if not messages:
-            return
-        
-        grid_messages = [message for message in messages if "grid" in message]
-        if grid_messages:
-            self.grid_monitor.map_widget.set_new_grids(grid_messages)
+        self.grid_monitor.map_widget.set_new_grids([message for message in messages if "grid" in message] if messages else [])
                        
     def hide_container_tab(self):
         self.compact_mode_visible = False
@@ -1501,8 +1496,6 @@ class MainApp(QtWidgets.QMainWindow):
 
             if self.grid_monitor is not None:
                 self.grid_monitor.map_widget.update_operating_band(band)
-                # Ensure grid monitor shows correct worked grids for new band
-                # Don't clear new grids immediately - let new messages populate them
             
             self.update_tab_widget_labels_style()
         
