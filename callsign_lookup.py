@@ -43,7 +43,12 @@ class CallsignLookup:
         self.cq_zones_file_path   = cq_zones_file_path
         self.cache_file           = cache_file
         self.lotw_cache_file      = lotw_cache_file
+        self._cache_dirty         = False
         self.cty_dat_file         = cty_dat_file
+
+        # Add destructor to save cache when object is destroyed
+        import atexit
+        atexit.register(self._save_cache_if_dirty)
         self.cache_size          = cache_size
         self.lookup_debug        = lookup_debug
 
@@ -109,6 +114,17 @@ class CallsignLookup:
         except Exception as e:
             log.error(f"Failed to save cache to {self.cache_file}: {e}")
 
+    def save_grid_update_to_cache(self):
+        self._cache_dirty = True
+
+    def _save_cache_if_dirty(self):
+        if hasattr(self, '_cache_dirty') and self._cache_dirty:
+            try:
+                self.save_cache()
+                self._cache_dirty = False
+            except Exception:
+                pass  
+
     def _serialize_info(self, info: dict) -> dict:
         safe_dict = {}
         for k, v in info.items():
@@ -121,13 +137,17 @@ class CallsignLookup:
     def _deserialize_info(self, info: dict) -> dict:
         new_dict = {}
         for k, v in info.items():
-            if isinstance(v, str) and len(v) >= 10 and v[4] == '-':
+            # Keep grid_updated as string, don't convert to datetime
+            if k == 'grid_updated':
+                new_dict[k] = v
+            elif isinstance(v, str) and len(v) >= 10 and v[4] == '-':
                 try:
                     new_dict[k] = datetime.datetime.fromisoformat(v)
                     continue
                 except ValueError:
                     pass
-            new_dict[k] = v
+            else:
+                new_dict[k] = v
         return new_dict
 
     def load_clublog_xml(self, xml_file_path):
@@ -670,11 +690,14 @@ class CallsignLookup:
                     
                     if grid and cached_result:                    
                         cached_result["grid"] = grid
+                        cached_result["grid_updated"] = date.strftime("%Y-%m-%d")
                         new_zone = self.grid_to_cq_zone(grid)
                         if new_zone is not None:
                             if cached_result.get("cqz") != new_zone:
                                 cached_result["cqz"] = new_zone
                         self.cache[callsign] = cached_result
+                        # Save cache to disk when grid is updated
+                        self.save_grid_update_to_cache()
                     
                     # Update LoTW information in cached result
                     if callsign in self.lotw_cache:
@@ -699,6 +722,7 @@ class CallsignLookup:
 
                         if grid and result:
                             result["grid"] = grid
+                            result["grid_updated"] = date.strftime("%Y-%m-%d")
                             new_zone = self.grid_to_cq_zone(grid)
                             if new_zone is not None and result.get("cqz") != new_zone:
                                 result["cqz"] = new_zone
@@ -710,7 +734,7 @@ class CallsignLookup:
                         self._update_cache(callsign, result, enable_cache)
                         return result
 
-            cty_result = self._lookup_cty_data(callsign, grid)
+            cty_result = self._lookup_cty_data(callsign, grid, date)
             if cty_result:
                 # log.debug(f"CTY data found for {callsign}: {cty_result}")
                 if callsign in self.lotw_cache:
@@ -737,6 +761,7 @@ class CallsignLookup:
 
             if grid and result:
                 result["grid"] = grid
+                result["grid_updated"] = date.strftime("%Y-%m-%d")
                 new_zone = self.grid_to_cq_zone(grid)
                 if new_zone is not None and result.get("cqz") != new_zone:
                     result["cqz"] = new_zone
@@ -752,7 +777,7 @@ class CallsignLookup:
             log.error(f"Fail to extract '{callsign}': {e}")
             return None
 
-    def _lookup_cty_data(self, callsign, grid=None):
+    def _lookup_cty_data(self, callsign, grid=None, date=None):
         """
             Lookup callsign in CTY data with exact and prefix matching.
             Updates CQ zone, latitude, longitude, and recalculates grid if needed.
@@ -764,6 +789,8 @@ class CallsignLookup:
             # Update with provided grid if available
             if grid:
                 result["grid"] = grid
+                if date:
+                    result["grid_updated"] = date.strftime("%Y-%m-%d")
                 new_zone = self.grid_to_cq_zone(grid)
                 if new_zone is not None and result.get("cqz") != new_zone:
                     result["cqz"] = new_zone
@@ -784,6 +811,8 @@ class CallsignLookup:
             # Update with provided grid if available
             if grid:
                 result["grid"] = grid
+                if date:
+                    result["grid_updated"] = date.strftime("%Y-%m-%d")
                 new_zone = self.grid_to_cq_zone(grid)
                 if new_zone is not None and result.get("cqz") != new_zone:
                     result["cqz"] = new_zone
@@ -805,6 +834,8 @@ class CallsignLookup:
                 # Update with provided grid if available
                 if grid:
                     result["grid"] = grid
+                    if date:
+                        result["grid_updated"] = date.strftime("%Y-%m-%d")
                     new_zone = self.grid_to_cq_zone(grid)
                     if new_zone is not None and result.get("cqz") != new_zone:
                         result["cqz"] = new_zone
@@ -825,7 +856,10 @@ class CallsignLookup:
             with self.cache_lock:
                 self.cache[callsign] = info
                 if len(self.cache) > self.cache_size:
-                    self.cache.popitem(last=False)  
+                    self.cache.popitem(last=False)
+                # Mark cache dirty if this entry has grid_updated field
+                if 'grid_updated' in info:
+                    self.save_grid_update_to_cache()  
 
     def is_valid_for_date(self, info, date):
         start = info.get("start")
