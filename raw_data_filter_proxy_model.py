@@ -24,6 +24,31 @@ class RawDataFilterProxyModel(QSortFilterProxyModel):
         self.filters                     = {}
         self.clearProxyFilters()
 
+    def setSourceModel(self, sourceModel):
+        # Disconnect from previous source model if it exists
+        if self.sourceModel():
+            try:
+                self.sourceModel().rowsRemoved.disconnect(self.on_source_rows_removed)
+            except TypeError:
+                # Signal wasn't connected, which is fine
+                pass
+        
+        super().setSourceModel(sourceModel)
+        
+        # Connect to new source model signals
+        if sourceModel:
+            sourceModel.rowsRemoved.connect(self.on_source_rows_removed)
+
+    def on_source_rows_removed(self, parent, first, last):
+        # Handle when rows are removed from the source model
+        rows_removed = last - first + 1
+        
+        # If rows were removed before our clear index, adjust it
+        if first < self.current_clear_index:
+            # Calculate how many of the removed rows were before our clear index
+            removed_before_clear = min(rows_removed, self.current_clear_index - first)
+            self.current_clear_index -= removed_before_clear
+
     def setEnableShowAllDecoded(self, enabled):
         self.enable_show_all_decoded = enabled
         self.invalidateFilter()

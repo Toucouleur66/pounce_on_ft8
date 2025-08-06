@@ -193,7 +193,6 @@ class GridMapWidget(QWidget):
         self.update_timer.start(16)
 
         self.parent_app = None  
-        self._should_clear_heatmap_on_next_update = False
         self.load_grid_map_settings()
     
     def set_parent_app(self, parent_app):
@@ -1298,7 +1297,7 @@ class GridMapWidget(QWidget):
         if last_band != band:
             log.debug(f"GridMapWidget: Clearing new grids for band change [ {last_band} ] to [ {band} ]")
             self.clear_new_grids()        
-            self._should_clear_heatmap_on_next_update = True
+            self.clear_heatmap_indicators()
 
         if hasattr(self.parent(), 'update_toggle_labels'):
             self.parent().update_toggle_labels()
@@ -1338,11 +1337,6 @@ class GridMapWidget(QWidget):
         try:
             if self.blink_timer:
                 self.blink_timer.stop()
-                        
-            if hasattr(self, '_should_clear_heatmap_on_next_update') and self._should_clear_heatmap_on_next_update:
-                log.debug("GridMapWidget: Clearing heatmap buffer due to band change")
-                self.clear_heatmap_indicators()
-                self._should_clear_heatmap_on_next_update = False
             
             self.set_heatmap_group_indicators(grids)       
 
@@ -1413,9 +1407,7 @@ class GridMapWidget(QWidget):
         self.update()
     
     def set_heatmap_group_indicators(self, grids):
-        grid_count = len(grids) if grids else 0
-        log.debug(f"GridMapWidget: Adding {grid_count} grids to heatmap buffer")
-        
+        grid_count = len(grids) if grids else 0       
         if grids:
             grids.sort(key=lambda grid: grid['priority'])            
             self.heatmap_buffer.append(grids)

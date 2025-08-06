@@ -694,6 +694,9 @@ class MainApp(QtWidgets.QMainWindow):
         QtCore.QTimer.singleShot(1_000, lambda: self.init_activity_bar())   
 
         self.process_timer = False
+        self.process_timer_timeout = QtCore.QTimer()
+        self.process_timer_timeout.timeout.connect(self.reset_process_timer)
+        self.process_timer_timeout.setSingleShot(True)
 
         self.enforce_size_limit_timer = QtCore.QTimer()
         self.enforce_size_limit_timer.timeout.connect(self.output_model.enforce_size_limit)
@@ -847,7 +850,7 @@ class MainApp(QtWidgets.QMainWindow):
                 'name'             : 'monitored_cq_zones',
                 'label'            : 'Monitored CQ Zone(s):',
                 'function'         : partial(force_input, mode="numbers"),
-                'placeholder'      : CALLSIGN_NOTICE_LABEL,                
+                'placeholder'      : CQ_ZONE_NOTICE_LABEL,                
                 'on_changed_method': self.on_monitored_cq_zones_changed,
             },
             {
@@ -1705,6 +1708,7 @@ class MainApp(QtWidgets.QMainWindow):
 
                 if not self.process_timer:
                     self.process_timer = True
+                    self.process_timer_timeout.start(10_000)
                     QtCore.QTimer.singleShot(300, lambda: self.process_message_buffer())            
         else:
             pass
@@ -1787,7 +1791,11 @@ class MainApp(QtWidgets.QMainWindow):
                         self.wanted_cq_zones_vars[amateur_band].setText(before_synch_wanted_cq_zones_band)
         
     def process_message_buffer(self):     
+        if self.enable_extra_gui_debug_output:
+                log.info("Message buffer processing")
         if not self.message_buffer:
+            if self.enable_extra_gui_debug_output:
+                log.info("Message buffer is empty")
             return None
         else:
             """
@@ -1897,7 +1905,8 @@ class MainApp(QtWidgets.QMainWindow):
         """
             Reset timer
         """
-        self.process_timer = False     
+        self.process_timer = False
+        self.process_timer_timeout.stop()  # Stop timeout timer when processing completes
         self.update_activity_bar()  
 
     def on_table_row_clicked(self, table, row, column):
@@ -2240,7 +2249,7 @@ class MainApp(QtWidgets.QMainWindow):
             elif focus_type == 'marathon_wanted':
                 focus_message = "Marathon"  
             elif focus_type == 'wanted_cq_zone':
-                focus_message = "CQ Zone"
+                focus_message = "Zone"
             elif focus_type == 'wanted_wildcard':
                 focus_message = "Wildcard"                  
             formatted_message+= f" / {focus_message.upper()}"
@@ -2986,6 +2995,10 @@ class MainApp(QtWidgets.QMainWindow):
             padding: 10px;
             border-radius: 8px;
         """)
+
+    def reset_process_timer(self):
+        self.process_timer = False
+        log.warning("Process timer reset due to timeout - processing may have been stuck")
 
     def update_status_button(
             self,        

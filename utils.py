@@ -87,6 +87,7 @@ def parse_single_wsjtx_message(
     callsign                = None
     callsign_info           = None
     grid                    = None
+    grid_updated            = None 
     cq_zone                 = None
     msg                     = None
     report                  = None
@@ -207,6 +208,8 @@ def parse_single_wsjtx_message(
         else:
             callsign = None
             msg      = None
+    elif callsign and re.match(r"^(RRR|RR73|73)$", callsign):
+        callsign = None
 
     if callsign and lookup:            
         # Also check if exact match
@@ -216,8 +219,9 @@ def parse_single_wsjtx_message(
             callsign_info = lookup.lookup_callsign(callsign, grid)    
 
         if callsign_info:            
-            cq_zone = callsign_info.get("cqz", None)
-            grid    = callsign_info.get("grid", None)
+            cq_zone         = callsign_info.get("cqz", None)
+            grid            = callsign_info.get("grid", None)
+            grid_updated    = callsign_info.get("grid_updated", False)
 
     if callsign:
         """
@@ -230,11 +234,14 @@ def parse_single_wsjtx_message(
 
         """
             Check if the callsign is really valid
-        """
-        if has_portable_suffix(callsign):
+        if ('/' in callsign
+            and not has_valid_suffix(wanted_callsigns, callsign)
+            and not is_exact_match(wanted_callsigns, callsign)
+        ):
             is_excluded   = True
             callsign_info = None
-
+        """
+        
         """
             Check if no grid is provided
         """
@@ -272,6 +279,7 @@ def parse_single_wsjtx_message(
         'callsign'           : callsign,
         'callsign_info'      : callsign_info,
         'grid'               : grid,
+        'grid_updated'       : grid_updated,
         'report'             : report,
         'msg'                : msg,
         'cqing'              : cqing,
@@ -364,9 +372,11 @@ def is_exact_match(patterns, callsign):
     patterns = [p.strip().upper() for p in patterns if p.strip()]
     return callsign.upper() in patterns
 
-def has_portable_suffix(callsign):
+def has_valid_suffix(wanted_callsigns, callsign):
     """
-        Check if callsign has a portable/mobile suffix like /R, /P, /M, /3, /1A, etc. Returns True if the callsign contains a suffix that indicates portable/mobile operation.
+        Check if callsign has a valid portable/mobile suffix. Only /P (Portable) and /MM (Maritime Mobile) are considered valid suffixes.
+
+        Returns True if the callsign contains a valid suffix.
     """
     if not callsign or '/' not in callsign:
         return False
@@ -377,21 +387,10 @@ def has_portable_suffix(callsign):
     
     suffix = parts[-1].upper()
     
-    # Check for common portable/mobile suffixes
-    # Single letters: P (Portable), M (Mobile), R (Repeater), etc.
-    if len(suffix) == 1 and suffix.isalpha():
-        return True
+    # Only valid suffixes are P (Portable) and MM (Maritime Mobile)
+    valid_suffixes = {'P', 'MM'}
     
-    # Single digit: /1, /2, /3, etc. (district numbers)
-    if len(suffix) == 1 and suffix.isdigit():
-        return True
-    
-    # Two characters: digit + letter (/1A, /2B, etc.) or letter + digit (/A1, /B2, etc.)
-    if len(suffix) == 2:
-        if (suffix[0].isdigit() and suffix[1].isalpha()) or (suffix[0].isalpha() and suffix[1].isdigit()):
-            return True
-    
-    return False
+    return suffix in valid_suffixes
 
 def int_to_array(pattern):
     array = []

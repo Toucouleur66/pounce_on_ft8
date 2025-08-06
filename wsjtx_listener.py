@@ -44,10 +44,12 @@ from constants import (
     HEARTBEAT_TIMEOUT_THRESHOLD,
     MODE_FOX_HOUND,
     MODE_NORMAL,
+    MODE_SUPER_FOX,
     WKB4_REPLY_MODE_NEVER,
     WKB4_REPLY_MODE_CURRENT_YEAR,
     FREQ_MINIMUM,
     FREQ_MAXIMUM,
+    FREQ_MAXIMUM_SUPER_FOX,
     FREQ_MINIMUM_FOX_HOUND,
     ADIF_WORKED_CALLSIGNS_FILE,
     MARATHON_FILE,
@@ -807,8 +809,15 @@ class Listener(QObject):
 
         used_frequencies = sorted(used_frequencies)
 
-        freq_min = FREQ_MINIMUM_FOX_HOUND if self.freq_range_mode == MODE_FOX_HOUND else FREQ_MINIMUM
-        freq_max = FREQ_MAXIMUM
+        freq_min = FREQ_MINIMUM
+        freq_max = FREQ_MAXIMUM 
+        if (
+            self.freq_range_mode == MODE_FOX_HOUND or 
+            self.freq_range_mode == MODE_SUPER_FOX
+        ):
+            freq_min = FREQ_MINIMUM_FOX_HOUND
+            if self.freq_range_mode == MODE_SUPER_FOX:
+               freq_max = FREQ_MAXIMUM_SUPER_FOX 
 
         frequency_range = [freq_min] + used_frequencies + [freq_max]
 
@@ -838,6 +847,7 @@ class Listener(QObject):
 
         largest_gap = max(gaps, key=lambda x: x[1] - x[0])
         suggested_freq = (largest_gap[0] + largest_gap[1]) / 2
+        suggested_freq = max(freq_min, min(freq_max, suggested_freq))
 
         return int(suggested_freq)
     
@@ -960,6 +970,7 @@ class Listener(QObject):
                 priority          = 0
 
                 grid              = parsed_message['grid']
+                grid_updated      = parsed_message['grid_updated']  
                 report            = parsed_message['report']
                 msg               = parsed_message['msg']
                 cqing             = parsed_message['cqing']
@@ -1061,19 +1072,20 @@ class Listener(QObject):
                 """
                     Check if grid is needed
                 """
-                if (
-                    self.enable_grid_tracker
+                # Single condition for grid tracking
+                if (self.enable_grid_tracker 
                     and not callsign_wkb4 
                     and not excluded 
                     and grid 
                     and not (wanted and wanted_cq_zone)
                     and self.grid_tracker_preference.get(self.band)
-                    and grid not in self.adif_data.get('grid', {}).get(self.band, {}) 
+                    and grid not in self.adif_data.get('grid', {}).get(self.band, {})
+                    and not (wkb4_year is not None and grid_updated is None)
                 ):
-                        log.info(f"Grid [ {grid} ] not found in ADIF data for {self.band} band")
-                        reply_to_packet = True
-                        wanted_grid     = True                        
-                        focus_type      = 'grid_wanted' if focus_type is None else focus_type
+                    log.info(f"Grid [ {grid} ] not found in ADIF data for {self.band} band")
+                    reply_to_packet = True
+                    wanted_grid     = True                        
+                    focus_type      = 'grid_wanted' if focus_type is None else focus_type
 
                 """
                     Ignore if callsign is not valid
