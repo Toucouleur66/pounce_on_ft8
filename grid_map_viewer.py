@@ -438,10 +438,6 @@ class GridMapWidget(QWidget):
             self.draw_clicked_grid(painter)
 
     def wheelEvent(self, event: QWheelEvent):
-        mouse_pos = event.position()
-        mouse_x = mouse_pos.x()
-        mouse_y = mouse_pos.y()
-        
         min_zoom = self.get_min_zoom_for_size(self.width(), self.height())
         
         zoom_delta = 1 if event.angleDelta().y() > 0 else -1
@@ -450,12 +446,15 @@ class GridMapWidget(QWidget):
         new_zoom = max(min_zoom, min(16, new_zoom))
         
         if new_zoom != self.zoom:
-            mouse_lat, mouse_lon = self.screen_to_lat_lon(mouse_x, mouse_y)
+            # Store current center position to maintain it during zoom
+            current_center_lat = self.center_lat
+            current_center_lon = self.center_lon
             
             self.zoom = new_zoom
             
-            self.center_lat, self.center_lon = self.calculate_center_for_cursor_point(
-                mouse_x, mouse_y, mouse_lat, mouse_lon)
+            # Keep the same center coordinates instead of recalculating based on mouse position
+            self.center_lat = current_center_lat
+            self.center_lon = current_center_lon
             
             self.center_pixel_offset_x = 0.0
             self.center_pixel_offset_y = 0.0
