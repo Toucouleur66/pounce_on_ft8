@@ -3,9 +3,24 @@ import math
 import time
 import platform
 import os
-import numpy as np
+import ctypes                
 
 from datetime import datetime, timezone
+from ctypes import wintypes
+from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QSlider, QGraphicsOpacityEffect
+from PyQt6.QtCore import Qt, QPoint, QTimer, pyqtSignal
+from PyQt6.QtGui import QFont, QPainter, QWheelEvent, QMouseEvent, QKeyEvent, QColor, QBrush, QPen, QPainterPath, QPolygon, QCursor, QIcon
+
+from custom_qlabel import CustomQLabel
+from animated_toggle import AnimatedToggle
+from tiles_manager import TileCache, TileDownloader
+from theme_manager import ThemeManager
+from tooltip import CustomToolTip
+from custom_status_bar import CustomStatusBar
+
+from logger import get_logger
+
+from utils import darken_color
 
 from constants import (
     CURRENT_VERSION_NUMBER,
@@ -20,21 +35,6 @@ from constants import (
     FG_COLOR_REGULAR_FOCUS,
     BG_COLOR_REGULAR_FOCUS
 )
-
-from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QSlider, QFrame, QGraphicsOpacityEffect
-from PyQt6.QtCore import Qt, QPoint, QTimer, pyqtSignal
-from PyQt6.QtGui import QFont, QPainter, QWheelEvent, QMouseEvent, QKeyEvent, QColor, QBrush, QPen, QPainterPath, QPolygon, QCursor, QIcon
-
-from custom_qlabel import CustomQLabel
-from animated_toggle import AnimatedToggle
-from tiles_manager import TileCache, TileDownloader
-from theme_manager import ThemeManager
-from tooltip import CustomToolTip
-from custom_status_bar import CustomStatusBar
-
-from logger import get_logger
-
-from utils import darken_color, complementary_color
 
 log     = get_logger(__name__)
 
@@ -480,7 +480,6 @@ class GridMapWidget(QWidget):
             
             self.memory_cache.clear()
             
-            from PyQt6.QtWidgets import QApplication
             QApplication.processEvents()
             
             self.repaint()
@@ -1977,9 +1976,6 @@ class GridMapWindow(QMainWindow):
             
             # Ensure proper taskbar grouping with main application
             try:
-                import ctypes
-                from ctypes import wintypes
-                
                 # Define the necessary Windows structures and functions
                 user32 = ctypes.windll.user32
                 shell32 = ctypes.windll.shell32
