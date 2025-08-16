@@ -117,6 +117,7 @@ MAXIMUM_ALLOWED_DT              = 1.9
 CURRENT_DIR                     = os.path.dirname(os.path.realpath(__file__))
 CTY_XML                         = 'cty.xml'
 CTY_XML_URL                     = 'https://cdn.clublog.org/cty.php?api=efc2af7050308f03a22275cf51f3fd7749582d66'
+CTY_WT_MOD_URL                  = 'https://www.country-files.com/cty/cty_wt_mod.dat'     
 
 DEFAULT_SECONDARY_UDP_SERVER    = False
 DEFAULT_AUTO_START_MONITORING   = False

@@ -49,6 +49,7 @@ from monitoring_setting import MonitoringSettings
 from theme_manager import ThemeManager
 from clublog import ClubLogManager
 from lotw_manager import LoTWManager
+from country_files import CountryFilesManager
 from setting_dialog import SettingsDialog
 from updater import Updater, UpdateManager
 from raw_data_model import RawDataModel
@@ -200,10 +201,11 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.grid_monitor_geometry = {}
 
-        self.monitoring_settings = MonitoringSettings()       
-        self.clublog_manager     = ClubLogManager(self)
-        self.lotw_manager        = LoTWManager(self) 
-        self.status_menu_agent   = None
+        self.monitoring_settings    = MonitoringSettings()       
+        self.clublog_manager        = ClubLogManager(self)
+        self.lotw_manager           = LoTWManager(self) 
+        self.country_files_manager   = CountryFilesManager(self)
+        self.status_menu_agent      = None
 
         self.updater             = UpdateManager()
         params                   = self.load_params()  
@@ -3136,9 +3138,13 @@ class MainApp(QtWidgets.QMainWindow):
         
         load_lotw_action = QtGui.QAction("Update LoTW Info", self)
         load_lotw_action.triggered.connect(self.lotw_manager.load_lotw_info)
+
+        load_country_file_action = QtGui.QAction("Update Country Files Info", self)
+        load_country_file_action.triggered.connect(self.country_files_manager.load_country_file)
         
         self.online_menu.addAction(load_clublog_action)
         self.online_menu.addAction(load_lotw_action)
+        self.online_menu.addAction(load_country_file_action)
 
         # Add Window menu
         self.window_menu = self.menu_bar.addMenu("Window")
