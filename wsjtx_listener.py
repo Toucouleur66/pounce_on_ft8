@@ -988,7 +988,7 @@ class Listener(QObject):
                 wanted_grid       = False 
 
                 if callsign_info:
-                    entity_code   = callsign_info.get('entity') 
+                    entity_code   = callsign_info.get('entity_code') 
                     lotw          = callsign_info.get('lotw', None) 
                 else:
                     entity_code   = None
@@ -1080,7 +1080,10 @@ class Listener(QObject):
                     and not (wanted and wanted_cq_zone)
                     and self.grid_tracker_preference.get(self.band)
                     and grid not in self.adif_data.get('grid', {}).get(self.band, {})
-                    and not (wkb4_year is not None and grid_updated is None)
+                    and not (
+                        wkb4_year is not None 
+                        and grid_updated is None
+                        )
                 ):
                     log.info(f"Grid [ {grid} ] not found in ADIF data for {self.band} band")
                     reply_to_packet = True
@@ -1214,9 +1217,8 @@ class Listener(QObject):
                         log.warning(f"Focus on callsign [ {callsign} ]\t{focus_info}")
                         # We can't use self.the_packet.mode as it returns "~"
                         # self.mode             = self.the_packet.mode
-                        if self.enable_sending_reply:  
-                            reply_to_packet = True
-                            message_type = 'wanted_callsign_being_called'  
+                        reply_to_packet = True
+                        message_type = 'wanted_callsign_being_called'  
                     # We need to end this 
                     elif self.call_ready_to_log == callsign and self.rst_sent.get(self.call_ready_to_log):  
                         reply_to_packet = True
@@ -1284,7 +1286,7 @@ class Listener(QObject):
                 """
                     Check priority
                 """
-                if reply_to_packet:
+                if reply_to_packet and self.enable_sending_reply:
                     priority = self.process_reply_packet_buffer({           
                         'packet_id'         : packet_id,                   
                         'decode_time'       : decode_time,
@@ -1315,8 +1317,6 @@ class Listener(QObject):
                     """
                 elif message_type:
                     priority = 1
-                
-                # log.debug(f"Priority for: {formatted_message} for {callsign:<15}\nWorkedB4\t= {callsign_wkb4}\nCallsignInfo\t= {callsign_info}\nEntityCode\t= {entity_code}\nEntityWkB4\t= {entity_wkb4}\nWanted\t\t= {wanted}\nWantedCQZone\t= {wanted_cq_zone}\nMarathon\t= {marathon}\nExcluded\t= {excluded}\nMonitored\t= {monitored}")
 
                 """
                     Send messages to GUI                    
@@ -1329,6 +1329,8 @@ class Listener(QObject):
 
                 if reply_to_packet and message_type is None:
                     message_type = 'wanted_callsign_decoded'
+
+                # log.debug(f"Priority for: {formatted_message} for {callsign:<15}\nWorkedB4\t= {callsign_wkb4}\nCallsignInfo\t= {callsign_info}\nEntityCode\t= {entity_code}\nEntityWkB4\t= {entity_wkb4}\nWanted\t\t= {wanted}\nWantedCQZone\t= {wanted_cq_zone}\nMarathon\t= {marathon}\nExcluded\t= {excluded}\nMonitored\t= {monitored}\nFocusType\t= {focus_type}")
 
                 self.message_callback({           
                 'wsjtx_id'          : self.the_packet.wsjtx_id,

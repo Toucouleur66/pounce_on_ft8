@@ -112,7 +112,7 @@ def parse_single_wsjtx_message(
         # 2) Handle CQ + directed CQ
         #
         #    Example : "CQ SEAS F4XXX JN12"
-        #    - directed = F8ABC
+        #    - directed = SEAS
         #    - callsign = F4XXX
         #    - grid     = JN12
         #
@@ -372,7 +372,7 @@ def is_exact_match(patterns, callsign):
     patterns = [p.strip().upper() for p in patterns if p.strip()]
     return callsign.upper() in patterns
 
-def has_valid_suffix(wanted_callsigns, callsign):
+def has_valid_suffix(callsign):
     """
         Check if callsign has a valid portable/mobile suffix. Only /P (Portable) and /MM (Maritime Mobile) are considered valid suffixes.
 
@@ -622,8 +622,8 @@ def parse_adif(file_path, lookup=None):
             record = " ".join(record.split())
             year, band, grid, call, confirmed, info = parse_adif_record(record, lookup)
 
-            if lookup and year and band and info and info.get('entity'):
-                parsed_entity_data[year][band].add(info.get('entity'))
+            if lookup and year and band and info and info.get('entity_code'):
+                parsed_entity_data[year][band].add(info.get('entity_code'))
             if year and band and call:
                 parsed_wkb4_data[year][band].add(call)
             if band and grid and call:

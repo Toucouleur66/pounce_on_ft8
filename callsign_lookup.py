@@ -194,7 +194,7 @@ class CallsignLookup:
                     exception_data = {
                         "call": call,
                         "entity": entity_name,
-                        "adif": adif,
+                        "entity_code": adif,
                         "cqz": cqz,
                         "cont": cont,
                         "lat": lat,
@@ -266,7 +266,7 @@ class CallsignLookup:
                     prefix_data = {
                         "call": call,
                         "entity": entity_name,
-                        "adif": adif,
+                        "entity_code": adif,
                         "cqz": cqz,
                         "cont": cont,
                         "lat": lat,
@@ -312,7 +312,7 @@ class CallsignLookup:
 
                     entity_data = {
                         "entity": name,
-                        "adif": adif,
+                        "entity_code": adif,
                         "deleted": deleted,
                         "cqz": cqz,
                         "cont": cont,
@@ -703,6 +703,14 @@ class CallsignLookup:
                     if callsign in self.lotw_cache:
                         cached_result['lotw'] = self.lotw_cache[callsign]
                     
+                    # Add entity_code if missing from cached result
+                    if "entity_code" not in cached_result or cached_result["entity_code"] is None:
+                        self._add_adif_from_entities(cached_result)
+                        if "entity_code" in cached_result:
+                            # Update cache with new entity_code info
+                            self.cache[callsign] = cached_result
+                            self.save_grid_update_to_cache()
+                    
                     if self.lookup_debug:
                         log.debug(f"Cache hit for {callsign}")
                     return cached_result
@@ -802,6 +810,10 @@ class CallsignLookup:
                 except:
                     pass
             
+            # Try to add entity_code from ClubLog entities if not present
+            if "entity_code" not in result or result["entity_code"] is None:
+                self._add_adif_from_entities(result)
+            
             return result
         
         # Then try exact prefix match
@@ -822,6 +834,10 @@ class CallsignLookup:
                     result["grid"] = calculated_grid
                 except:
                     pass
+            
+            # Try to add entity_code from ClubLog entities if not present
+            if "entity_code" not in result or result["entity_code"] is None:
+                self._add_adif_from_entities(result)
             
             return result
         
@@ -847,9 +863,48 @@ class CallsignLookup:
                     except:
                         pass
                 
+                # Try to add ADIF number from ClubLog entities if not present
+                if "adif" not in result or result["adif"] is None:
+                    entity_name = result.get("entity", "").upper()
+                    for adif_num, entity_data in self.entities.items():
+                        if entity_data.get("entity", "").upper() == entity_name:
+                            result["entity_code"] = adif_num
+                            break
+                
                 return result
         
         return None
+
+    def _add_adif_from_entities(self, result):
+        """Add entity_code from ClubLog entities by matching entity names"""
+        entity_name = result.get("entity", "").strip()
+        if not entity_name:
+            return
+            
+        entity_upper = entity_name.upper()
+        
+        # Try exact match first
+        for adif_num, entity_data in self.entities.items():
+            clublog_entity = entity_data.get("entity", "").upper().strip()
+            if clublog_entity == entity_upper:
+                result["entity_code"] = adif_num
+                if self.lookup_debug:
+                    log.debug(f"Found exact entity_code match: {entity_name} -> {adif_num}")
+                return
+        
+        # Standardize entity name to uppercase for consistency
+        result["entity"] = entity_upper
+        
+        if self.lookup_debug:
+            log.debug(f"No entity_code match found for entity: '{entity_name}'")
+
+    def clear_cache_entry(self, callsign):
+        """Clear a specific callsign from cache for testing"""
+        callsign = callsign.upper()
+        with self.cache_lock:
+            if callsign in self.cache:
+                del self.cache[callsign]
+                log.info(f"Cleared cache entry for {callsign}")
 
     def _update_cache(self, callsign, info, enable_cache):
         if enable_cache and info is not None:

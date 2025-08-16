@@ -316,7 +316,8 @@ class MainApp(QtWidgets.QMainWindow):
             'monitored_callsign_decoded': f"{CURRENT_DIR}/sounds/716442__scottyd0es__tone12_alert_3.wav",
             'band_change': f"{CURRENT_DIR}/sounds/342759__rhodesmas__score-counter-01.wav",
             'updated_settings': f"{CURRENT_DIR}/sounds/342757__rhodesmas__searching-03.wav",
-            'enable_global_sound': f"{CURRENT_DIR}/sounds/342754__rhodesmas__searching-01.wav"
+            'enable_global_sound': f"{CURRENT_DIR}/sounds/342754__rhodesmas__searching-01.wav",
+            'blitz': f"{CURRENT_DIR}/sounds/blitz_mono.wav"
         }
         
         # Create media player for sound playback
@@ -328,7 +329,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.enable_filter_gui                   = params.get('enable_filter_gui', False)        
         self.enable_grid_monitor                = params.get('enable_grid_monitor', False)
         self.enable_compact_view                = params.get('enable_compact_view', False)   
-        self.enable_alternate_compact_view      = False
+        self.enable_alternate_compact_view      = params.get('enable_alternate_compact_view', False)
         self.enable_global_sound                = params.get('enable_global_sound', True)
         self.enable_show_all_decoded            = params.get('enable_show_all_decoded', DEFAULT_SHOW_ALL_DECODED)
         self.datetime_column_setting            = params.get('datetime_column_setting', DATE_COLUMN_DATETIME)
@@ -1185,7 +1186,9 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.save_unique_param('enable_compact_view', self.enable_compact_view)                       
 
-    def toggle_alternate_compact_view(self, checked):
+    def toggle_alternate_compact_view(self, checked = True):
+        self.enable_alternate_compact_view = checked
+        
         if checked:
             self.update_filter_gui_preference(False)
             if self.filter_gui_action.isEnabled():
@@ -1208,6 +1211,8 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.alternate_compact_view_toggle.setChecked(checked)
         self.alternate_compact_view_action.setChecked(checked)
+        
+        self.save_unique_param('enable_alternate_compact_view', self.enable_alternate_compact_view)
 
     def toggle_grid_monitor(self, checked):    
         if checked:
