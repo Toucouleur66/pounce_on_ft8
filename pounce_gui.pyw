@@ -2417,7 +2417,11 @@ class MainApp(QtWidgets.QMainWindow):
 
                 minutes_elapsed = time_since_last_decode / 60
                 nothing_to_decode = True
-                time_since_last_decode_text = f"{round(minutes_elapsed)} minutes"                
+                if minutes_elapsed > 90:
+                    hours_elapsed = minutes_elapsed / 60
+                    time_since_last_decode_text = f"{round(hours_elapsed)} hour{'s' if round(hours_elapsed) != 1 else ''}"
+                else:
+                    time_since_last_decode_text = f"{round(minutes_elapsed)} minutes"                
             else:      
                 if time_since_last_decode < 3:
                     network_check_status_interval = 500
@@ -3435,6 +3439,7 @@ class MainApp(QtWidgets.QMainWindow):
         enable_log_packet_data              = params.get('enable_log_packet_data', DEFAULT_LOG_PACKET_DATA)
         enable_log_all_valid_contact        = params.get('enable_log_all_valid_contact', DEFAULT_LOG_ALL_VALID_CONTACT) 
         enable_reply_to_valid_callsign      = params.get('enable_reply_to_valid_callsign', DEFAULT_LOG_ALL_VALID_CONTACT)
+        enable_reply_to_valid_cont          = params.get('enable_reply_to_valid_cont', DEFAULT_LOG_ALL_VALID_CONTACT)
         enable_reply_to_lotw_only           = params.get('enable_reply_to_lotw_only', False)        
 
         self.adif_file_path                  = params.get('adif_file_path', None)
@@ -3468,6 +3473,7 @@ class MainApp(QtWidgets.QMainWindow):
             max_working_delay,
             enable_log_all_valid_contact,
             enable_reply_to_valid_callsign,
+            enable_reply_to_valid_cont,
             enable_reply_to_lotw_only,
             enable_gap_finder,
             enable_watchdog_bypass,

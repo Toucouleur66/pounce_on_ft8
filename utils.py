@@ -126,6 +126,8 @@ def parse_single_wsjtx_message(
             callsign = match.group(2)
             grid     = match.group(3)
 
+
+
         else:
             # 3) Handle CQ + callsign (+ optional grid)
             #
@@ -371,6 +373,10 @@ def matches_any(patterns, callsign):
 def is_exact_match(patterns, callsign):
     patterns = [p.strip().upper() for p in patterns if p.strip()]
     return callsign.upper() in patterns
+
+def is_valid_continent(continent):
+    valid_continents = {"EU", "NA", "OC", "SA", "AS"}
+    return continent in valid_continents
 
 def has_valid_suffix(callsign):
     """

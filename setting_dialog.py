@@ -260,6 +260,7 @@ class SettingsDialog(QtWidgets.QDialog):
         
         general_settings_widget = QtWidgets.QWidget()
         general_settings_layout = QtWidgets.QGridLayout(general_settings_widget)
+        general_settings_layout.setVerticalSpacing(15)
         
         self.enable_sending_reply = QtWidgets.QCheckBox("Enable reply")
         self.enable_sending_reply.setFont(CUSTOM_FONT)
@@ -286,12 +287,17 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_reply_to_valid_callsign.setFont(CUSTOM_FONT)
         self.enable_reply_to_valid_callsign.setChecked(True)
 
+        self.enable_reply_to_valid_cont = QtWidgets.QCheckBox("Ignore callsign if it targets another continent")
+        self.enable_reply_to_valid_cont.setFont(CUSTOM_FONT)
+        self.enable_reply_to_valid_cont.setChecked(True)
+
         general_settings_layout.addWidget(self.enable_sending_reply, 0, 0, 1, 2)
         general_settings_layout.addWidget(self.enable_polite_reply, 1, 0, 1, 2)
         general_settings_layout.addWidget(self.enable_gap_finder, 2, 0, 1, 2)
         general_settings_layout.addWidget(self.enable_watchdog_bypass, 3, 0, 1, 2)
         general_settings_layout.addWidget(self.enable_log_all_valid_contact, 4, 0, 1, 2)
         general_settings_layout.addWidget(self.enable_reply_to_valid_callsign, 5, 0, 1, 2)
+        general_settings_layout.addWidget(self.enable_reply_to_valid_cont, 6, 0, 1, 2)
 
         general_settings_group.setLayout(QtWidgets.QVBoxLayout())
         general_settings_group.layout().setContentsMargins(0, 0, 0, 0)
@@ -365,8 +371,10 @@ class SettingsDialog(QtWidgets.QDialog):
             QtWidgets.QSizePolicy.Policy.Expanding,
             QtWidgets.QSizePolicy.Policy.Fixed
         )
-
+        
+        # Disable scrollbars since table will fit all content
         self.mode_table_widget.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.mode_table_widget.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         row_height = 22
         for row, (button, label, freq_min, freq_max) in enumerate(modes):
@@ -389,8 +397,11 @@ class SettingsDialog(QtWidgets.QDialog):
             label_item.setFont(CUSTOM_FONT_SMALL)
             self.mode_table_widget.setItem(row, 3, label_item)
 
-        total_height = row_height * len(modes) + 2
-        self.mode_table_widget.setMaximumHeight(total_height + row_height + 10)
+        # Auto-size table to fit all rows without scrolling
+        self.mode_table_widget.resizeRowsToContents()
+        header_height = self.mode_table_widget.horizontalHeader().sizeHint().height()
+        total_height = header_height + (row_height * len(modes)) + 6 
+        self.mode_table_widget.setFixedHeight(total_height)
 
         self.mode_table_widget.horizontalHeader().setStyleSheet("""
             QHeaderView::section {
@@ -665,6 +676,7 @@ class SettingsDialog(QtWidgets.QDialog):
         delay_between_label.setFont(CUSTOM_FONT)
         sound_settings_layout.addWidget(delay_between_label, 4, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
         sound_settings_layout.addLayout(delay_layout, 4, 1, 1, 2)
+        sound_settings_layout.setVerticalSpacing(15)
 
         sound_settings_group.setLayout(sound_settings_layout)
 
@@ -727,6 +739,7 @@ class SettingsDialog(QtWidgets.QDialog):
         adif_wkb4_layout.addWidget(self.radio_reply_always)
         adif_wkb4_layout.addWidget(self.radio_reply_current_year)
         adif_wkb4_layout.addWidget(self.radio_reply_never)
+        adif_wkb4_layout.setSpacing(15) 
 
         self.adif_wkb4_group.setLayout(adif_wkb4_layout)
         self.adif_wkb4_group.setVisible(False)
@@ -886,6 +899,7 @@ class SettingsDialog(QtWidgets.QDialog):
         log_settings_group = QtWidgets.QGroupBox("Log Settings")
         log_settings_group.setFont(CUSTOM_FONT_SMALL)
         log_settings_layout = QtWidgets.QVBoxLayout()
+        log_settings_layout.setSpacing(15) 
 
         self.enable_debug_output = QtWidgets.QCheckBox("Show debug output")
         self.enable_debug_output.setFont(CUSTOM_FONT)
@@ -1217,8 +1231,11 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_reply_to_valid_callsign.setChecked(
             self.params.get('enable_reply_to_valid_callsign', True)
         )
+        self.enable_reply_to_valid_cont.setChecked(
+            self.params.get('enable_reply_to_valid_cont', True)
+        )
         self.enable_reply_to_lotw_only.setChecked(
-            self.params.get('enable_reply_to_lotw_only', False)
+            self.params.get('enable_reply_to_lotw_only', True)
         )               
         self.delay_between_sound_for_monitored.setText(
             str(self.params.get('delay_between_sound_for_monitored', DEFAULT_DELAY_BETWEEN_SOUND))
@@ -1347,6 +1364,7 @@ class SettingsDialog(QtWidgets.QDialog):
             'enable_polite_reply'                        : self.enable_polite_reply.isChecked(),
             'enable_log_all_valid_contact'               : self.enable_log_all_valid_contact.isChecked(),
             'enable_reply_to_valid_callsign'             : self.enable_reply_to_valid_callsign.isChecked(),
+            'enable_reply_to_valid_cont'                 : self.enable_reply_to_valid_cont.isChecked(),
             'enable_reply_to_lotw_only'                  : self.enable_reply_to_lotw_only.isChecked(),
             'max_reply_attemps_to_callsign'              : max_reply_attemps,
             'max_waiting_delay'                          : max_waiting_delay,

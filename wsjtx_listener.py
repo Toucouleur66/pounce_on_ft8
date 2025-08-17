@@ -22,6 +22,7 @@ from logger import get_logger
 
 from utils import get_local_ip_address, get_mode_interval, get_amateur_band, parse_wsjtx_message
 from utils import get_wkb4_year, is_entity_worked_b4, get_clean_rst
+from utils import is_valid_continent
 from utils import load_marathon_wanted_data, save_marathon_wanted_data
 
 from callsign_lookup import CallsignLookup
@@ -73,6 +74,7 @@ class Listener(QObject):
             max_working_delay,
             enable_log_all_valid_contact,
             enable_reply_to_valid_callsign,
+            enable_reply_to_valid_cont,
             enable_reply_to_lotw_only,
             enable_gap_finder,
             enable_watchdog_bypass,
@@ -95,6 +97,7 @@ class Listener(QObject):
         super().__init__()
 
         self.my_call                    = None
+        self.my_cont                    = None
         self.my_grid                    = None
         self.dx_call                    = None
 
@@ -146,6 +149,7 @@ class Listener(QObject):
         self.enable_polite_reply                = enable_polite_reply
         self.enable_log_all_valid_contact       = enable_log_all_valid_contact
         self.enable_reply_to_valid_callsign     = enable_reply_to_valid_callsign
+        self.enable_reply_to_valid_cont         = enable_reply_to_valid_cont
         self.enable_reply_to_lotw_only          = enable_reply_to_lotw_only
         self.enable_gap_finder                   = enable_gap_finder
         self.enable_watchdog_bypass             = enable_watchdog_bypass
@@ -193,6 +197,7 @@ class Listener(QObject):
         self.wanted_cq_zones                = None
         self.monitored_cq_zones             = None
         self.excluded_cq_zones              = None
+        self.wanted_callsigns_direction     = {}
         self.worked_callsigns               = {}
         self.worked_grids                   = {}
 
@@ -414,7 +419,7 @@ class Listener(QObject):
         log_output.append(f"Updated settings (~{CURRENT_VERSION_NUMBER}):")
         log_output.append(f"Instance={self._instance}")
         log_output.append(f"MyCall={self.my_call}")
-        log_output.append(f"EnableSendingReply={self.enable_sending_reply}")             
+        log_output.append(f"EnableSendingReply={self.enable_sending_reply}")    
         log_output.append(f"Band={self.band}")   
         log_output.append(f"MinimumSignalReport={self.minimum_report_for_reply}db")        
         log_output.append(f"WantedCallsigns={self.wanted_callsigns}")
@@ -579,7 +584,9 @@ class Listener(QObject):
             self.rst_sent[self.dx_call] = self.the_packet.report               
 
             error_found     = False
-            
+
+            self.my_cont                = lookup.lookup_callsign(self.my_call).get('cont', None)
+
             # Updating mode
             if self.last_mode != self.mode:
                 self.last_mode = self.mode
@@ -886,7 +893,7 @@ class Listener(QObject):
             self.synched_settings = None
             log.error(f"Can't handle SettingPacket yet.")     
 
-    def handle_decode_packet(self):        
+    def handle_decode_packet(self):
         self.last_decode_packet_time = datetime.now(timezone.utc)
         self.decode_packet_count += 1
         
@@ -993,6 +1000,8 @@ class Listener(QObject):
                 else:
                     entity_code   = None
                     lotw          = None       
+
+                debug_message     = None
                                         
                 """
                     Check if wanted and is Worked b4
@@ -1020,7 +1029,7 @@ class Listener(QObject):
                     self.adif_data.get('entity') and
                     self.enable_marathon and 
                     entity_code
-                ):                
+                ):     
                     if (
                         (
                             self.marathon_preference.get(self.band) or
@@ -1028,8 +1037,8 @@ class Listener(QObject):
                         ) and
                         entity_code in self.adif_data.get('entity', {}).get(current_year, {}).get(self.band, {})
                     ):
-                        entity_wkb4 = True
-            
+                        entity_wkb4 = True       
+
                 """
                     Check if entity code is needed for marathon
                 """
@@ -1040,7 +1049,7 @@ class Listener(QObject):
                     and not excluded 
                     and entity_code 
                     and not (wanted and wanted_cq_zone)                    
-                ):                              
+                ):        
                     if callsign_wkb4 and self.worked_before_preference == WKB4_REPLY_MODE_NEVER:
                         log.warning(f"Skipping [ {callsign} ] as it is wkb4 [ {wkb4_year}]")
                     else:                        
@@ -1099,6 +1108,21 @@ class Listener(QObject):
                     and not (wanted and wanted_cq_zone)
                 ):
                     wanted = wanted_cq_zone = False
+
+                """
+                    Handle callsign when cqing for another continent
+                """
+                if (
+                    self.enable_reply_to_valid_cont and
+                    self.wanted_callsigns_direction.get(callsign, None)
+                ):                    
+                    if self.wanted_callsigns_direction.get(callsign) != self.my_cont:
+                        if is_valid_continent(directed) and directed != self.my_cont: 
+                            log.warning(f"Skipping [ {callsign} ] as it is not cqing for [ {self.my_cont} ]")
+                            wanted = wanted_cq_zone = False    
+                        elif lookup.lookup_callsign(directed).get('cont', None) != self.wanted_callsigns_direction.get(callsign):
+                            log.warning(f"Reset direction for [ {callsign} ]")
+                            self.wanted_callsigns_direction.pop(callsign)
 
                 """
                     Ignore if callsign is not a LoTW user
@@ -1240,11 +1264,26 @@ class Listener(QObject):
                     if self.enable_gap_finder:
                         self.targeted_call_frequencies.add(delta_f)     
                                 
-                    if cqing is True:
-                        debug_message = "Found CQ message from callsign [ {} ]. Targeted callsign: [ {} ]".format(callsign, self.targeted_call)
+                    if cqing:
+                        debug_message = f"Found CQ message from callsign [ {callsign} ]."
+                        # Check if we are CQing and it's directed to our continent
+                        if (
+                            directed
+                            and self.enable_reply_to_valid_cont
+                            and is_valid_continent(directed)
+                        ):
+                            debug_message+= f"Directed to: [ {directed} ]"
+                            if directed == self.my_cont:
+                               pass
+                            else:
+                                # Ignore this callsign
+                                self.wanted_callsigns_direction[callsign] = directed
+                                reply_to_packet = False
                     else:
                         debug_message = "Found message directed to [ {} ] from callsign [ {} ]. Message: {}".format(directed, callsign, msg)
-                    log.warning(debug_message)
+                    
+                    if debug_message:
+                        log.warning(debug_message)
 
                     # Use message_callback to communicate with the GUI
                     if self.enable_debug_output:

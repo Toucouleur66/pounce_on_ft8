@@ -13,6 +13,9 @@ from PyQt6 import QtWidgets
 
 from utils import get_app_data_dir
 from constants import CTY_XML_URL, CTY_WT_MOD_URL
+from logger import get_logger
+
+log = get_logger(__name__)
 
 class BulkDownloader:
     def __init__(self, parent):
