@@ -913,9 +913,7 @@ class Listener(QObject):
             if wait_before_decoding != self.wait_before_decoding:
                 self.wait_before_decoding = wait_before_decoding
                 log.error(f"Can't handle DecodePacket yet. {wait_before_decoding} seconds to wait.")    
-                """
-                    Add callback to let GUI know we can't handle decode yet
-                """
+                # Add callback to let GUI know we can't handle decode yet
             return 
 
         if self.enable_log_packet_data:
@@ -926,7 +924,6 @@ class Listener(QObject):
         """
         try:
             message_type                 = None 
-            focus_type                   = None  
 
             reply_to_packet              = False
             self.packet_counter         += 1
@@ -975,6 +972,7 @@ class Listener(QObject):
                 callsign_wkb4     = False
                 marathon          = False
                 priority          = 0
+                priority_type     = None
 
                 grid              = parsed_message['grid']
                 grid_updated      = parsed_message['grid_updated']  
@@ -1074,9 +1072,9 @@ class Listener(QObject):
                                 self.wanted_callsigns_per_entity[self.band][entity_code].append(callsign)
                                 # save_marathon_wanted_data(MARATHON_FILE, self.wanted_callsigns_per_entity)
 
-                    if marathon:                        
-                        reply_to_packet = True
-                        focus_type      = 'marathon_wanted' if focus_type is None else focus_type                       
+                    if marathon:         
+                        log.warning(f"Found [ {callsign} ] for marathon [ {entity_code} ]")               
+                        reply_to_packet = True     
                 
                 """
                     Check if grid is needed
@@ -1097,7 +1095,6 @@ class Listener(QObject):
                     log.info(f"Grid [ {grid} ] not found in ADIF data for {self.band} band")
                     reply_to_packet = True
                     wanted_grid     = True                        
-                    focus_type      = 'grid_wanted' if focus_type is None else focus_type
 
                 """
                     Ignore if callsign is not valid
@@ -1326,7 +1323,7 @@ class Listener(QObject):
                     Check priority
                 """
                 if reply_to_packet and self.enable_sending_reply:
-                    priority = self.process_reply_packet_buffer({           
+                    priority, priority_type = self.process_reply_packet_buffer({           
                         'packet_id'         : packet_id,                   
                         'decode_time'       : decode_time,
                         'callsign'          : callsign,
@@ -1360,16 +1357,10 @@ class Listener(QObject):
                 """
                     Send messages to GUI                    
                 """
-                if wanted_cq_zone:
-                    focus_type = 'wanted_cq_zone' if focus_type is None else focus_type
-                
-                if wanted and not exactly_matched:
-                    focus_type = 'wanted_wildcard' if focus_type is None else focus_type
-
                 if reply_to_packet and message_type is None:
                     message_type = 'wanted_callsign_decoded'
 
-                # log.debug(f"Priority for: {formatted_message} for {callsign:<15}\nWorkedB4\t= {callsign_wkb4}\nCallsignInfo\t= {callsign_info}\nEntityCode\t= {entity_code}\nEntityWkB4\t= {entity_wkb4}\nWanted\t\t= {wanted}\nWantedCQZone\t= {wanted_cq_zone}\nMarathon\t= {marathon}\nExcluded\t= {excluded}\nMonitored\t= {monitored}\nFocusType\t= {focus_type}")
+                # log.debug(f"Priority for: {formatted_message} for {callsign:<15}\nWorkedB4\t= {callsign_wkb4}\nCallsignInfo\t= {callsign_info}\nEntityCode\t= {entity_code}\nEntityWkB4\t= {entity_wkb4}\nWanted\t\t= {wanted}\nWantedCQZone\t= {wanted_cq_zone}\nMarathon\t= {marathon}\nExcluded\t= {excluded}\nMonitored\t= {monitored}")
 
                 self.message_callback({           
                 'wsjtx_id'          : self.the_packet.wsjtx_id,
@@ -1386,6 +1377,7 @@ class Listener(QObject):
                 'wanted_cq_zone'    : wanted_cq_zone,
                 'monitored'         : monitored,
                 'monitored_cq_zone' : monitored_cq_zone,
+                'exactly_matched'   : exactly_matched,
                 'wkb4_year'         : wkb4_year,
                 'entity_wkb4'       : entity_wkb4,
                 'delta_time'        : delta_t,
@@ -1394,8 +1386,8 @@ class Listener(QObject):
                 'message'           : message,
                 'message_uid'       : str(uuid.uuid4()), 
                 'message_type'      : message_type,
-                'focus_type'        : focus_type,
                 'priority'          : priority,
+                'priority_type'     : priority_type,
                 'formatted_message' : formatted_message
             })        
 
@@ -1408,13 +1400,15 @@ class Listener(QObject):
             
     def get_priority_bonus(self, filtered_message):
         priority_bonus = 0
+        priority_type = None
         
         for i, property_name in enumerate(self.priority_order):
             if filtered_message.get(property_name, False):
                 priority_bonus = len(self.priority_order) - i
+                priority_type = property_name
                 break
                 
-        return priority_bonus
+        return priority_bonus, priority_type
             
     def get_sorted_keys(self):
         return lambda message: (
@@ -1456,7 +1450,9 @@ class Listener(QObject):
                 else:
                     filtered_message['priority'] = 0                    
 
-            filtered_message['priority'] += self.get_priority_bonus(filtered_message)
+            priority_bonus, priority_type = self.get_priority_bonus(filtered_message)
+            filtered_message['priority'] += priority_bonus
+            filtered_message['priority_type'] = priority_type
         """
             Selects the message with the highest priority
         """      
@@ -1477,6 +1473,7 @@ class Listener(QObject):
         for filtered_message in filtered_messages:
             if filtered_message['packet_id'] == message['packet_id']:
                 priority = filtered_message['priority']
+                priority_type = filtered_message['priority_type']
                 break
 
         """
@@ -1498,7 +1495,7 @@ class Listener(QObject):
             )
             self._reply_timer.start()
           
-        return priority
+        return priority, priority_type
                 
     def process_pending_reply(self, selected_message, filtered_messages):    
         if filtered_messages:

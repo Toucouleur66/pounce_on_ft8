@@ -274,7 +274,7 @@ def parse_single_wsjtx_message(
         monitored         = is_monitored
         wanted_cq_zone    = is_wanted_cq_zone and not is_excluded and not is_worked
         monitored_cq_zone = is_monitored_cq_zone and not is_excluded
-        excluded          = is_excluded
+        excluded          = is_excluded if not exactly_matched else False
 
     return {
         'directed'           : directed,
@@ -611,32 +611,76 @@ def parse_adif_record(record, lookup):
     return year, band, grid, call, confirmed, info
 
 def parse_adif(file_path, lookup=None):
+    """Parse entire ADIF file using incremental parser with full file processing"""
+    return parse_adif_incremental(file_path, last_size=0, lookup=lookup, max_lines=None)
+
+def parse_adif_incremental(file_path, last_size, lookup=None, max_lines=10):
+    """Parse only new lines from ADIF file for incremental processing"""
     start_time = time.time()
 
     parsed_wkb4_data    = defaultdict(lambda: defaultdict(set))
     parsed_grid_data    = defaultdict(lambda: defaultdict(set))
     parsed_entity_data  = defaultdict(lambda: defaultdict(set)) if lookup else None
 
-    with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
-        content = f.read()
+    if not os.path.exists(file_path):
+        return time.time() - start_time, {
+            'wkb4'  : parsed_wkb4_data,
+            'entity': parsed_entity_data,
+            'grid'  : parsed_grid_data
+        }
+    
+    file_size = os.path.getsize(file_path)
+    
+    # If file is smaller than last known size, process entire file (file was truncated/replaced)
+    if last_size is not None and last_size > 0 and file_size < last_size:
+        # Avoid infinite recursion by calling the original implementation
+        with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+            content = f.read()
+    elif last_size == 0:
+        # Full file processing requested
+        with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+            content = f.read()
+    else:
+        # If file size hasn't changed, no new data
+        if file_size == last_size:
+            return time.time() - start_time, {
+                'wkb4'  : parsed_wkb4_data,
+                'entity': parsed_entity_data,
+                'grid'  : parsed_grid_data
+            }
 
-    records = re.split(r"<EOR>", content, flags=re.IGNORECASE)
+        # Read only new content from the end of the file
+        content = ""
+        with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+            # Seek to previous known position
+            f.seek(last_size)
+            content = f.read()
+            
+            # If we want to limit lines, read backwards to get the last N lines
+            if max_lines and content:
+                lines = content.split('\n')
+                if len(lines) > max_lines:
+                    content = '\n'.join(lines[-max_lines:])
 
-    for record in records:
-        record = record.strip()
-        if record:
-            record = " ".join(record.split())
-            year, band, grid, call, confirmed, info = parse_adif_record(record, lookup)
+    if content:
+        # Process the content for ADIF records
+        records = re.split(r"<EOR>", content, flags=re.IGNORECASE)
+        
+        for record in records:
+            record = record.strip()
+            if record:
+                record = " ".join(record.split())
+                year, band, grid, call, confirmed, info = parse_adif_record(record, lookup)
 
-            if lookup and year and band and info and info.get('entity_code'):
-                parsed_entity_data[year][band].add(info.get('entity_code'))
-            if year and band and call:
-                parsed_wkb4_data[year][band].add(call)
-            if band and grid and call:
-                parsed_grid_data[band][grid].add(call)
+                if lookup and year and band and info and info.get('entity_code'):
+                    parsed_entity_data[year][band].add(info.get('entity_code'))
+                if year and band and call:
+                    parsed_wkb4_data[year][band].add(call)
+                if band and grid and call:
+                    parsed_grid_data[band][grid].add(call)
 
     processing_time = time.time() - start_time
-
+    
     return processing_time, {
         'wkb4'  : parsed_wkb4_data,
         'entity': parsed_entity_data,

@@ -864,12 +864,8 @@ class CallsignLookup:
                         pass
                 
                 # Try to add ADIF number from ClubLog entities if not present
-                if "adif" not in result or result["adif"] is None:
-                    entity_name = result.get("entity", "").upper()
-                    for adif_num, entity_data in self.entities.items():
-                        if entity_data.get("entity", "").upper() == entity_name:
-                            result["entity_code"] = adif_num
-                            break
+                if "entity_code" not in result or result["entity_code"] is None:
+                    self._add_adif_from_entities(result)
                 
                 return result
         
@@ -890,6 +886,13 @@ class CallsignLookup:
                 result["entity_code"] = adif_num
                 if self.lookup_debug:
                     log.debug(f"Found exact entity_code match: {entity_name} -> {adif_num}")
+                return
+        
+        # Try partial match (e.g., "FIJI" should match "FIJI ISLANDS")
+        for adif_num, entity_data in self.entities.items():
+            clublog_entity = entity_data.get("entity", "").upper().strip()
+            if entity_upper in clublog_entity or clublog_entity in entity_upper:
+                result["entity_code"] = adif_num                
                 return
         
         # Standardize entity name to uppercase for consistency

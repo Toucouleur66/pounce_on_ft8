@@ -747,7 +747,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.status_bar.addWidget(self.status_bar_label_packet, 2)    
             self.status_bar_label_packet.setFixedWidth(160)         
             self.status_bar.addWidget(self.status_bar_label_decode_packet, 2)          
-            self.status_bar_label_decode_packet.setFixedWidth(170)     
+            self.status_bar_label_decode_packet.setFixedWidth(175)     
             self.status_bar.addWidget(self.status_bar_label_heartbeat, 1)
             # self.status_bar.addWidget(self.status_bar_label_reply, 1)
             self.status_bar.addWidget(self.status_bar_label_connection, 2)            
@@ -2249,17 +2249,25 @@ class MainApp(QtWidgets.QMainWindow):
         self.last_focus_value_message_uid = message.get('message_uid')
 
         formatted_message = message.get('formatted_message').strip()
-        focus_type        = message.get('focus_type', None)
-        if focus_type:
-            if focus_type == 'grid_wanted':
+        priority_type     = message.get('priority_type', None)
+        if priority_type:
+            focus_message = None 
+            if priority_type == 'wanted':
+                if message.get('exactly_matched', None):
+                    focus_message = "Wanted"
+                else:
+                    focus_message = "Wildcard"
+            elif priority_type == 'wanted_grid':
                 focus_message = "Grid"
-            elif focus_type == 'marathon_wanted':
+            elif priority_type == 'marathon':
                 focus_message = "Marathon"  
-            elif focus_type == 'wanted_cq_zone':
+            elif priority_type == 'polite_reply':
+                focus_message = "Politeness"  
+            elif priority_type == 'wanted_cq_zone':
                 focus_message = "Zone"
-            elif focus_type == 'wanted_wildcard':
-                focus_message = "Wildcard"                  
-            formatted_message+= f" / {focus_message.upper()}"
+
+            if focus_message:    
+                formatted_message+= f" / {focus_message.upper()}"
             
         self.focus_value_label.setText(formatted_message)
 

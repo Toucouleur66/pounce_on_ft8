@@ -338,7 +338,14 @@ class GridMapWidget(QWidget):
         half_height = self.height() / 2
         half_width = self.width() / 2
         
+        # Constrain vertical movement
         center_pixel_y = max(half_height, min(world_size - half_height, center_pixel_y))
+        
+        # Constrain horizontal movement to prevent edge jumping
+        # Allow seamless wrapping by using modulo for horizontal positioning
+        center_pixel_x = center_pixel_x % world_size
+        if center_pixel_x < 0:
+            center_pixel_x += world_size
         
         new_tile_x = center_pixel_x / self.tile_size
         new_tile_y = center_pixel_y / self.tile_size
@@ -350,7 +357,12 @@ class GridMapWidget(QWidget):
         
         # Constrain coordinates to valid bounds to prevent showing grey areas
         self.center_lat = max(-85, min(85, new_lat))
-        self.center_lon = max(-180, min(180, new_lon))
+        # Allow longitude wrapping for seamless horizontal panning
+        while new_lon > 180:
+            new_lon -= 360
+        while new_lon < -180:
+            new_lon += 360
+        self.center_lon = new_lon
     
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -2115,6 +2127,7 @@ class GridMapWindow(QMainWindow):
         heatmap_layout.setContentsMargins(0, 0, 0, 0)
         heatmap_layout.setSpacing(0)
         
+        heatmap_layout.addStretch()
         heatmap_layout.addWidget(CustomQLabel("Density"))
         heatmap_layout.addSpacing(10)
         heatmap_layout.addWidget(self.density_slider)

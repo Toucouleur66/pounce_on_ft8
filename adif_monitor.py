@@ -8,7 +8,7 @@ import traceback
 from collections import defaultdict
 from threading import Event
 
-from utils import parse_adif
+from utils import parse_adif, parse_adif_incremental
 from logger import get_logger
 
 log     = get_logger(__name__)
@@ -17,6 +17,8 @@ class AdifMonitor:
     def __init__(self, adif_file_path, adif_worked_callsigns_file):
         self.adif_file_path             = adif_file_path
         self.adif_worked_callsigns_file = adif_worked_callsigns_file
+
+        log.error("ADIF monitor initialized with files: %s, %s", self.adif_file_path, self.adif_worked_callsigns_file)
 
         # Get unique file paths to avoid duplicate processing
         self.unique_file_paths = []
@@ -30,6 +32,7 @@ class AdifMonitor:
                     self.unique_file_paths.append(abs_path)
 
         self.adif_last_mtime = {path: None for path in self.unique_file_paths}
+        self.adif_last_size = {path: None for path in self.unique_file_paths}
 
         self.adif_data_by_file   = {}
         self.callbacks          = []
@@ -88,6 +91,21 @@ class AdifMonitor:
         finally:
             log.info("ADIF monitoring thread stopped")
 
+    def merge_adif_data(self, existing_data, incremental_data):
+        """Merge incremental ADIF data with existing data"""
+        merged_data = copy.deepcopy(existing_data)
+        
+        for data_type in ['wkb4', 'entity', 'grid']:
+            if data_type in incremental_data and incremental_data[data_type]:
+                if data_type not in merged_data:
+                    merged_data[data_type] = defaultdict(lambda: defaultdict(set))
+                
+                for key1, value1 in incremental_data[data_type].items():
+                    for key2, value2 in value1.items():
+                        merged_data[data_type][key1][key2].update(value2)
+        
+        return merged_data
+
     def process_adif_file(self):
         files_processed = []
         
@@ -95,17 +113,40 @@ class AdifMonitor:
             if os.path.exists(file_path):
                 try:
                     current_mtime = os.path.getmtime(file_path)
-                    last_mtime = self.adif_last_mtime[file_path]                
+                    current_size = os.path.getsize(file_path)
+                    last_mtime = self.adif_last_mtime[file_path]
+                    last_size = self.adif_last_size[file_path]
                     
                     if last_mtime is None or current_mtime != last_mtime:
                         log.info(f"Start processing: {file_path}")
                         self.adif_last_mtime[file_path] = current_mtime
-                        processing_time, parsed_data = parse_adif(file_path, self._lookup)
                         
-                        with self.data_lock:
-                            self.adif_data_by_file[file_path] = parsed_data
+                        # Use incremental parsing if file was previously processed and only grew
+                        if (last_size is not None and 
+                            current_size > last_size and 
+                            file_path in self.adif_data_by_file):
+                            
+                            processing_time, incremental_data = parse_adif_incremental(
+                                file_path, last_size, self._lookup, max_lines=10
+                            )
+                            
+                            with self.data_lock:
+                                existing_data = self.adif_data_by_file[file_path]
+                                self.adif_data_by_file[file_path] = self.merge_adif_data(
+                                    existing_data, incremental_data
+                                )
+                            
+                            log.info(f"Processed incremental ({processing_time:.4f}s): {file_path}")
+                        else:
+                            # Full file processing for new files or when file was truncated/replaced
+                            processing_time, parsed_data = parse_adif(file_path, self._lookup)
+                            
+                            with self.data_lock:
+                                self.adif_data_by_file[file_path] = parsed_data
+                            
+                            log.info(f"Processed full file ({processing_time:.4f}s): {file_path}")
                         
-                        log.info(f"Processed ({processing_time:.4f}s): {file_path}")
+                        self.adif_last_size[file_path] = current_size
                         files_processed.append(file_path)
                 except Exception as e:
                     log.error(f"Error processing {file_path}: {e}\n{traceback.format_exc()}")
