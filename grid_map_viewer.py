@@ -1175,7 +1175,7 @@ class GridMapWidget(QWidget):
                 painter.setPen(pen)
                 painter.drawRect(rect_x, rect_y, rect_width - 1, rect_height - 1)
     
-    def draw_grid_square_diagonal(self, painter, grid_square, highlight_color, border_color=None):       
+    def draw_grid_square_diagonal(self, painter, grid_square, highlight_color, border_color):       
         grid_info = self.maidenhead_to_lat_lon(grid_square)
         if not grid_info:
             return
@@ -1208,16 +1208,16 @@ class GridMapWidget(QWidget):
             
             triangle_polygon = QPolygon(triangle_points)
             
-            if border_color:
-                highlight_brush = QBrush(highlight_color)
-                pen = QPen(border_color)
-                pen.setWidth(1)
-                painter.setBrush(highlight_brush)
-                painter.setPen(pen)
-                painter.drawPolygon(triangle_polygon)                        
+            highlight_brush = QBrush(highlight_color)
+            pen = QPen(border_color)
+            pen.setWidth(1)
+            painter.setBrush(highlight_brush)
+            painter.setPen(pen)
+            painter.drawPolygon(triangle_polygon)                        
     
     def fill_grid_square_with_color(self, painter, grid, color):
         self.draw_grid_square(painter, grid, color)
+        # self.draw_grid_square_diagonal(painter, grid, color, color)
     
     def draw_new_grids_block(self, painter):
         for grid in self.new_grids:

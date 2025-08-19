@@ -1076,7 +1076,7 @@ class Listener(QObject):
                     and entity_code is None
                     and not (wanted and wanted_cq_zone)
                 ):
-                    wanted = wanted_cq_zone = False
+                    wanted = wanted_cq_zone = wanted_grid = False
 
                 """
                     Handle callsign when cqing for another continent
@@ -1097,13 +1097,18 @@ class Listener(QObject):
                     Ignore if callsign is not a LoTW user
                 """
                 if (
-                    not exactly_matched 
+                    (
+                        wanted
+                        or wanted_cq_zone
+                        or wanted_grid
+                    )
+                    and not exactly_matched 
                     and not lotw 
+                    and not marathon
                     and self.enable_reply_to_lotw_only 
                 ):
-                    if wanted or wanted_cq_zone:
-                        log.warning(f"Skipping [ {callsign} ] as it is not a LoTW user")
-                        wanted = wanted_cq_zone = False                    
+                    log.warning(f"Skipping [ {callsign} ] as it is not a LoTW user")
+                    wanted = wanted_cq_zone = wanted_grid = False
 
                 """
                     Callsign already logged, we can move over new Wanted callsign
