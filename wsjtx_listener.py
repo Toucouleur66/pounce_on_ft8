@@ -1020,9 +1020,9 @@ class Listener(QObject):
                     Check if entity code is already worked for marathon
                 """
                 if (
-                    self.adif_data.get('entity') and
-                    self.enable_marathon and 
-                    entity_code
+                    self.enable_marathon 
+                    and self.adif_data.get('entity') 
+                    and entity_code
                 ):     
                     entity_wkb4 = self.is_entity_worked_b4(entity_code, current_year)
 
@@ -1053,6 +1053,7 @@ class Listener(QObject):
                 """
                 # Single condition for grid tracking
                 if (self.enable_grid_tracker 
+                    and self.adif_data.get('grid')
                     and not callsign_wkb4 
                     and not excluded 
                     and grid 
@@ -1082,8 +1083,8 @@ class Listener(QObject):
                     Handle callsign when cqing for another continent
                 """
                 if (
-                    self.enable_reply_to_valid_cont and
-                    self.wanted_callsigns_direction.get(callsign, None)
+                    self.enable_reply_to_valid_cont
+                    and self.wanted_callsigns_direction.get(callsign, None)
                 ):                    
                     if self.wanted_callsigns_direction.get(callsign) != self.my_cont:
                         if is_valid_continent(directed) and directed != self.my_cont: 
@@ -1097,9 +1098,9 @@ class Listener(QObject):
                     Ignore if callsign is not a LoTW user
                 """
                 if (
-                    not exactly_matched and                     
-                    not lotw and 
-                    self.enable_reply_to_lotw_only 
+                    not exactly_matched 
+                    and not lotw 
+                    and self.enable_reply_to_lotw_only 
                 ):
                     if wanted or wanted_cq_zone:
                         log.warning(f"Skipping [ {callsign} ] as it is not a LoTW user")
