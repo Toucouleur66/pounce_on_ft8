@@ -63,6 +63,7 @@ from utils import get_local_ip_address, matches_any, get_app_data_dir
 from utils import get_mode_interval, get_amateur_band, display_frequency
 from utils import force_input, focus_out_event, text_to_array, has_significant_change
 from utils import parse_adif
+from utils import band_sort_key
 
 from version import is_first_launch_or_new_version, save_current_version
 
@@ -1976,7 +1977,7 @@ class MainApp(QtWidgets.QMainWindow):
                 callsign_bands[entry['callsign']].add(entry['band'])
 
             if len(callsign_bands[callsign]) > 1:
-                actions['remove_callsign_from_worked_history'] = menu.addAction(f"Remove {callsign} on all bands from Worked History ({", ".join(sorted(callsign_bands[callsign]))})")
+                actions['remove_callsign_from_worked_history'] = menu.addAction(f"Remove {callsign} on all bands from Worked History ({", ".join(sorted(callsign_bands[callsign], key=band_sort_key))})")
 
             menu.addSeparator()
 

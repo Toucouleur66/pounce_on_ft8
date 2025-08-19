@@ -847,3 +847,10 @@ def complementary_color(color):
     complementary_h = (h + 180) % 360
     
     return QColor.fromHsv(complementary_h, s, v, a)
+
+def band_sort_key(band):
+    if band.endswith("m"):
+        return int(band[:-1])
+    elif band.endswith("cm"):
+        return float(band[:-2]) / 100
+    return float('inf')
