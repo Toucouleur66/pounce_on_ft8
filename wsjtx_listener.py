@@ -1038,7 +1038,6 @@ class Listener(QObject):
                     and not (wanted and wanted_cq_zone)                    
                 ):      
                     marathon = self.is_callsign_needed_for_marathon(
-                        self,
                         callsign,
                         callsign_wkb4,
                         wkb4_year,
