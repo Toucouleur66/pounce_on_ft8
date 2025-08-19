@@ -693,6 +693,24 @@ class Listener(QObject):
         elif isinstance(self.the_packet, pywsjtx.QSOLoggedPacket):
             log.warning('QSOLoggedPacket should not be handle')   
         elif isinstance(self.the_packet, pywsjtx.DecodePacket):
+            self.last_decode_packet_time = datetime.now(timezone.utc)
+            self.decode_packet_count += 1
+            
+            if not self.my_call:
+                log.error("No StatusPacket received yet, can\'t handle DecodePacket for now.") 
+                return
+            
+            seconds_since_band_change = round(
+                (datetime.now() - self.last_band_time_change).total_seconds()
+            )
+            if seconds_since_band_change < BAND_CHANGE_WAITING_DELAY:
+                wait_before_decoding = BAND_CHANGE_WAITING_DELAY - seconds_since_band_change
+                if wait_before_decoding != self.wait_before_decoding:
+                    self.wait_before_decoding = wait_before_decoding
+                    log.error(f"Can't handle DecodePacket yet. {wait_before_decoding} seconds to wait.")    
+                    # Add callback to let GUI know we can't handle decode yet
+                return             
+
             self.handle_decode_packet()
             if self.enable_gap_finder:
                 self.collect_used_frequencies()                     
@@ -894,30 +912,8 @@ class Listener(QObject):
             log.error(f"Can't handle SettingPacket yet.")     
 
     def handle_decode_packet(self):
-        self.last_decode_packet_time = datetime.now(timezone.utc)
-        self.decode_packet_count += 1
-        
-        if not self.my_call:
-            log.error("No StatusPacket received yet, can\'t handle DecodePacket for now.") 
-            return
-        
-        """
-            We need a StatusPacket before handling the DecodePacket
-            and we have to check last_band_time_change            
-        """
-        seconds_since_band_change = round(
-            (datetime.now() - self.last_band_time_change).total_seconds()
-        )
-        if seconds_since_band_change < BAND_CHANGE_WAITING_DELAY:
-            wait_before_decoding = BAND_CHANGE_WAITING_DELAY - seconds_since_band_change
-            if wait_before_decoding != self.wait_before_decoding:
-                self.wait_before_decoding = wait_before_decoding
-                log.error(f"Can't handle DecodePacket yet. {wait_before_decoding} seconds to wait.")    
-                # Add callback to let GUI know we can't handle decode yet
-            return 
-
         if self.enable_log_packet_data:
-            log.debug('{}'.format(self.the_packet))
+                log.debug('{}'.format(self.the_packet))
 
         """
             Start to handle DecodePacket
@@ -1028,14 +1024,7 @@ class Listener(QObject):
                     self.enable_marathon and 
                     entity_code
                 ):     
-                    if (
-                        (
-                            self.marathon_preference.get(self.band) or
-                            self.marathon_preference.get(MARATHON_UNLIMITED)
-                        ) and
-                        entity_code in self.adif_data.get('entity', {}).get(current_year, {}).get(self.band, {})
-                    ):
-                        entity_wkb4 = True       
+                    entity_wkb4 = self.is_entity_worked_b4(entity_code, current_year)
 
                 """
                     Check if entity code is needed for marathon
@@ -1047,34 +1036,17 @@ class Listener(QObject):
                     and not excluded 
                     and entity_code 
                     and not (wanted and wanted_cq_zone)                    
-                ):        
-                    if callsign_wkb4 and self.worked_before_preference == WKB4_REPLY_MODE_NEVER:
-                        log.warning(f"Skipping [ {callsign} ] as it is wkb4 [ {wkb4_year}]")
-                    else:                        
-                        if callsign in self.wanted_callsigns_per_entity.get(self.band, {}).get(entity_code, {}):
-                            marathon = True
-                        elif ((   
-                                self.marathon_preference.get(self.band) and
-                                entity_code not in self.adif_data.get('entity', {}).get(current_year, {}).get(self.band, {}) 
-                            ) or (
-                                self.marathon_preference.get(MARATHON_UNLIMITED) and 
-                                not is_entity_worked_b4(self.adif_data, entity_code, current_year)
-                            )):
-                            marathon = True
-
-                            if not self.wanted_callsigns_per_entity.get(self.band):
-                                self.wanted_callsigns_per_entity[self.band] = {}
-
-                            if not self.wanted_callsigns_per_entity[self.band].get(entity_code):
-                                self.wanted_callsigns_per_entity[self.band][entity_code] = []
-
-                            if callsign not in self.wanted_callsigns_per_entity[self.band][entity_code]:
-                                self.wanted_callsigns_per_entity[self.band][entity_code].append(callsign)
-                                # save_marathon_wanted_data(MARATHON_FILE, self.wanted_callsigns_per_entity)
-
-                    if marathon:         
-                        log.warning(f"Found [ {callsign} ] for marathon [ {entity_code} ]")               
-                        reply_to_packet = True     
+                ):      
+                    marathon = self.is_callsign_needed_for_marathon(
+                        self,
+                        callsign,
+                        callsign_wkb4,
+                        wkb4_year,
+                        entity_code,
+                        current_year
+                    )       
+                    if marathon:
+                        reply_to_packet = True
                 
                 """
                     Check if grid is needed
@@ -1683,6 +1655,61 @@ class Listener(QObject):
         except Exception as e:
             log.error(f"Error sending QSOLoggedPacket via UDP: {e}")
             log.error("Caught an error while trying to send QSOLoggedPacket packet: error {}\n{}".format(e, traceback.format_exc()))
+
+    def is_entity_worked_b4(
+            self,
+            entity_code,
+            current_year
+        ):
+        if (
+            (
+                self.marathon_preference.get(self.band) or
+                self.marathon_preference.get(MARATHON_UNLIMITED)
+            ) and
+            entity_code in self.adif_data.get('entity', {}).get(current_year, {}).get(self.band, {})
+        ):
+            return True       
+        else:
+            return False
+            
+    def is_callsign_needed_for_marathon(
+            self,
+            callsign,
+            callsign_wkb4,
+            wkb4_year,
+            entity_code,
+            current_year
+        ):
+        marathon = False
+
+        if callsign_wkb4 and self.worked_before_preference == WKB4_REPLY_MODE_NEVER:
+            log.warning(f"Skipping [ {callsign} ] as it is wkb4 [ {wkb4_year}]")
+        else:                        
+            if callsign in self.wanted_callsigns_per_entity.get(self.band, {}).get(entity_code, {}):
+                marathon = True
+            elif ((   
+                    self.marathon_preference.get(self.band) and
+                    entity_code not in self.adif_data.get('entity', {}).get(current_year, {}).get(self.band, {}) 
+                ) or (
+                    self.marathon_preference.get(MARATHON_UNLIMITED) and 
+                    not is_entity_worked_b4(self.adif_data, entity_code, current_year)
+                )):
+                marathon = True
+
+                if not self.wanted_callsigns_per_entity.get(self.band):
+                    self.wanted_callsigns_per_entity[self.band] = {}
+
+                if not self.wanted_callsigns_per_entity[self.band].get(entity_code):
+                    self.wanted_callsigns_per_entity[self.band][entity_code] = []
+
+                if callsign not in self.wanted_callsigns_per_entity[self.band][entity_code]:
+                    self.wanted_callsigns_per_entity[self.band][entity_code].append(callsign)
+                    # save_marathon_wanted_data(MARATHON_FILE, self.wanted_callsigns_per_entity)
+
+        if marathon:         
+            log.warning(f"Found [ {callsign} ] for marathon [ {entity_code} ]")                           
+
+        return marathon
 
     def format_log_message(self, message):
         decode_time = message.get('decode_time')

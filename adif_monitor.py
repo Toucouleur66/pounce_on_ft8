@@ -18,7 +18,7 @@ class AdifMonitor:
         self.adif_file_path             = adif_file_path
         self.adif_worked_callsigns_file = adif_worked_callsigns_file
 
-        log.error("ADIF monitor initialized with files: %s, %s", self.adif_file_path, self.adif_worked_callsigns_file)
+        log.error("ADIF monitor initialized with files: \n\t%s,\n\t%s", self.adif_file_path, self.adif_worked_callsigns_file)
 
         # Get unique file paths to avoid duplicate processing
         self.unique_file_paths = []
