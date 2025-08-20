@@ -854,3 +854,26 @@ def band_sort_key(band):
     elif band.endswith("cm"):
         return float(band[:-2]) / 100
     return float('inf')
+
+def is_valid_grid_format(grid):
+    if not grid or not isinstance(grid, str):
+        return False
+        
+    # Basic length check
+    if len(grid) < 4:
+        return False
+        
+    # Check first two characters are letters (field)
+    if not (grid[0].isalpha() and grid[1].isalpha()):
+        return False
+        
+    # Check characters 3 and 4 are digits (square)
+    if not (grid[2].isdigit() and grid[3].isdigit()):
+        return False
+        
+    # If 6-character grid, check last two are letters (subsquare)
+    if len(grid) >= 6:
+        if not (grid[4].isalpha() and grid[5].isalpha()):
+            return False
+            
+    return True
