@@ -20,7 +20,7 @@ from custom_status_bar import CustomStatusBar
 
 from logger import get_logger
 
-from utils import darken_color, is_valid_grid_format
+from utils import darken_color
 
 from constants import (
     CURRENT_VERSION_NUMBER,
@@ -613,19 +613,11 @@ class GridMapWidget(QWidget):
         if not grid or len(grid) < 4:
             return None
     
-        try:
-            if not is_valid_grid_format(grid):
-                log.warning(f"Invalid grid format [ {grid} ] - skipping")
-                return None
-                
-            field_lon_idx = ord(grid[0].upper()) - ord('A')
-            field_lat_idx = ord(grid[1].upper()) - ord('A')
-            
-            square_lon_idx = int(grid[2])
-            square_lat_idx = int(grid[3])
-        except (ValueError, IndexError) as e:
-            log.error(f"Error parsing grid '{grid}': {e}")
-            return None
+        field_lon_idx = ord(grid[0].upper()) - ord('A')
+        field_lat_idx = ord(grid[1].upper()) - ord('A')
+        
+        square_lon_idx = int(grid[2])
+        square_lat_idx = int(grid[3])
         
         field_base_lon = field_lon_idx * 20.0 - 180.0
         field_base_lat = field_lat_idx * 10.0 - 90.0
@@ -1224,9 +1216,6 @@ class GridMapWidget(QWidget):
             painter.drawPolygon(triangle_polygon)                        
     
     def fill_grid_square_with_color(self, painter, grid, color):
-        if not is_valid_grid_format(grid):
-            log.warning(f"Skipping invalid grid [ '{grid}' ] for GridMapWidget")
-            return
         self.draw_grid_square(painter, grid, color)
         # self.draw_grid_square_diagonal(painter, grid, color, color)
     

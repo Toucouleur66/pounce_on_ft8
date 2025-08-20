@@ -676,7 +676,7 @@ def parse_adif_incremental(file_path, last_size, lookup=None, max_lines=10):
                     parsed_entity_data[year][band].add(info.get('entity_code'))
                 if year and band and call:
                     parsed_wkb4_data[year][band].add(call)
-                if band and grid and call:
+                if band and grid and call and is_valid_grid_format(grid):
                     parsed_grid_data[band][grid].add(call)
 
     processing_time = time.time() - start_time
