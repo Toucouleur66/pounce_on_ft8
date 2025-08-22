@@ -2237,9 +2237,9 @@ class MainApp(QtWidgets.QMainWindow):
 
             processing_animation_ascii =[
                 "∙∙∙",
-                "●∙∙",
-                "∙●∙",
-                "∙∙●",
+                "o∙∙",
+                "∙o∙",
+                "∙∙o",
                 "∙∙∙"
 		    ]
             spinner_char = processing_animation_ascii[self.processing_spinner_index]
