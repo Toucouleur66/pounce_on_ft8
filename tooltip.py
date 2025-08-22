@@ -2,6 +2,7 @@
 import platform
 
 from PyQt6 import QtWidgets, QtCore, QtGui
+from PyQt6.QtGui import QTextDocument
 
 from constants import (
     CUSTOM_FONT,
@@ -125,24 +126,20 @@ class CustomToolTip(QtWidgets.QWidget):
         self.adjustSize()
 
     def sizeHint(self):
-        fm = QtGui.QFontMetrics(self.font())
-        text_lines = self.text.split("<br/>")
-        max_width = 0
+        # Use QTextDocument to calculate proper size for HTML content
+        doc = QTextDocument()
+        doc.setDefaultFont(self.font())
         
-        for line in text_lines:
-            line_width = fm.horizontalAdvance(line)
-            max_width = max(max_width, line_width)
+        # Convert <br/> to <br> for proper HTML parsing
+        html_text = self.text.replace("<br/>", "<br>")
+        doc.setHtml(html_text)
         
-        # Add extra margin for text rendering
-        width = max_width + 2 * self.padding + 8
+        # Get the document size
+        doc_size = doc.size()
         
-        # Calculate height more accurately
-        line_height = fm.height()
-        line_spacing = 4
-        
-        # Total height: all lines + spacing between lines + padding + extra margin
-        total_height = len(text_lines) * line_height + (len(text_lines) - 1) * line_spacing
-        height = total_height + 2 * self.padding + 4  # Extra 4px to prevent cutting
+        # Add padding
+        width = int(doc_size.width()) + 2 * self.padding + 8
+        height = int(doc_size.height()) + 2 * self.padding + 4
         
         return QtCore.QSize(width, height)
     
@@ -209,22 +206,24 @@ class CustomToolTip(QtWidgets.QWidget):
         background_color = QtGui.QColor(bg_color)
         painter.fillPath(path, background_color)
         
-        painter.setPen(QtGui.QColor(fg_color))
-        painter.setFont(self.font())
+        # Use QTextDocument for HTML rendering
+        doc = QTextDocument()
+        doc.setDefaultFont(self.font())
         
+        # Convert <br/> to <br> for proper HTML parsing
+        html_text = self.text.replace("<br/>", "<br>")
+        
+        # Set HTML content with custom styling
+        html_content = f'<div style="color: {fg_color};">{html_text}</div>'
+        doc.setHtml(html_content)
+        
+        # Set the document size to fit our text area
         text_rect = rect.adjusted(self.padding, self.padding, -self.padding, -self.padding)
-        text_lines = self.text.split("<br/>")
+        doc.setTextWidth(text_rect.width())
         
-        fm = QtGui.QFontMetrics(self.font())
-        line_height = fm.height()
-        line_spacing = 4
-        y_offset = 0
-        
-        for line in text_lines:
-            line_y = text_rect.y() + y_offset
-            line_rect = QtCore.QRect(text_rect.x(), line_y, text_rect.width(), line_height)
-            painter.drawText(line_rect, QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignTop, line)
-            y_offset += line_height + line_spacing
+        # Translate painter to text position and draw
+        painter.translate(text_rect.x(), text_rect.y())
+        doc.drawContents(painter)
 
 class ToolTip(QtWidgets.QWidget):
     def __init__(self, widget, source_widget=None, default_text='', tooltip_type="default", bg_color=None, fg_color=None):
@@ -241,7 +240,7 @@ class ToolTip(QtWidgets.QWidget):
         self.show_timer = QtCore.QTimer()
         self.show_timer.setSingleShot(True)
         self.show_timer.timeout.connect(self._show_tooltip_delayed)
-        self.show_delay = 300  
+        self.show_delay = 0  
         
         self.mouse_over = False
 

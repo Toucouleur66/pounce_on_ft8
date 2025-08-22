@@ -38,4 +38,11 @@ class ColorRowDelegate(QStyledItemDelegate):
 
         painter.drawText(text_rect, alignment, str(text))
 
+        # Draw strikethrough across entire message column width for excluded items
+        raw_data = index.data(Qt.ItemDataRole.UserRole)
+        if raw_data and raw_data.get('excluded') and index.column() == 5:  # Column 5 is the message column
+            painter.setPen(QPen(fg_color if fg_color else text_color, 1))
+            y_center = option.rect.center().y()
+            painter.drawLine(option.rect.left(), y_center, option.rect.right(), y_center)
+
         painter.restore()

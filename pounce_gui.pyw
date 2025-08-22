@@ -1003,7 +1003,7 @@ class MainApp(QtWidgets.QMainWindow):
             }
         """)
 
-        column_widths = [160, 45, 60, 60, 80, 400, 10, 50, 70, 60, 60]  
+        column_widths = [160, 45, 60, 60, 80, 400, 10, 100, 70, 60, 60]  
         for i, width in enumerate(column_widths):
             if i < output_table.model().columnCount():                
                 output_table.setColumnWidth(i, width)                

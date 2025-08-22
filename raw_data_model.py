@@ -157,13 +157,7 @@ class RawDataModel(QtCore.QAbstractTableModel):
                 return QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter
         
         elif role == QtCore.Qt.ItemDataRole.FontRole:
-            if column == 5:  # Message column
-                font = QFont(CUSTOM_FONT)
-                # Apply strikethrough for excluded messages
-                if raw_data.get('excluded'):
-                    font.setStrikeOut(True)
-                return font
-            elif column == 7:  # Country column
+            if column == 5 or column == 7:  # Message column (5) and Country column (7)
                 return CUSTOM_FONT
             else:
                 return CUSTOM_FONT_SMALL

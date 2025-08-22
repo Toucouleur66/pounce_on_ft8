@@ -50,7 +50,7 @@ class GridMapWidget(QWidget):
         # Tooltip management
         self.tooltip_timer = QTimer()
         self.tooltip_timer.setSingleShot(True)
-        self.tooltip_timer.timeout.connect(self.show_delayed_tooltip)
+        self.tooltip_timer.timeout.connect(self.show_tooltip)
         self.current_tooltip_pos = None
         self.current_tooltip_grid = None
         self.custom_tooltip = None
@@ -1818,14 +1818,14 @@ class GridMapWidget(QWidget):
             self.tooltip_timer.stop()
             self.current_tooltip_pos = pos
             self.current_tooltip_grid = grid_square
-            self.tooltip_timer.start(250) 
+            self.tooltip_timer.start(0) 
         else:
             # Mouse moved away from permanent squares and highlighted grids
             self.tooltip_timer.stop()
             self.current_tooltip_grid = None
             self.hide_custom_tooltip()
     
-    def show_delayed_tooltip(self):
+    def show_tooltip(self):
         """
             Show tooltip after delay
         """
@@ -1854,11 +1854,7 @@ class GridMapWidget(QWidget):
             else:
                 callsigns = self.get_callsigns_for_grid(self.current_tooltip_grid)
                 if callsigns:
-                    tooltip_text = f"Grid: {self.current_tooltip_grid}<br/>"
-                    if len(callsigns) > 1:
-                        tooltip_text += "Callsigns: "
-                    else:
-                        tooltip_text += "Callsign: "
+                    tooltip_text = f"Grid: <b>{self.current_tooltip_grid}</b><br/>Worked: "
                     tooltip_text += ', '.join(callsigns)
                                     
                     self.hide_custom_tooltip()
