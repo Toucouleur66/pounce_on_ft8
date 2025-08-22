@@ -2270,17 +2270,19 @@ class MainApp(QtWidgets.QMainWindow):
         if self.processing_active:
 
             processing_animation_ascii =[
-                "o∙∙∙∙",
-                "∙o∙∙∙",
-                "∙∙o∙∙",
-                "∙∙∙o∙",
-                "∙∙∙∙o",
-                "∙∙∙o∙",
-                "∙∙o∙∙",
-                "∙o∙∙∙"
+                "O∙∙∙∙",
+                "∙O∙∙∙",
+                "∙∙O∙∙",
+                "∙∙∙O∙",
+                "∙∙∙∙O",
+                "∙∙∙∙∙o",
+                "∙∙∙∙O",
+                "∙∙∙O∙",
+                "∙∙O∙∙",
+                "∙O∙∙∙"
 		    ]
             spinner_char = processing_animation_ascii[self.processing_spinner_index]
-            text = f"Processing ADIF {spinner_char}"
+            text = f"Logbook Analysis: {spinner_char}"
             self.status_bar_label_packet.setText(text)
             if self.grid_monitor:
                 self.grid_monitor.status_bar_label_processing.setText(text)

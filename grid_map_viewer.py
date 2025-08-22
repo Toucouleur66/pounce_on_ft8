@@ -1324,6 +1324,12 @@ class GridMapWidget(QWidget):
         grid_squares = list(self.adif_data.get('grid', {}).get(self.operating_band, {}).keys())
 
         self.set_permanent_grids(grid_squares, center_on_last=False)
+
+        window = self.parent()
+        while window and not isinstance(window, GridMapWindow):
+            window = window.parent()
+        if window and hasattr(window, 'check_grid_monitoring_status'):
+            window.check_grid_monitoring_status()
     
     def set_permanent_grids(self, squares, center_on_last=True):
         self.permanent_grids = squares
