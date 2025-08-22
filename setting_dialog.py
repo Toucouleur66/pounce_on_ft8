@@ -431,7 +431,7 @@ class SettingsDialog(QtWidgets.QDialog):
         minimum_report_notice.setStyleSheet(SETTING_QSS)
         minimum_report_notice.setAutoFillBackground(True)
 
-        minimum_report_group = QtWidgets.QGroupBox("Minimum dB signal for reply")
+        minimum_report_group = QtWidgets.QGroupBox("Minimum dB signal for reply (FT8/FT4 Mode only)")
         minimum_report_group.setFont(CUSTOM_FONT_SMALL)
         minimum_report_layout = QtWidgets.QHBoxLayout()
         

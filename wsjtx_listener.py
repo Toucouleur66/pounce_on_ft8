@@ -1274,7 +1274,12 @@ class Listener(QObject):
                 """
                     Ignore if DT is above normal values
                 """
-                if abs(delta_t) > MAXIMUM_ALLOWED_DT and reply_to_packet and callsign != self.targeted_call:
+                if (
+                    abs(delta_t) > MAXIMUM_ALLOWED_DT 
+                    and reply_to_packet 
+                    and callsign != self.targeted_call
+                    and self.is_ftx_mode()
+                ):
                     log.error(f"DT is above normal for [ {callsign } ]. DT: [ {round(delta_t, 1)}s ]")
                     return                            
                 
@@ -1282,9 +1287,10 @@ class Listener(QObject):
                     Check SNR
                 """
                 if (
-                    reply_to_packet and 
-                    snr < self.minimum_report_for_reply and
-                    directed != self.my_call
+                    reply_to_packet
+                    and snr < self.minimum_report_for_reply 
+                    and directed != self.my_call
+                    and self.is_ftx_mode()
                 ):
                     log.error(f"SNR value is below than the expected minimum [ {self.minimum_report_for_reply}dB ] for [ {callsign } ]. SNR: [ {snr}dB ]")
                     reply_to_packet = False
@@ -1654,6 +1660,9 @@ class Listener(QObject):
         except Exception as e:
             log.error(f"Error sending QSOLoggedPacket via UDP: {e}")
             log.error("Caught an error while trying to send QSOLoggedPacket packet: error {}\n{}".format(e, traceback.format_exc()))
+
+    def is_ftx_mode(self):
+        return self.mode in ["FT8", "FT4"]
 
     def is_direction_match_my_cont(
             self,
