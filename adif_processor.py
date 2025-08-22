@@ -22,10 +22,22 @@ class AdifProcessor:
         self.result_queue = Queue()
         self.stop_event = Event()
         self._running = False
+        
+        # Fix for Windows 10 multiprocessing
+        if hasattr(multiprocessing, 'set_start_method'):
+            try:
+                multiprocessing.set_start_method('spawn', force=True)
+            except RuntimeError:
+                pass
     
     def start(self):
         if not self._running:
             self._running = True
+            
+            # Additional Windows safety check
+            if hasattr(multiprocessing, 'freeze_support'):
+                multiprocessing.freeze_support()
+            
             self.process = Process(
                 target=self._worker_process,
                 args=(self.task_queue, self.result_queue, self.stop_event),

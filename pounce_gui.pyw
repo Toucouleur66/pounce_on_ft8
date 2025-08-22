@@ -3694,4 +3694,8 @@ def main():
     sys.exit(exit_code)
 
 if __name__ == '__main__':
+    # Fix for Windows multiprocessing - prevent infinite loop
+    import multiprocessing
+    if hasattr(multiprocessing, 'freeze_support'):
+        multiprocessing.freeze_support()
     main()
