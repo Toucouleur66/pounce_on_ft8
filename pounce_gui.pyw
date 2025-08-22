@@ -2289,7 +2289,8 @@ class MainApp(QtWidgets.QMainWindow):
         if total > 0 and self.processing_active and file_path:
             filename = os.path.basename(file_path)
 
-            text_processing_progress = f"Logbook Analysis [ <i>{filename}</i> ]: {processed:,}/{total:,}"  
+            # text_processing_progress = f"Logbook Analysis [ <i>{filename}</i> ]: {processed:,}/{total:,}"  
+            text_processing_progress = f"Logbook Analysis: {processed:,}/{total:,}"  
             self.status_bar_label_mode.setText(text_processing_progress)
             if self.grid_monitor:
                 self.grid_monitor.status_bar_label_processing.setText(text_processing_progress)
