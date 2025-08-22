@@ -17,7 +17,7 @@ from logger import get_logger
 
 log = get_logger(__name__)
 
-@lru_cache(maxsize=5000)
+@lru_cache(maxsize=3_000)
 class CallsignLookup:
     def __init__(
         self,
@@ -62,6 +62,10 @@ class CallsignLookup:
 
         self.load_clublog_xml(self.xml_file_path)
         self.load_cty_mod_dat(self.cty_dat_file)
+        
+        self._sorted_cty_prefixes = sorted(self.cty_prefixes.keys(), key=lambda x: -len(x))
+        log.info(f"Pre-computed {len(self._sorted_cty_prefixes):,} sorted CTY prefixes for optimization")
+        
         self.load_cache_from_disk()
         self.load_lotw_cache()
 
@@ -841,8 +845,7 @@ class CallsignLookup:
             
             return result
         
-        sorted_cty_prefixes = sorted(self.cty_prefixes.keys(), key=lambda x: -len(x))
-        for prefix in sorted_cty_prefixes:
+        for prefix in self._sorted_cty_prefixes:
             if callsign.upper().startswith(prefix):
                 result = self.cty_prefixes[prefix].copy()
                 result["call"] = prefix 
