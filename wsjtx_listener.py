@@ -1352,6 +1352,7 @@ class Listener(QObject):
                 'directed'          : directed,
                 'wanted'            : wanted,
                 'wanted_cq_zone'    : wanted_cq_zone,
+                'wanted_grid'       : wanted_grid,
                 'monitored'         : monitored,
                 'monitored_cq_zone' : monitored_cq_zone,
                 'exactly_matched'   : exactly_matched,

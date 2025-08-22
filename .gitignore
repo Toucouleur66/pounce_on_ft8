@@ -13,7 +13,7 @@ pounce.log*
 !lotw_cache.json
 *.png
 
-test_*.*
+test*.*
 
 *.pkl
 

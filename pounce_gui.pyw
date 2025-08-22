@@ -90,6 +90,8 @@ from constants import (
     FG_COLOR_BLACK_ON_YELLOW,
     BG_COLOR_WHITE_ON_BLUE,
     FG_COLOR_BLACK_ON_WHITE,
+    BG_COLOR_BLACK_ON_LIGHT_BLUE,
+    FG_COLOR_BLACK_ON_LIGHT_BLUE,
     BG_COLOR_BLACK_ON_PURPLE,
     FG_COLOR_BLACK_ON_PURPLE,
     BG_COLOR_BLACK_ON_CYAN,
@@ -1638,11 +1640,12 @@ class MainApp(QtWidgets.QMainWindow):
                 my_call             = message.get('my_call')
                 wanted              = message.get('wanted')
                 wanted_cq_zone      = message.get('wanted_cq_zone')
+                wanted_grid         = message.get('wanted_grid')
                 monitored           = message.get('monitored')
                 monitored_cq_zone   = message.get('monitored_cq_zone')
+                excluded            = message.get('excluded')
                 wkb4_year           = message.get('wkb4_year')
                 entity_wkb4         = message.get('entity_wkb4')
-                grid                = message.get('grid')
 
                 empty_str           = ''
                 entity              = empty_str
@@ -1660,6 +1663,8 @@ class MainApp(QtWidgets.QMainWindow):
                     message_color      = BG_COLOR_BLACK_ON_YELLOW
                 elif wanted_cq_zone is True:
                     message_color      = BG_COLOR_BLACK_ON_SAUMON
+                elif wanted_grid is True:
+                    message_color      = BG_COLOR_BLACK_ON_YELLOW
                 elif monitored is True:
                     message_color      = BG_COLOR_BLACK_ON_PURPLE 
                 elif monitored_cq_zone is True:
@@ -1692,6 +1697,7 @@ class MainApp(QtWidgets.QMainWindow):
                  
                 self.update_model_data(
                     wanted,
+                    excluded,
                     callsign,
                     wkb4_year,
                     directed,
@@ -1709,7 +1715,7 @@ class MainApp(QtWidgets.QMainWindow):
                     message.get('grid'),
                     message_type,
                     message_color,
-                    message.get('message_uid'),                    
+                    message.get('message_uid'),                  
                 )   
 
                 self.message_buffer.append(message)         
@@ -2769,6 +2775,7 @@ class MainApp(QtWidgets.QMainWindow):
     def update_model_data(
             self,
             wanted,
+            excluded,
             callsign,
             wkb4_year,
             directed,
@@ -2786,7 +2793,7 @@ class MainApp(QtWidgets.QMainWindow):
             grid,
             message_type,
             row_color         = None,
-            message_uid       = None,
+            message_uid       = None
         ):
 
         """
@@ -2811,7 +2818,8 @@ class MainApp(QtWidgets.QMainWindow):
             "continent"         : continent,
             "grid"              : grid,
             "row_datetime"      : datetime.now(timezone.utc),
-            "row_color"         : row_color
+            "row_color"         : row_color,
+            "excluded"          : excluded
         }
 
         """"
