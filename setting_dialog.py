@@ -583,7 +583,7 @@ class SettingsDialog(QtWidgets.QDialog):
         """
         last_update, entry_count = LoTWManager.get_cache_info()
         if last_update:
-            lotw_cache_text = f"LoTW Cache Status: {entry_count:,} callsigns<br />Last updated: {last_update}"
+            lotw_cache_text = f"LoTW Cache Status: {entry_count: } callsigns<br />Last updated: {last_update}"
         else:
             lotw_cache_text = "No LoTW data available yet"
         

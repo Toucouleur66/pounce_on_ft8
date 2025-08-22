@@ -74,7 +74,7 @@ class AdifSummaryDialog(QDialog):
 
             for col, amateur_band in enumerate(amateur_bands, start=1):
                 count = len(parsed_data[year].get(amateur_band, set()))
-                count_item = QTableWidgetItem(f"{count:,}")
+                count_item = QTableWidgetItem(f"{count: }")
                 count_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 table.setItem(row, col, count_item)
 

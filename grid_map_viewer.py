@@ -2237,7 +2237,7 @@ class GridMapWindow(QMainWindow):
     
     def update_grid_count_display(self, count):
         if self.map_widget.operating_band:
-            self.status_bar_label_total_worked.setText(f"Worked grids (<u>{self.map_widget.operating_band}</u>): {count:,}")
+            self.status_bar_label_total_worked.setText(f"Worked grids (<u>{self.map_widget.operating_band}</u>): {count: }")
     
     def update_toggle_labels(self):
         if hasattr(self, 'grid_toggle'):
