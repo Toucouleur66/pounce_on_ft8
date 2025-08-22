@@ -8,8 +8,9 @@ import traceback
 from collections import defaultdict
 from threading import Event
 
-from utils import parse_adif, parse_adif_incremental
+from utils import parse_adif_incremental
 from logger import get_logger
+from adif_processor import AdifProcessor
 
 log     = get_logger(__name__)
 
@@ -42,9 +43,12 @@ class AdifMonitor:
         self._lookup            = False
         self._running           = False
         self.monitoring_thread  = threading.Thread(target=self.monitor_adif_files, daemon=True)
+        self.adif_processor     = AdifProcessor()
+        self.pending_tasks      = {}
 
     def start(self):
         self._running = True
+        self.adif_processor.start()
         self.monitoring_thread.start()
 
     def register_lookup(self, lookup):
@@ -54,6 +58,8 @@ class AdifMonitor:
         log.info("Stopping ADIF monitor")
         self._running = False
         self.stop_event.set()
+        
+        self.adif_processor.stop()
         
         if self.monitoring_thread.is_alive():
             self.monitoring_thread.join(timeout=5)
@@ -83,9 +89,10 @@ class AdifMonitor:
         log.info("ADIF monitoring thread started")
         try:
             while self._running:    
-                self.process_adif_file()
+                self.check_file_changes()
+                self.check_processing_results()
                 if self._running: 
-                    self.stop_event.wait(15)
+                    self.stop_event.wait(5)
         except Exception as e:
             log.error(f"Critical error in ADIF monitoring thread: {e}\n{traceback.format_exc()}")
         finally:
@@ -98,17 +105,20 @@ class AdifMonitor:
         for data_type in ['wkb4', 'entity', 'grid']:
             if data_type in incremental_data and incremental_data[data_type]:
                 if data_type not in merged_data:
-                    merged_data[data_type] = defaultdict(lambda: defaultdict(set))
+                    merged_data[data_type] = {}
                 
                 for key1, value1 in incremental_data[data_type].items():
+                    if key1 not in merged_data[data_type]:
+                        merged_data[data_type][key1] = {}
+                    
                     for key2, value2 in value1.items():
+                        if key2 not in merged_data[data_type][key1]:
+                            merged_data[data_type][key1][key2] = set()
                         merged_data[data_type][key1][key2].update(value2)
         
         return merged_data
 
-    def process_adif_file(self):
-        files_processed = []
-        
+    def check_file_changes(self):
         for file_path in self.unique_file_paths:
             if os.path.exists(file_path):
                 try:
@@ -118,38 +128,69 @@ class AdifMonitor:
                     last_size = self.adif_last_size[file_path]
                     
                     if last_mtime is None or current_mtime != last_mtime:
-                        log.info(f"Start processing: {file_path}")
+                        if file_path in self.pending_tasks:
+                            log.info(f"File changed while processing, skipping: {file_path}")
+                            continue
+                        
+                        log.info(f"File changed, queuing for processing: {file_path}")
                         self.adif_last_mtime[file_path] = current_mtime
                         
-                        # Use incremental parsing if file was previously processed and only grew
                         if (last_size is not None and 
                             current_size > last_size and 
                             file_path in self.adif_data_by_file):
-                            
-                            processing_time, incremental_data = parse_adif_incremental(
+                            task_id = self.adif_processor.process_file(
                                 file_path, last_size, self._lookup, max_lines=10
                             )
-                            
-                            with self.data_lock:
-                                existing_data = self.adif_data_by_file[file_path]
-                                self.adif_data_by_file[file_path] = self.merge_adif_data(
-                                    existing_data, incremental_data
-                                )
-                            
-                            log.info(f"Processed incremental ({processing_time:.4f}s): {file_path}")
                         else:
-                            # Full file processing for new files or when file was truncated/replaced
-                            processing_time, parsed_data = parse_adif(file_path, self._lookup)
-                            
-                            with self.data_lock:
-                                self.adif_data_by_file[file_path] = parsed_data
-                            
-                            log.info(f"Processed full file ({processing_time:.4f}s): {file_path}")
+                            task_id = self.adif_processor.process_file(
+                                file_path, 0, self._lookup, max_lines=None
+                            )
                         
-                        self.adif_last_size[file_path] = current_size
-                        files_processed.append(file_path)
+                        if task_id:
+                            self.pending_tasks[task_id] = {
+                                'file_path': file_path,
+                                'current_size': current_size,
+                                'incremental': last_size is not None and current_size > last_size and file_path in self.adif_data_by_file
+                            }
+                        
                 except Exception as e:
-                    log.error(f"Error processing {file_path}: {e}\n{traceback.format_exc()}")
+                    log.error(f"Error checking file changes for {file_path}: {e}\n{traceback.format_exc()}")
+    
+    def check_processing_results(self):
+        files_processed = []
+        
+        while True:
+            result = self.adif_processor.get_result()
+            if result is None:
+                break
+            
+            task_id = result['task_id']
+            if task_id not in self.pending_tasks:
+                continue
+                
+            task_info = self.pending_tasks.pop(task_id)
+            file_path = task_info['file_path']
+            
+            if result['success']:
+                try:
+                    with self.data_lock:
+                        if task_info['incremental']:
+                            existing_data = self.adif_data_by_file[file_path]
+                            self.adif_data_by_file[file_path] = self.merge_adif_data(
+                                existing_data, result['parsed_data']
+                            )
+                            log.info(f"Processed incremental ({result['processing_time']:.4f}s): {file_path}")
+                        else:
+                            self.adif_data_by_file[file_path] = result['parsed_data']
+                            log.info(f"Processed full file ({result['processing_time']:.4f}s): {file_path}")
+                    
+                    self.adif_last_size[file_path] = task_info['current_size']
+                    files_processed.append(file_path)
+                    
+                except Exception as e:
+                    log.error(f"Error updating ADIF data for {file_path}: {e}\n{traceback.format_exc()}")
+            else:
+                log.error(f"ADIF processing failed for {file_path}: {result['error']}")
         
         if files_processed:
             self.notify_callbacks()
