@@ -426,13 +426,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.status_bar_label_reply         = QtWidgets.QLabel()
         self.status_bar_label_decode_packet = QtWidgets.QLabel()
         self.status_bar_label_freq          = QtWidgets.QLabel()
-        
-        self.processing_active = False
-        self.processing_spinner_index = 0
-        
-        self.processing_timer = QtCore.QTimer()
-        self.processing_timer.timeout.connect(self.update_processing_animation)
-        self.processing_timer.setInterval(180)
+
+        self.processing_active              = False
 
         """
             Main output table
@@ -1664,6 +1659,12 @@ class MainApp(QtWidgets.QMainWindow):
                     self.grid_monitor.map_widget.update_adif_data(message.get('adif_data', {}))
             elif message_type == 'adif_processing_started':
                 self.start_processing_animation()
+            elif message_type == 'adif_processing_progress':
+                self.update_processing_progress(
+                    message.get('processed', 0), 
+                    message.get('total', 0),
+                    message.get('file_path', '')
+                )
             elif message_type == 'adif_processing_finished':
                 self.stop_processing_animation()
             elif message_type == 'update_status':
@@ -2266,44 +2267,32 @@ class MainApp(QtWidgets.QMainWindow):
         if self.grid_monitor:
             self.grid_monitor.update_status_bar_color(style)
 
-    def update_processing_animation(self):
-        if self.processing_active:
-
-            processing_animation_ascii =[
-                "O∙∙∙∙",
-                "∙O∙∙∙",
-                "∙∙O∙∙",
-                "∙∙∙O∙",
-                "∙∙∙∙O",
-                "∙∙∙∙∙o",
-                "∙∙∙∙O",
-                "∙∙∙O∙",
-                "∙∙O∙∙",
-                "∙O∙∙∙"
-		    ]
-            spinner_char = processing_animation_ascii[self.processing_spinner_index]
-            text = f"Logbook Analysis: {spinner_char}"
-            self.status_bar_label_packet.setText(text)
-            if self.grid_monitor:
-                self.grid_monitor.status_bar_label_processing.setText(text)
-
-            self.processing_spinner_index = (self.processing_spinner_index + 1) % len(processing_animation_ascii)
-        
     def start_processing_animation(self):
         if not self.processing_active:
             self.processing_active = True
             self.processing_spinner_index = 0
-            self.processing_timer.start()
-            self.update_processing_animation()
+            text = "Logbook Analysis: Starting..."
+            self.status_bar_label_mode.setText(text)
+
+            if self.grid_monitor:
+                self.grid_monitor.status_bar_label_processing.setText(text)
     
     def stop_processing_animation(self):
         if self.processing_active:
             self.processing_active = False
-            self.processing_timer.stop()
-            self.status_bar_label_packet.setText(f"Buffered: {self.output_model.rowCount()} {self.get_size_of_output_model()}")
+            self.check_connection_status()
 
             if self.grid_monitor:
-                self.grid_monitor.status_bar_label_processing.clear()    
+                self.grid_monitor.status_bar_label_processing.clear()
+
+    def update_processing_progress(self, processed, total, file_path=""):
+        if total > 0 and self.processing_active and file_path:
+            filename = os.path.basename(file_path)
+
+            text_processing_progress = f"Logbook Analysis [<b>{filename}</b>]: {processed:,}/{total:,}"  
+            self.status_bar_label_mode.setText(text_processing_progress)
+            if self.grid_monitor:
+                self.grid_monitor.status_bar_label_processing.setText(text_processing_progress)
 
     def set_notice_to_focus_value_label(
             self,
@@ -2462,15 +2451,17 @@ class MainApp(QtWidgets.QMainWindow):
         connection_lost     = False
         nothing_to_decode   = False
 
-        # Check band and control used tab
-        if frequency is not None:
-            operating_band = get_amateur_band(frequency)     
-            if operating_band != 'Invalid' and self.operating_band != operating_band:
-                self.apply_band_change(operating_band)
-           
-        if self.mode is not None:
-            current_mode = f"Mode: {self.mode}"
-            self.status_bar_label_mode.setText(current_mode)
+        if not self.processing_active:
+            if frequency is not None:
+                operating_band = get_amateur_band(frequency)     
+                if operating_band != 'Invalid' and self.operating_band != operating_band:
+                    self.apply_band_change(operating_band)
+            
+            if self.mode is not None:
+                current_mode = f"Mode: {self.mode}"
+                self.status_bar_label_mode.setText(current_mode)
+            else:
+                self.status_bar_label_mode.setText(WAITING_DATA_PACKETS_LABEL)    
 
         if self.last_heartbeat_time:
             time_since_last_heartbeat = (current_time - self.last_heartbeat_time).total_seconds()
@@ -2502,7 +2493,7 @@ class MainApp(QtWidgets.QMainWindow):
         if not self.processing_active:
             self.status_bar_label_packet.setText(f"Buffered: {self.output_model.rowCount()} {self.get_size_of_output_model()}")
 
-        if self.last_frequency:
+        if self.last_frequency and not self.processing_active:
             self.status_bar_label_freq.setText(f"Freq: <u>{display_frequency(self.last_frequency)}</u>")
 
         if self.last_targeted_call:

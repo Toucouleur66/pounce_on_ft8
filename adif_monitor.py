@@ -99,11 +99,19 @@ class AdifMonitor:
     def monitor_adif_files(self):
         log.info("ADIF monitoring thread started")
         try:
+            file_check_counter = 0
             while self._running:    
-                self.check_file_changes()
+                # Check file changes every 5 seconds (50 * 0.1s)
+                if file_check_counter % 50 == 0:
+                    self.check_file_changes()
+                
+                # Check processing results and progress every 100ms for smooth updates
                 self.check_processing_results()
+                self.check_processing_progress()
+                
+                file_check_counter += 1
                 if self._running: 
-                    self.stop_event.wait(5)
+                    self.stop_event.wait(0.1)  # Check every 100ms for smoother progress updates
         except Exception as e:
             log.error(f"Critical error in ADIF monitoring thread: {e}\n{traceback.format_exc()}")
         finally:
@@ -159,6 +167,7 @@ class AdifMonitor:
                         
                         if task_id:
                             if not self.pending_tasks:
+                                log.info("Starting ADIF processing animation")
                                 self.notify_processing_callbacks({'type': 'adif_processing_started'})
                             
                             self.pending_tasks[task_id] = {
@@ -209,7 +218,24 @@ class AdifMonitor:
         if files_processed:
             self.notify_callbacks()
             if not self.pending_tasks:
+                log.info("Stopping ADIF processing animation")
                 self.notify_processing_callbacks({'type': 'adif_processing_finished'})
+    
+    def check_processing_progress(self):
+        """Check for progress updates from ADIF processor"""
+        while True:
+            progress = self.adif_processor.get_progress()
+            if progress is None:
+                break
+            
+            # Notify callbacks with progress information
+            self.notify_processing_callbacks({
+                'type': 'adif_processing_progress',
+                'task_id': progress['task_id'],
+                'processed': progress['processed'],
+                'total': progress['total'],
+                'file_path': progress['file_path']
+            })
 
     def get_adif_data(self):
         merged_data = {

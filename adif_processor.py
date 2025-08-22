@@ -20,6 +20,7 @@ class AdifProcessor:
         self.process = None
         self.task_queue = Queue()
         self.result_queue = Queue()
+        self.progress_queue = Queue()
         self.stop_event = Event()
         self._running = False
         
@@ -40,7 +41,7 @@ class AdifProcessor:
             
             self.process = Process(
                 target=self._worker_process,
-                args=(self.task_queue, self.result_queue, self.stop_event),
+                args=(self.task_queue, self.result_queue, self.progress_queue, self.stop_event),
                 daemon=True
             )
             self.process.start()
@@ -86,6 +87,13 @@ class AdifProcessor:
         except queue.Empty:
             return None
     
+    def get_progress(self, timeout=0.01):
+        try:
+            progress = self.progress_queue.get(timeout=timeout)
+            return progress
+        except queue.Empty:
+            return None
+    
     def _serialize_lookup(self, lookup):
         if not lookup:
             return None
@@ -95,7 +103,7 @@ class AdifProcessor:
         }
     
     @staticmethod
-    def _worker_process(task_queue, result_queue, stop_event):
+    def _worker_process(task_queue, result_queue, progress_queue, stop_event):
         log.info("ADIF worker process started")
         
         try:
@@ -113,7 +121,9 @@ class AdifProcessor:
                         task['file_path'],
                         task['last_size'],
                         lookup=lookup,
-                        max_lines=task['max_lines']
+                        max_lines=task['max_lines'],
+                        progress_queue=progress_queue,
+                        task_id=task['id']
                     )
                     
                     result = {
@@ -160,8 +170,13 @@ class AdifProcessor:
             return None
     
     @staticmethod
-    def _parse_adif_multiprocess(file_path, last_size, lookup=None, max_lines=10):
-        """Multiprocess-safe version of parse_adif_incremental"""
+    def _parse_adif_multiprocess(
+        file_path,
+        last_size,
+        lookup=None,
+        max_lines=10,
+        progress_queue=None,
+        task_id=None):
         start_time = time.time()
         
         parsed_wkb4_data = {}
@@ -203,7 +218,26 @@ class AdifProcessor:
         
         if content:
             records = re.split(r"<EOR>", content, flags=re.IGNORECASE)
+            total_records = len([r for r in records if r.strip()])
             
+            # Send initial progress - try multiple times to ensure it gets through
+            if progress_queue and task_id:
+                for attempt in range(3):
+                    try:
+                        progress_queue.put({
+                            'task_id': task_id,
+                            'processed': 0,
+                            'total': total_records,
+                            'file_path': file_path
+                        }, timeout=0.1)
+                        break  # Success, exit retry loop
+                    except queue.Full:
+                        if attempt == 2:  # Last attempt
+                            pass  # Give up
+                        else:
+                            time.sleep(0.01)  # Brief wait before retry
+            
+            processed_count = 0
             for record in records:
                 record = record.strip()
                 if record:
@@ -230,6 +264,20 @@ class AdifProcessor:
                         if grid not in parsed_grid_data[band]:
                             parsed_grid_data[band][grid] = set()
                         parsed_grid_data[band][grid].add(call)
+                    
+                    processed_count += 1
+                    
+                    # Send progress update every 25 records or at the end
+                    if progress_queue and task_id and (processed_count % 25 == 0 or processed_count == total_records):
+                        try:
+                            progress_queue.put({
+                                'task_id': task_id,
+                                'processed': processed_count,
+                                'total': total_records,
+                                'file_path': file_path
+                            }, timeout=0.01)
+                        except queue.Full:
+                            pass
         
         processing_time = time.time() - start_time
         
