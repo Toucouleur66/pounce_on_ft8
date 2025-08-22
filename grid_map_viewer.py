@@ -2007,7 +2007,7 @@ class GridMapWindow(QMainWindow):
         
         self.status_bar = CustomStatusBar()
         self.status_bar_label_updated_grids = CustomQLabel()
-        self.status_bar_label_packet        = CustomQLabel()
+        self.status_bar_label_processing    = CustomQLabel()
         self.status_bar_label_last_decoded  = CustomQLabel()
         self.status_bar_label_total_worked  = CustomQLabel()
         
@@ -2180,7 +2180,7 @@ class GridMapWindow(QMainWindow):
 
         for label in (
             self.status_bar_label_updated_grids,
-            self.status_bar_label_packet,
+            self.status_bar_label_processing,
             self.status_bar_label_last_decoded,
             self.status_bar_label_total_worked
         ):
@@ -2196,11 +2196,11 @@ class GridMapWindow(QMainWindow):
                 }}
             """)
         
-        self.status_bar.addWidget(self.status_bar_label_updated_grids, 1)       
-        self.status_bar.addWidget(self.status_bar_label_packet, 1)                         
-        self.status_bar.addWidget(self.status_bar_label_last_decoded, 2)    
-        self.status_bar_label_last_decoded.setFixedWidth(190)         
-        self.status_bar.addWidget(self.status_bar_label_total_worked, 2)          
+        self.status_bar.addWidget(self.status_bar_label_updated_grids)       
+        self.status_bar_label_updated_grids.setFixedWidth(90)
+        self.status_bar.addWidget(self.status_bar_label_processing, 1)   
+        self.status_bar.addWidget(self.status_bar_label_last_decoded, 2)                 
+        self.status_bar.addWidget(self.status_bar_label_total_worked)          
         self.status_bar_label_total_worked.setFixedWidth(170)     
 
         self.status_bar.setContentsMargins(10, 3, 10, 3)
