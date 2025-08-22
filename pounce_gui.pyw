@@ -2270,12 +2270,14 @@ class MainApp(QtWidgets.QMainWindow):
         if self.processing_active:
 
             processing_animation_ascii =[
-                "∙∙∙∙",
-                "🛸∙∙∙",
-                "∙🛸∙∙",
-                "∙∙🛸∙",
-                "∙∙∙🛸",
-                "∙∙∙∙"
+                "o∙∙∙∙",
+                "∙o∙∙∙",
+                "∙∙o∙∙",
+                "∙∙∙o∙",
+                "∙∙∙∙o",
+                "∙∙∙o∙",
+                "∙∙o∙∙",
+                "∙o∙∙∙"
 		    ]
             spinner_char = processing_animation_ascii[self.processing_spinner_index]
             text = f"Processing ADIF {spinner_char}"

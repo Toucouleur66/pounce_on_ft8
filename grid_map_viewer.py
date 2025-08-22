@@ -13,6 +13,7 @@ from PyQt6.QtGui import QFont, QPainter, QWheelEvent, QMouseEvent, QKeyEvent, QC
 
 from custom_qlabel import CustomQLabel
 from animated_toggle import AnimatedToggle
+from animated_counter import AnimatedCounter
 from tiles_manager import TileCache, TileDownloader
 from theme_manager import ThemeManager
 from tooltip import CustomToolTip
@@ -2013,6 +2014,10 @@ class GridMapWindow(QMainWindow):
         
         self.last_decode_time = None
         
+        # Initialize animated counter for grid counts
+        self.grid_counter = AnimatedCounter(duration_ms=3_000, parent=self)
+        self.grid_counter.valueChanged.connect(self.update_grid_count_display)
+        
         self.setup_main_layout()
         self.init_status_bar()
         
@@ -2214,7 +2219,19 @@ class GridMapWindow(QMainWindow):
   self.map_widget.heatmap_buffer)}")        
 
         if self.map_widget.operating_band:
-            self.status_bar_label_total_worked.setText(f"Worked grids (<u>{self.map_widget.operating_band}</u>): {len(self.map_widget.permanent_grids):,}")
+            target_count = len(self.map_widget.permanent_grids)
+            current_count = self.grid_counter.get_current_value()
+            
+            # Only animate if the count has changed significantly
+            if abs(target_count - current_count) > 0:
+                self.grid_counter.animate_to(target_count, current_count)
+            else:
+                # Update without animation if no significant change
+                self.update_grid_count_display(target_count)
+    
+    def update_grid_count_display(self, count):
+        if self.map_widget.operating_band:
+            self.status_bar_label_total_worked.setText(f"Worked grids (<u>{self.map_widget.operating_band}</u>): {count:,}")
     
     def update_toggle_labels(self):
         if hasattr(self, 'grid_toggle'):
