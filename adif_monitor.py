@@ -45,6 +45,7 @@ class AdifMonitor:
         self.monitoring_thread  = threading.Thread(target=self.monitor_adif_files, daemon=True)
         self.adif_processor     = AdifProcessor()
         self.pending_tasks      = {}
+        self.processing_callbacks = []
 
     def start(self):
         self._running = True
@@ -70,6 +71,16 @@ class AdifMonitor:
 
     def register_callback(self, callback):
         self.callbacks.append(callback)
+    
+    def register_processing_callback(self, callback):
+        self.processing_callbacks.append(callback)
+    
+    def notify_processing_callbacks(self, message):
+        for callback in self.processing_callbacks:
+            try:
+                callback(message)
+            except Exception as e:
+                log.error(f"Error in processing callback ({callback}): {e}\n{traceback.format_exc()}")
     
     def notify_callbacks(self):
         try:
@@ -147,6 +158,9 @@ class AdifMonitor:
                             )
                         
                         if task_id:
+                            if not self.pending_tasks:
+                                self.notify_processing_callbacks({'type': 'adif_processing_started'})
+                            
                             self.pending_tasks[task_id] = {
                                 'file_path': file_path,
                                 'current_size': current_size,
@@ -194,6 +208,8 @@ class AdifMonitor:
         
         if files_processed:
             self.notify_callbacks()
+            if not self.pending_tasks:
+                self.notify_processing_callbacks({'type': 'adif_processing_finished'})
 
     def get_adif_data(self):
         merged_data = {

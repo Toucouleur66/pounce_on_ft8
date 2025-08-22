@@ -426,6 +426,13 @@ class MainApp(QtWidgets.QMainWindow):
         self.status_bar_label_reply         = QtWidgets.QLabel()
         self.status_bar_label_decode_packet = QtWidgets.QLabel()
         self.status_bar_label_freq          = QtWidgets.QLabel()
+        
+        self.processing_active = False
+        self.processing_spinner_index = 0
+        
+        self.processing_timer = QtCore.QTimer()
+        self.processing_timer.timeout.connect(self.update_processing_animation)
+        self.processing_timer.setInterval(180)
 
         """
             Main output table
@@ -1621,6 +1628,10 @@ class MainApp(QtWidgets.QMainWindow):
                 if self.grid_monitor is not None:
                     log.debug("Received request to update ADIF data in Grid Monitor")
                     self.grid_monitor.map_widget.update_adif_data(message.get('adif_data', {}))
+            elif message_type == 'adif_processing_started':
+                self.start_processing_animation()
+            elif message_type == 'adif_processing_finished':
+                self.stop_processing_animation()
             elif message_type == 'update_status':
                 if self._running:
                     self.check_connection_status(
@@ -2219,7 +2230,40 @@ class MainApp(QtWidgets.QMainWindow):
         self.status_bar.setStyleSheet(style)
         
         if self.grid_monitor:
-            self.grid_monitor.update_status_bar_color(style)           
+            self.grid_monitor.update_status_bar_color(style)
+
+    def update_processing_animation(self):
+        if self.processing_active:
+
+            processing_animation_ascii =[
+                "∙∙∙",
+                "●∙∙",
+                "∙●∙",
+                "∙∙●",
+                "∙∙∙"
+		    ]
+            spinner_char = processing_animation_ascii[self.processing_spinner_index]
+            text = f"Processing ADIF {spinner_char}"
+            self.status_bar_label_packet.setText(text)
+            if self.grid_monitor:
+                self.grid_monitor.status_bar_label_packet.setText(text)
+
+            self.processing_spinner_index = (self.processing_spinner_index + 1) % len(processing_animation_ascii)
+        
+    def start_processing_animation(self):
+        if not self.processing_active:
+            self.processing_active = True
+            self.processing_spinner_index = 0
+            self.processing_timer.start()
+            self.update_processing_animation()
+    
+    def stop_processing_animation(self):
+        if self.processing_active:
+            self.processing_active = False
+            self.processing_timer.stop()
+            self.status_bar_label_packet.setText(f"Buffered: {self.output_model.rowCount()} {self.get_size_of_output_model()}")       
+            if self.grid_monitor:
+                self.grid_monitor.status_bar_label_packet.clear()    
 
     def set_notice_to_focus_value_label(
             self,
@@ -2415,7 +2459,8 @@ class MainApp(QtWidgets.QMainWindow):
         else:
             self.status_bar_label_connection.clear()
 
-        self.status_bar_label_packet.setText(f"Buffered: {self.output_model.rowCount()} {self.get_size_of_output_model()}")
+        if not self.processing_active:
+            self.status_bar_label_packet.setText(f"Buffered: {self.output_model.rowCount()} {self.get_size_of_output_model()}")
 
         if self.last_frequency:
             self.status_bar_label_freq.setText(f"Freq: <u>{display_frequency(self.last_frequency)}</u>")

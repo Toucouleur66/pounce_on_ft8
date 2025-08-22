@@ -244,6 +244,7 @@ class Listener(QObject):
                 self.adif_monitor.register_lookup(lookup)
             self.adif_monitor.start()
             self.adif_monitor.register_callback(self.update_adif_data)
+            self.adif_monitor.register_processing_callback(self.update_adif_processing_status)
         
         """
             Use ADIF file to log        
@@ -1756,7 +1757,10 @@ class Listener(QObject):
         self.message_callback({
             'type': 'adif_data_updated',
             'adif_data': self.adif_data
-        })        
+        })
+    
+    def update_adif_processing_status(self, status_message):
+        self.message_callback(status_message)        
 
     """
         if self.adif_data.get('entity') and self.band:
