@@ -156,7 +156,10 @@ class CustomToolTip(QtWidgets.QWidget):
         if pos is None:
             pos = QtGui.QCursor.pos()
         
-        screen = QtWidgets.QApplication.primaryScreen()
+        # Find the screen that contains the tooltip position
+        screen = QtWidgets.QApplication.screenAt(pos)
+        if screen is None:
+            screen = QtWidgets.QApplication.primaryScreen()
         screen_rect = screen.availableGeometry()
         
         offset_x = 15
