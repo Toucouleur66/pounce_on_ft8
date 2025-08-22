@@ -74,7 +74,7 @@ class Listener(QObject):
             max_working_delay,
             enable_log_all_valid_contact,
             enable_reply_to_valid_callsign,
-            enable_reply_to_valid_cont,
+            enable_reply_to_valid_direction,
             enable_reply_to_lotw_only,
             enable_gap_finder,
             enable_watchdog_bypass,
@@ -149,7 +149,7 @@ class Listener(QObject):
         self.enable_polite_reply                = enable_polite_reply
         self.enable_log_all_valid_contact       = enable_log_all_valid_contact
         self.enable_reply_to_valid_callsign     = enable_reply_to_valid_callsign
-        self.enable_reply_to_valid_cont         = enable_reply_to_valid_cont
+        self.enable_reply_to_valid_direction    = enable_reply_to_valid_direction
         self.enable_reply_to_lotw_only          = enable_reply_to_lotw_only
         self.enable_gap_finder                   = enable_gap_finder
         self.enable_watchdog_bypass             = enable_watchdog_bypass
@@ -1080,19 +1080,24 @@ class Listener(QObject):
                     wanted = wanted_cq_zone = wanted_grid = False
 
                 """
-                    Handle callsign when cqing for another continent
-                """
+                    Handle directional QSO
+                """                
                 if (
-                    self.enable_reply_to_valid_cont
-                    and self.wanted_callsigns_direction.get(callsign, None)
-                ):                    
-                    if self.wanted_callsigns_direction.get(callsign) != self.my_cont:
-                        if is_valid_continent(directed) and directed != self.my_cont: 
-                            log.warning(f"Skipping [ {callsign} ] as it is not cqing for [ {self.my_cont} ]")
-                            wanted = wanted_cq_zone = False    
-                        elif lookup.lookup_callsign(directed).get('cont', None) != self.wanted_callsigns_direction.get(callsign):
-                            log.warning(f"Reset direction for [ {callsign} ]")
-                            self.wanted_callsigns_direction.pop(callsign)
+                    self.enable_reply_to_valid_direction
+                    and directed
+                ):       
+                    if reply_to_packet and not self.is_direction_match_my_cont(
+                        cqing,
+                        callsign,
+                        directed
+                    ):               
+                        log.error(f"Skipping [ {callsign} ] as it is not calling for [ {self.my_cont} ]")
+                        wanted          = False
+                        wanted_cq_zone  = False
+                        reply_to_packet = False
+                        marathon        = False
+                        wanted_grid     = False
+                        monitored       = True
 
                 """
                     Ignore if callsign is not a LoTW user
@@ -1240,20 +1245,7 @@ class Listener(QObject):
                         self.targeted_call_frequencies.add(delta_f)     
                                 
                     if cqing:
-                        debug_message = f"Found CQ message from callsign [ {callsign} ]."
-                        # Check if we are CQing and it's directed to our continent
-                        if (
-                            directed
-                            and self.enable_reply_to_valid_cont
-                            and is_valid_continent(directed)
-                        ):
-                            debug_message+= f"Directed to: [ {directed} ]"
-                            if directed == self.my_cont:
-                               pass
-                            else:
-                                # Ignore this callsign
-                                self.wanted_callsigns_direction[callsign] = directed
-                                reply_to_packet = False
+                        debug_message = f"Found CQ message from callsign [ {callsign} ]."                        
                     else:
                         debug_message = "Found message directed to [ {} ] from callsign [ {} ]. Message: {}".format(directed, callsign, msg)
                     
@@ -1662,6 +1654,32 @@ class Listener(QObject):
         except Exception as e:
             log.error(f"Error sending QSOLoggedPacket via UDP: {e}")
             log.error("Caught an error while trying to send QSOLoggedPacket packet: error {}\n{}".format(e, traceback.format_exc()))
+
+    def is_direction_match_my_cont(
+            self,
+            cqing,
+            callsign,
+            directed
+        ):
+        if cqing:
+            if is_valid_continent(directed) and directed != self.my_cont:
+                self.wanted_callsigns_direction[callsign] = directed
+                return False
+            elif directed == "DX" and lookup.lookup_callsign(callsign).get('cont', None) == self.my_cont:
+                self.wanted_callsigns_direction[callsign] = directed
+                return False
+        elif (
+            self.wanted_callsigns_direction.get(callsign) 
+            and self.wanted_callsigns_direction.get(callsign) != self.my_cont
+        ):
+            if is_valid_continent(directed) and directed != self.my_cont: 
+                return False
+            elif lookup.lookup_callsign(directed).get('cont', None) != self.wanted_callsigns_direction.get(callsign):
+                log.warning(f"Reset direction for [ {callsign} ]")
+                self.wanted_callsigns_direction.pop(callsign)
+                return True
+        else:
+            return True
 
     def is_entity_worked_b4(
             self,

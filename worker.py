@@ -34,7 +34,7 @@ class Worker(QObject):
             max_working_delay,
             enable_log_all_valid_contact, 
             enable_reply_to_valid_callsign,
-            enable_reply_to_valid_cont,
+            enable_reply_to_valid_direction,
             enable_reply_to_lotw_only,
             enable_gap_finder, 
             enable_watchdog_bypass,
@@ -81,7 +81,7 @@ class Worker(QObject):
         self.max_working_delay                  = max_working_delay
         self.enable_log_all_valid_contact       = enable_log_all_valid_contact
         self.enable_reply_to_valid_callsign     = enable_reply_to_valid_callsign
-        self.enable_reply_to_valid_cont         = enable_reply_to_valid_cont
+        self.enable_reply_to_valid_direction    = enable_reply_to_valid_direction
         self.enable_reply_to_lotw_only          = enable_reply_to_lotw_only
         self.enable_gap_finder                   = enable_gap_finder
         self.enable_watchdog_bypass             = enable_watchdog_bypass
@@ -126,7 +126,7 @@ class Worker(QObject):
                 
                 enable_log_all_valid_contact    = self.enable_log_all_valid_contact,
                 enable_reply_to_valid_callsign  = self.enable_reply_to_valid_callsign,
-                enable_reply_to_valid_cont      = self.enable_reply_to_valid_cont,
+                enable_reply_to_valid_direction = self.enable_reply_to_valid_direction,
                 enable_reply_to_lotw_only       = self.enable_reply_to_lotw_only,
 
                 enable_gap_finder                = self.enable_gap_finder,

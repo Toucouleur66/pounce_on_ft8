@@ -287,9 +287,9 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_reply_to_valid_callsign.setFont(CUSTOM_FONT)
         self.enable_reply_to_valid_callsign.setChecked(True)
 
-        self.enable_reply_to_valid_cont = QtWidgets.QCheckBox("Ignore callsign if it targets another continent")
-        self.enable_reply_to_valid_cont.setFont(CUSTOM_FONT)
-        self.enable_reply_to_valid_cont.setChecked(True)
+        self.enable_reply_to_valid_direction = QtWidgets.QCheckBox("Ignore callsign if it targets another continent")
+        self.enable_reply_to_valid_direction.setFont(CUSTOM_FONT)
+        self.enable_reply_to_valid_direction.setChecked(True)
 
         general_settings_layout.addWidget(self.enable_sending_reply, 0, 0, 1, 2)
         general_settings_layout.addWidget(self.enable_polite_reply, 1, 0, 1, 2)
@@ -297,7 +297,7 @@ class SettingsDialog(QtWidgets.QDialog):
         general_settings_layout.addWidget(self.enable_watchdog_bypass, 3, 0, 1, 2)
         general_settings_layout.addWidget(self.enable_log_all_valid_contact, 4, 0, 1, 2)
         general_settings_layout.addWidget(self.enable_reply_to_valid_callsign, 5, 0, 1, 2)
-        general_settings_layout.addWidget(self.enable_reply_to_valid_cont, 6, 0, 1, 2)
+        general_settings_layout.addWidget(self.enable_reply_to_valid_direction, 6, 0, 1, 2)
 
         general_settings_group.setLayout(QtWidgets.QVBoxLayout())
         general_settings_group.layout().setContentsMargins(0, 0, 0, 0)
@@ -1231,8 +1231,8 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_reply_to_valid_callsign.setChecked(
             self.params.get('enable_reply_to_valid_callsign', True)
         )
-        self.enable_reply_to_valid_cont.setChecked(
-            self.params.get('enable_reply_to_valid_cont', True)
+        self.enable_reply_to_valid_direction.setChecked(
+            self.params.get('enable_reply_to_valid_direction', True)
         )
         self.enable_reply_to_lotw_only.setChecked(
             self.params.get('enable_reply_to_lotw_only', True)
@@ -1364,7 +1364,7 @@ class SettingsDialog(QtWidgets.QDialog):
             'enable_polite_reply'                        : self.enable_polite_reply.isChecked(),
             'enable_log_all_valid_contact'               : self.enable_log_all_valid_contact.isChecked(),
             'enable_reply_to_valid_callsign'             : self.enable_reply_to_valid_callsign.isChecked(),
-            'enable_reply_to_valid_cont'                 : self.enable_reply_to_valid_cont.isChecked(),
+            'enable_reply_to_valid_direction'            : self.enable_reply_to_valid_direction.isChecked(),
             'enable_reply_to_lotw_only'                  : self.enable_reply_to_lotw_only.isChecked(),
             'max_reply_attemps_to_callsign'              : max_reply_attemps,
             'max_waiting_delay'                          : max_waiting_delay,
