@@ -235,7 +235,7 @@ class ToolTip(QtWidgets.QWidget):
         self.bg_color = bg_color
         self.fg_color = fg_color
         self.tooltip_window = None
-        self.widget.installEventFilter(self)
+        self.event_filter_installed = False
         
         self.show_timer = QtCore.QTimer()
         self.show_timer.setSingleShot(True)
@@ -243,6 +243,15 @@ class ToolTip(QtWidgets.QWidget):
         self.show_delay = 0  
         
         self.mouse_over = False
+        
+        # Delay event filter installation to ensure widget is ready
+        QtCore.QTimer.singleShot(100, self._install_event_filter)
+    
+    def _install_event_filter(self):
+        """Install the event filter after a delay to ensure widget is ready."""
+        if not self.event_filter_installed and self.widget:
+            self.widget.installEventFilter(self)
+            self.event_filter_installed = True
 
     def eventFilter(self, obj, event):
         if obj == self.widget:
