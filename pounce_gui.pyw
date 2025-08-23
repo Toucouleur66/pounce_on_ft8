@@ -1005,18 +1005,18 @@ class MainApp(QtWidgets.QMainWindow):
             }
         """)
 
-        column_widths = [160, 45, 60, 60, 80, 400, 10, 100, 70, 60, 60]  
+        column_widths = [160, 45, 60, 60, 80, 450, 10, 100, 70, 60, 80]  
+        
+        header = output_table.horizontalHeader()
+        header.setMinimumSectionSize(50)  # Set global minimum
+        
         for i, width in enumerate(column_widths):
             if i < output_table.model().columnCount():                                        
                 if i in [5, 7]:  # Message (5) and Country (7) columns stretch
                     output_table.horizontalHeader().setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
                 else:
-                    output_table.setColumnWidth(i, width)        
+                    output_table.setColumnWidth(i, width)  
         
-        self.message_country_ratio = 2.0  
-        
-        # Connect to handle proportional resizing
-        output_table.horizontalHeader().sectionResized.connect(self.on_output_table_resize)
         output_table.horizontalHeader().sectionClicked.connect(self.on_header_clicked)
 
         self.refresh_table_timer = QtCore.QTimer(self)
@@ -1034,35 +1034,6 @@ class MainApp(QtWidgets.QMainWindow):
 
         return output_table
     
-    def on_output_table_resize(self, logical_index, old_size, new_size):
-        if not hasattr(self, 'message_country_ratio'):
-            return
-        
-        header = self.output_table.horizontalHeader()
-        if logical_index not in [5, 7]:
-            return
-            
-        header.blockSignals(True)
-        
-        try:            
-            total_width = self.output_table.width()
-            fixed_width = sum([header.sectionSize(i) for i in range(header.count()) if i not in [5, 7]])
-            available_width = max(200, total_width - fixed_width)
-            
-            # Calculate proportional widths (2:1 ratio)
-            message_width = int(available_width * (self.message_country_ratio / (self.message_country_ratio + 1)))
-            country_width = available_width - message_width
-            
-            # Ensure minimum widths
-            message_width = max(150, message_width)
-            country_width = max(80, country_width)
-            
-            header.resizeSection(5, message_width)  # Message
-            header.resizeSection(7, country_width)  # Country
-            
-        finally:
-            header.blockSignals(False)           
-
     def init_filter_ui(self):
         filter_widget = QtWidgets.QWidget()
         filter_widget.setObjectName("FilterWidget")

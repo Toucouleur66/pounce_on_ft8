@@ -963,6 +963,9 @@ class Listener(QObject):
             )
 
             for parsed_message in parsed_messages:
+                cleaned_message   = parsed_message['cleaned_message']
+                q_tag             = parsed_message['q_tag']
+
                 directed          = parsed_message['directed']
                 callsign          = parsed_message['callsign']
                 callsign_info     = parsed_message['callsign_info']
@@ -1364,7 +1367,7 @@ class Listener(QObject):
                 'delta_time'        : delta_t,
                 'delta_freq'        : delta_f,
                 'snr'               : snr,                
-                'message'           : message,
+                'message'           : cleaned_message,
                 'message_uid'       : str(uuid.uuid4()), 
                 'message_type'      : message_type,
                 'priority'          : priority,

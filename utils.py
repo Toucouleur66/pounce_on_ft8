@@ -83,6 +83,7 @@ def parse_single_wsjtx_message(
         monitored_cq_zones  = set(),
         excluded_cq_zones   = set(),
     ):
+    cleaned_message         = message.strip()
     directed                = None
     callsign                = None
     callsign_info           = None
@@ -91,6 +92,7 @@ def parse_single_wsjtx_message(
     cq_zone                 = None
     msg                     = None
     report                  = None
+    q_tag                   = None
 
     cqing                   = False
     wanted                  = False
@@ -99,6 +101,12 @@ def parse_single_wsjtx_message(
     excluded                = False
     monitored               = False
     monitored_cq_zone       = False
+
+    # Extract q_average_decode from the end of the message
+    q_match = re.search(r'\s+(q(?:\d{2}|\*|\d))\s*$', message)
+    if q_match:
+        q_tag = q_match.group(1)
+        cleaned_message = message[:q_match.start()].rstrip()
 
     # 1) Handle <...> message
     match = re.match(
@@ -284,6 +292,8 @@ def parse_single_wsjtx_message(
         'grid_updated'       : grid_updated,
         'report'             : report,
         'msg'                : msg,
+        'cleaned_message'    : cleaned_message,
+        'q_tag'              : q_tag,
         'cqing'              : cqing,
         'wanted'             : wanted,
         'exactly_matched'    : exactly_matched,
