@@ -2896,6 +2896,7 @@ class MainApp(QtWidgets.QMainWindow):
             "grid"              : grid,
             "row_datetime"      : datetime.now(timezone.utc),
             "row_color"         : row_color,
+            "message_type"      : message_type,
             "excluded"          : excluded
         }
 

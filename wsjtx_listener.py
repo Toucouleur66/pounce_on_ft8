@@ -1281,8 +1281,10 @@ class Listener(QObject):
                     and self.is_ftx_mode()
                 ):
                     log.error(f"DT is above normal for [ {callsign } ]. DT: [ {round(delta_t, 1)}s ]")
-                    return                            
-                
+                    message_type    = 'dt_above_normal'
+                    reply_to_packet = False
+                    monitored       = True                
+
                 """
                     Check SNR
                 """
@@ -1293,7 +1295,9 @@ class Listener(QObject):
                     and self.is_ftx_mode()
                 ):
                     log.error(f"SNR value is below than the expected minimum [ {self.minimum_report_for_reply}dB ] for [ {callsign } ]. SNR: [ {snr}dB ]")
+                    message_type    = 'snr_below_minimum'
                     reply_to_packet = False
+                    monitored       = True
 
                 """
                     Check priority

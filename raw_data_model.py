@@ -132,12 +132,28 @@ class RawDataModel(QtCore.QAbstractTableModel):
             elif column == 10:
                 return raw_data['wkb4_year'] or ""
         elif role == Qt.ItemDataRole.BackgroundRole:
+            # Check for individual cell coloring based on message_type
+            message_type = raw_data.get('message_type')
+            if message_type == 'snr_below_minimum' and column == 2:  # SNR column
+                return QColor(FG_COLOR_FOCUS_MY_CALL) 
+            elif message_type == 'dt_above_normal' and column == 3:  # DT column
+                return QColor(FG_COLOR_FOCUS_MY_CALL) 
+
+            # Fall back to row-level coloring
             row_color = raw_data.get('row_color')
             if row_color:
                 color = self.get_color(row_color)
                 if color:
                     return color
         elif role == Qt.ItemDataRole.ForegroundRole:
+            # Check for individual cell coloring based on message_type
+            message_type = raw_data.get('message_type')
+            if message_type == 'snr_below_minimum' and column == 2:  # SNR column
+                return QColor(BG_COLOR_FOCUS_MY_CALL)
+            elif message_type == 'dt_above_normal' and column == 3:  # DT column
+                return QColor(BG_COLOR_FOCUS_MY_CALL) 
+            
+            # Fall back to row-level coloring
             row_color = raw_data.get('row_color')
             if row_color:
                 color = self.get_foreground_color(row_color)
