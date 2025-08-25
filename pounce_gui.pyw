@@ -154,6 +154,7 @@ from constants import (
     # QSS
     CONTEXT_MENU_DARWIN_QSS,
     CONTEXT_MENU_HEADER_QSS,
+    CONTEXT_MENU_EXCLUDED_QSS,
     # Fonts
     CUSTOM_FONT,
     CUSTOM_FONT_MONO_LG,
@@ -2006,8 +2007,8 @@ class MainApp(QtWidgets.QMainWindow):
             menu.addSeparator()
 
         if excluded:
-            label = QtWidgets.QLabel(f"Exclusion set for {excluded}")
-            label.setStyleSheet(CONTEXT_MENU_HEADER_QSS)
+            label = QtWidgets.QLabel(f"Exclusion for <b>{excluded}</b> and matches with <b>{callsign}</b>")
+            label.setStyleSheet(CONTEXT_MENU_EXCLUDED_QSS)
 
             widget_action = QtWidgets.QWidgetAction(menu)
             widget_action.setDefaultWidget(label)
@@ -2015,7 +2016,7 @@ class MainApp(QtWidgets.QMainWindow):
             menu.addAction(widget_action)
             menu.addSeparator()
 
-        label = QtWidgets.QLabel(f"Apply to {context_menu_band}")
+        label = QtWidgets.QLabel(f"Apply to <b>{context_menu_band}</b> band")
         label.setStyleSheet(CONTEXT_MENU_HEADER_QSS)
 
         widget_action = QtWidgets.QWidgetAction(menu)

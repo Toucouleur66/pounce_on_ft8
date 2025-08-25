@@ -251,6 +251,14 @@ CONTEXT_MENU_HEADER_QSS         = f"""
                 font-size: 12px;
         """
 
+CONTEXT_MENU_EXCLUDED_QSS         = f"""
+                background-color: {STATUS_MONITORING_COLOR};
+                color: white;
+                border-radius: 4px;
+                padding: 4px 12px;
+                font-size: 12px;
+        """
+
 DISCORD_SECTION                 = '<a href="https://discord.gg/fqCu24naCM">Support available on Discord</a>'
 DONATION_URL                    = "https://www.paypal.com/donate/?cmd=_s-xclick&hosted_button_id=R4HK9ZTUPYHSL&ssrt=1732865689562"
 DONATION_SECTION                = f'<a href="{DONATION_URL}">Donations are welcome</a>'
