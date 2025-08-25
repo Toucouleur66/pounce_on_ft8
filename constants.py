@@ -7,7 +7,7 @@ import platform
 from datetime import datetime
 from utils import get_app_data_dir
 
-CURRENT_VERSION_NUMBER          = "2.11.5"
+CURRENT_VERSION_NUMBER          = "2.11.6"
 EXPIRATION_DATE                 = datetime(2025, 12, 15)
 UPDATE_JSON_INFO_URL            = "https://storage.de.cloud.ovh.net/v1/AUTH_31163bb499dc49eb819aacdfd32ae82c/wait.and.pounce/public/update_info.json"
 
@@ -52,6 +52,9 @@ FG_COLOR_BLACK_ON_WHITE         = "#FFFFFF"
 
 BG_COLOR_BLACK_ON_CYAN          = "#C8F0C9"
 FG_COLOR_BLACK_ON_CYAN          = "#000000"
+
+BG_COLOR_BLACK_ON_LIGHT_TEAL     = "#E5F7F7"
+FG_COLOR_BLACK_ON_LIGHT_TEAL     = "#000000"
 
 BG_COLOR_WHITE_ON_BLUE_VIOLET   = FG_TIMER_COLOR
 FG_COLOR_WHITE_ON_BLUE_VIOLET   = EVEN_COLOR

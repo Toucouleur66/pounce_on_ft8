@@ -1841,7 +1841,7 @@ class GridMapWidget(QWidget):
             
             highlighted_data = self.get_new_grid_data(self.current_tooltip_grid)
             if highlighted_data:
-                tooltip_text = f"Grid: {self.current_tooltip_grid}<br/>"
+                tooltip_text = f"Grid: <b>{self.current_tooltip_grid}</b><br/>"
                 if 'callsign' in highlighted_data:
                     tooltip_text += f"Callsign: {highlighted_data['callsign']}<br/>"
                 if 'frequency' in highlighted_data:

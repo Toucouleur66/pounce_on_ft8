@@ -1987,6 +1987,7 @@ class MainApp(QtWidgets.QMainWindow):
         directed            = data.get('directed')
         cq_zone             = data.get('cq_zone')
         history_band        = data.get('band')
+        excluded            = data.get('excluded')
 
         if not callsign:
             return        
@@ -2002,6 +2003,16 @@ class MainApp(QtWidgets.QMainWindow):
             if len(callsign_bands[callsign]) > 1:
                 actions['remove_callsign_from_worked_history'] = menu.addAction(f"Remove {callsign} on all bands from Worked History ({", ".join(sorted(callsign_bands[callsign], key=band_sort_key))})")
 
+            menu.addSeparator()
+
+        if excluded:
+            label = QtWidgets.QLabel(f"Exclusion set for {excluded}")
+            label.setStyleSheet(CONTEXT_MENU_HEADER_QSS)
+
+            widget_action = QtWidgets.QWidgetAction(menu)
+            widget_action.setDefaultWidget(label)
+
+            menu.addAction(widget_action)
             menu.addSeparator()
 
         label = QtWidgets.QLabel(f"Apply to {context_menu_band}")

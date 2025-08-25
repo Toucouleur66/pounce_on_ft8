@@ -133,9 +133,6 @@ def parse_single_wsjtx_message(
             directed = match.group(1)
             callsign = match.group(2)
             grid     = match.group(3)
-
-
-
         else:
             # 3) Handle CQ + callsign (+ optional grid)
             #
@@ -238,9 +235,16 @@ def parse_single_wsjtx_message(
             Check if the callsign matches
         """
         is_wanted    = matches_any(wanted_callsigns, callsign)
-        is_excluded  = matches_any(excluded_callsigns, callsign) 
+        is_excluded  = matches_any(excluded_callsigns, callsign)
         is_worked    = matches_any(worked_callsigns, callsign)
         is_monitored = matches_any(monitored_callsigns, callsign)
+        
+        # Track exclusion reason for callsign patterns
+        if is_excluded:
+            for pattern in excluded_callsigns:
+                if fnmatch.fnmatch(callsign, pattern):
+                    excluded = pattern
+                    break
 
         """
             Check if the callsign is really valid
@@ -275,14 +279,16 @@ def parse_single_wsjtx_message(
             is_monitored_cq_zone = True
 
         if cq_zone and cq_zone in excluded_cq_zones and callsign not in wanted_callsigns:
-            is_excluded = True            
+            is_excluded          = True
+            excluded             = f"Z{cq_zone}"
 
-        wanted            = is_wanted and not is_excluded and not is_worked
+        wanted            = is_wanted and not is_worked
         exactly_matched   = is_exact_match(wanted_callsigns, callsign) if wanted else False
-        monitored         = is_monitored
-        wanted_cq_zone    = is_wanted_cq_zone and not is_excluded and not is_worked
+        monitored         = is_monitored 
+        wanted_cq_zone    = is_wanted_cq_zone and not is_worked and not is_excluded
         monitored_cq_zone = is_monitored_cq_zone and not is_excluded
-        excluded          = is_excluded if not exactly_matched else False
+        
+        excluded          = False if exactly_matched else excluded
 
     return {
         'directed'           : directed,

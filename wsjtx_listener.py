@@ -1037,7 +1037,6 @@ class Listener(QObject):
                     self.enable_marathon 
                     and self.adif_data.get('entity')
                     and not entity_wkb4
-                    and not excluded 
                     and entity_code 
                     and not (wanted and wanted_cq_zone)                    
                 ):      
@@ -1055,10 +1054,10 @@ class Listener(QObject):
                     Check if grid is needed
                 """
                 # Single condition for grid tracking
-                if (self.enable_grid_tracker 
+                if (
+                    self.enable_grid_tracker 
                     and self.adif_data.get('grid')
                     and not callsign_wkb4 
-                    and not excluded 
                     and grid 
                     and not (wanted and wanted_cq_zone)
                     and self.grid_tracker_preference.get(self.band)
@@ -1069,8 +1068,8 @@ class Listener(QObject):
                         )
                 ):
                     log.info(f"Grid [ {grid} ] not found in ADIF data for {self.band} band")
-                    reply_to_packet = True
-                    wanted_grid     = True                        
+                    wanted_grid     = True
+                    reply_to_packet = True                        
 
                 """
                     Ignore if callsign is not valid
@@ -1117,7 +1116,10 @@ class Listener(QObject):
                     and self.enable_reply_to_lotw_only 
                 ):
                     log.warning(f"Skipping [ {callsign} ] as it is not a LoTW user")
-                    wanted = wanted_cq_zone = wanted_grid = False
+                    reply_to_packet = False
+                    wanted          = False
+                    wanted_cq_zone  = False
+                    wanted_grid     = False
 
                 """
                     Callsign already logged, we can move over new Wanted callsign
@@ -1275,11 +1277,22 @@ class Listener(QObject):
                         self.halt_packet()
 
                 """
+                    Ignore if excluded
+                """
+                if reply_to_packet and excluded:
+                    log.warning(f"Ignore callsign [ {callsign} ] as it is set as excluded [ {excluded} ]")
+                    reply_to_packet = False
+                    wanted          = False
+                    wanted_grid     = False
+                    monitored       = True
+                    message_type    = 'callsign_excluded'
+
+                """
                     Ignore if DT is above normal values
                 """
                 if (
-                    abs(delta_t) > MAXIMUM_ALLOWED_DT 
-                    and reply_to_packet 
+                    reply_to_packet 
+                    and abs(delta_t) > MAXIMUM_ALLOWED_DT 
                     and callsign != self.targeted_call
                     and self.is_ftx_mode()
                 ):

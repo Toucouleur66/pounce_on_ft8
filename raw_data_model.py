@@ -127,7 +127,7 @@ class RawDataModel(QtCore.QAbstractTableModel):
                 return raw_data['entity']
             elif column == 8:
                 return str(raw_data['cq_zone'])
-            elif column == 9:
+            elif column == 9:  
                 return raw_data['continent']
             elif column == 10:
                 return raw_data['wkb4_year'] or ""
@@ -138,7 +138,6 @@ class RawDataModel(QtCore.QAbstractTableModel):
                 return QColor(FG_COLOR_FOCUS_MY_CALL) 
             elif message_type == 'dt_above_normal' and column == 3:  # DT column
                 return QColor(FG_COLOR_FOCUS_MY_CALL) 
-
             # Fall back to row-level coloring
             row_color = raw_data.get('row_color')
             if row_color:
@@ -152,7 +151,6 @@ class RawDataModel(QtCore.QAbstractTableModel):
                 return QColor(BG_COLOR_FOCUS_MY_CALL)
             elif message_type == 'dt_above_normal' and column == 3:  # DT column
                 return QColor(BG_COLOR_FOCUS_MY_CALL) 
-            
             # Fall back to row-level coloring
             row_color = raw_data.get('row_color')
             if row_color:
