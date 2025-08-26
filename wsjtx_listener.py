@@ -1079,7 +1079,9 @@ class Listener(QObject):
                     and entity_code is None
                     and not (wanted and wanted_cq_zone)
                 ):
-                    wanted = wanted_cq_zone = wanted_grid = False
+                    wanted         = False
+                    wanted_cq_zone = False
+                    wanted_grid    = False
 
                 """
                     Handle directional QSO
@@ -1105,7 +1107,7 @@ class Listener(QObject):
                     reply_to_packet = False
                     marathon        = False
                     wanted_grid     = False
-                    monitored       = True
+                    monitored       = True if exactly_matched else False
 
                 """
                     Ignore if callsign is not a LoTW user
@@ -1290,7 +1292,7 @@ class Listener(QObject):
                     reply_to_packet = False
                     wanted          = False
                     wanted_grid     = False
-                    monitored       = True
+                    monitored      = True if exactly_matched else False
                     message_type    = 'callsign_excluded'
 
                 """
@@ -1304,7 +1306,7 @@ class Listener(QObject):
                     log.error(f"DT is above normal for [ {callsign } ]. DT: [ {round(delta_t, 1)}s ]")
                     message_type    = 'dt_above_normal'
                     reply_to_packet = False
-                    monitored       = True                
+                    monitored       = True if exactly_matched else False               
 
                 """
                     Check SNR
