@@ -1087,19 +1087,25 @@ class Listener(QObject):
                 if (
                     self.enable_reply_to_valid_direction
                     and directed
-                ):       
-                    if reply_to_packet and not self.is_direction_match_my_cont(
+                    and (
+                        wanted
+                        or wanted_grid
+                        or wanted_cq_zone
+                        or marathon
+                    )
+                    and not self.is_direction_match_my_cont(
                         cqing,
                         callsign,
                         directed
-                    ):               
-                        log.error(f"Skipping [ {callsign} ] as it is not calling for [ {self.my_cont} ]")
-                        wanted          = False
-                        wanted_cq_zone  = False
-                        reply_to_packet = False
-                        marathon        = False
-                        wanted_grid     = False
-                        monitored       = True
+                    )
+                ):                       
+                    log.error(f"Skipping [ {callsign} ] as it is not calling for [ {self.my_cont} ]")
+                    wanted          = False
+                    wanted_cq_zone  = False
+                    reply_to_packet = False
+                    marathon        = False
+                    wanted_grid     = False
+                    monitored       = True
 
                 """
                     Ignore if callsign is not a LoTW user
