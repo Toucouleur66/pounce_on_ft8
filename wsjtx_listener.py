@@ -1291,8 +1291,7 @@ class Listener(QObject):
                     Ignore if DT is above normal values
                 """
                 if (
-                    reply_to_packet 
-                    and abs(delta_t) > MAXIMUM_ALLOWED_DT 
+                    abs(delta_t) > MAXIMUM_ALLOWED_DT 
                     and callsign != self.targeted_call
                     and self.is_ftx_mode()
                 ):
@@ -1305,8 +1304,7 @@ class Listener(QObject):
                     Check SNR
                 """
                 if (
-                    reply_to_packet
-                    and snr < self.minimum_report_for_reply 
+                    snr < self.minimum_report_for_reply 
                     and directed != self.my_call
                     and self.is_ftx_mode()
                 ):
