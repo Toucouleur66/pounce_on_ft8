@@ -94,6 +94,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.menu_list.addItem("Grid Tracker")
         self.menu_list.addItem("Priority Manager")        
         self.menu_list.addItem("Logbook Analysis")
+        self.menu_list.addItem("Worked before")        
         self.menu_list.addItem("Logbook Backup")
         self.menu_list.addItem("Debugging")
         
@@ -110,6 +111,7 @@ class SettingsDialog(QtWidgets.QDialog):
         grid_tracker_page = QtWidgets.QWidget()
         priority_page     = QtWidgets.QWidget()        
         log_analysis_page = QtWidgets.QWidget()
+        worked_b4_page    = QtWidgets.QWidget()        
         backup_page       = QtWidgets.QWidget()
         debugging_page    = QtWidgets.QWidget()
         debugging_page.setMinimumHeight(250)
@@ -122,6 +124,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.stacked_widget.addWidget(grid_tracker_page)
         self.stacked_widget.addWidget(priority_page)        
         self.stacked_widget.addWidget(log_analysis_page)
+        self.stacked_widget.addWidget(worked_b4_page)        
         self.stacked_widget.addWidget(backup_page)
         self.stacked_widget.addWidget(debugging_page)
         
@@ -133,6 +136,7 @@ class SettingsDialog(QtWidgets.QDialog):
         marathon_layout      = QtWidgets.QVBoxLayout(marathon_page)
         grid_tracker_layout  = QtWidgets.QVBoxLayout(grid_tracker_page)
         log_analysis_layout  = QtWidgets.QVBoxLayout(log_analysis_page)
+        worked_b4_layout     = QtWidgets.QVBoxLayout(worked_b4_page)
         backup_layout        = QtWidgets.QVBoxLayout(backup_page)
         debugging_layout     = QtWidgets.QVBoxLayout(debugging_page)
         
@@ -351,21 +355,6 @@ class SettingsDialog(QtWidgets.QDialog):
         self.mode_table_widget.horizontalHeader().setFont(CUSTOM_FONT_SMALL)  
         self.mode_table_widget.horizontalHeader().setVisible(True)
         self.mode_table_widget.horizontalHeader().setDefaultAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
-
-        self.mode_table_widget.setStyleSheet("""
-            QTableWidget {
-                gridline-color: transparent;
-                border: none;
-            }
-            QTableWidget::item {
-                border: none;
-                border-right: none;
-                border-left: none;
-            }
-            QTableWidget QTableCornerButton::section {
-                border: none;
-            }
-        """)
 
         self.mode_table_widget.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Expanding,
@@ -688,17 +677,17 @@ class SettingsDialog(QtWidgets.QDialog):
         sound_layout.addStretch()  
 
         """
-            Worked B4 Settings
+            Log Analysis Settings
         """
-        worked_b4_notice_text = (
-            f"<p>While using {GUI_LABEL_NAME}, you can let this program analyze your working ADIF file from WSJT-x or JTDX. {GUI_LABEL_NAME} won't update your main ADIF file. Still, it can read and parse it.</p>"
+        log_analysis_notice_text = (
+            f"<p>While using {GUI_LABEL_NAME}, you can let this program analyze your working ADIF file from WSJT-x or JTDX.<p><p>{GUI_LABEL_NAME} won't update your main ADIF file. Still, it can read, parse and analyse it.</p>"
         )
 
-        worked_b4_notice_label = QtWidgets.QLabel(worked_b4_notice_text)
-        worked_b4_notice_label.setStyleSheet(SETTING_QSS)
-        worked_b4_notice_label.setWordWrap(True)
-        worked_b4_notice_label.setFont(CUSTOM_FONT_SMALL)
-        worked_b4_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
+        log_analysis_notice_label = QtWidgets.QLabel(log_analysis_notice_text)
+        log_analysis_notice_label.setStyleSheet(SETTING_QSS)
+        log_analysis_notice_label.setWordWrap(True)
+        log_analysis_notice_label.setFont(CUSTOM_FONT_SMALL)
+        log_analysis_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
         file_selection_group = QtWidgets.QGroupBox("ADIF Files for log analysis")
         file_selection_group.setFont(CUSTOM_FONT_SMALL)
@@ -707,35 +696,99 @@ class SettingsDialog(QtWidgets.QDialog):
         file_selection_widget = QtWidgets.QWidget()
         file_selection_layout = QtWidgets.QVBoxLayout(file_selection_widget)
         
+        # Buttons layout
+        buttons_widget = QtWidgets.QWidget()
+        buttons_layout = QtWidgets.QHBoxLayout(buttons_widget)
+        buttons_layout.setContentsMargins(0, 0, 0, 0)
+        
         # Add ADIF File button
         self.add_file_button = QtWidgets.QPushButton("Add ADIF File")
         self.add_file_button.setFont(CUSTOM_FONT)
         self.add_file_button.setFixedWidth(120)
         self.add_file_button.clicked.connect(self.add_adif_file)
         
-        # Scrollable area for file list
-        self.adif_files_scroll = QtWidgets.QScrollArea()
-        self.adif_files_scroll.setWidgetResizable(True)
-        self.adif_files_scroll.setMaximumHeight(150)
-        self.adif_files_scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        buttons_layout.addWidget(self.add_file_button)
+        buttons_layout.addStretch()
         
-        self.adif_files_widget = QtWidgets.QWidget()
-        self.adif_files_layout = QtWidgets.QVBoxLayout(self.adif_files_widget)
-        self.adif_files_layout.setContentsMargins(5, 5, 5, 5)
-        self.adif_files_layout.setSpacing(5)
-        
-        self.adif_files_scroll.setWidget(self.adif_files_widget)
+        # Table for file list
+        self.adif_files_table = QtWidgets.QTableWidget()
+        self.adif_files_table.setColumnCount(1)
+
+        self.adif_files_table.horizontalHeader().setStretchLastSection(True)
+        self.adif_files_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
+                
+        self.adif_files_table.setShowGrid(False)
+        self.adif_files_table.horizontalHeader().setVisible(False)
+        self.adif_files_table.verticalHeader().setVisible(False)
+        self.adif_files_table.setAlternatingRowColors(True)
+        self.adif_files_table.setFont(CUSTOM_FONT_SMALL)
+
+        self.adif_files_table.horizontalHeader().setHighlightSections(False)
+        self.adif_files_table.verticalHeader().setHighlightSections(False)
+        self.adif_files_table.setFrameStyle(QtWidgets.QFrame.Shape.NoFrame)
+
+        self.adif_files_table.setHorizontalHeaderLabels(["ADIF Files for analysis"])                
+        self.adif_files_table.horizontalHeader().setFont(CUSTOM_FONT_SMALL)  
+        self.adif_files_table.horizontalHeader().setVisible(True)
+        self.adif_files_table.horizontalHeader().setDefaultAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
+
+        self.adif_files_table.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Fixed
+        )
+                
+        self.adif_files_table.selectionModel().selectionChanged.connect(self.on_table_selection_changed)
+
+        self.adif_files_table.horizontalHeader().setStyleSheet("""
+            QHeaderView::section {
+                font-weight: normal; 
+                border: none; 
+                padding: 10 4px 4px 4px; 
+            }
+        """)
+
+        self.adif_files_table.setStyleSheet(TABLE_SETTING_QSS)        
         
         # List to keep track of selected files
         self.selected_adif_files = []
         
-        file_selection_layout.addWidget(self.add_file_button)
-        file_selection_layout.addWidget(self.adif_files_scroll)
+        file_selection_layout.addWidget(buttons_widget)
+        file_selection_layout.addWidget(self.adif_files_table)
+        
+        # Clear button layout (right-aligned, after table)
+        clear_button_widget = QtWidgets.QWidget()
+        clear_button_layout = QtWidgets.QHBoxLayout(clear_button_widget)
+        clear_button_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Clear button
+        self.clear_file_button = QtWidgets.QPushButton("Clear")
+        self.clear_file_button.setFont(CUSTOM_FONT)
+        self.clear_file_button.setFixedWidth(60)
+        self.clear_file_button.clicked.connect(self.clear_selected_file)
+        self.clear_file_button.setEnabled(False)  # Initially disabled
+        
+        clear_button_layout.addStretch()
+        clear_button_layout.addWidget(self.clear_file_button)
+        
+        file_selection_layout.addWidget(clear_button_widget)
 
         file_selection_group.setLayout(QtWidgets.QVBoxLayout())
         file_selection_group.layout().setContentsMargins(0, 0, 0, 0)
         file_selection_group.layout().addWidget(file_selection_widget)
-               
+
+        """
+            Worked Before Settings
+        """
+        worked_b4_notice_text = (
+            f"<p>{GUI_LABEL_NAME}, will show the year of the Worked B4 stations you decode.<p><p>You can select from this panel, how the program will behave when it decodes some already worked callsign on the same band.</p>"
+        )
+
+        worked_b4_notice_label = QtWidgets.QLabel(worked_b4_notice_text)
+        worked_b4_notice_label.setStyleSheet(SETTING_QSS)
+        worked_b4_notice_label.setWordWrap(True)
+        worked_b4_notice_label.setFont(CUSTOM_FONT_SMALL)
+        worked_b4_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
+
         self.adif_wkb4_group = QtWidgets.QGroupBox("What should we do with Worked B4?")
         self.adif_wkb4_group.setFont(CUSTOM_FONT_SMALL)
         adif_wkb4_layout = QtWidgets.QVBoxLayout()
@@ -799,9 +852,6 @@ class SettingsDialog(QtWidgets.QDialog):
 
         self.marathon_group.setLayout(marathon_select_layout)
 
-        log_analysis_layout.addWidget(worked_b4_notice_label)
-        log_analysis_layout.addWidget(file_selection_group)
-        log_analysis_layout.addWidget(self.adif_wkb4_group)
         log_analysis_layout.addStretch()
         
         """
@@ -810,6 +860,20 @@ class SettingsDialog(QtWidgets.QDialog):
         marathon_layout.addWidget(marathon_notice_label)
         marathon_layout.addWidget(self.marathon_group)
         marathon_layout.addStretch()  
+
+        """
+            Log Analysis Settings
+        """
+        log_analysis_layout.addWidget(log_analysis_notice_label)
+        log_analysis_layout.addWidget(file_selection_group)
+        log_analysis_layout.addStretch()
+
+        """
+            Worked Before Settings
+        """
+        worked_b4_layout.addWidget(worked_b4_notice_label)
+        worked_b4_layout.addWidget(self.adif_wkb4_group)
+        worked_b4_layout.addStretch()
 
         """
             Grid Tracker Settings
@@ -1170,39 +1234,50 @@ class SettingsDialog(QtWidgets.QDialog):
             print("No file selected.")
 
     def add_file_to_list(self, file_path):
-        file_widget = QtWidgets.QWidget()
-        file_layout = QtWidgets.QHBoxLayout(file_widget)
-        file_layout.setContentsMargins(5, 2, 5, 2)
+        """Add a file entry to the table"""
+        row_position = self.adif_files_table.rowCount()
+        self.adif_files_table.insertRow(row_position)
         
-        # File name label
-        filename_label = QtWidgets.QLabel(os.path.basename(file_path))
-        filename_label.setFont(CUSTOM_FONT_SMALL)
-        filename_label.setToolTip(file_path)  # Show full path on hover
-        
-        # Delete button
-        delete_button = QtWidgets.QPushButton("Delete")
-        delete_button.setFont(CUSTOM_FONT_SMALL)
-        delete_button.setFixedWidth(60)
-        delete_button.clicked.connect(lambda: self.remove_adif_file(file_path, file_widget))
-        
-        file_layout.addWidget(filename_label)
-        file_layout.addStretch()
-        file_layout.addWidget(delete_button)
-        
-        self.adif_files_layout.addWidget(file_widget)
+        # Create item with full file path
+        file_item = QtWidgets.QTableWidgetItem(file_path)
+        file_item.setToolTip(file_path)  # Show full path on hover
+        self.adif_files_table.setItem(row_position, 0, file_item)
     
-    def remove_adif_file(self, file_path, file_widget):
+    def remove_adif_file(self, file_path, row=None):
+        """Remove a file from the list and table"""
         if file_path in self.selected_adif_files:
             self.selected_adif_files.remove(file_path)
         
-        # Remove the widget from layout and delete it
-        self.adif_files_layout.removeWidget(file_widget)
-        file_widget.setParent(None)
-        file_widget.deleteLater()
+        # Find and remove the row from table if row not provided
+        if row is None:
+            for i in range(self.adif_files_table.rowCount()):
+                item = self.adif_files_table.item(i, 0)
+                if item and item.text() == file_path:
+                    row = i
+                    break
+        
+        # Remove the row from table
+        if row is not None:
+            self.adif_files_table.removeRow(row)
         
         # Hide the WKB4 group if no files are selected
         if not self.selected_adif_files:
             self.adif_wkb4_group.setVisible(False)
+    
+    def on_table_selection_changed(self):
+        """Enable/disable Clear button based on table selection"""
+        selected_rows = self.adif_files_table.selectionModel().selectedRows()
+        self.clear_file_button.setEnabled(len(selected_rows) > 0)
+    
+    def clear_selected_file(self):
+        """Clear the selected file from the table"""
+        selected_rows = self.adif_files_table.selectionModel().selectedRows()
+        if selected_rows:
+            row = selected_rows[0].row()
+            item = self.adif_files_table.item(row, 0)
+            if item:
+                file_path = item.text()
+                self.remove_adif_file(file_path, row)
 
     def open_backup_file_location(self):
         backup_file_path = os.path.abspath(ADIF_WORKED_CALLSIGNS_FILE)
