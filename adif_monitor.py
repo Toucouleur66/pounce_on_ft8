@@ -15,17 +15,22 @@ from adif_processor import AdifProcessor
 log     = get_logger(__name__)
 
 class AdifMonitor:
-    def __init__(self, adif_file_path, adif_worked_callsigns_file):
-        self.adif_file_path             = adif_file_path
+    def __init__(self, adif_file_paths, adif_worked_callsigns_file):
+        self.adif_file_paths            = adif_file_paths if adif_file_paths else []
         self.adif_worked_callsigns_file = adif_worked_callsigns_file
 
-        log.error("ADIF monitor initialized with files: \n\t%s,\n\t%s", self.adif_file_path, self.adif_worked_callsigns_file)
+        log.error("ADIF monitor initialized with files: \n\t%s,\n\t%s", self.adif_file_paths, self.adif_worked_callsigns_file)
 
         # Get unique file paths to avoid duplicate processing
         self.unique_file_paths = []
         seen_paths = set()
         
-        for file_path in [adif_file_path, adif_worked_callsigns_file]:
+        # Add all ADIF file paths
+        all_file_paths = list(self.adif_file_paths) if self.adif_file_paths else []
+        if adif_worked_callsigns_file:
+            all_file_paths.append(adif_worked_callsigns_file)
+        
+        for file_path in all_file_paths:
             if file_path:
                 abs_path = os.path.abspath(file_path)
                 if abs_path not in seen_paths:

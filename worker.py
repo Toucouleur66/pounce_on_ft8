@@ -41,7 +41,7 @@ class Worker(QObject):
             enable_debug_output, 
             enable_pounce_log, 
             enable_log_packet_data,
-            adif_file_path, 
+            adif_file_paths, 
             adif_worked_backup_file_path, 
             worked_before_preference,
             enable_marathon,
@@ -89,7 +89,7 @@ class Worker(QObject):
         self.enable_pounce_log                  = enable_pounce_log
         self.enable_log_packet_data             = enable_log_packet_data
 
-        self.adif_file_path                      = adif_file_path
+        self.adif_file_paths                     = adif_file_paths
         self.adif_worked_backup_file_path        = adif_worked_backup_file_path
         self.worked_before_preference           = worked_before_preference
         self.enable_marathon                    = enable_marathon
@@ -145,7 +145,7 @@ class Worker(QObject):
                 enable_grid_tracker             = self.enable_grid_tracker,
                 grid_tracker_preference         = self.grid_tracker_preference,
                 
-                adif_file_path                   = self.adif_file_path,
+                adif_file_paths                  = self.adif_file_paths,
                 adif_worked_backup_file_path     = self.adif_worked_backup_file_path,                
                 worked_before_preference        = self.worked_before_preference,
                 minimum_report_for_reply        = self.minimum_report_for_reply,

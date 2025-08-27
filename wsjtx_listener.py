@@ -87,7 +87,7 @@ class Listener(QObject):
             marathon_preference,
             enable_grid_tracker,
             grid_tracker_preference,
-            adif_file_path,
+            adif_file_paths,
             adif_worked_backup_file_path,
             worked_before_preference,
             minimum_report_for_reply,
@@ -233,8 +233,8 @@ class Listener(QObject):
         """
             Check ADIF file to handle Worked B4 
         """
-        if adif_file_path:            
-            self.adif_monitor               = AdifMonitor(adif_file_path, ADIF_WORKED_CALLSIGNS_FILE)
+        if adif_file_paths:            
+            self.adif_monitor               = AdifMonitor(adif_file_paths, ADIF_WORKED_CALLSIGNS_FILE)
             if (
                 self.enable_marathon and 
                 lookup

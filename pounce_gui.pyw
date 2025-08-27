@@ -3520,7 +3520,7 @@ class MainApp(QtWidgets.QMainWindow):
         enable_reply_to_valid_direction     = params.get('enable_reply_to_valid_direction', DEFAULT_LOG_ALL_VALID_CONTACT)
         enable_reply_to_lotw_only           = params.get('enable_reply_to_lotw_only', False)        
 
-        self.adif_file_path                  = params.get('adif_file_path', None)
+        self.adif_file_paths                 = params.get('adif_file_paths', None)
         self.adif_worked_backup_file_path    = params.get('adif_worked_backup_file_path', None)
         self.worked_before_preference       = params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS)
         self.marathon_preference            = params.get('marathon_preference', {})
@@ -3558,7 +3558,7 @@ class MainApp(QtWidgets.QMainWindow):
             enable_debug_output,
             enable_pounce_log,
             enable_log_packet_data,
-            self.adif_file_path,
+            self.adif_file_paths,
             self.adif_worked_backup_file_path,
             self.worked_before_preference,
             self.enable_marathon,
