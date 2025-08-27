@@ -1299,7 +1299,8 @@ class Listener(QObject):
                     Ignore if DT is above normal values
                 """
                 if (
-                    abs(delta_t) > MAXIMUM_ALLOWED_DT 
+                    reply_to_packet
+                    and abs(delta_t) > MAXIMUM_ALLOWED_DT 
                     and callsign != self.targeted_call
                     and self.is_ftx_mode()
                 ):
@@ -1312,14 +1313,15 @@ class Listener(QObject):
                     Check SNR
                 """
                 if (
-                    snr < self.minimum_report_for_reply 
+                    reply_to_packet
+                    and snr < self.minimum_report_for_reply 
                     and directed != self.my_call
                     and self.is_ftx_mode()
                 ):
                     log.error(f"SNR value is below than the expected minimum [ {self.minimum_report_for_reply}dB ] for [ {callsign } ]. SNR: [ {snr}dB ]")
                     message_type    = 'snr_below_minimum'
                     reply_to_packet = False
-                    monitored       = True
+                    monitored       = True if exactly_matched else False   
 
                 """
                     Check priority
