@@ -2273,7 +2273,8 @@ class MainApp(QtWidgets.QMainWindow):
             filename = os.path.basename(file_path)
 
             # text_processing_progress = f"Logbook Analysis [ <i>{filename}</i> ]: {processed:,}/{total:,}"  
-            text_processing_progress = f"Logbook Analysis: {processed:,}/{total:,}"  
+            percentage = (processed / total * 100) if total > 0 else 0
+            text_processing_progress = f"Parsing <u>{filename}</u>: {percentage:.1f}%"  
             self.status_bar_label_mode.setText(text_processing_progress)
             if self.grid_monitor:
                 self.grid_monitor.status_bar_label_processing.setText(text_processing_progress)
@@ -3317,34 +3318,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.clear_worked_history_action.triggered.connect(self.clear_worked_callsigns)
 
         self.window_menu.addAction(self.clear_worked_history_action)
-
-        self.window_menu.addSeparator()
-
-        show_adif_summary_action = QtGui.QAction("Show ADIF stats", self)
-        show_adif_summary_action.setEnabled(self.adif_file_path is not None)
-        show_adif_summary_action.triggered.connect(self.show_adif_summary_dialog)
-
-        show_adif_summary_action.setShortcut(QtGui.QKeySequence("Ctrl+P"))
-
-        self.show_adif_summary_action = show_adif_summary_action
-
-        self.window_menu.addAction(show_adif_summary_action)
-
-    def show_adif_summary_dialog(self):   
-        if self.adif_file_path:
-            if not os.path.exists(self.adif_file_path):                
-                return
-            
-            try:
-                log.warning(f"Read File {self.adif_file_path}")
-                processing_time, parsed_data = parse_adif(self.adif_file_path)
-
-                summary_dialog = AdifSummaryDialog(processing_time, parsed_data['wkb4'], self)
-                summary_dialog.exec()
-            except Exception as e:
-                QtWidgets.QMessageBox.critical(self, "Error", f"Failed to process the ADIF file.\n\n{str(e)}")
-        else:
-            QtWidgets.QMessageBox.warning(self, "Warning", "No ADIF file path specified.")
 
     def get_monitoring_action_text(self):
         return STOP_BUTTON_LABEL if self._running else STATUS_BUTTON_LABEL_START

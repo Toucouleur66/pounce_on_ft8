@@ -626,12 +626,62 @@ def parse_adif_record(record, lookup):
 
     return year, band, grid, call, confirmed, info
 
+def process_adif_records(
+        records,
+        parsed_wkb4_data,
+        parsed_grid_data,
+        parsed_entity_data,
+        lookup=None,
+        progress_callback=None
+    ):
+    processed_count = 0
+    total_records = len([r for r in records if r.strip()])
+    
+    for record in records:
+        record = record.strip()
+        if record:
+            record = " ".join(record.split())
+            year, band, grid, call, confirmed, info = parse_adif_record(record, lookup)
+
+            if lookup and year and band and info and info.get('entity_code') and parsed_entity_data is not None:
+                if year not in parsed_entity_data:
+                    parsed_entity_data[year] = defaultdict(set)
+                if band not in parsed_entity_data[year]:
+                    parsed_entity_data[year][band] = set()
+                parsed_entity_data[year][band].add(info.get('entity_code'))
+            
+            if year and band and call:
+                if year not in parsed_wkb4_data:
+                    parsed_wkb4_data[year] = defaultdict(set)
+                if band not in parsed_wkb4_data[year]:
+                    parsed_wkb4_data[year][band] = set()
+                parsed_wkb4_data[year][band].add(call)
+            
+            if band and grid and call and is_valid_grid_format(grid):
+                if band not in parsed_grid_data:
+                    parsed_grid_data[band] = defaultdict(set)
+                if grid not in parsed_grid_data[band]:
+                    parsed_grid_data[band][grid] = set()
+                parsed_grid_data[band][grid].add(call)
+            
+            processed_count += 1
+            
+            # Call progress callback if provided
+            if progress_callback:
+                progress_callback(processed_count, total_records)
+    
+    return processed_count
+
 def parse_adif(file_path, lookup=None):
-    """Parse entire ADIF file using incremental parser with full file processing"""
+    """
+        Parse entire ADIF file using incremental parser with full file processing
+    """
     return parse_adif_incremental(file_path, last_size=0, lookup=lookup, max_lines=None)
 
 def parse_adif_incremental(file_path, last_size, lookup=None, max_lines=10):
-    """Parse only new lines from ADIF file for incremental processing"""
+    """
+        Parse only new lines from ADIF file for incremental processing
+    """
     start_time = time.time()
 
     parsed_wkb4_data    = defaultdict(lambda: defaultdict(set))
@@ -681,19 +731,7 @@ def parse_adif_incremental(file_path, last_size, lookup=None, max_lines=10):
     if content:
         # Process the content for ADIF records
         records = re.split(r"<EOR>", content, flags=re.IGNORECASE)
-        
-        for record in records:
-            record = record.strip()
-            if record:
-                record = " ".join(record.split())
-                year, band, grid, call, confirmed, info = parse_adif_record(record, lookup)
-
-                if lookup and year and band and info and info.get('entity_code'):
-                    parsed_entity_data[year][band].add(info.get('entity_code'))
-                if year and band and call:
-                    parsed_wkb4_data[year][band].add(call)
-                if band and grid and call and is_valid_grid_format(grid):
-                    parsed_grid_data[band][grid].add(call)
+        process_adif_records(records, parsed_wkb4_data, parsed_grid_data, parsed_entity_data, lookup)
 
     processing_time = time.time() - start_time
     

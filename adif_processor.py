@@ -9,7 +9,7 @@ import re
 from multiprocessing import Process, Queue, Event
 
 from collections import defaultdict
-from utils import parse_adif_record, is_valid_grid_format
+from utils import process_adif_records
 
 from logger import get_logger
 
@@ -230,54 +230,32 @@ class AdifProcessor:
                             'total': total_records,
                             'file_path': file_path
                         }, timeout=0.1)
-                        break  # Success, exit retry loop
+                        break 
                     except queue.Full:
                         if attempt == 2:  # Last attempt
                             pass  # Give up
                         else:
-                            time.sleep(0.01)  # Brief wait before retry
+                            time.sleep(0.1)
             
+            # Create progress callback for the shared function
             processed_count = 0
-            for record in records:
-                record = record.strip()
-                if record:
-                    record = " ".join(record.split())
-                    year, band, grid, call, confirmed, info = parse_adif_record(record, lookup)
-                    
-                    if lookup and year and band and info and info.get('entity_code'):
-                        if year not in parsed_entity_data:
-                            parsed_entity_data[year] = {}
-                        if band not in parsed_entity_data[year]:
-                            parsed_entity_data[year][band] = set()
-                        parsed_entity_data[year][band].add(info.get('entity_code'))
-                    
-                    if year and band and call:
-                        if year not in parsed_wkb4_data:
-                            parsed_wkb4_data[year] = {}
-                        if band not in parsed_wkb4_data[year]:
-                            parsed_wkb4_data[year][band] = set()
-                        parsed_wkb4_data[year][band].add(call)
-                    
-                    if band and grid and call and is_valid_grid_format(grid):
-                        if band not in parsed_grid_data:
-                            parsed_grid_data[band] = {}
-                        if grid not in parsed_grid_data[band]:
-                            parsed_grid_data[band][grid] = set()
-                        parsed_grid_data[band][grid].add(call)
-                    
-                    processed_count += 1
-                    
-                    # Send progress update every 25 records or at the end
-                    if progress_queue and task_id and (processed_count % 25 == 0 or processed_count == total_records):
-                        try:
-                            progress_queue.put({
-                                'task_id': task_id,
-                                'processed': processed_count,
-                                'total': total_records,
-                                'file_path': file_path
-                            }, timeout=0.01)
-                        except queue.Full:
-                            pass
+            def progress_callback(current_count, total_count):
+                nonlocal processed_count
+                processed_count = current_count
+                # Send progress update every 25 records or at the end
+                if progress_queue and task_id and (current_count % 25 == 0 or current_count == total_count):
+                    try:
+                        progress_queue.put({
+                            'task_id': task_id,
+                            'processed': current_count,
+                            'total': total_count,
+                            'file_path': file_path
+                        }, timeout=0.01)
+                    except queue.Full:
+                        pass
+            
+            # Use shared record processing function
+            process_adif_records(records, parsed_wkb4_data, parsed_grid_data, parsed_entity_data, lookup, progress_callback)
         
         processing_time = time.time() - start_time
         

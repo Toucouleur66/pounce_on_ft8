@@ -760,6 +760,13 @@ class SettingsDialog(QtWidgets.QDialog):
         clear_button_layout = QtWidgets.QHBoxLayout(clear_button_widget)
         clear_button_layout.setContentsMargins(0, 0, 0, 0)
         
+        # Summary button
+        self.summary_file_button = QtWidgets.QPushButton("Summary")
+        self.summary_file_button.setFont(CUSTOM_FONT)
+        self.summary_file_button.setFixedWidth(80)
+        self.summary_file_button.clicked.connect(self.show_selected_file_summary)
+        self.summary_file_button.setEnabled(False)  # Initially disabled
+        
         # Clear button
         self.clear_file_button = QtWidgets.QPushButton("Clear")
         self.clear_file_button.setFont(CUSTOM_FONT)
@@ -768,6 +775,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.clear_file_button.setEnabled(False)  # Initially disabled
         
         clear_button_layout.addStretch()
+        clear_button_layout.addWidget(self.summary_file_button)
         clear_button_layout.addWidget(self.clear_file_button)
         
         file_selection_layout.addWidget(clear_button_widget)
@@ -1267,7 +1275,9 @@ class SettingsDialog(QtWidgets.QDialog):
     def on_table_selection_changed(self):
         """Enable/disable Clear button based on table selection"""
         selected_rows = self.adif_files_table.selectionModel().selectedRows()
-        self.clear_file_button.setEnabled(len(selected_rows) > 0)
+        has_selection = len(selected_rows) > 0
+        self.summary_file_button.setEnabled(has_selection)
+        self.clear_file_button.setEnabled(has_selection)
     
     def clear_selected_file(self):
         """Clear the selected file from the table"""
@@ -1278,6 +1288,43 @@ class SettingsDialog(QtWidgets.QDialog):
             if item:
                 file_path = item.text()
                 self.remove_adif_file(file_path, row)
+    
+    def show_selected_file_summary(self):
+        """Show ADIF summary dialog for the selected file"""
+        selected_rows = self.adif_files_table.selectionModel().selectedRows()
+        if selected_rows:
+            row = selected_rows[0].row()
+            item = self.adif_files_table.item(row, 0)
+            if item:
+                file_path = item.text()
+                
+                # Check if file exists
+                if not os.path.exists(file_path):
+                    QtWidgets.QMessageBox.warning(
+                        self,
+                        "File Not Found",
+                        f"The file '{os.path.basename(file_path)}' no longer exists."
+                    )
+                    return
+                
+                # Parse the ADIF file
+                try:
+                    processing_time, parsed_data = parse_adif(file_path)
+                    if parsed_data:
+                        summary_dialog = AdifSummaryDialog(processing_time, parsed_data['wkb4'], self)
+                        summary_dialog.exec()
+                    else:
+                        QtWidgets.QMessageBox.warning(
+                            self,
+                            "No Data Found",
+                            f"No valid data found in '{os.path.basename(file_path)}'"
+                        )
+                except Exception as e:
+                    QtWidgets.QMessageBox.critical(
+                        self,
+                        "Error Parsing File",
+                        f"Error parsing '{os.path.basename(file_path)}':\\n{str(e)}"
+                    )
 
     def open_backup_file_location(self):
         backup_file_path = os.path.abspath(ADIF_WORKED_CALLSIGNS_FILE)
