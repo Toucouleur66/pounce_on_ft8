@@ -860,8 +860,6 @@ class SettingsDialog(QtWidgets.QDialog):
 
         self.marathon_group.setLayout(marathon_select_layout)
 
-        log_analysis_layout.addStretch()
-        
         """
             Marathon Settings
         """
