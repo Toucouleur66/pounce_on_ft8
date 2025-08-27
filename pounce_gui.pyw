@@ -1902,8 +1902,8 @@ class MainApp(QtWidgets.QMainWindow):
                 ):
                     self.last_targeted_call = None    
 
-            if message_type and message_type != 'lost_targeted_callsign':                
-                self.set_message_to_focus_value_label(selected_message)          
+            if message_type and message_type not in ['lost_targeted_callsign', 'callsign_excluded']:
+                self.set_message_to_focus_value_label(selected_message)
 
         """
             Update map with new grid squares

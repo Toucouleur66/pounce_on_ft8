@@ -1285,7 +1285,10 @@ class Listener(QObject):
                         self.halt_packet()
 
 
-                if reply_to_packet and message_type != 'ready_to_log':
+                if (
+                    reply_to_packet
+                    and message_type != 'ready_to_log'
+                ):
                     """
                         Ignore if excluded
                     """
