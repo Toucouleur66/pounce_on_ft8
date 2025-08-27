@@ -1284,44 +1284,38 @@ class Listener(QObject):
                         self.targeted_call = None  
                         self.halt_packet()
 
-                """
-                    Ignore if excluded
-                """
-                if reply_to_packet and excluded:
-                    log.warning(f"Ignore callsign [ {callsign} ] as it is set as excluded [ {excluded} ]")
-                    reply_to_packet = False
-                    wanted          = False
-                    wanted_grid     = False
-                    monitored      = True if exactly_matched else False
-                    message_type    = 'callsign_excluded'
 
-                """
-                    Ignore if DT is above normal values
-                """
-                if (
-                    reply_to_packet
-                    and abs(delta_t) > MAXIMUM_ALLOWED_DT 
-                    and callsign != self.targeted_call
-                    and self.is_ftx_mode()
-                ):
-                    log.error(f"DT is above normal for [ {callsign } ]. DT: [ {round(delta_t, 1)}s ]")
-                    message_type    = 'dt_above_normal'
-                    reply_to_packet = False
-                    monitored       = True if exactly_matched else False               
+                if reply_to_packet and message_type != 'ready_to_log':
+                    """
+                        Ignore if excluded
+                    """
+                    if excluded:
+                        log.warning(f"Ignore callsign [ {callsign} ] as it is set as excluded [ {excluded} ]")
+                        reply_to_packet = False
+                        wanted          = False
+                        wanted_grid     = False
+                        wanted_cq_zone  = False
+                        message_type    = 'callsign_excluded'
 
-                """
-                    Check SNR
-                """
-                if (
-                    reply_to_packet
-                    and snr < self.minimum_report_for_reply 
-                    and directed != self.my_call
-                    and self.is_ftx_mode()
-                ):
-                    log.error(f"SNR value is below than the expected minimum [ {self.minimum_report_for_reply}dB ] for [ {callsign } ]. SNR: [ {snr}dB ]")
-                    message_type    = 'snr_below_minimum'
-                    reply_to_packet = False
-                    monitored       = True if exactly_matched else False   
+                    if self.is_ftx_mode() and directed != self.my_call:
+                        """
+                            Ignore if DT is above normal values
+                        """
+                        if abs(delta_t) > MAXIMUM_ALLOWED_DT and callsign != self.targeted_call:
+                            log.error(f"DT is above normal for [ {callsign } ]. DT: [ {round(delta_t, 1)}s ]")
+                            message_type    = 'dt_above_normal'
+                            reply_to_packet = False          
+
+                        """
+                            Check SNR
+                        """
+                        if snr < self.minimum_report_for_reply:
+                            log.error(f"SNR value is below than the expected minimum [ {self.minimum_report_for_reply}dB ] for [ {callsign } ]. SNR: [ {snr}dB ]")
+                            message_type    = 'snr_below_minimum'
+                            reply_to_packet = False                            
+                    
+                    if not reply_to_packet:
+                        monitored = True if exactly_matched else False   
 
                 """
                     Check priority

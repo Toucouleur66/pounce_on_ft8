@@ -118,7 +118,9 @@ class AdifMonitor:
             log.info("ADIF monitoring thread stopped")
 
     def merge_adif_data(self, existing_data, incremental_data):
-        """Merge incremental ADIF data with existing data"""
+        """
+            Merge incremental ADIF data with existing data
+        """
         merged_data = copy.deepcopy(existing_data)
         
         for data_type in ['wkb4', 'entity', 'grid']:
@@ -167,7 +169,6 @@ class AdifMonitor:
                         
                         if task_id:
                             if not self.pending_tasks:
-                                log.info("Starting ADIF processing animation")
                                 self.notify_processing_callbacks({'type': 'adif_processing_started'})
                             
                             self.pending_tasks[task_id] = {
@@ -218,11 +219,12 @@ class AdifMonitor:
         if files_processed:
             self.notify_callbacks()
             if not self.pending_tasks:
-                log.info("Stopping ADIF processing animation")
                 self.notify_processing_callbacks({'type': 'adif_processing_finished'})
     
     def check_processing_progress(self):
-        """Check for progress updates from ADIF processor"""
+        """
+            Check for progress updates from ADIF processor
+        """
         while True:
             progress = self.adif_processor.get_progress()
             if progress is None:

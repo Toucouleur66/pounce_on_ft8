@@ -700,23 +700,37 @@ class SettingsDialog(QtWidgets.QDialog):
         worked_b4_notice_label.setFont(CUSTOM_FONT_SMALL)
         worked_b4_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
-        file_selection_group = QtWidgets.QGroupBox("ADIF File to check Worked B4 Callsigns")
+        file_selection_group = QtWidgets.QGroupBox("ADIF Files for log analysis")
         file_selection_group.setFont(CUSTOM_FONT_SMALL)
         file_selection_group.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
         file_selection_widget = QtWidgets.QWidget()
-        file_selection_layout = QtWidgets.QGridLayout(file_selection_widget)
+        file_selection_layout = QtWidgets.QVBoxLayout(file_selection_widget)
         
-        self.select_file_button = QtWidgets.QPushButton("Select File")
-        self.select_file_button.setFont(CUSTOM_FONT)
-        self.select_file_button.setFixedWidth(120)
-        self.select_file_button.clicked.connect(self.open_adif_file_dialog)
-
-        self.adif_file_path = QtWidgets.QLineEdit()
-        self.adif_file_path.setReadOnly(True) 
-
-        file_selection_layout.addWidget(self.adif_file_path, 0, 0)
-        file_selection_layout.addWidget(self.select_file_button, 0, 1)
+        # Add ADIF File button
+        self.add_file_button = QtWidgets.QPushButton("Add ADIF File")
+        self.add_file_button.setFont(CUSTOM_FONT)
+        self.add_file_button.setFixedWidth(120)
+        self.add_file_button.clicked.connect(self.add_adif_file)
+        
+        # Scrollable area for file list
+        self.adif_files_scroll = QtWidgets.QScrollArea()
+        self.adif_files_scroll.setWidgetResizable(True)
+        self.adif_files_scroll.setMaximumHeight(150)
+        self.adif_files_scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        
+        self.adif_files_widget = QtWidgets.QWidget()
+        self.adif_files_layout = QtWidgets.QVBoxLayout(self.adif_files_widget)
+        self.adif_files_layout.setContentsMargins(5, 5, 5, 5)
+        self.adif_files_layout.setSpacing(5)
+        
+        self.adif_files_scroll.setWidget(self.adif_files_widget)
+        
+        # List to keep track of selected files
+        self.selected_adif_files = []
+        
+        file_selection_layout.addWidget(self.add_file_button)
+        file_selection_layout.addWidget(self.adif_files_scroll)
 
         file_selection_group.setLayout(QtWidgets.QVBoxLayout())
         file_selection_group.layout().setContentsMargins(0, 0, 0, 0)
@@ -1116,7 +1130,7 @@ class SettingsDialog(QtWidgets.QDialog):
             if selected_files:
                 self.show_backup_file_path.setText(selected_files[0])            
 
-    def open_adif_file_dialog(self):
+    def add_adif_file(self):
         dialog = QFileDialog(self, "Select ADIF File")
         dialog.setNameFilter("ADIF Files (*.adif *.adi);;All Files (*)")
         dialog.setFileMode(QFileDialog.FileMode.AnyFile)
@@ -1128,9 +1142,20 @@ class SettingsDialog(QtWidgets.QDialog):
             selected_files = dialog.selectedFiles()
             if selected_files:
                 file_path = selected_files[0]
+                
+                # Check if file is already added
+                if file_path in self.selected_adif_files:
+                    QtWidgets.QMessageBox.information(
+                        self,
+                        "File Already Added",
+                        f"The file '{os.path.basename(file_path)}' is already in the list."
+                    )
+                    return
+                
                 processing_time, parsed_data = parse_adif(file_path)
                 if parsed_data:
-                    self.adif_file_path.setText(file_path)
+                    self.selected_adif_files.append(file_path)
+                    self.add_file_to_list(file_path)
                     self.adif_wkb4_group.setVisible(True)
 
                     summary_dialog = AdifSummaryDialog(processing_time, parsed_data['wkb4'], self)
@@ -1143,6 +1168,41 @@ class SettingsDialog(QtWidgets.QDialog):
                     )
         else:
             print("No file selected.")
+
+    def add_file_to_list(self, file_path):
+        file_widget = QtWidgets.QWidget()
+        file_layout = QtWidgets.QHBoxLayout(file_widget)
+        file_layout.setContentsMargins(5, 2, 5, 2)
+        
+        # File name label
+        filename_label = QtWidgets.QLabel(os.path.basename(file_path))
+        filename_label.setFont(CUSTOM_FONT_SMALL)
+        filename_label.setToolTip(file_path)  # Show full path on hover
+        
+        # Delete button
+        delete_button = QtWidgets.QPushButton("Delete")
+        delete_button.setFont(CUSTOM_FONT_SMALL)
+        delete_button.setFixedWidth(60)
+        delete_button.clicked.connect(lambda: self.remove_adif_file(file_path, file_widget))
+        
+        file_layout.addWidget(filename_label)
+        file_layout.addStretch()
+        file_layout.addWidget(delete_button)
+        
+        self.adif_files_layout.addWidget(file_widget)
+    
+    def remove_adif_file(self, file_path, file_widget):
+        if file_path in self.selected_adif_files:
+            self.selected_adif_files.remove(file_path)
+        
+        # Remove the widget from layout and delete it
+        self.adif_files_layout.removeWidget(file_widget)
+        file_widget.setParent(None)
+        file_widget.deleteLater()
+        
+        # Hide the WKB4 group if no files are selected
+        if not self.selected_adif_files:
+            self.adif_wkb4_group.setVisible(False)
 
     def open_backup_file_location(self):
         backup_file_path = os.path.abspath(ADIF_WORKED_CALLSIGNS_FILE)
@@ -1252,10 +1312,22 @@ class SettingsDialog(QtWidgets.QDialog):
         self.show_backup_file_path.setText(
             self.params.get('adif_worked_backup_file_path', ADIF_WORKED_CALLSIGNS_FILE)
         )
-        selected_file = self.params.get('adif_file_path', None)
-        self.adif_file_path.setText(selected_file)
+        # Load ADIF files (support both single file and multiple files for backward compatibility)
+        selected_files = self.params.get('adif_file_paths', [])
+        if not selected_files:
+            # Backward compatibility - check for single file
+            single_file = self.params.get('adif_file_path', None)
+            if single_file:
+                selected_files = [single_file]
+        
+        # Load the files into the UI
+        self.selected_adif_files = []
+        for file_path in selected_files:
+            if file_path and os.path.exists(file_path):
+                self.selected_adif_files.append(file_path)
+                self.add_file_to_list(file_path)
 
-        if selected_file:
+        if self.selected_adif_files:
             self.adif_wkb4_group.setVisible(True)
             reply_mode = self.params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS)  
             if reply_mode == WKB4_REPLY_MODE_ALWAYS:
@@ -1379,7 +1451,7 @@ class SettingsDialog(QtWidgets.QDialog):
             'enable_sound_directed_my_callsign'          : self.enable_sound_directed_my_callsign.isChecked(),
             'enable_sound_monitored_callsigns'           : self.enable_sound_monitored_callsigns.isChecked(),
             'delay_between_sound_for_monitored'          : self.delay_between_sound_for_monitored.text(),
-            'adif_file_path'                              : self.adif_file_path.text(),      
+            'adif_file_paths'                             : self.selected_adif_files,      
             'adif_worked_backup_file_path'                : self.show_backup_file_path.text(),
             'freq_range_mode'                            : freq_range_mode,
             'worked_before_preference'                   : worked_before_preference,
