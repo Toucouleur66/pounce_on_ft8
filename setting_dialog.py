@@ -86,17 +86,23 @@ class SettingsDialog(QtWidgets.QDialog):
         self.menu_list.setFont(CUSTOM_FONT)
         self.menu_list.setFixedWidth(180)
         self.menu_list.setAlternatingRowColors(True)
-        self.menu_list.addItem("Server")
-        self.menu_list.addItem("General Settings")
-        self.menu_list.addItem("Sound Alerts")        
-        self.menu_list.addItem("Logbook of The World®")
-        self.menu_list.addItem("DX Marathon")
-        self.menu_list.addItem("Grid Tracker")
-        self.menu_list.addItem("Priority Manager")        
-        self.menu_list.addItem("Logbook Analysis")
-        self.menu_list.addItem("Worked before")        
-        self.menu_list.addItem("Logbook Backup")
-        self.menu_list.addItem("Debugging")
+        menu_items = [
+            "Server",
+            "General Settings", 
+            "Offset Updater",
+            "Sound Alerts",
+            "Logbook of The World®",
+            "DX Marathon",
+            "Grid Tracker", 
+            "Priority Manager",
+            "Logbook Analysis",
+            "Worked before",
+            "Logbook Backup",
+            "Debugging"
+        ]
+        
+        for i, item in enumerate(menu_items, 1):
+            self.menu_list.addItem(f"{i}. {item}")
         
         self.stacked_widget = QtWidgets.QStackedWidget()
         
@@ -105,6 +111,7 @@ class SettingsDialog(QtWidgets.QDialog):
         
         server_page       = QtWidgets.QWidget()
         general_page      = QtWidgets.QWidget()
+        offset_page       = QtWidgets.QWidget()
         sound_page        = QtWidgets.QWidget()        
         lotw_page         = QtWidgets.QWidget()
         marathon_page     = QtWidgets.QWidget()
@@ -118,6 +125,7 @@ class SettingsDialog(QtWidgets.QDialog):
         
         self.stacked_widget.addWidget(server_page)
         self.stacked_widget.addWidget(general_page)
+        self.stacked_widget.addWidget(offset_page)
         self.stacked_widget.addWidget(sound_page)        
         self.stacked_widget.addWidget(lotw_page)
         self.stacked_widget.addWidget(marathon_page)
@@ -130,6 +138,7 @@ class SettingsDialog(QtWidgets.QDialog):
         
         server_layout        = QtWidgets.QVBoxLayout(server_page)
         general_layout       = QtWidgets.QVBoxLayout(general_page)
+        offset_layout        = QtWidgets.QVBoxLayout(offset_page)
         sound_layout         = QtWidgets.QVBoxLayout(sound_page)        
         priority_layout      = QtWidgets.QVBoxLayout(priority_page)
         lotw_layout          = QtWidgets.QVBoxLayout(lotw_page)
@@ -259,6 +268,36 @@ class SettingsDialog(QtWidgets.QDialog):
         general_notice_label.setStyleSheet(SETTING_QSS)
         general_notice_label.setAutoFillBackground(True)
 
+        """
+            Offset Settings
+        """
+        offset_notice_text = (
+            f"<p>The frequency offset updater helps to find a free frequency offset from nominal (DF).</p><p>You can select different operating modes (Normal, Fox/Hound, SuperFox) which use different frequency ranges to optimize performance for your specific operating conditions.</p>"
+        )
+        offset_notice_label = QtWidgets.QLabel(offset_notice_text)
+        offset_notice_label.setWordWrap(True)
+        offset_notice_label.setFont(CUSTOM_FONT_SMALL)
+        offset_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
+        offset_notice_label.setStyleSheet(SETTING_QSS)
+        offset_notice_label.setAutoFillBackground(True)
+
+        offset_settings_group = QtWidgets.QGroupBox("Frequency Offset Settings")
+        offset_settings_group.setFont(CUSTOM_FONT_SMALL)
+        
+        offset_settings_widget = QtWidgets.QWidget()
+        offset_settings_layout = QtWidgets.QGridLayout(offset_settings_widget)
+        offset_settings_layout.setVerticalSpacing(15)
+
+        self.enable_gap_finder = QtWidgets.QCheckBox("Enable frequencies offset updater")
+        self.enable_gap_finder.setFont(CUSTOM_FONT)
+        self.enable_gap_finder.setChecked(DEFAULT_GAP_FINDER)
+
+        offset_settings_layout.addWidget(self.enable_gap_finder, 0, 0, 1, 2)
+
+        offset_settings_group.setLayout(QtWidgets.QVBoxLayout())
+        offset_settings_group.layout().setContentsMargins(0, 0, 0, 0)
+        offset_settings_group.layout().addWidget(offset_settings_widget)
+
         general_settings_group = QtWidgets.QGroupBox(f"General {GUI_LABEL_NAME} Settings")
         general_settings_group.setFont(CUSTOM_FONT_SMALL)
         
@@ -275,9 +314,6 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_polite_reply.setChecked(DEFAULT_POLITE_REPLY)
         self.enable_polite_reply.toggled.connect(self.populate_priority_list)
         
-        self.enable_gap_finder = QtWidgets.QCheckBox("Enable frequencies offset updater")
-        self.enable_gap_finder.setFont(CUSTOM_FONT)
-        self.enable_gap_finder.setChecked(DEFAULT_GAP_FINDER)
 
         self.enable_watchdog_bypass = QtWidgets.QCheckBox("Enable watchdog bypass")
         self.enable_watchdog_bypass.setFont(CUSTOM_FONT)
@@ -297,11 +333,10 @@ class SettingsDialog(QtWidgets.QDialog):
 
         general_settings_layout.addWidget(self.enable_sending_reply, 0, 0, 1, 2)
         general_settings_layout.addWidget(self.enable_polite_reply, 1, 0, 1, 2)
-        general_settings_layout.addWidget(self.enable_gap_finder, 2, 0, 1, 2)
-        general_settings_layout.addWidget(self.enable_watchdog_bypass, 3, 0, 1, 2)
-        general_settings_layout.addWidget(self.enable_log_all_valid_contact, 4, 0, 1, 2)
-        general_settings_layout.addWidget(self.enable_reply_to_valid_callsign, 5, 0, 1, 2)
-        general_settings_layout.addWidget(self.enable_reply_to_valid_direction, 6, 0, 1, 2)
+        general_settings_layout.addWidget(self.enable_watchdog_bypass, 2, 0, 1, 2)
+        general_settings_layout.addWidget(self.enable_log_all_valid_contact, 3, 0, 1, 2)
+        general_settings_layout.addWidget(self.enable_reply_to_valid_callsign, 4, 0, 1, 2)
+        general_settings_layout.addWidget(self.enable_reply_to_valid_direction, 5, 0, 1, 2)
 
         general_settings_group.setLayout(QtWidgets.QVBoxLayout())
         general_settings_group.layout().setContentsMargins(0, 0, 0, 0)
@@ -365,7 +400,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.mode_table_widget.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.mode_table_widget.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
-        row_height = 22
+        row_height = 28
         for row, (button, label, freq_min, freq_max) in enumerate(modes):
             self.mode_table_widget.setRowHeight(row, row_height)
 
@@ -389,7 +424,7 @@ class SettingsDialog(QtWidgets.QDialog):
         # Auto-size table to fit all rows without scrolling
         self.mode_table_widget.resizeRowsToContents()
         header_height = self.mode_table_widget.horizontalHeader().sizeHint().height()
-        total_height = header_height + (row_height * len(modes)) + 6 
+        total_height = header_height + (row_height * len(modes)) + 12 
         self.mode_table_widget.setFixedHeight(total_height)
 
         self.mode_table_widget.horizontalHeader().setStyleSheet("""
@@ -409,6 +444,11 @@ class SettingsDialog(QtWidgets.QDialog):
         self.freq_range_type_group.setLayout(QtWidgets.QVBoxLayout())
         self.freq_range_type_group.layout().setContentsMargins(0, 0, 0, 0)
         self.freq_range_type_group.layout().addWidget(udp_freq_range_type_widget)
+
+        offset_layout.addWidget(offset_notice_label)
+        offset_layout.addWidget(offset_settings_group)
+        offset_layout.addWidget(self.freq_range_type_group)
+        offset_layout.addStretch()
 
         minimum_report_text = (
             f"<p>{GUI_LABEL_NAME} won't trigger reply unless decoded message reach a minimal signal report.</p>"
@@ -448,7 +488,6 @@ class SettingsDialog(QtWidgets.QDialog):
         general_layout.addWidget(general_settings_group)
         general_layout.addWidget(minimum_report_notice)
         general_layout.addWidget(minimum_report_group)
-        general_layout.addWidget(self.freq_range_type_group)
 
         general_layout.addStretch() 
 
@@ -666,11 +705,10 @@ class SettingsDialog(QtWidgets.QDialog):
         sound_settings_layout.addWidget(delay_between_label, 4, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
         sound_settings_layout.addLayout(delay_layout, 4, 1, 1, 2)
         sound_settings_layout.setVerticalSpacing(15)
+        sound_settings_layout.setRowMinimumHeight(4, 30)  # Ensure minimum height for the delay row
 
         sound_settings_group.setLayout(sound_settings_layout)
-
-        sound_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
-        sound_settings_group.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
+        sound_settings_group.setMinimumHeight(180)  # Set minimum height for the group box
 
         sound_layout.addWidget(sound_notice_label)
         sound_layout.addWidget(sound_settings_group)
@@ -680,7 +718,7 @@ class SettingsDialog(QtWidgets.QDialog):
             Log Analysis Settings
         """
         log_analysis_notice_text = (
-            f"<p>While using {GUI_LABEL_NAME}, you can let this program analyze your working ADIF file from WSJT-x or JTDX.<p><p>{GUI_LABEL_NAME} won't update your main ADIF file. Still, it can read, parse and analyse it.</p>"
+            f"<p>While using {GUI_LABEL_NAME}, you can let this program analyze your working ADIF files from WSJT-x or JTDX.<p><p>{GUI_LABEL_NAME} won't update your ADIF files. Still, it can read, parse and analyse them. You can set several ADIF files, for exemple your main WSJT-X ADIF and a full export of your log.</p>"
         )
 
         log_analysis_notice_label = QtWidgets.QLabel(log_analysis_notice_text)
@@ -702,9 +740,8 @@ class SettingsDialog(QtWidgets.QDialog):
         buttons_layout.setContentsMargins(0, 0, 0, 0)
         
         # Add ADIF File button
-        self.add_file_button = QtWidgets.QPushButton("Add ADIF File")
+        self.add_file_button = QtWidgets.QPushButton("Select new ADIF File for analysis")
         self.add_file_button.setFont(CUSTOM_FONT)
-        self.add_file_button.setFixedWidth(120)
         self.add_file_button.clicked.connect(self.add_adif_file)
         
         buttons_layout.addWidget(self.add_file_button)
@@ -712,9 +749,11 @@ class SettingsDialog(QtWidgets.QDialog):
         
         # Table for file list
         self.adif_files_table = QtWidgets.QTableWidget()
-        self.adif_files_table.setColumnCount(1)
+        self.adif_files_table.setColumnCount(2)
 
-        self.adif_files_table.horizontalHeader().setStretchLastSection(True)
+        # Set column widths - narrow first column for counter, stretch second for file paths
+        self.adif_files_table.setColumnWidth(0, 40)  # Fixed width for counter column
+        self.adif_files_table.horizontalHeader().setStretchLastSection(True)  # Stretch second column
         self.adif_files_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
                 
         self.adif_files_table.setShowGrid(False)
@@ -727,7 +766,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.adif_files_table.verticalHeader().setHighlightSections(False)
         self.adif_files_table.setFrameStyle(QtWidgets.QFrame.Shape.NoFrame)
 
-        self.adif_files_table.setHorizontalHeaderLabels(["ADIF Files for analysis"])                
+        self.adif_files_table.setHorizontalHeaderLabels(["", "ADIF Files for analysis"])                
         self.adif_files_table.horizontalHeader().setFont(CUSTOM_FONT_SMALL)  
         self.adif_files_table.horizontalHeader().setVisible(True)
         self.adif_files_table.horizontalHeader().setDefaultAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
@@ -823,7 +862,7 @@ class SettingsDialog(QtWidgets.QDialog):
             Marathon Settings
         """
         marathon_notice_text = (
-            f"<p>Marathon feature has to be used with caution.</p><p>{GUI_LABEL_NAME} will analyze your log and check for any missing entities you haven't worked on selected band. If a missing entity is decoded, {GUI_LABEL_NAME} will reply to this callsign.</p><p>Note that rules set for Worked B4 will remain in effect.</p>"
+            f"<p>Marathon feature has to be used with caution.</p><p>{GUI_LABEL_NAME} will analyze your log and check for any missing entities you haven't worked on selected band. If a missing entity is decoded, {GUI_LABEL_NAME} will reply to this callsign.</p><p>Note that rules set for <u>Worked Before</u> will remain in effect.</p>"
         )
         marathon_notice_label = QtWidgets.QLabel(marathon_notice_text)
         marathon_notice_label.setStyleSheet(SETTING_QSS)
@@ -1244,10 +1283,17 @@ class SettingsDialog(QtWidgets.QDialog):
         row_position = self.adif_files_table.rowCount()
         self.adif_files_table.insertRow(row_position)
         
-        # Create item with full file path
+        # Create counter item for first column
+        counter_item = QtWidgets.QTableWidgetItem(str(row_position + 1))
+        counter_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        counter_item.setFlags(counter_item.flags() & ~QtCore.Qt.ItemFlag.ItemIsEditable)  # Make read-only
+        self.adif_files_table.setItem(row_position, 0, counter_item)
+        
+        # Create item with full file path for second column
         file_item = QtWidgets.QTableWidgetItem(file_path)
         file_item.setToolTip(file_path)  # Show full path on hover
-        self.adif_files_table.setItem(row_position, 0, file_item)
+        file_item.setFlags(file_item.flags() & ~QtCore.Qt.ItemFlag.ItemIsEditable)  # Make read-only
+        self.adif_files_table.setItem(row_position, 1, file_item)
     
     def remove_adif_file(self, file_path, row=None):
         """Remove a file from the list and table"""
@@ -1257,7 +1303,7 @@ class SettingsDialog(QtWidgets.QDialog):
         # Find and remove the row from table if row not provided
         if row is None:
             for i in range(self.adif_files_table.rowCount()):
-                item = self.adif_files_table.item(i, 0)
+                item = self.adif_files_table.item(i, 1)  # Check column 1 (file path column)
                 if item and item.text() == file_path:
                     row = i
                     break
@@ -1265,34 +1311,39 @@ class SettingsDialog(QtWidgets.QDialog):
         # Remove the row from table
         if row is not None:
             self.adif_files_table.removeRow(row)
+            # Renumber the counter column after removing a row
+            self.renumber_counter_column()
         
         # Hide the WKB4 group if no files are selected
         if not self.selected_adif_files:
             self.adif_wkb4_group.setVisible(False)
     
+    def renumber_counter_column(self):
+        for i in range(self.adif_files_table.rowCount()):
+            counter_item = self.adif_files_table.item(i, 0)
+            if counter_item:
+                counter_item.setText(str(i + 1))
+    
     def on_table_selection_changed(self):
-        """Enable/disable Clear button based on table selection"""
         selected_rows = self.adif_files_table.selectionModel().selectedRows()
         has_selection = len(selected_rows) > 0
         self.summary_file_button.setEnabled(has_selection)
         self.clear_file_button.setEnabled(has_selection)
     
     def clear_selected_file(self):
-        """Clear the selected file from the table"""
         selected_rows = self.adif_files_table.selectionModel().selectedRows()
         if selected_rows:
             row = selected_rows[0].row()
-            item = self.adif_files_table.item(row, 0)
+            item = self.adif_files_table.item(row, 1)  # Get file path from column 1
             if item:
                 file_path = item.text()
                 self.remove_adif_file(file_path, row)
     
     def show_selected_file_summary(self):
-        """Show ADIF summary dialog for the selected file"""
         selected_rows = self.adif_files_table.selectionModel().selectedRows()
         if selected_rows:
             row = selected_rows[0].row()
-            item = self.adif_files_table.item(row, 0)
+            item = self.adif_files_table.item(row, 1)  # Get file path from column 1
             if item:
                 file_path = item.text()
                 

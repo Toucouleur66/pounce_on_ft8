@@ -393,6 +393,7 @@ class Listener(QObject):
     def forward_packet(self, packet):
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as send_sock:
+                # log.debug(f"Forwarding packet to secondary UDP server at {self.secondary_udp_server_address}:{self.secondary_udp_server_port}")
                 send_sock.sendto(self.add_packet_header() + packet, (
                     self.secondary_udp_server_address,
                     self.secondary_udp_server_port
@@ -403,7 +404,7 @@ class Listener(QObject):
             self.message_callback({
                 'type': 'error',
                 'message': error_message
-            })    
+            })           
 
     def update_listener_settings(self):
         self.wanted_callsigns       = self.monitoring_settings.get_wanted_callsigns()
@@ -429,6 +430,14 @@ class Listener(QObject):
         log_output.append(f"WantedZones={self.wanted_cq_zones}")
         log_output.append(f"MonitoredZones={self.monitored_cq_zones}")
         log_output.append(f"ExcludedZones={self.excluded_cq_zones}")
+
+        # Update worked callsigns
+        if self.worked_callsigns:
+            callsigns_to_remove = [
+                callsign for callsign in self.worked_callsigns if callsign in self.wanted_callsigns
+            ]
+            for callsign in callsigns_to_remove:
+                self.worked_callsigns.remove(callsign)
         
         if self.enable_marathon:
             marathon_preference = self.marathon_preference.get(self.band)

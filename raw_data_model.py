@@ -26,7 +26,7 @@ from constants import (
     DATE_COLUMN_AGE
 )
 class RawDataModel(QtCore.QAbstractTableModel):
-    def __init__(self, data=None, max_size_bytes=50**7, max_num_rows=20_000):
+    def __init__(self, data=None, max_size_bytes=50**7, max_num_rows=40_000):
         super().__init__()
         self._data = data or []
         self._headers = [

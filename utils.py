@@ -615,7 +615,13 @@ def parse_adif_record(record, lookup):
     grid = grid.upper()[:4] if grid else None
     band = band.lower() if band else None
     year = qso_date[0:4] if qso_date and len(qso_date) >= 4 else None
-    confirmed = True if lotw_rcvd == 'Y' or lotw_rcvd == 'V' or qsl_rcvd == 'Y' else False
+
+    if lotw_rcvd == 'Y' or lotw_rcvd == 'V':
+        confirmed = 'V'
+    elif qsl_rcvd == 'Y':
+        confirmed = 'Y'
+    else:
+        confirmed = False
 
     info = {}
     if lookup and call:
