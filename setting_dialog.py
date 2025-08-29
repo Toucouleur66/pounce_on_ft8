@@ -102,7 +102,8 @@ class SettingsDialog(QtWidgets.QDialog):
         ]
         
         for i, item in enumerate(menu_items, 1):
-            self.menu_list.addItem(f"{i}. {item}")
+            #self.menu_list.addItem(f"{i}. {item}")
+            self.menu_list.addItem(f"({i}) {item}")
         
         self.stacked_widget = QtWidgets.QStackedWidget()
         
