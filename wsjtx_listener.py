@@ -417,6 +417,9 @@ class Listener(QObject):
 
         self.synch_time             = datetime.now()
         
+        self.show_listener_settings()
+        
+    def show_listener_settings(self):
         log_output = []
         log_output.append(f"Updated settings (~{CURRENT_VERSION_NUMBER}):")
         log_output.append(f"Instance={self._instance}")
