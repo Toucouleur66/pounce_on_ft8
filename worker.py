@@ -5,6 +5,23 @@ import traceback
 from PyQt6.QtCore import QObject, pyqtSignal, QTimer
 
 from wsjtx_listener import Listener
+from utils import get_local_ip_address
+from constants import (
+    DEFAULT_UDP_PORT,
+    DEFAULT_SECONDARY_UDP_SERVER,
+    DEFAULT_SENDING_REPLY,
+    DEFAULT_POLITE_REPLY,
+    DEFAULT_REPLY_ATTEMPTS,
+    DEFAULT_MAX_WAITING_DELAY,
+    DEFAULT_LOG_ALL_VALID_CONTACT,
+    DEFAULT_GAP_FINDER,
+    DEFAULT_WATCHDOG_BYPASS,
+    DEFAULT_DEBUG_OUTPUT,
+    DEFAULT_POUNCE_LOG,
+    DEFAULT_LOG_PACKET_DATA,
+    DEFAULT_MINIMUM_REPORT,
+    WKB4_REPLY_MODE_ALWAYS
+)
 
 class Worker(QObject):
     finished                         = pyqtSignal()
@@ -12,6 +29,7 @@ class Worker(QObject):
     listener_started                = pyqtSignal()
     message                         = pyqtSignal(object)
     update_listener_settings_signal = pyqtSignal()
+    show_listener_settings_signal   = pyqtSignal()
     synch_settings_signal           = pyqtSignal()
     reset_settings_signal           = pyqtSignal()
 
@@ -20,43 +38,46 @@ class Worker(QObject):
             monitoring_settings, 
             mode, 
             stop_event,
-            primary_udp_server_address, 
-            primary_udp_server_port,
-            secondary_udp_server_address, 
-            secondary_udp_server_port, 
-            enable_secondary_udp_server,
-            logging_udp_server_address, 
-            logging_udp_server_port,
-            enable_logging_udp_server, 
-            enable_sending_reply,
-            enable_polite_reply, 
-            max_reply_attemps_to_callsign, 
-            max_working_delay,
-            enable_log_all_valid_contact, 
-            enable_reply_to_valid_callsign,
-            enable_reply_to_valid_direction,
-            enable_reply_to_lotw_only,
-            enable_gap_finder, 
-            enable_watchdog_bypass,
-            enable_debug_output, 
-            enable_pounce_log, 
-            enable_log_packet_data,
-            adif_file_paths, 
-            adif_worked_backup_file_path, 
-            worked_before_preference,
-            enable_marathon,
-            marathon_preference,
-            enable_grid_tracker,
-            grid_tracker_preference,
-            minimum_report_for_reply,
+            primary_udp_server_address=None, 
+            primary_udp_server_port=None,
+            secondary_udp_server_address=None, 
+            secondary_udp_server_port=None, 
+            enable_secondary_udp_server=DEFAULT_SECONDARY_UDP_SERVER,
+            logging_udp_server_address=None, 
+            logging_udp_server_port=None,
+            enable_logging_udp_server=DEFAULT_SECONDARY_UDP_SERVER, 
+            enable_sending_reply=DEFAULT_SENDING_REPLY,
+            enable_polite_reply=DEFAULT_POLITE_REPLY, 
+            max_reply_attemps_to_callsign=DEFAULT_REPLY_ATTEMPTS, 
+            max_working_delay=DEFAULT_MAX_WAITING_DELAY,
+            enable_log_all_valid_contact=DEFAULT_LOG_ALL_VALID_CONTACT, 
+            enable_reply_to_valid_callsign=DEFAULT_LOG_ALL_VALID_CONTACT,
+            enable_reply_to_valid_direction=DEFAULT_LOG_ALL_VALID_CONTACT,
+            enable_reply_to_lotw_only=False,
+            enable_gap_finder=DEFAULT_GAP_FINDER, 
+            enable_watchdog_bypass=DEFAULT_WATCHDOG_BYPASS,
+            enable_debug_output=DEFAULT_DEBUG_OUTPUT, 
+            enable_pounce_log=DEFAULT_POUNCE_LOG, 
+            enable_log_packet_data=DEFAULT_LOG_PACKET_DATA,
+            adif_file_paths=None, 
+            adif_worked_backup_file_path=None, 
+            worked_before_preference=WKB4_REPLY_MODE_ALWAYS,
+            enable_marathon=False,
+            marathon_preference=None,
+            enable_grid_tracker=False,
+            grid_tracker_preference=None,
+            minimum_report_for_reply=DEFAULT_MINIMUM_REPORT,
             priority_order=None
         ):
         
         super().__init__()
 
         self.update_listener_settings_signal.connect(self.update_listener_settings)
+        self.show_listener_settings_signal.connect(self.show_listener_settings)
         self.synch_settings_signal.connect(self.synch_settings)
         self.reset_settings_signal.connect(self.reset_synched_settings)
+
+        local_ip                                = get_local_ip_address()
 
         self.listener                           = None
         self.stop_event                         = stop_event
@@ -64,15 +85,15 @@ class Worker(QObject):
         self.mode                               = mode
         self.monitoring_settings                = monitoring_settings
 
-        self.primary_udp_server_address         = primary_udp_server_address
-        self.primary_udp_server_port            = primary_udp_server_port
+        self.primary_udp_server_address         = primary_udp_server_address or local_ip
+        self.primary_udp_server_port            = primary_udp_server_port or DEFAULT_UDP_PORT
 
-        self.secondary_udp_server_address       = secondary_udp_server_address
-        self.secondary_udp_server_port          = secondary_udp_server_port
+        self.secondary_udp_server_address       = secondary_udp_server_address or local_ip
+        self.secondary_udp_server_port          = secondary_udp_server_port or DEFAULT_UDP_PORT
         self.enable_secondary_udp_server        = enable_secondary_udp_server
 
-        self.logging_udp_server_address         = logging_udp_server_address
-        self.logging_udp_server_port            = logging_udp_server_port
+        self.logging_udp_server_address         = logging_udp_server_address or local_ip
+        self.logging_udp_server_port            = logging_udp_server_port or DEFAULT_UDP_PORT
         self.enable_logging_udp_server          = enable_logging_udp_server
 
         self.enable_sending_reply               = enable_sending_reply
@@ -93,9 +114,9 @@ class Worker(QObject):
         self.adif_worked_backup_file_path        = adif_worked_backup_file_path
         self.worked_before_preference           = worked_before_preference
         self.enable_marathon                    = enable_marathon
-        self.marathon_preference                = marathon_preference
+        self.marathon_preference                = marathon_preference or {}
         self.enable_grid_tracker                = enable_grid_tracker
-        self.grid_tracker_preference            = grid_tracker_preference
+        self.grid_tracker_preference            = grid_tracker_preference or {}
         self.minimum_report_for_reply           = minimum_report_for_reply
         self.priority_order                     = priority_order
 
@@ -180,11 +201,44 @@ class Worker(QObject):
 
     def update_listener_settings(self):
         if self.listener is not None:
-                self.listener.update_listener_settings()
+            self.listener.primary_udp_server_address = self.primary_udp_server_address
+            self.listener.primary_udp_server_port = self.primary_udp_server_port
+            self.listener.secondary_udp_server_address = self.secondary_udp_server_address
+            self.listener.secondary_udp_server_port = self.secondary_udp_server_port
+            self.listener.enable_secondary_udp_server = self.enable_secondary_udp_server
+            self.listener.logging_udp_server_address = self.logging_udp_server_address
+            self.listener.logging_udp_server_port = self.logging_udp_server_port
+            self.listener.enable_logging_udp_server = self.enable_logging_udp_server
+            self.listener.enable_sending_reply = self.enable_sending_reply
+            self.listener.enable_polite_reply = self.enable_polite_reply
+            self.listener.max_reply_attemps_to_callsign = self.max_reply_attemps_to_callsign
+            self.listener.max_working_delay_seconds = self.max_working_delay * 60
+            self.listener.enable_log_all_valid_contact = self.enable_log_all_valid_contact
+            self.listener.enable_reply_to_valid_callsign = self.enable_reply_to_valid_callsign
+            self.listener.enable_reply_to_valid_direction = self.enable_reply_to_valid_direction
+            self.listener.enable_reply_to_lotw_only = self.enable_reply_to_lotw_only
+            self.listener.enable_gap_finder = self.enable_gap_finder
+            self.listener.enable_watchdog_bypass = self.enable_watchdog_bypass
+            self.listener.enable_debug_output = self.enable_debug_output
+            self.listener.enable_pounce_log = self.enable_pounce_log
+            self.listener.enable_log_packet_data = self.enable_log_packet_data
+            self.listener.enable_marathon = self.enable_marathon
+            self.listener.marathon_preference = self.marathon_preference
+            self.listener.enable_grid_tracker = self.enable_grid_tracker
+            self.listener.grid_tracker_preference = self.grid_tracker_preference
+            self.listener.worked_before_preference = self.worked_before_preference
+            self.listener.minimum_report_for_reply = self.minimum_report_for_reply
+            self.listener.priority_order = self.priority_order
+            
+            self.listener.update_listener_settings()
 
     def synch_settings(self):
         if self.listener is not None:
             self.listener.synch_settings()
+
+    def show_listener_settings(self):
+        if self.listener is not None:
+            self.listener.show_listener_settings()            
 
     def reset_synched_settings(self):
         if self.listener is not None:

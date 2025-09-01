@@ -2627,8 +2627,7 @@ class MainApp(QtWidgets.QMainWindow):
                 self.file_handler = None
 
             if self._running:
-                self.stop_monitoring()
-                self.start_monitoring()
+                self.refresh_monitoring()
 
     def quit_application(self):
         self.save_window_position()
@@ -3467,80 +3466,21 @@ class MainApp(QtWidgets.QMainWindow):
 
         # self.apply_band_change(self.gui_selected_band)
         
-        params                              = self.load_params()
-        local_ip_address                    = get_local_ip_address()
-
-        freq_range_mode                     = params.get('freq_range_mode')
-        primary_udp_server_address          = params.get('primary_udp_server_address') or local_ip_address
-        primary_udp_server_port             = int(params.get('primary_udp_server_port') or DEFAULT_UDP_PORT)
-        secondary_udp_server_address        = params.get('secondary_udp_server_address') or local_ip_address
-        secondary_udp_server_port           = int(params.get('secondary_udp_server_port') or DEFAULT_UDP_PORT)
-        enable_secondary_udp_server         = params.get('enable_secondary_udp_server', DEFAULT_SECONDARY_UDP_SERVER)
-        logging_udp_server_address          = params.get('logging_udp_server_address') or local_ip_address
-        logging_udp_server_port             = int(params.get('logging_udp_server_port') or DEFAULT_UDP_PORT)
-        enable_logging_udp_server           = params.get('enable_logging_udp_server', DEFAULT_SECONDARY_UDP_SERVER)
-        enable_sending_reply                = params.get('enable_sending_reply', DEFAULT_SENDING_REPLY)
-        enable_polite_reply                 = params.get('enable_polite_reply', DEFAULT_POLITE_REPLY)
-        max_reply_attemps_to_callsign       = params.get('max_reply_attemps_to_callsign', DEFAULT_REPLY_ATTEMPTS)
-        max_working_delay                   = params.get('max_working_delay', DEFAULT_MAX_WAITING_DELAY)
-        enable_gap_finder                    = params.get('enable_gap_finder', DEFAULT_GAP_FINDER)
-        enable_watchdog_bypass              = params.get('enable_watchdog_bypass', DEFAULT_WATCHDOG_BYPASS)
-        enable_debug_output                 = params.get('enable_debug_output', DEFAULT_DEBUG_OUTPUT)
-        enable_pounce_log                   = params.get('enable_pounce_log', DEFAULT_POUNCE_LOG)
-        enable_log_packet_data              = params.get('enable_log_packet_data', DEFAULT_LOG_PACKET_DATA)
-        enable_log_all_valid_contact        = params.get('enable_log_all_valid_contact', DEFAULT_LOG_ALL_VALID_CONTACT) 
-        enable_reply_to_valid_callsign      = params.get('enable_reply_to_valid_callsign', DEFAULT_LOG_ALL_VALID_CONTACT)
-        enable_reply_to_valid_direction     = params.get('enable_reply_to_valid_direction', DEFAULT_LOG_ALL_VALID_CONTACT)
-        enable_reply_to_lotw_only           = params.get('enable_reply_to_lotw_only', False)        
-
-        self.adif_file_paths                 = params.get('adif_file_paths', None)
-        self.adif_worked_backup_file_path    = params.get('adif_worked_backup_file_path', None)
-        self.worked_before_preference       = params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS)
-        self.marathon_preference            = params.get('marathon_preference', {})
-        self.enable_grid_tracker            = params.get('enable_grid_tracker', False)
-        self.grid_tracker_preference        = params.get('grid_tracker_preference', {})
-        minimum_report_for_reply            = params.get('minimum_report_for_reply', DEFAULT_MINIMUM_REPORT)
-        priority_order                      = params.get('priority_order', None)
+        params = self.load_params()
+        freq_range_mode = params.get('freq_range_mode')
         
         self.save_unique_param('freq_range_mode', freq_range_mode )        
 
-        # Create a QThread and a Worker object
+        # Create a QThread and a Worker object with default parameters
         self.thread = QThread()
         self.worker = Worker(
             self.monitoring_settings,
             freq_range_mode,
-            self.stop_event,
-            primary_udp_server_address,
-            primary_udp_server_port,
-            secondary_udp_server_address,
-            secondary_udp_server_port,
-            enable_secondary_udp_server,
-            logging_udp_server_address,
-            logging_udp_server_port,
-            enable_logging_udp_server,            
-            enable_sending_reply,
-            enable_polite_reply,
-            max_reply_attemps_to_callsign,
-            max_working_delay,
-            enable_log_all_valid_contact,
-            enable_reply_to_valid_callsign,
-            enable_reply_to_valid_direction,
-            enable_reply_to_lotw_only,
-            enable_gap_finder,
-            enable_watchdog_bypass,
-            enable_debug_output,
-            enable_pounce_log,
-            enable_log_packet_data,
-            self.adif_file_paths,
-            self.adif_worked_backup_file_path,
-            self.worked_before_preference,
-            self.enable_marathon,
-            self.marathon_preference,
-            self.enable_grid_tracker,
-            self.grid_tracker_preference,
-            minimum_report_for_reply,
-            priority_order           
+            self.stop_event
         )
+        
+        # Update worker with all current parameters
+        self._update_worker_from_params(params)
         self.worker.moveToThread(self.thread)
 
         if self.worker:
@@ -3587,6 +3527,62 @@ class MainApp(QtWidgets.QMainWindow):
         if self.tray_icon:
             self.tray_icon.stop()
             self.tray_icon = None
+
+    def refresh_monitoring(self):
+        if not self._running or not self.worker:
+            return
+            
+        params = self.load_params()
+        self._update_worker_from_params(params)
+        
+        # Signal the worker to update its listener settings
+        self.worker.update_listener_settings_signal.emit()
+        self.worker.show_listener_settings_signal.emit()
+
+    def _update_worker_from_params(self, params):
+        local_ip_address = get_local_ip_address()
+        
+        # Update worker settings
+        self.worker.primary_udp_server_address      = params.get('primary_udp_server_address') or local_ip_address
+        self.worker.primary_udp_server_port         = int(params.get('primary_udp_server_port') or DEFAULT_UDP_PORT)
+        self.worker.secondary_udp_server_address    = params.get('secondary_udp_server_address') or local_ip_address
+        self.worker.secondary_udp_server_port       = int(params.get('secondary_udp_server_port') or DEFAULT_UDP_PORT)
+        self.worker.enable_secondary_udp_server     = params.get('enable_secondary_udp_server', DEFAULT_SECONDARY_UDP_SERVER)
+        self.worker.logging_udp_server_address      = params.get('logging_udp_server_address') or local_ip_address
+        self.worker.logging_udp_server_port         = int(params.get('logging_udp_server_port') or DEFAULT_UDP_PORT)
+        self.worker.enable_logging_udp_server       = params.get('enable_logging_udp_server', DEFAULT_SECONDARY_UDP_SERVER)
+        self.worker.enable_sending_reply            = params.get('enable_sending_reply', DEFAULT_SENDING_REPLY)
+        self.worker.enable_polite_reply             = params.get('enable_polite_reply', DEFAULT_POLITE_REPLY)
+        self.worker.max_reply_attemps_to_callsign   = params.get('max_reply_attemps_to_callsign', DEFAULT_REPLY_ATTEMPTS)
+        self.worker.max_working_delay               = params.get('max_working_delay', DEFAULT_MAX_WAITING_DELAY)
+        self.worker.enable_log_all_valid_contact    = params.get('enable_log_all_valid_contact', DEFAULT_LOG_ALL_VALID_CONTACT)
+        self.worker.enable_reply_to_valid_callsign  = params.get('enable_reply_to_valid_callsign', DEFAULT_LOG_ALL_VALID_CONTACT)
+        self.worker.enable_reply_to_valid_direction = params.get('enable_reply_to_valid_direction', DEFAULT_LOG_ALL_VALID_CONTACT)
+        self.worker.enable_reply_to_lotw_only       = params.get('enable_reply_to_lotw_only', False)
+        self.worker.enable_gap_finder                = params.get('enable_gap_finder', DEFAULT_GAP_FINDER)
+        self.worker.enable_watchdog_bypass          = params.get('enable_watchdog_bypass', DEFAULT_WATCHDOG_BYPASS)
+        self.worker.enable_debug_output             = params.get('enable_debug_output', DEFAULT_DEBUG_OUTPUT)
+        self.worker.enable_pounce_log               = params.get('enable_pounce_log', DEFAULT_POUNCE_LOG)
+        self.worker.enable_log_packet_data          = params.get('enable_log_packet_data', DEFAULT_LOG_PACKET_DATA)
+        
+        # Update ADIF and preference settings
+        self.worker.adif_file_paths                 = params.get('adif_file_paths', None)
+        self.worker.adif_worked_backup_file_path    = params.get('adif_worked_backup_file_path', None)
+        self.worker.worked_before_preference       = params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS)
+        self.worker.enable_marathon                = params.get('enable_marathon', False)
+        self.worker.marathon_preference            = params.get('marathon_preference', {})
+        self.worker.enable_grid_tracker            = params.get('enable_grid_tracker', False)
+        self.worker.grid_tracker_preference        = params.get('grid_tracker_preference', {})
+        self.worker.minimum_report_for_reply       = params.get('minimum_report_for_reply', DEFAULT_MINIMUM_REPORT)
+        self.worker.priority_order                 = params.get('priority_order', None)
+
+        # Also update instance variables that are used elsewhere
+        self.adif_file_paths                        = self.worker.adif_file_paths
+        self.adif_worked_backup_file_path           = self.worker.adif_worked_backup_file_path
+        self.worked_before_preference              = self.worker.worked_before_preference
+        self.marathon_preference                   = self.worker.marathon_preference
+        self.enable_grid_tracker                   = self.worker.enable_grid_tracker
+        self.grid_tracker_preference               = self.worker.grid_tracker_preference
 
     def stop_monitoring(self):
         self.network_check_status.stop()        
