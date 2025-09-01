@@ -86,6 +86,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.menu_list.setFont(CUSTOM_FONT)
         self.menu_list.setFixedWidth(180)
         self.menu_list.setAlternatingRowColors(True)
+        self.menu_list.setUniformItemSizes(True)
         menu_items = [
             "Server",
             "General Settings", 
@@ -103,7 +104,12 @@ class SettingsDialog(QtWidgets.QDialog):
         
         for i, item in enumerate(menu_items, 1):
             #self.menu_list.addItem(f"{i}. {item}")
-            self.menu_list.addItem(f"({i}) {item}")
+            self.menu_list.addItem(f"{item}")
+        
+        # Set higher height for all items
+        for i in range(self.menu_list.count()):
+            item = self.menu_list.item(i)
+            item.setSizeHint(QtCore.QSize(170, 35))
         
         self.stacked_widget = QtWidgets.QStackedWidget()
         
