@@ -70,7 +70,7 @@ class Listener(QObject):
             enable_logging_udp_server,            
             enable_sending_reply,
             enable_polite_reply,
-            max_reply_attemps_to_callsign,
+            max_reply_attempts_to_callsign,
             max_working_delay,
             enable_log_all_valid_contact,
             enable_reply_to_valid_callsign,
@@ -158,13 +158,13 @@ class Listener(QObject):
         self.enable_log_packet_data             = enable_log_packet_data
         self.enable_marathon                    = enable_marathon
 
+        self.max_reply_attempts_to_callsign     = max_reply_attempts_to_callsign
+
         # Convert display names to property keys if needed
         if priority_order is not None:
             self.priority_order = [PRIORITY_LIST.get(name, name) for name in priority_order]
         else:
             self.priority_order = list(PRIORITY_LIST.values())
-
-        self.max_reply_attemps_to_callsign  = max_reply_attemps_to_callsign
 
         self.origin_addr_port               = None
         self._instance                      = None
@@ -1165,7 +1165,7 @@ class Listener(QObject):
                         log.warning(f"Waiting for [ {self.targeted_call} ] but we are about to switch on [ {callsign} ]")
                         self.reset_targeted_call()
                     
-                    if len(self.reply_attempts.get('self.targeted_call') or []) >= self.max_reply_attemps_to_callsign:
+                    if len(self.reply_attempts.get('self.targeted_call') or []) >= self.max_reply_attempts_to_callsign:
                         log.warning(f"{len(self.reply_attempts[self.targeted_call])} attempts for [ {self.targeted_call} ] but we are about to switch on [ {callsign} ]")
                         self.reset_targeted_call()
 
@@ -1530,7 +1530,7 @@ class Listener(QObject):
         if callsign_packet.time not in self.reply_attempts[callsign]:
             self.reply_attempts[callsign].append(callsign_packet.time)
             count_attempts = len(self.reply_attempts[callsign])
-            if count_attempts >= (self.max_reply_attemps_to_callsign - 1):
+            if count_attempts >= (self.max_reply_attempts_to_callsign - 1):
                 log.warning(f"{count_attempts} attempts for [ {callsign} ]") 
 
         """

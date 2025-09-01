@@ -3542,7 +3542,6 @@ class MainApp(QtWidgets.QMainWindow):
     def _update_worker_from_params(self, params):
         local_ip_address = get_local_ip_address()
         
-        # Update worker settings
         self.worker.primary_udp_server_address      = params.get('primary_udp_server_address') or local_ip_address
         self.worker.primary_udp_server_port         = int(params.get('primary_udp_server_port') or DEFAULT_UDP_PORT)
         self.worker.secondary_udp_server_address    = params.get('secondary_udp_server_address') or local_ip_address
@@ -3553,8 +3552,10 @@ class MainApp(QtWidgets.QMainWindow):
         self.worker.enable_logging_udp_server       = params.get('enable_logging_udp_server', DEFAULT_SECONDARY_UDP_SERVER)
         self.worker.enable_sending_reply            = params.get('enable_sending_reply', DEFAULT_SENDING_REPLY)
         self.worker.enable_polite_reply             = params.get('enable_polite_reply', DEFAULT_POLITE_REPLY)
-        self.worker.max_reply_attemps_to_callsign   = params.get('max_reply_attemps_to_callsign', DEFAULT_REPLY_ATTEMPTS)
+
+        self.worker.max_reply_attempts_to_callsign  = params.get('max_reply_attempts_to_callsign', DEFAULT_REPLY_ATTEMPTS)
         self.worker.max_working_delay               = params.get('max_working_delay', DEFAULT_MAX_WAITING_DELAY)
+
         self.worker.enable_log_all_valid_contact    = params.get('enable_log_all_valid_contact', DEFAULT_LOG_ALL_VALID_CONTACT)
         self.worker.enable_reply_to_valid_callsign  = params.get('enable_reply_to_valid_callsign', DEFAULT_LOG_ALL_VALID_CONTACT)
         self.worker.enable_reply_to_valid_direction = params.get('enable_reply_to_valid_direction', DEFAULT_LOG_ALL_VALID_CONTACT)
@@ -3565,7 +3566,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.worker.enable_pounce_log               = params.get('enable_pounce_log', DEFAULT_POUNCE_LOG)
         self.worker.enable_log_packet_data          = params.get('enable_log_packet_data', DEFAULT_LOG_PACKET_DATA)
         
-        # Update ADIF and preference settings
         self.worker.adif_file_paths                 = params.get('adif_file_paths', None)
         self.worker.adif_worked_backup_file_path    = params.get('adif_worked_backup_file_path', None)
         self.worker.worked_before_preference       = params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS)
@@ -3576,7 +3576,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.worker.minimum_report_for_reply       = params.get('minimum_report_for_reply', DEFAULT_MINIMUM_REPORT)
         self.worker.priority_order                 = params.get('priority_order', None)
 
-        # Also update instance variables that are used elsewhere
         self.adif_file_paths                        = self.worker.adif_file_paths
         self.adif_worked_backup_file_path           = self.worker.adif_worked_backup_file_path
         self.worked_before_preference              = self.worker.worked_before_preference

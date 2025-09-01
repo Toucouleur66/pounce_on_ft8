@@ -533,16 +533,16 @@ class SettingsDialog(QtWidgets.QDialog):
         max_reply_label.setFont(CUSTOM_FONT)
         max_reply_label.setFixedWidth(200)
 
-        self.max_reply_attemps_combo = QtWidgets.QComboBox()
-        self.max_reply_attemps_combo.setEditable(False)  
-        self.max_reply_attemps_combo.setMinimumWidth(100)
+        self.max_reply_attempts_combo = QtWidgets.QComboBox()
+        self.max_reply_attempts_combo.setEditable(False)  
+        self.max_reply_attempts_combo.setMinimumWidth(100)
 
-        self.max_reply_attemps_combo.addItems([str(i) for i in range(4, 31)])
-        self.max_reply_attemps_combo.setCurrentIndex(DEFAULT_REPLY_ATTEMPTS)
+        self.max_reply_attempts_combo.addItems([str(i) for i in range(4, 31)])
+        self.max_reply_attempts_combo.setCurrentIndex(DEFAULT_REPLY_ATTEMPTS)
 
         reply_attempts_layout = QtWidgets.QHBoxLayout()
         reply_attempts_layout.addWidget(max_reply_label)
-        reply_attempts_layout.addWidget(self.max_reply_attemps_combo)
+        reply_attempts_layout.addWidget(self.max_reply_attempts_combo)
         times_label = QtWidgets.QLabel("times")
         times_label.setFont(CUSTOM_FONT)
         reply_attempts_layout.addWidget(times_label)
@@ -1519,13 +1519,13 @@ class SettingsDialog(QtWidgets.QDialog):
         else:
             self.adif_wkb4_group.setVisible(False)
 
-        max_reply_attemps = self.params.get('max_reply_attemps_to_callsign', DEFAULT_REPLY_ATTEMPTS)
-       
-        index = self.max_reply_attemps_combo.findText(str(max_reply_attemps))
+        max_reply_attempts = self.params.get('max_reply_attempts_to_callsign', DEFAULT_REPLY_ATTEMPTS)
+
+        index = self.max_reply_attempts_combo.findText(str(max_reply_attempts))
         if index != -1:
-            self.max_reply_attemps_combo.setCurrentIndex(index)
+            self.max_reply_attempts_combo.setCurrentIndex(index)
         else:
-            self.max_reply_attemps_combo.setCurrentIndex(0)  
+            self.max_reply_attempts_combo.setCurrentIndex(0)  
 
         max_waiting_delay = self.params.get('max_waiting_delay', DEFAULT_MAX_WAITING_DELAY)
         if isinstance(max_waiting_delay, int):
@@ -1576,7 +1576,7 @@ class SettingsDialog(QtWidgets.QDialog):
         else:
             worked_before_preference = WKB4_REPLY_MODE_ALWAYS            
 
-        max_reply_attemps = int(self.max_reply_attemps_combo.currentText())
+        max_reply_attempts = int(self.max_reply_attempts_combo.currentText())
         max_waiting_delay = int(self.max_waiting_delay_combo.currentText())
         
         # Get minimum report for reply (convert combo index back to dB value)
@@ -1616,7 +1616,7 @@ class SettingsDialog(QtWidgets.QDialog):
             'enable_reply_to_valid_callsign'             : self.enable_reply_to_valid_callsign.isChecked(),
             'enable_reply_to_valid_direction'            : self.enable_reply_to_valid_direction.isChecked(),
             'enable_reply_to_lotw_only'                  : self.enable_reply_to_lotw_only.isChecked(),
-            'max_reply_attemps_to_callsign'              : max_reply_attemps,
+            'max_reply_attempts_to_callsign'             : max_reply_attempts,
             'max_waiting_delay'                          : max_waiting_delay,
             'minimum_report_for_reply'                   : minimum_report_for_reply,
             'enable_gap_finder'                           : self.enable_gap_finder.isChecked(),
