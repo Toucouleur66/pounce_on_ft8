@@ -1491,12 +1491,15 @@ class SettingsDialog(QtWidgets.QDialog):
             self.params.get('adif_worked_backup_file_path', ADIF_WORKED_CALLSIGNS_FILE)
         )
         # Load ADIF files (support both single file and multiple files for backward compatibility)
-        selected_files = self.params.get('adif_file_paths', [])
-        if not selected_files:
-            # Backward compatibility - check for single file
+        selected_files = self.params.get('adif_file_paths')
+        if selected_files is None:
+            # Backward compatibility - check for single file only if new parameter doesn't exist
             single_file = self.params.get('adif_file_path', None)
             if single_file:
                 selected_files = [single_file]
+            else:
+                selected_files = []
+        # If selected_files is an empty list [], respect that choice (user cleared all files)
         
         # Load the files into the UI
         self.selected_adif_files = []
