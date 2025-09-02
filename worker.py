@@ -229,8 +229,18 @@ class Worker(QObject):
             self.listener.worked_before_preference              = self.worked_before_preference
             self.listener.minimum_report_for_reply              = self.minimum_report_for_reply
             self.listener.priority_order                        = self.priority_order
-
+            
             self.listener.update_listener_settings()
+            
+            # Handle ADIF file paths update
+            if hasattr(self.listener, 'adif_file_paths'):
+                current_file_paths = self.listener.adif_file_paths
+                updated_file_paths = self.adif_file_paths
+                if current_file_paths != updated_file_paths:
+                    self.listener.adif_file_paths = updated_file_paths
+
+                    if self.listener.adif_monitor:
+                        self.listener.adif_monitor.update_file_paths(updated_file_paths)
 
     def synch_settings(self):
         if self.listener is not None:

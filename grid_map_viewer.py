@@ -1398,11 +1398,7 @@ class GridMapWidget(QWidget):
             self.update()
         finally:
             grid_count = len(grids) if grids else 0
-            log.debug(f"GridMapWidget: {grid_count} updated grids")
-            
-            # Additional debug info to help diagnose grid monitoring issues
-            if grid_count == 0 and hasattr(self, 'operating_band') and self.operating_band:
-                log.debug(f"GridMapWidget: No grids received for band {self.operating_band}")
+            # log.debug(f"GridMapWidget: {grid_count} updated grids")
             
             # Update status bar when grids change
             window = self.parent()

@@ -3480,7 +3480,7 @@ class MainApp(QtWidgets.QMainWindow):
         )
         
         # Update worker with all current parameters
-        self._update_worker_from_params(params)
+        self.set_worker_settings(params)
         self.worker.moveToThread(self.thread)
 
         if self.worker:
@@ -3533,13 +3533,13 @@ class MainApp(QtWidgets.QMainWindow):
             return
             
         params = self.load_params()
-        self._update_worker_from_params(params)
+        self.set_worker_settings(params)
         
         # Signal the worker to update its listener settings
         self.worker.update_listener_settings_signal.emit()
         self.worker.show_listener_settings_signal.emit()
 
-    def _update_worker_from_params(self, params):
+    def set_worker_settings(self, params):
         local_ip_address = get_local_ip_address()
         
         self.worker.primary_udp_server_address      = params.get('primary_udp_server_address') or local_ip_address

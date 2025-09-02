@@ -60,6 +60,245 @@ class AdifMonitor:
     def register_lookup(self, lookup):
         self._lookup = lookup
 
+    def update_file_paths(self, updated_adif_file_paths):
+        log.info(f"Updating ADIF file paths from {self.adif_file_paths} to {updated_adif_file_paths}")
+
+        if not updated_adif_file_paths:
+            updated_adif_file_paths = []
+
+        if self.adif_file_paths == updated_adif_file_paths:
+            log.info("ADIF file paths unchanged, no update needed")
+            return False
+
+        self.adif_file_paths = updated_adif_file_paths
+        
+        seen_paths = set()
+        self.unique_file_paths = []
+        
+        all_file_paths = list(self.adif_file_paths) if self.adif_file_paths else []
+        if self.adif_worked_callsigns_file:
+            all_file_paths.append(self.adif_worked_callsigns_file)
+        
+        for file_path in all_file_paths:
+            if file_path:
+                abs_path = os.path.abspath(file_path)
+                if abs_path not in seen_paths:
+                    seen_paths.add(abs_path)
+                    self.unique_file_paths.append(abs_path)
+        
+        new_paths = set(self.unique_file_paths)
+        old_paths = set(self.adif_last_mtime.keys())
+        
+        # Handle new files - add them and queue for immediate processing
+        added_paths = new_paths - old_paths
+        for path in added_paths:
+            log.info(f"Added new ADIF file for monitoring: {path}")
+            
+            # Queue new file for immediate processing if it exists
+            if os.path.exists(path):
+                try:
+                    # Set timestamps BEFORE queuing to prevent duplicate processing
+                    current_mtime = os.path.getmtime(path)
+                    current_size = os.path.getsize(path)
+                    self.adif_last_mtime[path] = current_mtime
+                    self.adif_last_size[path] = current_size
+                    
+                    log.info(f"Queuing new file for immediate processing: {path}")
+                    task_id = self.adif_processor.process_file(
+                        path, 0, self._lookup, max_lines=None
+                    )
+                    
+                    if task_id:
+                        if not self.pending_tasks:
+                            self.notify_processing_callbacks({'type': 'adif_processing_started'})
+                        
+                        self.pending_tasks[task_id] = {
+                            'file_path': path,
+                            'current_size': current_size,
+                            'incremental': False
+                        }
+                        
+                except Exception as e:
+                    log.error(f"Error queuing new file {path} for processing: {e}")
+            else:
+                # File doesn't exist yet, set None to allow future processing
+                self.adif_last_mtime[path] = None
+                self.adif_last_size[path] = None
+        
+        # Handle removed files - clean up all associated data
+        removed_paths = old_paths - new_paths
+        for path in removed_paths:
+            self.adif_last_mtime.pop(path, None)
+            self.adif_last_size.pop(path, None)
+            # Important: Remove the file's data from the merged dataset
+            if path in self.adif_data_by_file:
+                del self.adif_data_by_file[path]
+                log.info(f"Removed ADIF data for file: {path}")
+            
+            # Cancel any pending tasks for this file
+            tasks_to_remove = []
+            for task_id, task_info in self.pending_tasks.items():
+                if task_info.get('file_path') == path:
+                    tasks_to_remove.append(task_id)
+                    log.info(f"Cancelled pending task for removed file: {path}")
+            
+            for task_id in tasks_to_remove:
+                self.pending_tasks.pop(task_id, None)
+            
+            log.info(f"Removed ADIF file from monitoring: {path}")
+        
+        # If files were added or removed, refresh the callbacks to update UI
+        if added_paths or removed_paths:
+            log.info("ADIF files were added or removed, refreshing data")
+            self.notify_callbacks()
+            
+            # Log comprehensive statistics after file path changes
+            self._log_adif_statistics()
+        
+        return True
+
+    def _log_adif_statistics(self):
+        try:
+            from utils import AMATEUR_BANDS
+            
+            merged_data = self.get_adif_data()
+            report_lines = []
+            report_lines.append("Adif Summary:")
+            
+            # Get sorted amateur bands (by frequency order)
+            sorted_bands = sorted(AMATEUR_BANDS.keys(), key=lambda x: AMATEUR_BANDS[x][0])
+            
+            # WKB4 Statistics Table
+            wkb4_data = merged_data.get('wkb4', {})
+            if wkb4_data:
+                report_lines.append("")
+                report_lines.append("Worked Before (Wkb4)")
+                
+                # Table header
+                header = "Year".ljust(6)
+                for band in sorted_bands:
+                    header += band.rjust(6)
+                header += "Total".rjust(8)
+                report_lines.append("-" * len(header))
+                report_lines.append(header)
+                report_lines.append("-" * len(header))
+                
+                # Table rows by year
+                total_by_band = {band: 0 for band in sorted_bands}
+                grand_total = 0
+                
+                for year in sorted(wkb4_data.keys()):
+                    row = year.ljust(6)
+                    year_total = 0
+                    for band in sorted_bands:
+                        count = len(wkb4_data[year].get(band, set()))
+                        row += str(count).rjust(6) if count > 0 else "".rjust(6)
+                        total_by_band[band] += count
+                        year_total += count
+                    row += str(year_total).rjust(8)
+                    grand_total += year_total
+                    report_lines.append(row)
+                
+                # Total row
+                total_row = "Total".ljust(6)
+                for band in sorted_bands:
+                    count = total_by_band[band]
+                    total_row += str(count).rjust(6) if count > 0 else "".rjust(6)
+                total_row += str(grand_total).rjust(8)
+                report_lines.append("-" * len(header))
+                report_lines.append(total_row)
+            else:
+                report_lines.append("")
+                report_lines.append("Worked Before (Wkb4): No data available")
+
+            # Entity Statistics Table
+            entity_data = merged_data.get('entity', {})
+            if entity_data:
+                report_lines.append("")
+                report_lines.append("Entities:")
+                
+                # Table header
+                header = "Year".ljust(6)
+                for band in sorted_bands:
+                    header += band.rjust(6)
+                header += "Total".rjust(8)
+                report_lines.append("-" * len(header))
+                report_lines.append(header)
+                report_lines.append("-" * len(header))
+                
+                # Table rows by year
+                total_by_band = {band: 0 for band in sorted_bands}
+                grand_total = 0
+                
+                for year in sorted(entity_data.keys()):
+                    row = year.ljust(6)
+                    year_total = 0
+                    for band in sorted_bands:
+                        count = len(entity_data[year].get(band, set()))
+                        row += str(count).rjust(6) if count > 0 else "".rjust(6)
+                        total_by_band[band] += count
+                        year_total += count
+                    row += str(year_total).rjust(8)
+                    grand_total += year_total
+                    report_lines.append(row)
+                
+                # Total row
+                total_row = "Total".ljust(6)
+                for band in sorted_bands:
+                    count = total_by_band[band]
+                    total_row += str(count).rjust(6) if count > 0 else "".rjust(6)
+                total_row += str(grand_total).rjust(8)
+                report_lines.append("-" * len(header))
+                report_lines.append(total_row)
+            else:
+                report_lines.append("")
+                report_lines.append("Entities: No data available")
+
+            # Grid Statistics Table (single row)
+            grid_data = merged_data.get('grid', {})
+            if grid_data:
+                report_lines.append("")
+                report_lines.append("Grids:")
+                
+                # Table header
+                header = "".ljust(6)  # No year column for grids
+                for band in sorted_bands:
+                    header += band.rjust(6)
+                header += "Total".rjust(8)
+                report_lines.append("-" * len(header))
+                report_lines.append(header)
+                report_lines.append("-" * len(header))
+                
+                # Single row with grid counts
+                row = "Grids".ljust(6)
+                total_grids = 0
+                for band in sorted_bands:
+                    count = len(grid_data.get(band, set()))
+                    row += str(count).rjust(6) if count > 0 else "".rjust(6)
+                    total_grids += count
+                row += str(total_grids).rjust(8)
+                report_lines.append(row)
+            else:
+                report_lines.append("")
+                report_lines.append("Grids: No data available")
+
+            # File summary
+            report_lines.append("")
+            report_lines.append(f"Monitored Files: {len(self.unique_file_paths)}")
+            for i, file_path in enumerate(self.unique_file_paths, 1):
+                file_name = os.path.basename(file_path)
+                status = "✓" if file_path in self.adif_data_by_file else "⏳"
+                report_lines.append(f"{i:2d}. {status} {file_name}")
+            
+            # Output as a single log message with proper formatting
+            log.info("\n".join(report_lines))
+            
+        except Exception as e:
+            log.error(f"Error generating ADIF statistics: {e}")
+
+    def log_statistics(self):
+        self._log_adif_statistics()
+
     def stop(self):
         log.info("Stopping ADIF monitor")
         self._running = False
@@ -225,6 +464,8 @@ class AdifMonitor:
             self.notify_callbacks()
             if not self.pending_tasks:
                 self.notify_processing_callbacks({'type': 'adif_processing_finished'})
+                # Show statistics after processing is complete
+                # self._log_adif_statistics()
     
     def check_processing_progress(self):
         """
