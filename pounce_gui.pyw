@@ -2604,7 +2604,7 @@ class MainApp(QtWidgets.QMainWindow):
         if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
             new_params = dialog.get_result()
         
-            previous_enable_pounce_log = self.enable_pounce_log
+            previous_enable_pounce_log              = self.enable_pounce_log
             self.enable_pounce_log                  = new_params.get('enable_pounce_log', True)
             self.enable_extra_gui_debug_output      = new_params.get('enable_extra_gui_debug_output', False)
 
