@@ -19,7 +19,7 @@ class AdifMonitor:
         self.adif_file_paths            = adif_file_paths if adif_file_paths else []
         self.adif_worked_callsigns_file = adif_worked_callsigns_file
 
-        log.error("ADIF monitor initialized with files: \n\t%s,\n\t%s", self.adif_file_paths, self.adif_worked_callsigns_file)
+        log.debug("ADIF monitor initialized with files: \n\t%s,\n\t%s", self.adif_file_paths, self.adif_worked_callsigns_file)
 
         # Get unique file paths to avoid duplicate processing
         self.unique_file_paths = []
@@ -394,10 +394,10 @@ class AdifMonitor:
                     
                     if last_mtime is None or current_mtime != last_mtime:
                         if file_path in self.pending_tasks:
-                            log.info(f"File changed while processing, skipping: {file_path}")
+                            log.debug(f"File changed while processing, skipping: {file_path}")
                             continue
                         
-                        log.info(f"File changed, queuing for processing: {file_path}")
+                        log.debug(f"File changed, queuing for processing: {file_path}")
                         self.adif_last_mtime[file_path] = current_mtime
                         
                         if (last_size is not None and 

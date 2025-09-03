@@ -260,30 +260,15 @@ class Listener(QObject):
             ODD                             : deque([set()], maxlen=2)
         }
 
-        server_message_error                = None
+        """
+            Start UDP server
+        """
         try:
-            self.s = pywsjtx.extra.simple_server.SimpleServer(
-                self.primary_udp_server_address,
-                self.primary_udp_server_port
-            )
-            if self.s.sock is not None:
-                self.s.sock.settimeout(1.0)
-            else:
-                server_message_error = f"Can't open socket for {self.primary_udp_server_address} using port {self.primary_udp_server_port}"
-                log.error(server_message_error)                
+            success = self.start_udp_server()
+            if not success:
                 self.stop()
-        except socket.error as e:
-            server_message_error = f"Error binding server to {self.primary_udp_server_address} using port {self.primary_udp_server_port}"
-            log.error(f'{server_message_error} - {e}')
-            if e.errno == 49:  
-                pass
+        except Exception:        
             raise
-
-        if server_message_error:
-            self.message_callback({
-                'type'              : 'gui_alert',
-                'formatted_message' : server_message_error
-            })
 
     def receive_packets(self):
         while self._running:
@@ -405,6 +390,68 @@ class Listener(QObject):
                 'type': 'error',
                 'message': error_message
             })           
+
+    def start_udp_server(
+            self,
+            new_address = None,
+            new_port    = None
+        ):
+        """
+            Start or restart the UDP server with address and port settings
+        """
+        try:
+            # Close existing server socket if it exists
+            if hasattr(self, 's') and self.s and self.s.sock:
+                log.info(f"Closing existing UDP server at {self.primary_udp_server_address}:{self.primary_udp_server_port}")
+                self.s.sock.close()
+                self.s = None
+            
+            # Update the address and port if provided
+            if new_address is not None:
+                self.primary_udp_server_address = new_address
+            if new_port is not None:
+                self.primary_udp_server_port = new_port
+            
+            # Create new server with updated settings
+            log.info(f"Starting UDP server at {self.primary_udp_server_address}:{self.primary_udp_server_port}")
+            self.s = pywsjtx.extra.simple_server.SimpleServer(
+                self.primary_udp_server_address,
+                self.primary_udp_server_port
+            )
+            if self.s.sock is not None:
+                self.s.sock.settimeout(1.0)
+                log.info(f"UDP server successfully started at {self.primary_udp_server_address}:{self.primary_udp_server_port}")
+            else:
+                error_message = f"Can't open socket for {self.primary_udp_server_address} using port {self.primary_udp_server_port}"
+                log.error(error_message)
+                if hasattr(self, 'message_callback'):
+                    self.message_callback({
+                        'type'              : 'gui_alert',
+                        'formatted_message' : error_message
+                    })
+                return False
+                
+        except socket.error as e:
+            error_message = f"Error binding server to {self.primary_udp_server_address} using port {self.primary_udp_server_port}: {e}"
+            log.error(error_message)
+            if hasattr(self, 'message_callback'):
+                self.message_callback({
+                    'type'              : 'gui_alert',
+                    'formatted_message' : error_message
+                })
+            if e.errno == 49:  
+                pass
+            raise
+        except Exception as e:
+            error_message = f"Unexpected error starting UDP server: {e}"
+            log.error(error_message)
+            if hasattr(self, 'message_callback'):
+                self.message_callback({
+                    'type'              : 'gui_alert',
+                    'formatted_message' : error_message
+                })
+            return False            
+        return True
 
     def update_listener_settings(self):
         self.wanted_callsigns       = self.monitoring_settings.get_wanted_callsigns()

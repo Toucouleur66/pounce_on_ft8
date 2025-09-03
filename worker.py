@@ -6,6 +6,7 @@ from PyQt6.QtCore import QObject, pyqtSignal, QTimer
 
 from wsjtx_listener import Listener
 from utils import get_local_ip_address
+
 from constants import (
     DEFAULT_UDP_PORT,
     DEFAULT_SECONDARY_UDP_SERVER,
@@ -201,8 +202,19 @@ class Worker(QObject):
 
     def update_listener_settings(self):
         if self.listener is not None:
-            self.listener.primary_udp_server_address            = self.primary_udp_server_address
-            self.listener.primary_udp_server_port               = self.primary_udp_server_port
+            # Check if UDP server settings have changed and restart if needed
+            udp_server_changed = (
+                self.listener.primary_udp_server_address != self.primary_udp_server_address or
+                self.listener.primary_udp_server_port != self.primary_udp_server_port
+            )
+            
+            if udp_server_changed:                
+                self.listener.start_udp_server(self.primary_udp_server_address, self.primary_udp_server_port)
+            else:
+                # Update settings normally if UDP server hasn't changed
+                self.listener.primary_udp_server_address            = self.primary_udp_server_address
+                self.listener.primary_udp_server_port               = self.primary_udp_server_port
+                
             self.listener.secondary_udp_server_address          = self.secondary_udp_server_address
             self.listener.secondary_udp_server_port             = self.secondary_udp_server_port
             self.listener.enable_secondary_udp_server           = self.enable_secondary_udp_server
@@ -231,7 +243,7 @@ class Worker(QObject):
             self.listener.priority_order                        = self.priority_order
             
             self.listener.update_listener_settings()
-            
+
             # Handle ADIF file paths update
             if hasattr(self.listener, 'adif_file_paths'):
                 current_file_paths = self.listener.adif_file_paths
