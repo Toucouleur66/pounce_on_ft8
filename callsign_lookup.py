@@ -27,6 +27,7 @@ class CallsignLookup:
         cache_file          = get_data_file_path("lookup_cache.json"),
         lotw_cache_file     = get_data_file_path("lotw_cache.json"),
         cty_dat_file        = get_data_file_path("CTY_WT_MOD.DAT"),
+        grids_file          = get_data_file_path("GRD_WP.txt"),
         cache_size         = 4_000,
         lookup_debug       = False
     ):
@@ -43,6 +44,7 @@ class CallsignLookup:
         self.cq_zones_file_path   = cq_zones_file_path
         self.cache_file           = cache_file
         self.lotw_cache_file      = lotw_cache_file
+        self.grids_file           = grids_file
         self._cache_dirty         = False
         self.cty_dat_file         = cty_dat_file
 
@@ -56,6 +58,7 @@ class CallsignLookup:
         self.cache               = OrderedDict()
         self.zone_polygons       = []
         self.lotw_cache          = {}
+        self.grids_cache         = {}
 
         self.cache_lock          = threading.Lock()
         self.zone_polygons       = self.load_cq_zones(self.cq_zones_file_path)
@@ -68,6 +71,7 @@ class CallsignLookup:
         
         self.load_cache_from_disk()
         self.load_lotw_cache()
+        self.load_grids_file()
 
     def load_cache_from_disk(self):
         if not os.path.exists(self.cache_file):
@@ -105,6 +109,37 @@ class CallsignLookup:
         except Exception as e:
             log.error(f"Failed to load LoTW cache file '{self.lotw_cache_file}': {e}")
             self.lotw_cache = {}
+
+    def load_grids_file(self):
+        """
+            Load callsign/grid pairs from callsigns_grids.txt file
+        """
+        if not os.path.exists(self.grids_file):
+            log.info(f"Grids file '{self.grids_file}' does not exist. Skipping load.")
+            return
+
+        try:
+            with open(self.grids_file, "r", encoding="utf-8") as f:
+                for line_num, line in enumerate(f, 1):
+                    line = line.strip()
+                    if not line or ',' not in line:
+                        continue
+                    
+                    try:
+                        callsign, grid = line.split(',', 1)
+                        callsign = callsign.strip().upper()
+                        grid = grid.strip()
+                        
+                        if callsign and grid:
+                            self.grids_cache[callsign] = grid
+                    except ValueError:
+                        log.warning(f"Invalid line {line_num} in {self.grids_file}: {line}")
+                        continue
+
+            log.info(f"File {self.grids_file} loading is complete with {len(self.grids_cache):,} grid entries.")                
+        except Exception as e:
+            log.error(f"Failed to load grids file '{self.grids_file}': {e}")
+            self.grids_cache = {}
 
     def save_cache(self):
         data_to_save = {}
@@ -777,6 +812,32 @@ class CallsignLookup:
                 new_zone = self.grid_to_cq_zone(grid)
                 if new_zone is not None and result.get("cqz") != new_zone:
                     result["cqz"] = new_zone
+            elif not grid and result and "grid" not in result and callsign in self.grids_cache:
+                # Use grid from grids_cache as fallback when no grid is provided
+                cached_grid = self.grids_cache[callsign]
+                result["grid"] = cached_grid
+                result["grid_updated"] = date.strftime("%Y-%m-%d")
+                result["grid_source"] = "grids_file"
+                new_zone = self.grid_to_cq_zone(cached_grid)
+                if new_zone is not None and result.get("cqz") != new_zone:
+                    result["cqz"] = new_zone
+                if self.lookup_debug:
+                    log.debug(f"Used grid {cached_grid} from grids file for {callsign}")
+            elif not grid and result and "grid" not in result and result.get("lat") is not None and result.get("long") is not None:
+                # Calculate 4-character grid from lat/lon as final fallback
+                try:
+                    guessed_grid = latlon_to_grid(result.get('lat'), result.get('long'))[:4]
+                    result["grid"] = guessed_grid
+                    result["grid_updated"] = date.strftime("%Y-%m-%d")
+                    result["grid_source"] = "guessed"
+                    new_zone = self.grid_to_cq_zone(guessed_grid)
+                    if new_zone is not None and result.get("cqz") != new_zone:
+                        result["cqz"] = new_zone
+                    if self.lookup_debug:
+                        log.debug(f"Used guessed grid {guessed_grid} from lat/lon for {callsign}")
+                except Exception as e:
+                    if self.lookup_debug:
+                        log.debug(f"Failed to calculate guessed grid for {callsign}: {e}")
 
             # Add LoTW information if available
             if callsign in self.lotw_cache:
@@ -806,13 +867,34 @@ class CallsignLookup:
                 new_zone = self.grid_to_cq_zone(grid)
                 if new_zone is not None and result.get("cqz") != new_zone:
                     result["cqz"] = new_zone
-            elif result.get("lat") is not None and result.get("long") is not None:
-                # Calculate grid from lat/lon if not provided
+            elif "grid" not in result and callsign in self.grids_cache:
+                # Use grid from grids_cache as fallback
+                cached_grid = self.grids_cache[callsign]
+                result["grid"] = cached_grid
+                if date:
+                    result["grid_updated"] = date.strftime("%Y-%m-%d")
+                result["grid_source"] = "grids_file"
+                new_zone = self.grid_to_cq_zone(cached_grid)
+                if new_zone is not None and result.get("cqz") != new_zone:
+                    result["cqz"] = new_zone
+                if self.lookup_debug:
+                    log.debug(f"Used grid {cached_grid} from grids file for {callsign}")
+            elif "grid" not in result and result.get("lat") is not None and result.get("long") is not None:
+                # Calculate 4-character grid from lat/lon as final fallback
                 try:
-                    calculated_grid = latlon_to_grid(result["lat"], result["long"])
-                    result["grid"] = calculated_grid
-                except:
-                    pass
+                    guessed_grid = latlon_to_grid(result["lat"], result["long"])[:4]
+                    result["grid"] = guessed_grid
+                    if date:
+                        result["grid_updated"] = date.strftime("%Y-%m-%d")
+                    result["grid_source"] = "guessed"
+                    new_zone = self.grid_to_cq_zone(guessed_grid)
+                    if new_zone is not None and result.get("cqz") != new_zone:
+                        result["cqz"] = new_zone
+                    if self.lookup_debug:
+                        log.debug(f"Used guessed grid {guessed_grid} from lat/lon for {callsign}")
+                except Exception as e:
+                    if self.lookup_debug:
+                        log.debug(f"Failed to calculate guessed grid for {callsign}: {e}")
             
             # Try to add entity_code from ClubLog entities if not present
             if "entity_code" not in result or result["entity_code"] is None:
@@ -832,12 +914,34 @@ class CallsignLookup:
                 new_zone = self.grid_to_cq_zone(grid)
                 if new_zone is not None and result.get("cqz") != new_zone:
                     result["cqz"] = new_zone
-            elif result.get("lat") is not None and result.get("long") is not None:
+            elif "grid" not in result and callsign in self.grids_cache:
+                # Use grid from grids_cache as fallback
+                cached_grid = self.grids_cache[callsign]
+                result["grid"] = cached_grid
+                if date:
+                    result["grid_updated"] = date.strftime("%Y-%m-%d")
+                result["grid_source"] = "grids_file"
+                new_zone = self.grid_to_cq_zone(cached_grid)
+                if new_zone is not None and result.get("cqz") != new_zone:
+                    result["cqz"] = new_zone
+                if self.lookup_debug:
+                    log.debug(f"Used grid {cached_grid} from grids file for {callsign}")
+            elif "grid" not in result and result.get("lat") is not None and result.get("long") is not None:
+                # Calculate 4-character grid from lat/lon as final fallback
                 try:
-                    calculated_grid = latlon_to_grid(result["lat"], result["long"])
-                    result["grid"] = calculated_grid
-                except:
-                    pass
+                    guessed_grid = latlon_to_grid(result["lat"], result["long"])[:4]
+                    result["grid"] = guessed_grid
+                    if date:
+                        result["grid_updated"] = date.strftime("%Y-%m-%d")
+                    result["grid_source"] = "guessed"
+                    new_zone = self.grid_to_cq_zone(guessed_grid)
+                    if new_zone is not None and result.get("cqz") != new_zone:
+                        result["cqz"] = new_zone
+                    if self.lookup_debug:
+                        log.debug(f"Used guessed grid {guessed_grid} from lat/lon for {callsign}")
+                except Exception as e:
+                    if self.lookup_debug:
+                        log.debug(f"Failed to calculate guessed grid for {callsign}: {e}")
             
             # Try to add entity_code from ClubLog entities if not present
             if "entity_code" not in result or result["entity_code"] is None:
@@ -858,13 +962,34 @@ class CallsignLookup:
                     new_zone = self.grid_to_cq_zone(grid)
                     if new_zone is not None and result.get("cqz") != new_zone:
                         result["cqz"] = new_zone
-                elif result.get("lat") is not None and result.get("long") is not None:
-                    # Calculate grid from lat/lon if not provided
+                elif "grid" not in result and callsign in self.grids_cache:
+                    # Use grid from grids_cache as fallback
+                    cached_grid = self.grids_cache[callsign]
+                    result["grid"] = cached_grid
+                    if date:
+                        result["grid_updated"] = date.strftime("%Y-%m-%d")
+                    result["grid_source"] = "grids_file"
+                    new_zone = self.grid_to_cq_zone(cached_grid)
+                    if new_zone is not None and result.get("cqz") != new_zone:
+                        result["cqz"] = new_zone
+                    if self.lookup_debug:
+                        log.debug(f"Used grid {cached_grid} from grids file for {callsign}")
+                elif "grid" not in result and result.get("lat") is not None and result.get("long") is not None:
+                    # Calculate 4-character grid from lat/lon as final fallback
                     try:
-                        calculated_grid = latlon_to_grid(result["lat"], result["long"])
-                        result["grid"] = calculated_grid
-                    except:
-                        pass
+                        guessed_grid = latlon_to_grid(result["lat"], result["long"])[:4]
+                        result["grid"] = guessed_grid
+                        if date:
+                            result["grid_updated"] = date.strftime("%Y-%m-%d")
+                        result["grid_source"] = "guessed"
+                        new_zone = self.grid_to_cq_zone(guessed_grid)
+                        if new_zone is not None and result.get("cqz") != new_zone:
+                            result["cqz"] = new_zone
+                        if self.lookup_debug:
+                            log.debug(f"Used guessed grid {guessed_grid} from lat/lon for {callsign}")
+                    except Exception as e:
+                        if self.lookup_debug:
+                            log.debug(f"Failed to calculate guessed grid for {callsign}: {e}")
                 
                 # Try to add ADIF number from ClubLog entities if not present
                 if "entity_code" not in result or result["entity_code"] is None:

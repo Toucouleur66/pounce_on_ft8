@@ -22,7 +22,7 @@ from logger import get_logger
 
 from utils import get_local_ip_address, get_mode_interval, get_amateur_band, parse_wsjtx_message
 from utils import get_wkb4_year, is_entity_worked_b4, get_clean_rst
-from utils import is_valid_continent
+from utils import is_valid_continent, is_valid_grid
 from utils import load_marathon_wanted_data, save_marathon_wanted_data
 
 from callsign_lookup import CallsignLookup
@@ -1118,7 +1118,7 @@ class Listener(QObject):
                     self.enable_grid_tracker 
                     and self.adif_data.get('grid')
                     and not callsign_wkb4 
-                    and grid 
+                    and is_valid_grid(grid, callsign_info)
                     and not (wanted and wanted_cq_zone)
                     and self.grid_tracker_preference.get(self.band)
                     and grid not in self.adif_data.get('grid', {}).get(self.band, {})
@@ -1798,32 +1798,35 @@ class Listener(QObject):
             wkb4_year,
             entity_code,
             current_year
-        ):
+        ):        
         marathon = False
 
-        if callsign_wkb4 and self.worked_before_preference == WKB4_REPLY_MODE_NEVER:
-            log.warning(f"Skipping [ {callsign} ] as it is wkb4 [ {wkb4_year}]")
-        else:                        
-            if callsign in self.wanted_callsigns_per_entity.get(self.band, {}).get(entity_code, {}):
-                marathon = True
-            elif ((   
-                    self.marathon_preference.get(self.band) and
-                    entity_code not in self.adif_data.get('entity', {}).get(current_year, {}).get(self.band, {}) 
-                ) or (
-                    self.marathon_preference.get(MARATHON_UNLIMITED) and 
-                    not is_entity_worked_b4(self.adif_data, entity_code, current_year)
-                )):
-                marathon = True
+        if (
+            self.marathon_preference.get(self.band) or
+            self.marathon_preference.get(MARATHON_UNLIMITED)
+        ):            
+            if callsign_wkb4 and self.worked_before_preference == WKB4_REPLY_MODE_NEVER:
+                log.warning(f"Skipping [ {callsign} ] as it is wkb4 [ {wkb4_year}]")
+            else:                        
+                if callsign in self.wanted_callsigns_per_entity.get(self.band, {}).get(entity_code, {}):
+                    marathon = True
+                elif (
+                        entity_code not in self.adif_data.get('entity', {}).get(current_year, {}).get(self.band, {}) 
+                    or (
+                        self.marathon_preference.get(MARATHON_UNLIMITED) and 
+                        not is_entity_worked_b4(self.adif_data, entity_code, current_year)
+                    )):
+                    marathon = True
 
-                if not self.wanted_callsigns_per_entity.get(self.band):
-                    self.wanted_callsigns_per_entity[self.band] = {}
+                    if not self.wanted_callsigns_per_entity.get(self.band):
+                        self.wanted_callsigns_per_entity[self.band] = {}
 
-                if not self.wanted_callsigns_per_entity[self.band].get(entity_code):
-                    self.wanted_callsigns_per_entity[self.band][entity_code] = []
+                    if not self.wanted_callsigns_per_entity[self.band].get(entity_code):
+                        self.wanted_callsigns_per_entity[self.band][entity_code] = []
 
-                if callsign not in self.wanted_callsigns_per_entity[self.band][entity_code]:
-                    self.wanted_callsigns_per_entity[self.band][entity_code].append(callsign)
-                    # save_marathon_wanted_data(MARATHON_FILE, self.wanted_callsigns_per_entity)
+                    if callsign not in self.wanted_callsigns_per_entity[self.band][entity_code]:
+                        self.wanted_callsigns_per_entity[self.band][entity_code].append(callsign)
+                        # save_marathon_wanted_data(MARATHON_FILE, self.wanted_callsigns_per_entity)
 
         if marathon:         
             log.warning(f"Found [ {callsign} ] for marathon [ {entity_code} ]")                           

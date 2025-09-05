@@ -257,17 +257,6 @@ def parse_single_wsjtx_message(
         """
         
         """
-            Check if no grid is provided
-        """
-        if (
-            not grid and 
-            callsign_info and
-            callsign_info.get('lat') and
-            callsign_info.get('long')
-        ):
-            grid = latlon_to_grid(callsign_info.get('lat'), callsign_info.get('long'))[:4]    
-        
-        """
             Check if CQ Zone matches
         """
         is_wanted_cq_zone        = False
@@ -393,6 +382,18 @@ def is_exact_match(patterns, callsign):
 def is_valid_continent(continent):
     valid_continents = {"EU", "NA", "OC", "SA", "AS"}
     return continent in valid_continents
+
+def is_valid_grid(grid, callsign_info):
+    """
+        Check if the provided grid is valid based on the callsign information
+    """
+    if not grid or not callsign_info:
+        return False
+
+    if grid and callsign_info.get("grid_source", None) == 'guessed':
+        return False
+
+    return True
 
 def has_valid_suffix(callsign):
     """
