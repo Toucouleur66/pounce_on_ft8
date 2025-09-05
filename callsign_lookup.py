@@ -730,6 +730,7 @@ class CallsignLookup:
                     if grid and cached_result:                    
                         cached_result["grid"] = grid
                         cached_result["grid_updated"] = date.strftime("%Y-%m-%d")
+                        cached_result["grid_source"] = "provided"
                         new_zone = self.grid_to_cq_zone(grid)
                         if new_zone is not None:
                             if cached_result.get("cqz") != new_zone:
@@ -770,6 +771,7 @@ class CallsignLookup:
                         if grid and result:
                             result["grid"] = grid
                             result["grid_updated"] = date.strftime("%Y-%m-%d")
+                            result["grid_source"] = "provided"
                             new_zone = self.grid_to_cq_zone(grid)
                             if new_zone is not None and result.get("cqz") != new_zone:
                                 result["cqz"] = new_zone
@@ -809,6 +811,7 @@ class CallsignLookup:
             if grid and result:
                 result["grid"] = grid
                 result["grid_updated"] = date.strftime("%Y-%m-%d")
+                result["grid_source"] = "provided"
                 new_zone = self.grid_to_cq_zone(grid)
                 if new_zone is not None and result.get("cqz") != new_zone:
                     result["cqz"] = new_zone
@@ -817,7 +820,7 @@ class CallsignLookup:
                 cached_grid = self.grids_cache[callsign]
                 result["grid"] = cached_grid
                 result["grid_updated"] = date.strftime("%Y-%m-%d")
-                result["grid_source"] = "grids_file"
+                result["grid_source"] = "cache"
                 new_zone = self.grid_to_cq_zone(cached_grid)
                 if new_zone is not None and result.get("cqz") != new_zone:
                     result["cqz"] = new_zone
@@ -862,6 +865,7 @@ class CallsignLookup:
             # Update with provided grid if available
             if grid:
                 result["grid"] = grid
+                result["grid_source"] = "provided"
                 if date:
                     result["grid_updated"] = date.strftime("%Y-%m-%d")
                 new_zone = self.grid_to_cq_zone(grid)
@@ -873,7 +877,7 @@ class CallsignLookup:
                 result["grid"] = cached_grid
                 if date:
                     result["grid_updated"] = date.strftime("%Y-%m-%d")
-                result["grid_source"] = "grids_file"
+                result["grid_source"] = "cache"
                 new_zone = self.grid_to_cq_zone(cached_grid)
                 if new_zone is not None and result.get("cqz") != new_zone:
                     result["cqz"] = new_zone
@@ -909,6 +913,7 @@ class CallsignLookup:
             # Update with provided grid if available
             if grid:
                 result["grid"] = grid
+                result["grid_source"] = "provided"
                 if date:
                     result["grid_updated"] = date.strftime("%Y-%m-%d")
                 new_zone = self.grid_to_cq_zone(grid)
@@ -920,7 +925,7 @@ class CallsignLookup:
                 result["grid"] = cached_grid
                 if date:
                     result["grid_updated"] = date.strftime("%Y-%m-%d")
-                result["grid_source"] = "grids_file"
+                result["grid_source"] = "cache"
                 new_zone = self.grid_to_cq_zone(cached_grid)
                 if new_zone is not None and result.get("cqz") != new_zone:
                     result["cqz"] = new_zone
@@ -957,6 +962,7 @@ class CallsignLookup:
                 # Update with provided grid if available
                 if grid:
                     result["grid"] = grid
+                    result["grid_source"] = "provided"
                     if date:
                         result["grid_updated"] = date.strftime("%Y-%m-%d")
                     new_zone = self.grid_to_cq_zone(grid)
@@ -968,7 +974,7 @@ class CallsignLookup:
                     result["grid"] = cached_grid
                     if date:
                         result["grid_updated"] = date.strftime("%Y-%m-%d")
-                    result["grid_source"] = "grids_file"
+                    result["grid_source"] = "cache"
                     new_zone = self.grid_to_cq_zone(cached_grid)
                     if new_zone is not None and result.get("cqz") != new_zone:
                         result["cqz"] = new_zone
