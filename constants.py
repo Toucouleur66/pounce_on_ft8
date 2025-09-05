@@ -68,8 +68,9 @@ STATUS_COLOR_LABEL_SELECTED     = "#808080"
 
 SAVED_VERSION_FILE              = os.path.join(get_app_data_dir(), "app_version.json")
 MARATHON_FILE                   = os.path.join(get_app_data_dir(), "marathon.json")
-PARAMS_FILE                     = os.path.join(get_app_data_dir(), "params.pkl")
-POSITION_FILE                   = os.path.join(get_app_data_dir(), "window_position.pkl")
+PARAMS_FILE                     = os.path.join(get_app_data_dir(), "params.json")
+PARAMS_FILE_LEGACY              = os.path.join(get_app_data_dir(), "params.pkl")
+POSITION_FILE                   = os.path.join(get_app_data_dir(), "window_position.json")
 WORKED_CALLSIGNS_FILE           = os.path.join(get_app_data_dir(), "worked_callsigns.pkl")
 ADIF_WORKED_CALLSIGNS_FILE      = os.path.join(get_app_data_dir(), "wait_pounce_log.adif")
 

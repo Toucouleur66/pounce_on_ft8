@@ -12,6 +12,7 @@ import platform
 import re
 import sys
 import pickle
+import json
 import os
 import threading
 import pyperclip
@@ -106,6 +107,7 @@ from constants import (
     ACTION_RESTART,
     # Parameters
     PARAMS_FILE,
+    PARAMS_FILE_LEGACY,
     POSITION_FILE,
     WORKED_CALLSIGNS_FILE,
     # Labels
@@ -2741,32 +2743,96 @@ class MainApp(QtWidgets.QMainWindow):
 
     def save_unique_param(self, key, value):
         """
-        frame = inspect.currentframe()
-        try:
-            caller = frame.f_back
-            co_name = caller.f_code.co_name        
-            log.warning(f"save_unique_param: '{co_name}' from '{caller}'")
-        finally:
-            del frame
+            frame = inspect.currentframe()
+            try:
+                caller = frame.f_back
+                co_name = caller.f_code.co_name        
+                log.warning(f"save_unique_param: '{co_name}' from '{caller}'")
+            finally:
+                del frame
         """
 
         params      = self.load_params()
         params[key] = value
         self.save_params(params)  
 
+    def _prepare_params_for_json(self, params):
+        """
+            Convert any non-JSON serializable objects to JSON-compatible format
+        """
+        json_params = {}
+        for key, value in params.items():
+            try:
+                json.dumps(value)
+                json_params[key] = value
+            except (TypeError, ValueError):
+                if hasattr(value, '__dict__'):
+                    json_params[key] = str(value)
+                else:
+                    json_params[key] = str(value)
+                log.warning(f"Parameter '{key}' converted to string for JSON serialization")
+        return json_params
+
     def save_params(self, params):
-        with open(PARAMS_FILE, "wb") as f:
-            pickle.dump(params, f)
+        try:
+            json_params = self._prepare_params_for_json(params)
+            with open(PARAMS_FILE, "w", encoding='utf-8') as f:
+                json.dump(json_params, f, indent=2, ensure_ascii=False)
+            log.info(f"Parameters saved to {PARAMS_FILE}")
+        except Exception as e:
+            log.error(f"Error saving parameters to JSON: {e}")
+            # Fallback to pickle format
+            try:
+                with open(PARAMS_FILE_LEGACY, "wb") as f:
+                    pickle.dump(params, f)
+                log.warning(f"Parameters saved to legacy format {PARAMS_FILE_LEGACY}")
+            except Exception as pickle_error:
+                log.error(f"Error saving parameters to pickle: {pickle_error}")
+                raise
 
     def load_params(self):
+        # Try to load JSON format first (new format)
         if os.path.exists(PARAMS_FILE):
             try:
-                with open(PARAMS_FILE, "rb") as f:
-                    return pickle.load(f)
-            except (EOFError, pickle.UnpicklingError):
-                log.error(f"Warning: {PARAMS_FILE} is empty or corrupted. Deleting it.")
-                os.remove(PARAMS_FILE) 
-                return {}
+                with open(PARAMS_FILE, "r", encoding='utf-8') as f:
+                    params = json.load(f)
+                log.info(f"Parameters loaded from {PARAMS_FILE}")
+                return params
+            except (json.JSONDecodeError, UnicodeDecodeError) as e:
+                log.error(f"Error loading JSON parameters from {PARAMS_FILE}: {e}")
+                # Try to delete corrupted JSON file
+                try:
+                    os.remove(PARAMS_FILE)
+                    log.warning(f"Corrupted JSON file {PARAMS_FILE} deleted")
+                except OSError:
+                    pass
+        
+        # Fallback to legacy pickle format for backward compatibility
+        if os.path.exists(PARAMS_FILE_LEGACY):
+            try:
+                with open(PARAMS_FILE_LEGACY, "rb") as f:
+                    params = pickle.load(f)
+                log.info(f"Parameters loaded from legacy format {PARAMS_FILE_LEGACY}")
+                
+                # Migrate to JSON format and save
+                try:
+                    self.save_params(params)
+                    log.info(f"Parameters migrated from legacy format to JSON")
+                    # Optionally remove legacy file after successful migration
+                    # os.remove(PARAMS_FILE_LEGACY)
+                except Exception as e:
+                    log.warning(f"Could not migrate parameters to JSON format: {e}")
+                
+                return params
+            except (EOFError, pickle.UnpicklingError) as e:
+                log.error(f"Error loading legacy parameters from {PARAMS_FILE_LEGACY}: {e}")
+                try:
+                    os.remove(PARAMS_FILE_LEGACY)
+                    log.warning(f"Corrupted legacy file {PARAMS_FILE_LEGACY} deleted")
+                except OSError:
+                    pass
+        
+        log.info("No valid configuration file found, using default parameters")
         return {}
     
     def clear_worked_callsigns(self):
