@@ -233,19 +233,18 @@ class Listener(QObject):
 
         """
             Check ADIF file to handle Worked B4 
-        """
-        if adif_file_paths:            
-            self.adif_monitor               = AdifMonitor(adif_file_paths, ADIF_WORKED_CALLSIGNS_FILE)
-            if (
-                self.enable_marathon and 
-                lookup
-            ):
-                self.wanted_callsigns_per_entity = load_marathon_wanted_data(MARATHON_FILE)
-                # register_lookup allow us to get adif data per band, year and entity
-                self.adif_monitor.register_lookup(lookup)
-            self.adif_monitor.start()
-            self.adif_monitor.register_callback(self.update_adif_data)
-            self.adif_monitor.register_processing_callback(self.update_adif_processing_status)
+        """          
+        self.adif_monitor               = AdifMonitor(adif_file_paths, ADIF_WORKED_CALLSIGNS_FILE)
+        if (
+            self.enable_marathon and 
+            lookup
+        ):
+            self.wanted_callsigns_per_entity = load_marathon_wanted_data(MARATHON_FILE)
+            # register_lookup allow us to get adif data per band, year and entity
+            self.adif_monitor.register_lookup(lookup)
+        self.adif_monitor.start()
+        self.adif_monitor.register_callback(self.update_adif_data)
+        self.adif_monitor.register_processing_callback(self.update_adif_processing_status)
         
         """
             Use ADIF file to log        
