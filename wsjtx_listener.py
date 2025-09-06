@@ -213,7 +213,8 @@ class Listener(QObject):
         self.minimum_report_for_reply       = minimum_report_for_reply
 
         self.adif_data                      = {} 
-        self.adif_monitor                   = None          
+        self.adif_monitor                   = None    
+        self.adif_file_paths                 = adif_file_paths or []      
 
         self._running                       = True     
         
@@ -470,6 +471,7 @@ class Listener(QObject):
         log_output = []
         log_output.append(f"Updated settings (~{CURRENT_VERSION_NUMBER}):")
         log_output.append(f"Instance={self._instance}")
+        log_output.append(f"AdifFiles={self.adif_file_paths}")
         log_output.append(f"MyCall={self.my_call}")
         log_output.append(f"EnableSendingReply={self.enable_sending_reply}")    
         log_output.append(f"Band={self.band}")   
