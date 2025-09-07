@@ -36,7 +36,7 @@ class ExclusionDialog(QtWidgets.QDialog):
         layout.addWidget(notice_label)
         
         # Time selector using CustomButton row
-        time_label = QtWidgets.QLabel("Exclusion time")
+        time_label = QtWidgets.QLabel(f"Exclusion time for <b>{self.callsign}</b>")
         time_label.setFont(CUSTOM_FONT_SMALL)
         layout.addWidget(time_label)
         
@@ -47,7 +47,8 @@ class ExclusionDialog(QtWidgets.QDialog):
             ("10 min", 10), 
             ("1 hour", 60),
             ("1 day", 1440),
-            ("1 week", 10080)
+            ("1 week", 10080),
+            ("1 month", 43200)
         ]
         
         self.time_buttons = []
@@ -81,10 +82,14 @@ class ExclusionDialog(QtWidgets.QDialog):
         
         layout.addLayout(button_layout)
         
-        # OK and Cancel buttons
+        first_separator = QtWidgets.QFrame()
+        first_separator.setFrameShape(QtWidgets.QFrame.Shape.HLine)
+        first_separator.setFrameShadow(QtWidgets.QFrame.Shadow.Sunken)
+        layout.addWidget(first_separator)
+
         button_layout = QtWidgets.QHBoxLayout()
-        cancel_button = QtWidgets.QPushButton("Cancel")
-        ok_button = QtWidgets.QPushButton("OK")
+        cancel_button = CustomButton("Cancel")
+        ok_button = CustomButton("OK")
         
         cancel_button.clicked.connect(self.reject)
         ok_button.clicked.connect(self.accept)

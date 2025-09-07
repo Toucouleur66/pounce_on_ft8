@@ -3,6 +3,7 @@ import platform
 
 from PyQt6 import QtWidgets, QtCore, QtGui
 from PyQt6.QtGui import QTextDocument
+from datetime import datetime
 
 from constants import (
     CUSTOM_FONT,
@@ -304,3 +305,87 @@ class ToolTip(QtWidgets.QWidget):
             self.tooltip_window = None
         
         TooltipManager.hide_current_tooltip()
+
+class ExcludedCallsignsToolTip(ToolTip):
+    def __init__(
+            self,
+            widget,
+            source_widget = None,
+            default_text  = '',
+            main_window   = None,
+            band          = None,
+            bg_color      = None,
+            fg_color      = None
+        ):
+        super().__init__(widget, source_widget, default_text, "excluded_callsigns", bg_color, fg_color)
+        self.main_window = main_window
+        self.band = band
+    
+    def get_time_remaining_for_callsign(self, callsign):
+        if not self.main_window or not self.band:
+            return None
+            
+        temp_excluded = getattr(self.main_window, 'temp_excluded_callsigns', {})
+        
+        if self.band not in temp_excluded:
+            return None
+        
+        callsign_upper = callsign.upper()
+        if callsign_upper not in temp_excluded[self.band]:
+            return None
+            
+        expiration_time = temp_excluded[self.band][callsign_upper]
+        current_time = datetime.now()
+        
+        if current_time >= expiration_time:
+            return None  # Already expired
+            
+        time_remaining = expiration_time - current_time
+        
+        # Convert to appropriate units
+        total_minutes = int(time_remaining.total_seconds() // 60)
+        
+        if total_minutes < 60:
+            return f"{total_minutes} min"
+        elif total_minutes < 1440:  # Less than 24 hours
+            hours = total_minutes // 60
+            return f"{hours}h"
+        elif total_minutes < 10080:  # Less than 7 days
+            days = total_minutes // 1440
+            return f"{days}d"
+        else:  # 7 days or more
+            weeks = total_minutes // 10080
+            return f"{weeks}w"
+    
+    def _show_tooltip_delayed(self):
+        if not self.mouse_over or not TooltipManager.is_app_active():
+            return
+            
+        if hasattr(self.source_widget, 'text'):
+            raw_text = self.source_widget.text()
+        else:
+            raw_text = self.default_text
+        
+        if not raw_text:
+            return
+
+        text_parts = [part.strip() for part in raw_text.split(",") if part.strip()]
+        
+        # Add time remaining for temporarily excluded callsigns
+        enhanced_parts = []
+        for callsign in text_parts:
+            time_remaining = self.get_time_remaining_for_callsign(callsign)
+            if time_remaining:
+                enhanced_parts.append(f"{callsign} ({time_remaining} left)")
+            else:
+                enhanced_parts.append(callsign)
+        
+        tooltip_text = "<br/>".join(sorted(enhanced_parts))
+            
+        if self.mouse_over:
+            if self.tooltip_window:
+                self.tooltip_window.hideToolTip()
+            
+            self.tooltip_window = CustomToolTip(tooltip_text, self.tooltip_type, self.bg_color, self.fg_color)
+            TooltipManager.set_current_tooltip(self.tooltip_window)
+            self.tooltip_window.showToolTip()

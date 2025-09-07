@@ -44,7 +44,7 @@ from color_row_delegate import ColorRowDelegate
 from search_field_input import SearchFilterInput
 from tray_icon import TrayIcon
 from activity_bar import ActivityBar
-from tooltip import ToolTip
+from tooltip import ToolTip, ExcludedCallsignsToolTip
 from worker import Worker
 from monitoring_setting import MonitoringSettings
 from theme_manager import ThemeManager
@@ -910,7 +910,17 @@ class MainApp(QtWidgets.QMainWindow):
                 line_label.setMinimumWidth(100)
 
                 # Use appropriate tooltip type based on field name
-                if variable_info['name'] in ['excluded_callsigns', 'excluded_cq_zones']:
+                if variable_info['name'] == 'excluded_callsigns':
+                    tooltip_wanted_dict[variable_info['name']][amateur_band] = ExcludedCallsignsToolTip(
+                        line_label, 
+                        source_widget=line_edit, 
+                        default_text=CALLSIGN_NOTICE_LABEL,
+                        main_window=self,
+                        band=amateur_band,
+                        bg_color=BG_COLOR_REGULAR_FOCUS,
+                        fg_color=FG_COLOR_REGULAR_FOCUS
+                    )
+                elif variable_info['name'] == 'excluded_cq_zones':
                     tooltip_wanted_dict[variable_info['name']][amateur_band] = ToolTip(
                         line_label, 
                         source_widget=line_edit, 
@@ -2190,19 +2200,19 @@ class MainApp(QtWidgets.QMainWindow):
         self.message_buffer = deque()
 
     def add_callsign_to_temp_exclusion(self, callsign, exclusion_minutes):
-        if not self.operating_band:
+        if not self.gui_selected_band:
             return
-        
-        if self.operating_band not in self.temp_excluded_callsigns:
-            self.temp_excluded_callsigns[self.operating_band] = {}
-        
+
+        if self.gui_selected_band not in self.temp_excluded_callsigns:
+            self.temp_excluded_callsigns[self.gui_selected_band] = {}
+
         current_time = datetime.now()
         expiration_time = current_time + timedelta(minutes=exclusion_minutes)
-        self.temp_excluded_callsigns[self.operating_band][callsign.upper()] = expiration_time
-        
+        self.temp_excluded_callsigns[self.gui_selected_band][callsign.upper()] = expiration_time
+
         # Also add to the permanent excluded list
-        self.update_var(self.excluded_callsigns_vars[self.operating_band], callsign, "add")
-        
+        self.update_var(self.excluded_callsigns_vars[self.gui_selected_band], callsign, "add")
+
         # Save to file
         self.save_temp_excluded_callsigns()
 
@@ -2921,7 +2931,6 @@ class MainApp(QtWidgets.QMainWindow):
             pickle.dump(self.worked_callsigns_history, f)
 
     def save_temp_excluded_callsigns(self):
-        """Save temporary excluded callsigns to file"""
         try:
             with open(TEMP_EXCLUDED_CALLSIGNS_FILE, "wb") as f:
                 pickle.dump(self.temp_excluded_callsigns, f)
@@ -2929,7 +2938,6 @@ class MainApp(QtWidgets.QMainWindow):
             log.error(f"Error saving temporary excluded callsigns: {e}")
 
     def load_temp_excluded_callsigns(self):
-        """Load temporary excluded callsigns from file"""
         if os.path.exists(TEMP_EXCLUDED_CALLSIGNS_FILE):
             try:
                 if os.path.getsize(TEMP_EXCLUDED_CALLSIGNS_FILE) > 0:
