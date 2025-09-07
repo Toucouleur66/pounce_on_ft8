@@ -79,6 +79,7 @@ from constants import (
     CURRENT_VERSION_NUMBER,
     MASTER,
     SLAVE,
+    PRIORITY_LIST,
     # Colors
     EVEN_COLOR,
     ODD_COLOR,
