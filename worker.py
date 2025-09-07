@@ -240,7 +240,8 @@ class Worker(QObject):
             self.listener.grid_tracker_preference               = self.grid_tracker_preference
             self.listener.worked_before_preference              = self.worked_before_preference
             self.listener.minimum_report_for_reply              = self.minimum_report_for_reply
-            self.listener.priority_order                        = self.priority_order
+            if self.priority_order is not None:
+                self.listener.priority_order                    = self.priority_order
             
             self.listener.update_listener_settings()
 
