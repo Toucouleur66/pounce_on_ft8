@@ -52,6 +52,7 @@ from clublog import ClubLogManager
 from lotw_manager import LoTWManager
 from country_files import CountryFilesManager
 from setting_dialog import SettingsDialog
+from exclusion_dialog import ExclusionDialog
 from updater import Updater, UpdateManager
 from raw_data_model import RawDataModel
 from raw_data_filter_proxy_model import RawDataFilterProxyModel
@@ -91,8 +92,6 @@ from constants import (
     FG_COLOR_BLACK_ON_YELLOW,
     BG_COLOR_WHITE_ON_BLUE,
     FG_COLOR_BLACK_ON_WHITE,
-    BG_COLOR_BLACK_ON_LIGHT_BLUE,
-    FG_COLOR_BLACK_ON_LIGHT_BLUE,
     BG_COLOR_BLACK_ON_PURPLE,
     FG_COLOR_BLACK_ON_PURPLE,
     BG_COLOR_BLACK_ON_CYAN,
@@ -372,6 +371,11 @@ class MainApp(QtWidgets.QMainWindow):
         refresh_history_table_timer = QtCore.QTimer(self)
         refresh_history_table_timer.start(1_000)        
         refresh_history_table_timer.timeout.connect(lambda: self.wait_pounce_history_table.viewport().update())
+        
+        # Timer for cleaning up expired temporary exclusions
+        self.exclusion_cleanup_timer = QtCore.QTimer(self)
+        self.exclusion_cleanup_timer.start(10_000)  # 10 seconds
+        self.exclusion_cleanup_timer.timeout.connect(self.cleanup_expired_exclusions)
         """
             Top layout for focus_frame and timer_value_label
         """
@@ -803,6 +807,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.wanted_callsigns_vars              = {}
         self.monitored_callsigns_vars           = {}
         self.excluded_callsigns_vars            = {}
+        self.temp_excluded_callsigns            = {}  # {band: {callsign: expiration_time}}
         self.wanted_cq_zones_vars               = {}
         self.monitored_cq_zones_vars            = {}
         self.excluded_cq_zones_vars             = {}        
@@ -2045,6 +2050,8 @@ class MainApp(QtWidgets.QMainWindow):
             Excluded Callsigns
         """
         if callsign not in self.excluded_callsigns_vars[context_menu_band].text():
+            menu.addSeparator()
+            actions['add_callsign_to_temp_excluded'] = menu.addAction(f"Temporarily add {callsign} to Excluded Callsigns")            
             actions['add_callsign_to_excluded'] = menu.addAction(f"Add {callsign} to Excluded Callsigns")
         else:
             actions['remove_callsign_from_excluded'] = menu.addAction(f"Remove {callsign} from Excluded Callsigns")
@@ -2129,7 +2136,8 @@ class MainApp(QtWidgets.QMainWindow):
                 'add_callsign_to_monitored'           : lambda: self.update_var(self.monitored_callsigns_vars[context_menu_band], callsign),
                 'remove_callsign_from_monitored'      : lambda: self.update_var(self.monitored_callsigns_vars[context_menu_band], callsign, "remove"),
                 'add_callsign_to_excluded'            : lambda: self.update_var(self.excluded_callsigns_vars[context_menu_band], callsign),
-                'remove_callsign_from_excluded'      : lambda: self.update_var(self.excluded_callsigns_vars[context_menu_band], callsign, "remove"),
+                'add_callsign_to_temp_excluded'       : lambda: self.show_exclusion_time_dialog(callsign),
+                'remove_callsign_from_excluded'       : lambda: self.update_var(self.excluded_callsigns_vars[context_menu_band], callsign, "remove"),
                 'add_directed_to_wanted'              : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], directed),
                 'remove_directed_from_wanted'         : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], directed, "remove"),
                 'replace_wanted_with_directed'        : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], directed, "replace"),
@@ -2177,6 +2185,46 @@ class MainApp(QtWidgets.QMainWindow):
         var.setText(','.join(map(str, items)))
 
         self.message_buffer = deque()
+
+    def add_callsign_to_temp_exclusion(self, callsign, exclusion_minutes):
+        if not self.operating_band:
+            return
+        
+        if self.operating_band not in self.temp_excluded_callsigns:
+            self.temp_excluded_callsigns[self.operating_band] = {}
+        
+        current_time = datetime.now()
+        expiration_time = current_time + timedelta(minutes=exclusion_minutes)
+        self.temp_excluded_callsigns[self.operating_band][callsign.upper()] = expiration_time
+        
+        # Also add to the permanent excluded list
+        self.update_var(self.excluded_callsigns_vars[self.operating_band], callsign, "add")
+
+    def cleanup_expired_exclusions(self):
+        current_time = datetime.now()
+        
+        for band in list(self.temp_excluded_callsigns.keys()):
+            callsigns_to_remove = []
+            
+            for callsign, expiration_time in self.temp_excluded_callsigns[band].items():
+                if current_time >= expiration_time:
+                    callsigns_to_remove.append(callsign)
+            
+            # Remove expired callsigns from both temp and permanent exclusion lists
+            for callsign in callsigns_to_remove:
+                del self.temp_excluded_callsigns[band][callsign]
+                if band in self.excluded_callsigns_vars:
+                    self.update_var(self.excluded_callsigns_vars[band], callsign, "remove")
+            
+            # Clean up empty band dictionaries
+            if not self.temp_excluded_callsigns[band]:
+                del self.temp_excluded_callsigns[band]
+
+    def show_exclusion_time_dialog(self, callsign):
+        dialog = ExclusionDialog(callsign, self)
+        if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            selected_minutes = dialog.get_selected_minutes()
+            self.add_callsign_to_temp_exclusion(callsign, selected_minutes)
 
     def update_window_title(self):            
             self.window_title = f"{self.base_title}"
