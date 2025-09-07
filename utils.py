@@ -373,6 +373,8 @@ def parse_combined_wsjtx_message(message):
     return [line_1, line_2]
 
 def matches_any(patterns, callsign):
+    if patterns is None:
+        return False
     return any(fnmatch.fnmatch(callsign, pattern) for pattern in patterns)
 
 def is_exact_match(patterns, callsign):

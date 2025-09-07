@@ -109,6 +109,7 @@ from constants import (
     PARAMS_FILE_LEGACY,
     POSITION_FILE,
     WORKED_CALLSIGNS_FILE,
+    TEMP_EXCLUDED_CALLSIGNS_FILE,
     # Labels
     GUI_LABEL_NAME,
     GUI_LABEL_VERSION,
@@ -695,6 +696,7 @@ class MainApp(QtWidgets.QMainWindow):
         QtCore.QTimer.singleShot(100, lambda: self.tab_widget.set_selected_tab(self.gui_selected_band))
 
         self.load_worked_history_callsigns()
+        self.load_temp_excluded_callsigns()
         self.apply_theme_to_all(self.theme_manager.dark_mode)
         self.load_window_position()
         self.toggle_wkb4_column_visibility()        
@@ -2199,9 +2201,13 @@ class MainApp(QtWidgets.QMainWindow):
         
         # Also add to the permanent excluded list
         self.update_var(self.excluded_callsigns_vars[self.operating_band], callsign, "add")
+        
+        # Save to file
+        self.save_temp_excluded_callsigns()
 
     def cleanup_expired_exclusions(self):
         current_time = datetime.now()
+        changes_made = False
         
         for band in list(self.temp_excluded_callsigns.keys()):
             callsigns_to_remove = []
@@ -2215,10 +2221,15 @@ class MainApp(QtWidgets.QMainWindow):
                 del self.temp_excluded_callsigns[band][callsign]
                 if band in self.excluded_callsigns_vars:
                     self.update_var(self.excluded_callsigns_vars[band], callsign, "remove")
+                changes_made = True
             
             # Clean up empty band dictionaries
             if not self.temp_excluded_callsigns[band]:
                 del self.temp_excluded_callsigns[band]
+        
+        # Save to file if any changes were made
+        if changes_made:
+            self.save_temp_excluded_callsigns()
 
     def show_exclusion_time_dialog(self, callsign):
         dialog = ExclusionDialog(callsign, self)
@@ -2907,6 +2918,29 @@ class MainApp(QtWidgets.QMainWindow):
     def save_worked_callsigns(self):
         with open(WORKED_CALLSIGNS_FILE, "wb") as f:
             pickle.dump(self.worked_callsigns_history, f)
+
+    def save_temp_excluded_callsigns(self):
+        """Save temporary excluded callsigns to file"""
+        try:
+            with open(TEMP_EXCLUDED_CALLSIGNS_FILE, "wb") as f:
+                pickle.dump(self.temp_excluded_callsigns, f)
+        except Exception as e:
+            log.error(f"Error saving temporary excluded callsigns: {e}")
+
+    def load_temp_excluded_callsigns(self):
+        """Load temporary excluded callsigns from file"""
+        if os.path.exists(TEMP_EXCLUDED_CALLSIGNS_FILE):
+            try:
+                if os.path.getsize(TEMP_EXCLUDED_CALLSIGNS_FILE) > 0:
+                    with open(TEMP_EXCLUDED_CALLSIGNS_FILE, "rb") as f:
+                        self.temp_excluded_callsigns = pickle.load(f)
+                else:
+                    self.temp_excluded_callsigns = {}
+            except (EOFError, pickle.UnpicklingError) as e:
+                log.error(f"Error loading temporary excluded callsigns: {e}")
+                self.temp_excluded_callsigns = {}
+        else:
+            self.temp_excluded_callsigns = {}
 
     def load_worked_history_callsigns(self):
         if os.path.exists(WORKED_CALLSIGNS_FILE):
@@ -3688,7 +3722,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.worker.enable_grid_tracker            = params.get('enable_grid_tracker', False)
         self.worker.grid_tracker_preference        = params.get('grid_tracker_preference', {})
         self.worker.minimum_report_for_reply       = params.get('minimum_report_for_reply', DEFAULT_MINIMUM_REPORT)
-        self.worker.priority_order                 = params.get('priority_order', None)
+        self.worker.priority_order                 = params.get('priority_order', list(PRIORITY_LIST.values()))
 
         self.adif_file_paths                        = self.worker.adif_file_paths
         self.adif_worked_backup_file_path           = self.worker.adif_worked_backup_file_path

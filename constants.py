@@ -72,6 +72,7 @@ PARAMS_FILE                     = os.path.join(get_app_data_dir(), "params.json"
 PARAMS_FILE_LEGACY              = os.path.join(get_app_data_dir(), "params.pkl")
 POSITION_FILE                   = os.path.join(get_app_data_dir(), "window_position.json")
 WORKED_CALLSIGNS_FILE           = os.path.join(get_app_data_dir(), "worked_callsigns.pkl")
+TEMP_EXCLUDED_CALLSIGNS_FILE    = os.path.join(get_app_data_dir(), "temp_excluded_callsigns.pkl")
 ADIF_WORKED_CALLSIGNS_FILE      = os.path.join(get_app_data_dir(), "wait_pounce_log.adif")
 
 GUI_LABEL_NAME                  = "Wait and Pounce"
