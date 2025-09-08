@@ -632,6 +632,9 @@ class Listener(QObject):
         if self.enable_log_packet_data:
             log.debug(self.the_packet)
         try:
+            if self.my_call != self.the_packet.de_call:
+                log.error(f"Updating my call to [ {self.the_packet.de_call} ]")                
+
             self.my_call                = self.the_packet.de_call
             self.my_grid                = self.the_packet.de_grid
             self.dx_call                = self.the_packet.dx_call

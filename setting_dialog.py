@@ -4,6 +4,7 @@ import platform
 import subprocess
 import os
 import sys
+import re
 
 from PyQt6 import QtWidgets, QtCore
 from PyQt6.QtWidgets import QFileDialog, QTableWidgetItem
@@ -18,7 +19,7 @@ from datetime import datetime
 
 from utils import get_local_ip_address, get_log_filename
 from utils import parse_adif
-from utils import AMATEUR_BANDS
+from utils import AMATEUR_BANDS, ADIF_FIELD_RE
 
 from constants import (
     # Colors
@@ -973,7 +974,7 @@ class SettingsDialog(QtWidgets.QDialog):
         adif_backup_selection_group.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
         working_log_notice_text = (
-            f"{GUI_LABEL_NAME} program will write a new entry on a dedicated and specific ADIF File for each monitored QSO.<br /><br />This file can be used as a backup of your main logging sequence with JTDX or WSJT-x."
+            f"<p>{GUI_LABEL_NAME} program will write a new entry on a dedicated and specific ADIF File for each monitored QSO.</p><p>This file can be used as a backup of your main logging sequence with JTDX or WSJT-x.</p><p>This file will always be analyzed even if you remain empty list of ADIF files in <u>Logbook Analysis</u>'s panel.</p>"
         )
 
         working_log_notice_label = QtWidgets.QLabel(working_log_notice_text)
@@ -983,24 +984,31 @@ class SettingsDialog(QtWidgets.QDialog):
         working_log_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
         adif_backup_widget = QtWidgets.QWidget()
-        adif_backup_layout = QtWidgets.QGridLayout(adif_backup_widget)
+        adif_backup_layout = QtWidgets.QVBoxLayout(adif_backup_widget)
 
-        self.show_backup_file_path = QtWidgets.QLineEdit()
-        self.show_backup_file_path.setText(ADIF_WORKED_CALLSIGNS_FILE)
-        self.show_backup_file_path.setReadOnly(False)  
-
+        # Button (above path field, left-aligned)
         self.select_backup_file_button = QtWidgets.QPushButton("Select File")
         self.select_backup_file_button.setFont(CUSTOM_FONT)
         self.select_backup_file_button.setFixedWidth(120)
         self.select_backup_file_button.clicked.connect(self.open_backup_file_dialog)
 
-        """
-        self.open_backup_file_button = QtWidgets.QPushButton("Open Folder")
-        self.open_backup_file_button.setFixedWidth(120)
-        self.open_backup_file_button.clicked.connect(self.open_backup_file_location) 
-        """
-        adif_backup_layout.addWidget(self.show_backup_file_path, 0, 0)
-        adif_backup_layout.addWidget(self.select_backup_file_button, 0, 1)
+        # Path field
+        self.show_backup_file_path = QtWidgets.QLineEdit()
+        self.show_backup_file_path.setText(ADIF_WORKED_CALLSIGNS_FILE)
+        self.show_backup_file_path.setReadOnly(False)
+        self.show_backup_file_path.textChanged.connect(self.update_backup_file_status)
+
+        # Status info widget
+        self.backup_file_status_info = QtWidgets.QLabel()
+        self.backup_file_status_info.setWordWrap(True)
+        self.backup_file_status_info.setFont(CUSTOM_FONT_SMALL)
+        self.backup_file_status_info.setTextFormat(QtCore.Qt.TextFormat.RichText)
+        self.backup_file_status_info.setStyleSheet(SETTING_QSS + f"background-color: {ODD_COLOR};")
+        self.backup_file_status_info.setAutoFillBackground(True)
+
+        adif_backup_layout.addWidget(self.select_backup_file_button)
+        adif_backup_layout.addWidget(self.show_backup_file_path)
+        adif_backup_layout.addWidget(self.backup_file_status_info)
         
         """
         adif_backup_layout.addWidget(self.open_backup_file_button, 0, 2)
@@ -1009,7 +1017,11 @@ class SettingsDialog(QtWidgets.QDialog):
         adif_backup_selection_group.layout().setContentsMargins(0, 0, 0, 0)
         adif_backup_selection_group.layout().addWidget(adif_backup_widget)
 
+        # Initialize backup file status display
+        self.update_backup_file_status()
+
         backup_layout.addWidget(working_log_notice_label)
+        backup_layout.addWidget(self.backup_file_status_info)
         backup_layout.addWidget(adif_backup_selection_group)
         backup_layout.addStretch()  
         
@@ -1233,6 +1245,85 @@ class SettingsDialog(QtWidgets.QDialog):
             self.setFixedHeight(total_height)
 
 
+    def get_backup_file_status(self, file_path):
+        if not os.path.exists(file_path):
+            return "File not found", 0, 0, "N/A", "N/A"
+        
+        try:
+            # Check if file is empty
+            if os.path.getsize(file_path) == 0:
+                return "Empty file", 0, 0, "N/A", "N/A"
+            
+            # Count records and callsigns directly from file content
+            with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+                content = f.read()
+            
+            # Count records by looking for <EOR> markers (End of Record)
+            total_entries = content.upper().count('<EOR>')
+            
+            # Extract unique callsigns and find first entry date
+            callsigns = set()
+            first_entry_date = None
+            records = re.split(r'<EOR>', content, flags=re.IGNORECASE)
+            
+            for record in records:
+                if record.strip():  # Skip empty records
+                    fields = {
+                        field.upper(): value.strip() 
+                        for field, value in ADIF_FIELD_RE.findall(record)
+                    }
+                    call = fields.get('CALL')
+                    if call:
+                        callsigns.add(call.upper())
+                    
+                    # Extract date for first entry
+                    if first_entry_date is None:
+                        qso_date = fields.get('QSO_DATE')
+                        if qso_date and len(qso_date) >= 8:
+                            try:
+                                # Parse ADIF date format (YYYYMMDD)
+                                year = qso_date[0:4]
+                                month = qso_date[4:6] 
+                                day = qso_date[6:8]
+                                first_entry_date = f"{year}-{month}-{day}"
+                            except:
+                                pass
+            
+            unique_calls = len(callsigns)
+            
+            # Get file modification time
+            mod_time = os.path.getmtime(file_path)
+            last_update = datetime.fromtimestamp(mod_time).strftime("%Y-%m-%d %H:%M")
+            
+            return "Ready", total_entries, unique_calls, last_update, first_entry_date or "N/A"
+            
+        except Exception as e:
+            print(f"Error parsing ADIF file {file_path}: {e}")
+            return "Error reading file", 0, 0, "N/A", "N/A"
+
+    def update_backup_file_status(self):
+        file_path = self.show_backup_file_path.text().strip()
+        if not file_path:
+            status_text = "<p>Backup File Status: No file selected</p>"
+        else:
+            status, total_entries, unique_calls, last_update, first_entry = self.get_backup_file_status(file_path)
+            if status == "Ready":
+                status_text = f"""
+                Backup File Status: {status}
+                <br />
+                Total Entries: {total_entries:,}
+                <br />
+                Unique Callsigns: {unique_calls:,}
+                <br />
+                First Entry: {first_entry}
+                <br />
+                Last Updated: {last_update}
+                """
+            else:
+                status_text = f"<p>Backup File Status: {status}</p>"
+
+        self.backup_file_status_info.setText(status_text)
+
     def open_backup_file_dialog(self):
         dialog = QFileDialog(self, "Select ADIF Backup File")
         dialog.setNameFilter("ADIF Files (*.adif *.adi);;All Files (*)")
@@ -1244,7 +1335,8 @@ class SettingsDialog(QtWidgets.QDialog):
         if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
             selected_files = dialog.selectedFiles()
             if selected_files:
-                self.show_backup_file_path.setText(selected_files[0])            
+                self.show_backup_file_path.setText(selected_files[0])
+                self.update_backup_file_status()            
 
     def add_adif_file(self):
         dialog = QFileDialog(self, "Select ADIF File")
