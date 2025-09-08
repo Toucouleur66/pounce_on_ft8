@@ -974,7 +974,7 @@ class SettingsDialog(QtWidgets.QDialog):
         adif_backup_selection_group.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
         working_log_notice_text = (
-            f"<p>{GUI_LABEL_NAME} program will write a new entry on a dedicated and specific ADIF File for each monitored QSO.</p><p>This file can be used as a backup of your main logging sequence with JTDX or WSJT-x.</p><p>This file will always be analyzed even if you remain empty list of ADIF files in <u>Logbook Analysis</u>'s panel.</p>"
+            f"<p>{GUI_LABEL_NAME} will write a new entry on a dedicated and specific ADIF File for each logged QSO.</p><p>This file can be used as a backup of your main logging sequence with JTDX or WSJT-x.</p><p>This log will always be analyzed even if you have an empty list of ADIF files for logbook analysis.</p>"
         )
 
         working_log_notice_label = QtWidgets.QLabel(working_log_notice_text)

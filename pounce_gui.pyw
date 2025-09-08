@@ -376,10 +376,13 @@ class MainApp(QtWidgets.QMainWindow):
         refresh_history_table_timer.start(1_000)        
         refresh_history_table_timer.timeout.connect(lambda: self.wait_pounce_history_table.viewport().update())
         
-        # Timer for cleaning up expired temporary exclusions
+        """
+            Exclusion timer
+        """
         self.exclusion_cleanup_timer = QtCore.QTimer(self)
-        self.exclusion_cleanup_timer.start(10_000)  # 10 seconds
+        self.exclusion_cleanup_timer.start(10_000) 
         self.exclusion_cleanup_timer.timeout.connect(self.cleanup_expired_exclusions)
+
         """
             Top layout for focus_frame and timer_value_label
         """
@@ -2257,30 +2260,31 @@ class MainApp(QtWidgets.QMainWindow):
         self.save_temp_excluded_callsigns()
 
     def cleanup_expired_exclusions(self):
-        current_time = datetime.now()
-        changes_made = False
-        
-        for band in list(self.temp_excluded_callsigns.keys()):
-            callsigns_to_remove = []
+        if self._instance in (MASTER, None):
+            current_time = datetime.now()
+            changes_made = False
             
-            for callsign, expiration_time in self.temp_excluded_callsigns[band].items():
-                if current_time >= expiration_time:
-                    callsigns_to_remove.append(callsign)
+            for band in list(self.temp_excluded_callsigns.keys()):
+                callsigns_to_remove = []
+                
+                for callsign, expiration_time in self.temp_excluded_callsigns[band].items():
+                    if current_time >= expiration_time:
+                        callsigns_to_remove.append(callsign)
+                
+                # Remove expired callsigns from both temp and permanent exclusion lists
+                for callsign in callsigns_to_remove:
+                    del self.temp_excluded_callsigns[band][callsign]
+                    if band in self.excluded_callsigns_vars:
+                        self.update_var(self.excluded_callsigns_vars[band], callsign, "remove")
+                    changes_made = True
+                
+                # Clean up empty band dictionaries
+                if not self.temp_excluded_callsigns[band]:
+                    del self.temp_excluded_callsigns[band]
             
-            # Remove expired callsigns from both temp and permanent exclusion lists
-            for callsign in callsigns_to_remove:
-                del self.temp_excluded_callsigns[band][callsign]
-                if band in self.excluded_callsigns_vars:
-                    self.update_var(self.excluded_callsigns_vars[band], callsign, "remove")
-                changes_made = True
-            
-            # Clean up empty band dictionaries
-            if not self.temp_excluded_callsigns[band]:
-                del self.temp_excluded_callsigns[band]
-        
-        # Save to file if any changes were made
-        if changes_made:
-            self.save_temp_excluded_callsigns()
+            # Save to file if any changes were made
+            if changes_made:
+                self.save_temp_excluded_callsigns()
 
     def show_exclusion_time_dialog(self, callsign):
         dialog = ExclusionDialog(callsign, self)
