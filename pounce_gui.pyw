@@ -284,6 +284,8 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.before_synch_wanted_callsigns      = {}
         self.before_synch_wanted_cq_zones       = {}
+        self.before_synch_excluded_callsigns    = {}
+        self.before_synch_excluded_cq_zones     = {}
 
         self.decode_packet_count                = 0
         self.last_decode_packet_time            = None
@@ -1026,14 +1028,14 @@ class MainApp(QtWidgets.QMainWindow):
             }
         """)
 
-        column_widths = [160, 45, 60, 60, 80, 450, 10, 100, 70, 60, 80]  
+        column_widths = [160, 45, 60, 60, 80, 450, 5, 100, 70, 60, 80]  
         
         header = output_table.horizontalHeader()
-        header.setMinimumSectionSize(50)  # Set global minimum
+        header.setMinimumSectionSize(20)  # Set global minimum
         
         for i, width in enumerate(column_widths):
             if i < output_table.model().columnCount():                                        
-                if i in [5, 7]:  # Message (5) and Country (7) columns stretch
+                if i == 5:
                     output_table.horizontalHeader().setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
                 else:
                     output_table.setColumnWidth(i, width)  
@@ -1772,8 +1774,10 @@ class MainApp(QtWidgets.QMainWindow):
                 Check if need to play sound if
             """
             play_sound = False
-            master_wanted_callsigns = instance_settings.get('wanted_callsigns')
-            master_wanted_cq_zones = instance_settings.get('wanted_cq_zones')
+            master_wanted_callsigns     = instance_settings.get('wanted_callsigns')
+            master_wanted_cq_zones      = instance_settings.get('wanted_cq_zones')
+            master_excluded_callsigns   = instance_settings.get('excluded_callsigns')
+            master_excluded_cq_zones    = instance_settings.get('excluded_cq_zones')
             if(
                 self.global_sound_toggle.isChecked() and
                 (
@@ -1784,6 +1788,14 @@ class MainApp(QtWidgets.QMainWindow):
                     has_significant_change(
                         self.wanted_cq_zones_vars[band].text(),
                         ",".join(str(zone) for zone in master_wanted_cq_zones)
+                    ) or
+                    has_significant_change(
+                        self.excluded_callsigns_vars[band].text(),
+                        ",".join(master_excluded_callsigns)
+                    ) or
+                    has_significant_change(
+                        self.excluded_cq_zones_vars[band].text(),
+                        ",".join(str(zone) for zone in master_excluded_cq_zones)
                     )
                 )
             ):                                    
@@ -1795,9 +1807,11 @@ class MainApp(QtWidgets.QMainWindow):
             self._synch_signal = False
             self.restore_settings()
             for amateur_band in AMATEUR_BANDS.keys():                
-                self.before_synch_wanted_callsigns[amateur_band] = self.wanted_callsigns_vars[amateur_band].text()   
-                self.before_synch_wanted_cq_zones[amateur_band] = self.wanted_cq_zones_vars[amateur_band].text()   
-          
+                self.before_synch_wanted_callsigns[amateur_band]    = self.wanted_callsigns_vars[amateur_band].text()   
+                self.before_synch_wanted_cq_zones[amateur_band]     = self.wanted_cq_zones_vars[amateur_band].text()
+                self.before_synch_excluded_callsigns[amateur_band]  = self.excluded_callsigns_vars[amateur_band].text()   
+                self.before_synch_excluded_cq_zones[amateur_band]   = self.excluded_cq_zones_vars[amateur_band].text()   
+
             # To block signal 
             if not master_wanted_callsigns:
                 self.wanted_callsigns_vars[band].clear()
@@ -1808,6 +1822,16 @@ class MainApp(QtWidgets.QMainWindow):
                 self.wanted_cq_zones_vars[band].clear()
             else:  
                 self.wanted_cq_zones_vars[band].setText(", ".join(str(zone) for zone in master_wanted_cq_zones))
+
+            if not master_excluded_callsigns:
+                self.excluded_callsigns_vars[band].clear()
+            else:
+                self.excluded_callsigns_vars[band].setText(", ".join(master_excluded_callsigns))
+
+            if not master_excluded_cq_zones:
+                self.excluded_cq_zones_vars[band].clear()
+            else:  
+                self.excluded_cq_zones_vars[band].setText(", ".join(str(zone) for zone in master_excluded_cq_zones))
 
             # Unblock signal 
             self._synch_signal = True
@@ -1841,6 +1865,22 @@ class MainApp(QtWidgets.QMainWindow):
                         self.wanted_cq_zones_vars[amateur_band].clear()
                     else:
                         self.wanted_cq_zones_vars[amateur_band].setText(before_synch_wanted_cq_zones_band)
+
+                if self.before_synch_excluded_callsigns.get(amateur_band):
+                    before_synch_excluded_callsigns_band = self.before_synch_excluded_callsigns[amateur_band]                    
+
+                    if not before_synch_excluded_callsigns_band:
+                        self.excluded_callsigns_vars[amateur_band].clear()
+                    else:
+                        self.excluded_callsigns_vars[amateur_band].setText(before_synch_excluded_callsigns_band)
+
+                if self.before_synch_excluded_cq_zones.get(amateur_band): 
+                    before_synch_excluded_cq_zones_band = self.before_synch_excluded_cq_zones[amateur_band]                    
+
+                    if not before_synch_excluded_cq_zones_band:
+                        self.excluded_cq_zones_vars[amateur_band].clear()
+                    else:
+                        self.excluded_cq_zones_vars[amateur_band].setText(before_synch_excluded_cq_zones_band)
         
     def process_message_buffer(self):     
         if self.enable_extra_gui_debug_output:
@@ -3297,7 +3337,7 @@ class MainApp(QtWidgets.QMainWindow):
                 if amateur_band == self.operating_band and self._running:
                     label_widget.setStyleSheet(active_style_template.format(bg_color=bg_color, fg_color=fg_color))
                     if self._instance == SLAVE and (
-                        idx == 1 or idx == 3
+                        idx == 1 or idx == 3 or idx == 5 or idx == 6
                     ):
                         input_widget.setEnabled(False)
                         input_widget.setStyleSheet(slave_style)

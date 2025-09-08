@@ -955,14 +955,18 @@ class Listener(QObject):
                     self.synch_time < synch_time
                 ):
                     self.synched_settings = json.loads(self.the_packet.settings_json)
-                    wanted_callsigns = self.synched_settings.get('wanted_callsigns')
-                    wanted_cq_zones = self.synched_settings.get('wanted_cq_zones') 
+                    wanted_callsigns    = self.synched_settings.get('wanted_callsigns')
+                    wanted_cq_zones     = self.synched_settings.get('wanted_cq_zones')
+                    excluded_callsigns  = self.synched_settings.get('excluded_callsigns')
+                    excluded_cq_zones   = self.synched_settings.get('excluded_cq_zones')
                     """
                         Make sure to set synch_time after we checked if wanted_callsigns is valid
                     """
                     if (
-                        wanted_callsigns and isinstance(wanted_callsigns, (list, tuple)) or
-                        wanted_cq_zones and isinstance(wanted_cq_zones, (list, tuple))
+                        wanted_callsigns    and isinstance(wanted_callsigns, (list, tuple)) or
+                        wanted_cq_zones     and isinstance(wanted_cq_zones, (list, tuple))  or
+                        excluded_callsigns  and isinstance(excluded_callsigns, (list, tuple)) or
+                        excluded_cq_zones   and isinstance(excluded_cq_zones, (list, tuple))
                     ):
                         self.synch_time = synch_time
                         self.message_callback({
