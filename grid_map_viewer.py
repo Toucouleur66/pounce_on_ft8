@@ -84,6 +84,8 @@ class GridMapWidget(QWidget):
         self.test_time                  = None
         
         self.permanent_grids            = []
+        self.worked_grids               = []
+        self.confirmed_grids            = []
         self.new_grids                  = []
         self.operating_band             = None
         self.adif_data                  = {}
@@ -106,7 +108,9 @@ class GridMapWidget(QWidget):
         self.worked_grid_color_fill      = QColor(FG_COLOR_REGULAR_FOCUS)
         self.worked_grid_border_color   = darken_color(self.worked_grid_color_fill, 0.7)
 
-        self.permanent_color_fill        = QColor(91, 105, 171, 128)
+        # self.confirmed_color_fill        = QColor(91, 105, 171, 128)
+        self.confirmed_color_fill        = QColor(91, 105, 171, 145)
+        self.worked_color_fill           = QColor(255, 168, 180, 175)
 
         # First value is intensity
         # Viridis
@@ -439,8 +443,13 @@ class GridMapWidget(QWidget):
         if self.show_grid:
             self.draw_maidenhead_grid(painter)
             
-        for grid in self.permanent_grids:
-            self.fill_grid_square_with_color(painter, grid, self.permanent_color_fill)
+        # Draw worked grids first (lower opacity)
+        for grid in self.worked_grids:
+            self.fill_grid_square_with_color(painter, grid, self.worked_color_fill)
+            
+        # Draw confirmed grids on top (higher opacity)
+        for grid in self.confirmed_grids:
+            self.fill_grid_square_with_color(painter, grid, self.confirmed_color_fill)
         
         self.set_heatmap_indicators(painter)
         
@@ -1228,7 +1237,10 @@ class GridMapWidget(QWidget):
             if self.clicked_grid and grid_square == self.clicked_grid:
                 continue            
                         
-            if self.show_worked and grid_square in self.permanent_grids:
+            if self.show_worked and (
+                grid_square in self.confirmed_grids
+                or grid_square in self.worked_grids
+            ):
                 self.draw_grid_square(
                     painter,
                     grid_square,
@@ -1315,40 +1327,43 @@ class GridMapWidget(QWidget):
     
     def update_grids_for_band(self):
         if not self.operating_band or not self.adif_data:
-            self.set_permanent_grids([])
+            self.worked_grids    = []
+            self.confirmed_grids = []
             return
 
         """
             Update the highlighted squares based on the current band and ADIF data.
         """
-        grid_squares = list(self.adif_data.get('grid', {}).get(self.operating_band, {}).keys())
-
-        self.set_permanent_grids(grid_squares, center_on_last=False)
+        band_data = self.adif_data.get('grid', {}).get(self.operating_band, {})
+        
+        confirmed_grids = []
+        worked_grids = []
+        
+        # Process each grid's QSO data to separate confirmed/worked
+        for grid_square, qso_list in band_data.items():
+            if isinstance(qso_list, list):
+                has_confirmed = any(qso.get('qsl_status', False) for qso in qso_list)
+                
+                # Priority: if ANY QSO is confirmed, the grid is confirmed, otherwise worked
+                if has_confirmed:
+                    confirmed_grids.append(grid_square)
+                else:
+                    worked_grids.append(grid_square)
+        
+        # Update the separate lists
+        self.confirmed_grids = confirmed_grids
+        self.worked_grids = worked_grids
+        
+        self.update()
 
         window = self.parent()
         while window and not isinstance(window, GridMapWindow):
             window = window.parent()
         if window and hasattr(window, 'check_grid_monitoring_status'):
             window.check_grid_monitoring_status()
-    
-    def set_permanent_grids(self, squares, center_on_last=True):
-        self.permanent_grids = squares
-        
-        if len(squares) > 0 and center_on_last:
-            last_square = squares[-1]
-            grid_info = self.maidenhead_to_lat_lon(last_square, adjust_for_view=False)
-
-            if grid_info:
-                self.center_lat = grid_info['center_lat']
-                self.center_lon = grid_info['center_lon']
-                self.center_pixel_offset_x = 0.0
-                self.center_pixel_offset_y = 0.0
-                self.apply_pan_movement(0, 0)
-        
-        self.update()
 
         if hasattr(self.parent(), 'update_toggle_labels'):
-            self.parent().update_toggle_labels()
+            self.parent().update_toggle_labels()            
     
     def set_new_grids(self, grids, center_on_last=False):
         try:
@@ -1398,7 +1413,6 @@ class GridMapWidget(QWidget):
             self.update()
         finally:
             grid_count = len(grids) if grids else 0
-            # log.debug(f"GridMapWidget: {grid_count} updated grids")
             
             # Update status bar when grids change
             window = self.parent()
@@ -1522,7 +1536,6 @@ class GridMapWidget(QWidget):
             # Use the grid's own weight as a multiplier
             intensity = min(density * (grid_pos['weight'] / self.weight_scaling_factor), 1.0)
 
-            # log.debug(f"Grid {grid_pos['grid']}: density={density:.2f}, weight={grid_pos['weight']}, intensity={intensity:.2f}")
             
             # Draw the heatmap blob
             self.draw_heatmap_blob(painter, grid_pos['x'], grid_pos['y'], intensity)
@@ -1807,7 +1820,7 @@ class GridMapWidget(QWidget):
             Handle mouse hover to show tooltips for permanent squares and highlighted grids
         """
         grid_square = self.find_permanent_square_at_position(pos)
-        
+
         # If no permanent square found, check for highlighted grids
         if not grid_square:
             grid_square = self.find_new_grid_at_position(pos)
@@ -1855,11 +1868,15 @@ class GridMapWidget(QWidget):
                 global_pos = self.mapToGlobal(self.current_tooltip_pos)
                 self.custom_tooltip.showToolTip(global_pos)
             else:
-                callsigns = self.get_callsigns_for_grid(self.current_tooltip_grid)
-                if callsigns:
-                    tooltip_text = f"Grid: <b>{self.current_tooltip_grid}</b><br/>Worked: "
-                    tooltip_text += ', '.join(callsigns)
-                                    
+                confirmed_calls, worked_calls = self.get_separated_callsigns_for_grid(self.current_tooltip_grid)
+                if confirmed_calls or worked_calls:
+                    tooltip_text_array = []
+                    tooltip_text_array.append(f"Grid: <b>{self.current_tooltip_grid}</b>")
+                    if confirmed_calls:
+                        tooltip_text_array.append(f"Confirmed: {', '.join(confirmed_calls)}")
+                    if worked_calls:
+                        tooltip_text_array.append(f"Worked: {', '.join(worked_calls)}")
+                    tooltip_text = "<br />".join(tooltip_text_array)
                     self.hide_custom_tooltip()
                     
                     self.custom_tooltip = CustomToolTip(tooltip_text, "default")
@@ -1878,6 +1895,17 @@ class GridMapWidget(QWidget):
         """
             Find which permanent square is under the given position
         """
+        # Check confirmed grids first
+        for grid_square in self.confirmed_grids:
+            if self.is_position_in_grid_square(pos, grid_square):
+                return grid_square
+        
+        # Then check worked grids
+        for grid_square in self.worked_grids:
+            if self.is_position_in_grid_square(pos, grid_square):
+                return grid_square
+                
+        # Finally check permanent grids for backward compatibility
         for grid_square in self.permanent_grids:
             if self.is_position_in_grid_square(pos, grid_square):
                 return grid_square
@@ -1937,14 +1965,43 @@ class GridMapWidget(QWidget):
         if not self.adif_data or not self.operating_band:
             return []
         
-        grid_data = self.adif_data.get('grid', {}).get(self.operating_band, {}).get(grid_square, set())
+        callsigns = set()        
+        grid_data = self.adif_data.get('grid', {}).get(self.operating_band, {})
         
-        if isinstance(grid_data, set):
-            callsigns = sorted(list(grid_data))
-        else:
-            callsigns = []
+        # Get QSO data for this grid
+        if grid_square in grid_data and isinstance(grid_data[grid_square], list):
+            for qso in grid_data[grid_square]:
+                if qso.get('call'):
+                    callsigns.add(qso['call'])
+
+        return sorted(list(callsigns))[:10]  # Limit to 10 callsigns for tooltip
+    
+    def get_separated_callsigns_for_grid(self, grid_square):
+        """
+            Get confirmed and worked callsigns separately for the given grid square
+            Priority: if a callsign has ANY confirmed QSO, it appears only in confirmed list
+        """
+        if not self.adif_data or not self.operating_band:
+            return [], []
         
-        return callsigns[:10]  # Limit to 10 callsigns for tooltip
+        all_calls = {}  # callsign -> has_confirmed_qso
+        grid_data = self.adif_data.get('grid', {}).get(self.operating_band, {})
+        
+        # Get QSO data for this grid and track confirmed status per callsign
+        if grid_square in grid_data and isinstance(grid_data[grid_square], list):
+            for qso in grid_data[grid_square]:
+                call = qso.get('call')
+                if call:
+                    if call not in all_calls:
+                        all_calls[call] = False
+                    if qso.get('qsl_status', False):
+                        all_calls[call] = True
+        
+        # Separate based on priority: confirmed takes precedence
+        confirmed_calls = [call for call, is_confirmed in all_calls.items() if is_confirmed]
+        worked_calls = [call for call, is_confirmed in all_calls.items() if not is_confirmed]
+
+        return sorted(confirmed_calls)[:10], sorted(worked_calls)[:10]
     
     def leaveEvent(self, event):
         """
@@ -2009,16 +2066,20 @@ class GridMapWindow(QMainWindow):
         self.map_widget = GridMapWidget()
         
         self.status_bar = CustomStatusBar()
-        self.status_bar_label_updated_grids = CustomQLabel()
-        self.status_bar_label_processing    = CustomQLabel()
-        self.status_bar_label_last_decoded  = CustomQLabel()
-        self.status_bar_label_total_worked  = CustomQLabel()
+        self.status_bar_label_updated_grids         = CustomQLabel()
+        self.status_bar_label_processing            = CustomQLabel()
+        self.status_bar_label_last_decoded          = CustomQLabel()
+        self.status_bar_label_band                  = CustomQLabel()
+        self.status_bar_label_total_worked_grids    = CustomQLabel()
+        self.status_bar_label_total_confirmed_grids = CustomQLabel()
         
         self.last_decode_time = None
         
-        # Initialize animated counter for grid counts
-        self.grid_counter = AnimatedCounter(duration_ms=3_000, parent=self)
-        self.grid_counter.valueChanged.connect(self.update_grid_count_display)
+        # Initialize animated counters for grid counts
+        self.worked_counter = AnimatedCounter(duration_ms=3_000, parent=self)
+        self.confirmed_counter = AnimatedCounter(duration_ms=3_000, parent=self)
+        self.worked_counter.valueChanged.connect(self.update_grid_counts_from_animation)
+        self.confirmed_counter.valueChanged.connect(self.update_grid_counts_from_animation)
         
         self.setup_main_layout()
         self.init_status_bar()
@@ -2176,7 +2237,7 @@ class GridMapWindow(QMainWindow):
         horizontal_layout.addStretch()
         
         # Right side: heatmap controls widget
-        horizontal_layout.addWidget(self.heatmap_controls_widget)
+        # horizontal_layout.addWidget(self.heatmap_controls_widget)
         
         self.update_heatmap_controls_opacity()
         
@@ -2189,7 +2250,9 @@ class GridMapWindow(QMainWindow):
             self.status_bar_label_updated_grids,
             self.status_bar_label_processing,
             self.status_bar_label_last_decoded,
-            self.status_bar_label_total_worked
+            self.status_bar_label_band,
+            self.status_bar_label_total_worked_grids,
+            self.status_bar_label_total_confirmed_grids
         ):
             label.setMouseTracking(True)
             label.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
@@ -2207,8 +2270,12 @@ class GridMapWindow(QMainWindow):
         self.status_bar_label_updated_grids.setFixedWidth(90)
         self.status_bar.addWidget(self.status_bar_label_processing, 1)   
         self.status_bar.addWidget(self.status_bar_label_last_decoded, 2)                 
-        self.status_bar.addWidget(self.status_bar_label_total_worked)          
-        self.status_bar_label_total_worked.setFixedWidth(170)     
+        self.status_bar.addWidget(self.status_bar_label_band)
+        self.status_bar_label_band.setFixedWidth(80)
+        self.status_bar.addWidget(self.status_bar_label_total_worked_grids)
+        self.status_bar_label_total_worked_grids.setFixedWidth(100)
+        self.status_bar.addWidget(self.status_bar_label_total_confirmed_grids)
+        self.status_bar_label_total_confirmed_grids.setFixedWidth(100)     
 
         self.status_bar.setContentsMargins(10, 3, 10, 3)
 
@@ -2217,23 +2284,38 @@ class GridMapWindow(QMainWindow):
             self.status_bar.setStyleSheet(style)
     
     def check_grid_monitoring_status(self):
-        self.status_bar_label_updated_grids.setText(f"Buffered: {sum(len(group) for group in
-  self.map_widget.heatmap_buffer)}")        
+        self.status_bar_label_updated_grids.setText(f"Buffered: {sum(len(group) for group in self.map_widget.heatmap_buffer)}")        
 
         if self.map_widget.operating_band:
-            target_count = len(self.map_widget.permanent_grids)
-            current_count = self.grid_counter.get_current_value()
+            target_total_worked = len(self.map_widget.worked_grids) + len(self.map_widget.confirmed_grids) 
+            target_confirmed    = len(self.map_widget.confirmed_grids)
             
-            # Only animate if the count has changed significantly
-            if abs(target_count - current_count) > 0:
-                self.grid_counter.animate_to(target_count, current_count)
+            current_worked      = self.worked_counter.get_current_value()
+            current_confirmed   = self.confirmed_counter.get_current_value()
+
+            worked_changed      = abs(target_total_worked - current_worked) > 0
+            confirmed_changed   = abs(target_confirmed - current_confirmed) > 0
+            
+            if worked_changed or confirmed_changed:
+                if worked_changed:
+                    self.worked_counter.animate_to(target_total_worked, current_worked)
+                if confirmed_changed:
+                    self.confirmed_counter.animate_to(target_confirmed, current_confirmed)
             else:
-                # Update without animation if no significant change
-                self.update_grid_count_display(target_count)
+                self.update_grid_count_display(target_total_worked, target_confirmed)
     
-    def update_grid_count_display(self, count):
+    def update_grid_counts_from_animation(self):
+        self.update_grid_count_display(
+            self.worked_counter.get_current_value(),
+            self.confirmed_counter.get_current_value()
+        )
+    
+    def update_grid_count_display(self, worked_count, confirmed_count=None):
         if self.map_widget.operating_band:
-            self.status_bar_label_total_worked.setText(f"Worked grids (<u>{self.map_widget.operating_band}</u>): {count: }")
+            self.status_bar_label_band.setText(f"Band: <u>{self.map_widget.operating_band}</u>")
+            self.status_bar_label_total_worked_grids.setText(f"Worked: {worked_count}")            
+            if confirmed_count is not None:
+                self.status_bar_label_total_confirmed_grids.setText(f"Confirmed: {confirmed_count}")            
     
     def update_toggle_labels(self):
         if hasattr(self, 'grid_toggle'):
@@ -2264,7 +2346,8 @@ class GridMapWindow(QMainWindow):
         if checked:
             self.map_widget.update_grids_for_band()
         else:
-            self.map_widget.set_permanent_grids([])
+            self.map_widget.worked_grids    = []
+            self.map_widget.confirmed_grids = []
         
         # Redraw highlighted grids to apply/remove diagonal drawing
         self.map_widget.update()

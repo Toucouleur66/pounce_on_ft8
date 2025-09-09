@@ -593,6 +593,10 @@ def parse_adif_record(record, lookup):
     grid        = fields.get('GRIDSQUARE') 
     lotw_rcvd   = fields.get('LOTW_QSL_RCVD')
     qsl_rcvd    = fields.get('QSL_RCVD')
+    freq        = fields.get('FREQ')
+    mode        = fields.get('MODE')
+    rst_sent    = fields.get('RST_SENT')
+    rst_rcvd    = fields.get('RST_RCVD')
 
     qso_datetime = None
     if qso_date and len(qso_date) >= 8:
@@ -620,11 +624,11 @@ def parse_adif_record(record, lookup):
     year = qso_date[0:4] if qso_date and len(qso_date) >= 4 else None
 
     if lotw_rcvd == 'Y' or lotw_rcvd == 'V':
-        confirmed = 'V'
+        qsl_status = 'V'
     elif qsl_rcvd == 'Y':
-        confirmed = 'Y'
+        qsl_status = 'Y'
     else:
-        confirmed = False
+        qsl_status = None
 
     info = {}
     if lookup and call:
@@ -633,7 +637,7 @@ def parse_adif_record(record, lookup):
         else:
             info = lookup.lookup_callsign(call)
 
-    return year, band, grid, call, confirmed, info
+    return year, band, grid, call, freq, mode, rst_sent, rst_rcvd, qsl_status, info
 
 def process_adif_records(
         records,
@@ -650,7 +654,7 @@ def process_adif_records(
         record = record.strip()
         if record:
             record = " ".join(record.split())
-            year, band, grid, call, confirmed, info = parse_adif_record(record, lookup)
+            year, band, grid, call, freq, mode, rst_sent, rst_rcvd, qsl_status, info = parse_adif_record(record, lookup)
 
             if lookup and year and band and info and info.get('entity_code') and parsed_entity_data is not None:
                 if year not in parsed_entity_data:
@@ -668,11 +672,22 @@ def process_adif_records(
             
             if band and grid and call and is_valid_grid_format(grid):
                 if band not in parsed_grid_data:
-                    parsed_grid_data[band] = defaultdict(set)
-                if grid not in parsed_grid_data[band]:
-                    parsed_grid_data[band][grid] = set()
-                parsed_grid_data[band][grid].add(call)
-            
+                    parsed_grid_data[band] = defaultdict(list)
+                
+                # Store complete QSO data for this grid
+                qso_data = {
+                    'year': year,
+                    'band': band,
+                    'grid': grid,
+                    'call': call,
+                    'freq': freq,
+                    'mode': mode,
+                    'rst_sent': rst_sent,
+                    'rst_rcvd': rst_rcvd,
+                    'qsl_status': qsl_status
+                }
+                parsed_grid_data[band][grid].append(qso_data)
+
             processed_count += 1
             
             # Call progress callback if provided
@@ -694,7 +709,7 @@ def parse_adif_incremental(file_path, last_size, lookup=None, max_lines=10):
     start_time = time.time()
 
     parsed_wkb4_data    = defaultdict(lambda: defaultdict(set))
-    parsed_grid_data    = defaultdict(lambda: defaultdict(set))
+    parsed_grid_data    = defaultdict(lambda: defaultdict(list))
     parsed_entity_data  = defaultdict(lambda: defaultdict(set)) if lookup else None
 
     if not os.path.exists(file_path):

@@ -153,7 +153,7 @@ class AdifMonitor:
             self.notify_callbacks()
             
             # Log comprehensive statistics after file path changes
-            self._log_adif_statistics()
+            # self._log_adif_statistics()
         
         return True
 
@@ -378,8 +378,21 @@ class AdifMonitor:
                     
                     for key2, value2 in value1.items():
                         if key2 not in merged_data[data_type][key1]:
-                            merged_data[data_type][key1][key2] = set()
-                        merged_data[data_type][key1][key2].update(value2)
+                            if data_type == 'grid':
+                                merged_data[data_type][key1][key2] = []
+                            else:
+                                merged_data[data_type][key1][key2] = set()
+                        
+                        if data_type == 'grid' and isinstance(value2, list):
+                            merged_data[data_type][key1][key2].extend(value2)
+                        elif isinstance(value2, set):
+                            merged_data[data_type][key1][key2].update(value2)
+                        else:
+                            # Handle backward compatibility
+                            if data_type == 'grid':
+                                merged_data[data_type][key1][key2].extend(value2 if isinstance(value2, list) else [value2])
+                            else:
+                                merged_data[data_type][key1][key2].add(value2)
         
         return merged_data
 
@@ -489,7 +502,7 @@ class AdifMonitor:
         merged_data = {
             'wkb4'  : defaultdict(lambda: defaultdict(set)),
             'entity': defaultdict(lambda: defaultdict(set)),
-            'grid'  : defaultdict(lambda: defaultdict(set)),
+            'grid'  : defaultdict(lambda: defaultdict(list)),
         }
         
         # Create a snapshot to avoid iterator invalidation
@@ -520,8 +533,8 @@ class AdifMonitor:
                 for band, grids in grid_data.items():
                     if grids is None:
                         continue
-                    for grid, calls in grids.items():
-                        merged_data['grid'][band][grid].update(calls)
+                    for grid, qso_data in grids.items():
+                        merged_data['grid'][band][grid].extend(qso_data)
         
         return merged_data
     
