@@ -1061,3 +1061,54 @@ class CallsignLookup:
         if end and date > end:
             return False
         return True
+
+    def get_entity_code_only(self, callsign):
+        """
+        Lightweight method to get only entity_code for ADIF processing.
+        Skips expensive grid calculations, zone updates, and cache writes.
+        """
+        try:
+            callsign = callsign.strip().upper()
+            
+            # Check memory cache first (fastest)
+            if callsign in self.cache:
+                cached_result = self.cache[callsign]
+                entity_code = cached_result.get('entity_code')
+                if entity_code:
+                    return entity_code
+            
+            # Check exact callsign match in CTY data
+            if callsign in self.cty_exact_calls:
+                result = self.cty_exact_calls[callsign]
+                entity_code = result.get('entity_code')
+                if entity_code:
+                    return entity_code
+                # Try to get entity_code from other fields
+                if result.get('adif'):
+                    return result['adif']
+            
+            # Check exact prefix match in CTY data
+            if callsign in self.cty_prefixes:
+                result = self.cty_prefixes[callsign]
+                entity_code = result.get('entity_code')
+                if entity_code:
+                    return entity_code
+                if result.get('adif'):
+                    return result['adif']
+            
+            # Try prefix matching (most expensive part) - limit to first match
+            for prefix in self._sorted_cty_prefixes:
+                if callsign.startswith(prefix):
+                    result = self.cty_prefixes.get(prefix)
+                    if result:
+                        entity_code = result.get('entity_code')
+                        if entity_code:
+                            return entity_code
+                        if result.get('adif'):
+                            return result['adif']
+                    break
+            
+            return None
+            
+        except Exception:
+            return None
