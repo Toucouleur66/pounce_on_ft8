@@ -103,19 +103,18 @@ class GridMapWidget(QWidget):
         self.heatmap_cache              = {}
         self.heatmap_cache_key          = None
 
-        self.max_possible_density       = 10.0 
-        self.influence_radius            = 250 
-        self.weight_scaling_factor      = 5.0  
-        
-        self.new_grid_color_fill         = QColor(BG_COLOR_BLACK_ON_YELLOW)
+        self.max_possible_density       = 10.0
+        self.influence_radius           = 250
+        self.weight_scaling_factor      = 5.0
+
+        self.new_grid_color_fill        = QColor(BG_COLOR_BLACK_ON_YELLOW)
         self.new_grid_border_color      = darken_color(self.new_grid_color_fill, 0.7)
 
-        self.worked_grid_color_fill      = QColor(FG_COLOR_REGULAR_FOCUS)
+        self.worked_grid_color_fill     = QColor(FG_COLOR_REGULAR_FOCUS)
         self.worked_grid_border_color   = darken_color(self.worked_grid_color_fill, 0.7)
 
-        # self.confirmed_color_fill        = QColor(91, 105, 171, 128)
-        self.confirmed_color_fill        = QColor(91, 105, 171, 145)
-        self.worked_color_fill           = QColor(255, 168, 180, 175)
+        self.confirmed_color_fill       = QColor(91, 105, 171, 175)
+        self.worked_color_fill          = QColor(255, 168, 180, 175)
 
         # First value is intensity
         # Viridis
