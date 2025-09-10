@@ -48,6 +48,7 @@ from tooltip import ToolTip, ExcludedCallsignsToolTip
 from worker import Worker
 from monitoring_setting import MonitoringSettings
 from theme_manager import ThemeManager
+from context_menu_handler import ContextMenuHandler
 from clublog import ClubLogManager
 from lotw_manager import LoTWManager
 from country_files import CountryFilesManager
@@ -211,11 +212,12 @@ class MainApp(QtWidgets.QMainWindow):
         self.monitoring_settings    = MonitoringSettings()       
         self.clublog_manager        = ClubLogManager(self)
         self.lotw_manager           = LoTWManager(self) 
-        self.country_files_manager   = CountryFilesManager(self)
-        self.status_menu_agent      = None
+        self.country_files_manager  = CountryFilesManager(self)
+        self.context_menu_handler   = ContextMenuHandler(self)
+        self.updater                = UpdateManager()
 
-        self.updater             = UpdateManager()
-        params                   = self.load_params()  
+        self.status_menu_agent      = None
+        params                      = self.load_params()
 
         """
             Status bar for MacOsx
@@ -1255,7 +1257,7 @@ class MainApp(QtWidgets.QMainWindow):
     def toggle_grid_monitor(self, checked):    
         if checked:
             if self.grid_monitor is None:
-                self.grid_monitor = GridMapWindow()
+                self.grid_monitor = GridMapWindow(self)
                 self.grid_monitor.map_widget.set_parent_app(self)
                 self.grid_monitor.map_widget.grid_clicked.connect(self.scroll_to_message_uid)
                 
@@ -2010,7 +2012,7 @@ class MainApp(QtWidgets.QMainWindow):
 
     def on_table_context_menu(self, table, position):
         """
-            Fetch data to build menu
+            Handle context menu for tables using ContextMenuHandler
         """
         index = table.indexAt(position)
         if not index.isValid():
@@ -2024,192 +2026,7 @@ class MainApp(QtWidgets.QMainWindow):
             source_index = self.filter_proxy_model.mapToSource(table.model().index(row, 0))
             data = self.output_model.data(source_index, QtCore.Qt.ItemDataRole.UserRole)
 
-        if not data:
-            return
-
-        """
-            Menu builder
-        """
-        menu = QtWidgets.QMenu()
-        if sys.platform == 'darwin':
-            menu.setStyleSheet(CONTEXT_MENU_DARWIN_QSS)
-            menu.setFont(MENU_FONT)
-
-        if not index.isValid() or (
-            self.operating_band is None and
-            self.gui_selected_band is None
-        ):
-            return
-
-        if self.gui_selected_band is not None:
-            context_menu_band = self.gui_selected_band
-        else:
-            context_menu_band = self.operating_band
-        
-        formatted_message   = data.get('formatted_message')
-        callsign            = data.get('callsign')
-        directed            = data.get('directed')
-        cq_zone             = data.get('cq_zone')
-        history_band        = data.get('band')
-        excluded            = data.get('excluded')
-
-        if not callsign:
-            return        
-
-        actions = {}        
-
-        if table.objectName() == 'history_table':
-            actions['remove_entry_from_worked_history'] = menu.addAction(f"Remove {callsign} on {history_band} from Worked History")            
-            callsign_bands = defaultdict(set)
-            for entry in self.worked_callsigns_history:
-                callsign_bands[entry['callsign']].add(entry['band'])
-
-            if len(callsign_bands[callsign]) > 1:
-                actions['remove_callsign_from_worked_history'] = menu.addAction(f"Remove {callsign} on all bands from Worked History ({", ".join(sorted(callsign_bands[callsign], key=band_sort_key))})")
-
-            menu.addSeparator()
-
-        if excluded:
-            label = QtWidgets.QLabel(f"Exclusion for <b>{excluded}</b> and matches with <b>{callsign}</b>")
-            label.setStyleSheet(CONTEXT_MENU_EXCLUDED_QSS)
-
-            widget_action = QtWidgets.QWidgetAction(menu)
-            widget_action.setDefaultWidget(label)
-
-            menu.addAction(widget_action)
-            menu.addSeparator()
-
-        label = QtWidgets.QLabel(f"Apply to <b>{context_menu_band}</b> band")
-        label.setStyleSheet(CONTEXT_MENU_HEADER_QSS)
-
-        widget_action = QtWidgets.QWidgetAction(menu)
-        widget_action.setDefaultWidget(label)
-
-        menu.addAction(widget_action)
-        menu.addSeparator()
-        
-        """
-            Wanted Callsigns
-        """
-        if callsign not in self.wanted_callsigns_vars[context_menu_band].text():
-            actions['add_callsign_to_wanted'] = menu.addAction(f"Add {callsign} to Wanted Callsigns")
-        else:
-            actions['remove_callsign_from_wanted'] = menu.addAction(f"Remove {callsign} from Wanted Callsigns")
-
-        if callsign != self.wanted_callsigns_vars[context_menu_band].text():
-            actions['replace_wanted_with_callsign'] = menu.addAction(f"Make {callsign} your only Wanted Callsign")
-            if self._instance == SLAVE:
-                actions['replace_wanted_with_callsign'].setEnabled(False)        
-        
-
-        """
-            Excluded Callsigns
-        """
-        if callsign not in self.excluded_callsigns_vars[context_menu_band].text():
-            menu.addSeparator()
-            actions['add_callsign_to_temp_excluded'] = menu.addAction(f"Temporarily add {callsign} to Excluded Callsigns")            
-            actions['add_callsign_to_excluded'] = menu.addAction(f"Add {callsign} to Excluded Callsigns")
-        else:
-            actions['remove_callsign_from_excluded'] = menu.addAction(f"Remove {callsign} from Excluded Callsigns")
-        menu.addSeparator()
-       
-        """
-            Monitored Callsigns
-        """
-        if callsign not in self.monitored_callsigns_vars[context_menu_band].text():
-            actions['add_callsign_to_monitored'] = menu.addAction(f"Add {callsign} to Monitored Callsigns")
-        else:
-            actions['remove_callsign_from_monitored'] = menu.addAction(f"Remove {callsign} from Monitored Callsigns")
-        menu.addSeparator()
-
-
-        """
-            Directed Callsigns
-        """
-        if table.objectName() == 'output_table':
-            if directed and directed != self.my_call:
-                if directed not in self.wanted_callsigns_vars[context_menu_band].text():
-                    actions['add_directed_to_wanted'] = menu.addAction(f"Add {directed} to Wanted Callsigns")                    
-                else:
-                    actions['remove_directed_from_wanted'] = menu.addAction(f"Remove {directed} from Wanted Callsigns")
-
-                if directed != self.wanted_callsigns_vars[context_menu_band].text():
-                    actions['replace_wanted_with_directed'] = menu.addAction(f"Make {directed} your only Monitored Callsign")                
-
-                if directed not in self.monitored_callsigns_vars[context_menu_band].text():
-                    actions['add_directed_to_monitored'] = menu.addAction(f"Add {directed} to Monitored Callsigns")
-                else:
-                    actions['remove_directed_from_monitored'] = menu.addAction(f"Remove {directed} from Monitored Callsigns")
- 
-                menu.addSeparator()
-
-        """
-            Monitored CQ Zones
-        """
-        if cq_zone:
-            try:
-                if str(cq_zone) not in self.monitored_cq_zones_vars[context_menu_band].text():
-                    actions['add_to_cq_zone'] = menu.addAction(f"Add Zone {cq_zone} to Monitored CQ Zones")
-                else:
-                    actions['remove_from_cq_zone'] = menu.addAction(f"Remove Zone {cq_zone} from Monitored CQ Zones")
-            except ValueError:
-                pass 
-        menu.addSeparator()
-        
-        """
-            QRZ.com
-        """
-        actions['qrz_com_for_wanted_callsign'] = menu.addAction(f"Open QRZ.com for {callsign}")
-        menu.addSeparator()
-    
-        """
-            Copy message
-        """
-        actions['copy_message'] = menu.addAction("Copy message to Clipboard")
-
-        """
-            Set menu
-        """
-        action = menu.exec(table.viewport().mapToGlobal(position))
-
-        if action is None:
-            return
-
-        """
-            Context menu actions
-        """
-        if action == actions.get('copy_message'):
-            if formatted_message:
-                self.copy_message_to_clipboard(formatted_message)
-        else:
-            update_actions = {
-                'remove_entry_from_worked_history'    : lambda: self.remove_worked_callsign(callsign, history_band),
-                'remove_callsign_from_worked_history' : lambda: self.remove_worked_callsign(callsign),
-                'add_callsign_to_wanted'              : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], callsign),
-                'remove_callsign_from_wanted'         : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], callsign, "remove"),
-                'qrz_com_for_wanted_callsign'         : lambda: self.open_qrz_com(callsign),
-                'replace_wanted_with_callsign'        : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], callsign, "replace"),
-                'add_callsign_to_monitored'           : lambda: self.update_var(self.monitored_callsigns_vars[context_menu_band], callsign),
-                'remove_callsign_from_monitored'      : lambda: self.update_var(self.monitored_callsigns_vars[context_menu_band], callsign, "remove"),
-                'add_callsign_to_excluded'            : lambda: self.update_var(self.excluded_callsigns_vars[context_menu_band], callsign),
-                'add_callsign_to_temp_excluded'       : lambda: self.show_exclusion_time_dialog(callsign),
-                'remove_callsign_from_excluded'       : lambda: self.update_var(self.excluded_callsigns_vars[context_menu_band], callsign, "remove"),
-                'add_directed_to_wanted'              : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], directed),
-                'remove_directed_from_wanted'         : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], directed, "remove"),
-                'replace_wanted_with_directed'        : lambda: self.update_var(self.wanted_callsigns_vars[context_menu_band], directed, "replace"),
-                'add_directed_to_monitored'           : lambda: self.update_var(self.monitored_callsigns_vars[context_menu_band], directed),
-                'remove_directed_from_monitored'      : lambda: self.update_var(self.monitored_callsigns_vars[context_menu_band], directed, "remove"),
-                'qrz_com_for_directed_callsign'       : lambda: self.open_qrz_com(directed),
-                'add_to_cq_zone'                      : lambda: self.update_var(self.monitored_cq_zones_vars[context_menu_band], cq_zone),
-                'remove_from_cq_zone'                 : lambda: self.update_var(self.monitored_cq_zones_vars[context_menu_band], cq_zone, "remove"),
-            }
-
-            for key, act in actions.items():
-                if action == act:
-                    update_func = update_actions.get(key)
-                    if update_func:
-                        update_func()
-                        break
+        self.context_menu_handler.show_context_menu(table, position, data, "table")
 
     def open_qrz_com(self, callsign):
         if callsign:

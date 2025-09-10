@@ -18,6 +18,7 @@ from tiles_manager import TileCache, TileDownloader
 from theme_manager import ThemeManager
 from tooltip import CustomToolTip
 from custom_status_bar import CustomStatusBar
+from context_menu_handler import ContextMenuHandler
 
 from logger import get_logger
 
@@ -43,10 +44,14 @@ class GridMapWidget(QWidget):
     # Signal to emit message_uid when grid is clicked
     grid_clicked = pyqtSignal(str)  
     
-    def __init__(self):
+    def __init__(self, main_gui=None):
         super().__init__()
         self.setMinimumSize(800, 600)
         self.setMouseTracking(True)  # Enable mouse tracking for tooltips
+        
+        # Context menu support
+        self.main_gui = main_gui
+        self.context_menu_handler = ContextMenuHandler(main_gui) if main_gui else None
 
         # Tooltip management
         self.tooltip_timer = QTimer()
@@ -1727,6 +1732,9 @@ class GridMapWidget(QWidget):
             self.last_pan_point = event.pos()
             self.pan_velocity = QPoint(0, 0)
             self.last_pan_time = time.time() * 1000
+        elif event.button() == Qt.MouseButton.RightButton:
+            # Handle right-click for context menu
+            self.handle_context_menu(event.pos())
     
     def mouseMoveEvent(self, event: QMouseEvent):
         if self.mouse_pressed:
@@ -1814,6 +1822,41 @@ class GridMapWidget(QWidget):
                     # Update status menu with this grid's information
                     self.update_status_menu_for_grid(grid_data)
                 break
+    
+    def handle_context_menu(self, pos):
+        """Handle right-click context menu for grids"""
+        if not self.context_menu_handler:
+            return
+            
+        # Find grid data at click position (same logic as handle_grid_click)
+        lat, lon = self.screen_to_lat_lon(pos.x(), pos.y())
+
+        for grid_data in self.new_grids:
+            grid_square = grid_data['grid']
+            grid_info = self.maidenhead_to_lat_lon(grid_square, adjust_for_view=True)
+
+            if not grid_info:
+                continue
+            
+            screen_coords = []
+            for lat_coord in [grid_info['min_lat'], grid_info['max_lat']]:
+                for lon_coord in [grid_info['min_lon'], grid_info['max_lon']]:
+                    x, y = self.lat_lon_to_screen_stable(lat_coord, lon_coord)
+                    screen_coords.append(f"({x:.0f},{y:.0f})")            
+                
+            min_screen_x = min(float(coord.split(',')[0][1:]) for coord in screen_coords)
+            max_screen_x = max(float(coord.split(',')[0][1:]) for coord in screen_coords)
+            min_screen_y = min(float(coord.split(',')[1][:-1]) for coord in screen_coords)
+            max_screen_y = max(float(coord.split(',')[1][:-1]) for coord in screen_coords)
+            
+            click_x = pos.x()
+            click_y = pos.y()
+            
+            if (min_screen_x <= click_x <= max_screen_x and
+                min_screen_y <= click_y <= max_screen_y):
+                # Found a grid at this position, show context menu
+                self.context_menu_handler.show_context_menu(self, pos, grid_data, "grid")
+                return
     
     def handle_mouse_hover(self, pos):
         """
@@ -2028,10 +2071,11 @@ class GridMapWidget(QWidget):
         event.accept()
 
 class GridMapWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, main_gui=None):
         super().__init__()
         self.setWindowTitle(GUI_LABEL_VERSION + " - Grid Monitoring")
         self.setGeometry(100, 100, 1200, 800)
+        self.main_gui = main_gui
         
         # Set window icon for Windows taskbar
         if platform.system() == 'Windows':
@@ -2063,7 +2107,7 @@ class GridMapWindow(QMainWindow):
             except (ImportError, AttributeError):
                 self._set_taskbar_properties = lambda: None
               
-        self.map_widget = GridMapWidget()
+        self.map_widget = GridMapWidget(self.main_gui)
         
         self.status_bar = CustomStatusBar()
         self.status_bar_label_updated_grids         = CustomQLabel()
@@ -2220,10 +2264,10 @@ class GridMapWindow(QMainWindow):
         horizontal_layout.setSpacing(0) 
 
         # Left side: basic toggles
-        horizontal_layout.addWidget(CustomQLabel("Grid maps"))        
+        horizontal_layout.addWidget(CustomQLabel("Grid square"))        
         horizontal_layout.addWidget(self.grid_toggle)        
         horizontal_layout.addSpacing(20)                
-        horizontal_layout.addWidget(CustomQLabel("Worked Grids"))
+        horizontal_layout.addWidget(CustomQLabel("Grids"))
         horizontal_layout.addWidget(self.worked_toggle)
         horizontal_layout.addSpacing(20)        
         horizontal_layout.addWidget(CustomQLabel("Greyline"))                
