@@ -568,7 +568,7 @@ class MainApp(QtWidgets.QMainWindow):
         """
         bottom_layout = QtWidgets.QHBoxLayout()
 
-        self.quit_button = CustomButton("Quit")
+        self.quit_button = CustomButton("Close")
         self.quit_button.clicked.connect(self.quit_application)
 
         self.inputs_enabled = True

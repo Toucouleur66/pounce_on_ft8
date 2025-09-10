@@ -1062,53 +1062,65 @@ class CallsignLookup:
             return False
         return True
 
-    def get_entity_code_only(self, callsign):
+    def get_entity_code(self, callsign):
         """
-        Lightweight method to get only entity_code for ADIF processing.
-        Skips expensive grid calculations, zone updates, and cache writes.
+            Lightweight method to get only entity_code for ADIF processing.
+            Uses session-level caching and optimized prefix matching.
         """
         try:
             callsign = callsign.strip().upper()
+            
+            # Session cache for this processing run
+            if not hasattr(self, '_entity_session_cache'):
+                self._entity_session_cache = {}
+            
+            if callsign in self._entity_session_cache:
+                return self._entity_session_cache[callsign]
+            
+            entity_code = None
             
             # Check memory cache first (fastest)
             if callsign in self.cache:
                 cached_result = self.cache[callsign]
                 entity_code = cached_result.get('entity_code')
                 if entity_code:
+                    self._entity_session_cache[callsign] = entity_code
                     return entity_code
             
             # Check exact callsign match in CTY data
             if callsign in self.cty_exact_calls:
                 result = self.cty_exact_calls[callsign]
-                entity_code = result.get('entity_code')
+                entity_code = result.get('entity_code') or result.get('adif')
                 if entity_code:
+                    self._entity_session_cache[callsign] = entity_code
                     return entity_code
-                # Try to get entity_code from other fields
-                if result.get('adif'):
-                    return result['adif']
             
             # Check exact prefix match in CTY data
             if callsign in self.cty_prefixes:
                 result = self.cty_prefixes[callsign]
-                entity_code = result.get('entity_code')
+                entity_code = result.get('entity_code') or result.get('adif')
                 if entity_code:
+                    self._entity_session_cache[callsign] = entity_code
                     return entity_code
-                if result.get('adif'):
-                    return result['adif']
             
-            # Try prefix matching (most expensive part) - limit to first match
-            for prefix in self._sorted_cty_prefixes:
-                if callsign.startswith(prefix):
-                    result = self.cty_prefixes.get(prefix)
-                    if result:
-                        entity_code = result.get('entity_code')
-                        if entity_code:
-                            return entity_code
-                        if result.get('adif'):
-                            return result['adif']
-                    break
+            # Optimized prefix matching and try only likely prefixes first
+            # Start with longer prefixes (more specific)
+            for prefix_len in range(min(6, len(callsign)), 0, -1):
+                prefix = callsign[:prefix_len]
+                if prefix in self.cty_prefixes:
+                    result = self.cty_prefixes[prefix]
+                    entity_code = result.get('entity_code') or result.get('adif')
+                    if entity_code:
+                        self._entity_session_cache[callsign] = entity_code
+                        return entity_code
             
+            # Cache negative result to avoid re-processing
+            self._entity_session_cache[callsign] = None
             return None
             
         except Exception:
             return None
+    
+    def clear_entity_session_cache(self):
+        if hasattr(self, '_entity_session_cache'):
+            self._entity_session_cache.clear()

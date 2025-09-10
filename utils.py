@@ -632,7 +632,7 @@ def parse_adif_record(record, lookup):
 
     info = {}
     if lookup and call:
-        entity_code = lookup.get_entity_code_only(call)
+        entity_code = lookup.get_entity_code(call)
         if entity_code:
             info = {'entity_code': entity_code}
 
@@ -648,6 +648,10 @@ def process_adif_records(
     ):
     processed_count = 0
     total_records = len([r for r in records if r.strip()])
+    
+    # Clear session cache for new processing run
+    if lookup and hasattr(lookup, 'clear_entity_session_cache'):
+        lookup.clear_entity_session_cache()
     
     for record in records:
         record = record.strip()

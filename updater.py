@@ -124,7 +124,7 @@ class UpdateManager:
             sourceforge_button.clicked.connect(self.open_sourceforge_link)
             button_layout.addWidget(sourceforge_button)
 
-        quit_button = CustomButton("Quit")
+        quit_button = CustomButton("Close")
         quit_button.setFixedWidth(80)
         quit_button.clicked.connect(dialog.accept)
         button_layout.addWidget(quit_button)
