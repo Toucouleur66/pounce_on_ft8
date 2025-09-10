@@ -636,7 +636,7 @@ def parse_adif_record(record, lookup):
         if entity_code:
             info = {'entity_code': entity_code}
 
-    return year, band, grid, call, freq, mode, rst_sent, rst_rcvd, qsl_status, info
+    return year, qso_date, band, grid, call, freq, mode, rst_sent, rst_rcvd, qsl_status, info
 
 def process_adif_records(
         records,
@@ -657,7 +657,7 @@ def process_adif_records(
         record = record.strip()
         if record:
             record = " ".join(record.split())
-            year, band, grid, call, freq, mode, rst_sent, rst_rcvd, qsl_status, info = parse_adif_record(record, lookup)
+            year, qso_date, band, grid, call, freq, mode, rst_sent, rst_rcvd, qsl_status, info = parse_adif_record(record, lookup)
 
             if lookup and year and band and info and info.get('entity_code') and parsed_entity_data is not None:
                 if year not in parsed_entity_data:
@@ -680,6 +680,7 @@ def process_adif_records(
                 # Store complete QSO data for this grid
                 qso_data = {
                     'year': year,
+                    'qso_date': qso_date,
                     'band': band,
                     'grid': grid,
                     'call': call,

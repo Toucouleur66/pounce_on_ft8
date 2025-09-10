@@ -13,7 +13,9 @@ from constants import (
     FG_COLOR_BLACK_ON_PURPLE,
     BG_COLOR_BLACK_ON_SAUMON,
     BG_COLOR_BLACK_ON_CYAN,
-    FG_COLOR_BLACK_ON_CYAN
+    FG_COLOR_BLACK_ON_CYAN,
+    BG_COLOR_REGULAR_FOCUS,
+    FG_COLOR_REGULAR_FOCUS
 )
 
 class TooltipManager:
@@ -121,7 +123,10 @@ class CustomToolTip(QtWidgets.QWidget):
                 BG_COLOR_BLACK_ON_CYAN,
                 FG_COLOR_BLACK_ON_CYAN
             ),
-            "default": ("#3498db", "#FFFFFF")
+            "default": (
+                BG_COLOR_REGULAR_FOCUS,
+                FG_COLOR_REGULAR_FOCUS                
+            )
         }
         
         self.adjustSize()
@@ -249,7 +254,6 @@ class ToolTip(QtWidgets.QWidget):
         QtCore.QTimer.singleShot(100, self._install_event_filter)
     
     def _install_event_filter(self):
-        """Install the event filter after a delay to ensure widget is ready."""
         if not self.event_filter_installed and self.widget:
             self.widget.installEventFilter(self)
             self.event_filter_installed = True

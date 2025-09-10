@@ -35,7 +35,8 @@ from constants import (
     QSLIDER_QSS,
     SLIDER_VALUE_LABEL_QSS,
     FG_COLOR_REGULAR_FOCUS,
-    BG_COLOR_REGULAR_FOCUS
+    BG_COLOR_REGULAR_FOCUS,
+    LOTW_SYMBOL
 )
 
 log     = get_logger(__name__)
@@ -1910,18 +1911,60 @@ class GridMapWidget(QWidget):
                 global_pos = self.mapToGlobal(self.current_tooltip_pos)
                 self.custom_tooltip.showToolTip(global_pos)
             else:
-                confirmed_calls, worked_calls = self.get_separated_callsigns_for_grid(self.current_tooltip_grid)
-                if confirmed_calls or worked_calls:
-                    tooltip_text_array = []
-                    tooltip_text_array.append(f"Grid: <b>{self.current_tooltip_grid}</b>")
-                    if confirmed_calls:
-                        tooltip_text_array.append(f"Confirmed: {', '.join(confirmed_calls)}")
-                    if worked_calls:
-                        tooltip_text_array.append(f"Worked: {', '.join(worked_calls)}")
-                    tooltip_text = "<br />".join(tooltip_text_array)
-                    self.hide_custom_tooltip()
+                qso_details = self.get_qso_details_for_grid(self.current_tooltip_grid)
+                if qso_details:
+                    tooltip_html = f"Grid: <b>{self.current_tooltip_grid}</b>"
                     
-                    self.custom_tooltip = CustomToolTip(tooltip_text, "default")
+                    # Create HTML table
+                    tooltip_html += f"""
+                    <table border="1" cellpadding="3" cellspacing="0" style="border-collapse: collapse; font-size: 12px;">
+                        <tr style="color: {FG_COLOR_REGULAR_FOCUS};">
+                            <td>Callsign</td>
+                            <td>Date</td>
+                            <td>Freq</td>
+                            <td>Mode</td>
+                            <td>Sent</td>
+                            <td>Rcvd</td>
+                            <td>QSL</td>
+                        </tr>
+                    """
+
+                    for qso in qso_details:                    
+                        freq_mhz = ""
+                        if qso['freq']:
+                            try:
+                                freq_val = float(qso['freq'])
+                                freq_mhz = f"{freq_val:.4f}"
+                            except (ValueError, TypeError):
+                                freq_mhz = str(qso['freq'])
+                        
+                        if qso['qsl_status']:
+                            background_color = self.confirmed_color_fill.name()
+                            font_color = "#ffffff"
+                            qsl_rcvd = '✓'
+                            if qso['qsl_status'] == 'V':
+                                qsl_rcvd += LOTW_SYMBOL
+                        else:
+                            background_color = self.worked_color_fill.name()
+                            font_color = "#000000"
+                            qsl_rcvd     = ''
+
+                        tooltip_html += f"""
+                        <tr style="background-color: {background_color}; color: {font_color};">
+                            <td><b>{qso['call']}</b></td>
+                            <td>{qso['formatted_date']}</td>
+                            <td>{freq_mhz}</td>
+                            <td>{qso['mode']}</td>
+                            <td>{qso['rst_sent']}</td>
+                            <td>{qso['rst_rcvd']}</td>
+                            <td>{qsl_rcvd}</td>
+                        </tr>
+                        """
+                    
+                    tooltip_html += "</table>"
+                    
+                    self.hide_custom_tooltip()
+                    self.custom_tooltip = CustomToolTip(tooltip_html, "default")
                     global_pos = self.mapToGlobal(self.current_tooltip_pos)
                     self.custom_tooltip.showToolTip(global_pos)
     
@@ -2044,6 +2087,55 @@ class GridMapWidget(QWidget):
         worked_calls = [call for call, is_confirmed in all_calls.items() if not is_confirmed]
 
         return sorted(confirmed_calls)[:10], sorted(worked_calls)[:10]
+    
+    def get_qso_details_for_grid(self, grid_square):
+        """
+            Get detailed QSO information for the given grid square, sorted by date (newest first)
+        """
+        if not self.adif_data or not self.operating_band:
+            return []
+        
+        grid_data = self.adif_data.get('grid', {}).get(self.operating_band, {})
+        
+        if grid_square in grid_data and isinstance(grid_data[grid_square], list):
+            qso_map = {}  
+            
+            for qso in grid_data[grid_square]:
+                qso_date = qso.get('qso_date', '')
+                formatted_date = ''
+                if qso_date and len(qso_date) >= 8:
+                    try:
+                        formatted_date = f"{qso_date[0:4]}-{qso_date[4:6]}-{qso_date[6:8]}"
+                    except:
+                        formatted_date = qso_date
+                
+                call = qso.get('call', '')
+                dedup_key = f"{call}_{qso_date}"
+                
+                qso_detail = {
+                    'call': call,
+                    'qso_date': qso_date, 
+                    'formatted_date': formatted_date, 
+                    'freq': qso.get('freq', ''),
+                    'mode': qso.get('mode', ''),
+                    'rst_sent': qso.get('rst_sent', ''),
+                    'rst_rcvd': qso.get('rst_rcvd', ''),
+                    'qsl_status':  qso.get('qsl_status'),
+                    'is_confirmed': bool(qso.get('qsl_status'))
+                }
+                
+                if dedup_key in qso_map:
+                    existing = qso_map[dedup_key]
+                    if qso_detail['is_confirmed'] and not existing['is_confirmed']:
+                        qso_map[dedup_key] = qso_detail
+                else:
+                    qso_map[dedup_key] = qso_detail
+            
+            qsos = list(qso_map.values())
+            qsos.sort(key=lambda x: x['qso_date'] or '00000000', reverse=True)
+            return qsos
+        
+        return []
     
     def leaveEvent(self, event):
         """

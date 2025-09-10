@@ -23,7 +23,8 @@ from constants import (
     FG_COLOR_BLACK_ON_CYAN,
     CUSTOM_FONT,
     CUSTOM_FONT_SMALL,
-    DATE_COLUMN_AGE
+    DATE_COLUMN_AGE,
+    LOTW_SYMBOL
 )
 class RawDataModel(QtCore.QAbstractTableModel):
     def __init__(self, data=None, max_size_bytes=50**7, max_num_rows=40_000):
@@ -121,7 +122,7 @@ class RawDataModel(QtCore.QAbstractTableModel):
             elif column == 6:
                 # LoTW indicator column
                 lotw = raw_data.get('lotw')
-                return "•" if lotw else ""
+                return LOTW_SYMBOL if lotw else ""
             elif column == 7:
                 # Country column (moved from column 6)
                 return raw_data['entity']
