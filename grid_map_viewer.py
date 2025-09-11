@@ -1901,20 +1901,22 @@ class GridMapWidget(QWidget):
             if highlighted_data:
                 tooltip_html.append(f"Decoded Grid: <b>{self.current_tooltip_grid}</b>")
                 tooltip_html.append(f"""
-                <table border="1" cellpadding="3" cellspacing="0" style="border-collapse: collapse; font-size: 12px;">
+                <table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; font-size: 12px;">
                     <tr>
                         <td>Callsign</td>                    
+                        <td></td>
                         <td>Time</td>
                         <td>Report</td>
                         <td>DT</td>
                         <td>Freq</td>
                     </tr>
                     <tr style="color: {FG_COLOR_REGULAR_FOCUS}; background-color: {BG_COLOR_REGULAR_FOCUS};">
-                        <td><b>{highlighted_data['callsign']}</b></td>                        
+                        <td><b>{highlighted_data['callsign']}</b></td>          
+                        <td>{LOTW_SYMBOL if highlighted_data['lotw'] else ''}</td>              
                         <td>{highlighted_data['decode_time'].strftime("%H:%M:%S")}</td>                        
                         <td>{highlighted_data['snr']:+3d} dB</td>
                         <td>{highlighted_data['delta_time']:+5.1f}s</td>
-                        <td>{highlighted_data['delta_freq']:+6d}Hz</td>
+                        <td>{highlighted_data['delta_freq']:+6d}<small>Hz</small></td>
                     </tr>
                 </table>
                 """)
@@ -1930,7 +1932,7 @@ class GridMapWidget(QWidget):
 
                 tooltip_html.append(f"Worded Grid: <b>{self.current_tooltip_grid}</b>")           
                 tooltip_html.append(f"""
-                <table border="1" cellpadding="3" cellspacing="0" style="border-collapse: collapse; font-size: 12px;">
+                <table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; font-size: 12px;">
                     <tr{style}>
                         <td>Callsign</td>
                         <td>Date</td>
@@ -1975,6 +1977,14 @@ class GridMapWidget(QWidget):
                     """)
 
                 tooltip_html.append("</table>")
+
+            if highlighted_data:
+                tooltip_html.append(f"""
+                <br style="font-size: 6px;">
+                <i style="font-size: 10px;"><small>
+                    * Right click on Grid for context-menu
+                </small></i>
+                """)
 
             tooltip_html = "\n".join(tooltip_html)
 

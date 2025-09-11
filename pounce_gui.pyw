@@ -1736,6 +1736,8 @@ class MainApp(QtWidgets.QMainWindow):
                 elif callsign_info is None:
                     entity      = "Where?"
 
+                message['lotw'] = lotw                    
+
                 if entity_wkb4:
                     if wkb4_year is None:
                         wkb4_year = '⋆'

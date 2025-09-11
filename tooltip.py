@@ -144,7 +144,7 @@ class CustomToolTip(QtWidgets.QWidget):
         doc_size = doc.size()
         
         # Add padding
-        width = int(doc_size.width()) + 2 * self.padding + 8
+        width = int(doc_size.width()) + 2 * self.padding 
         height = int(doc_size.height()) + 2 * self.padding + 4
         
         return QtCore.QSize(width, height)

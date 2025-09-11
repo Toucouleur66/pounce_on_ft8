@@ -65,7 +65,9 @@ from constants import (
     SETTING_QSS,
     ODD_COLOR,
     # ADIF
-    ADIF_WORKED_CALLSIGNS_FILE
+    ADIF_WORKED_CALLSIGNS_FILE,
+    # Symbol
+    LOTW_SYMBOL
 )
 
 class SettingsDialog(QtWidgets.QDialog):
@@ -623,7 +625,7 @@ class SettingsDialog(QtWidgets.QDialog):
         else:
             lotw_cache_text = "No LoTW data available yet"
         
-        lotw_notice_text = f"<p>LoTW (Logbook of The World®) is ARRL's online QSO confirmation system.</p><p>Enable this option to limit alerts and only respond to callsigns using LoTW if you use a wildcard in your searched callsigns. Therefore, {GUI_LABEL_NAME} will always respond to the callsign if it exactly matches a wanted callsign that is not LoTW.</p><p>This setting is ignored for Marathon but is used for GridTracker.</p>"
+        lotw_notice_text = f"<p>LoTW (Logbook of The World®) is ARRL's online QSO confirmation system.</p><p>Enable it to limit sound alerts and only respond to callsigns who use LoTW especially if you use a wildcard in your Wanted callsigns.</p><p>{GUI_LABEL_NAME} will always respond to the callsign if it exactly matches a wanted callsign that is not LoTW.</p><p>This setting is ignored for Marathon but is used for GridTracker.</p>"
         lotw_notice_label = QtWidgets.QLabel(lotw_notice_text)
         lotw_notice_label.setWordWrap(True)
         lotw_notice_label.setFont(CUSTOM_FONT_SMALL)
