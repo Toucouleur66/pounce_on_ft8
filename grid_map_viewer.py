@@ -1896,12 +1896,12 @@ class GridMapWidget(QWidget):
             qso_datas        = self.get_qso_datas_for_grid(self.current_tooltip_grid)
             highlighted_data = self.get_new_grid_data(self.current_tooltip_grid)
 
-            tooltip_html = ""
+            tooltip_html = []
 
             if highlighted_data:
-                tooltip_html += f"Decoded Grid: <b>{self.current_tooltip_grid}</b>"
-                tooltip_html += f"""
-                <table border="1" cellpadding="3" cellspacing="0" style="border-collapse: collapse; font-size: 12px; table-layout: fixed;">
+                tooltip_html.append(f"Decoded Grid: <b>{self.current_tooltip_grid}</b>")
+                tooltip_html.append(f"""
+                <table border="1" cellpadding="3" cellspacing="0" style="border-collapse: collapse; font-size: 12px;">
                     <tr>
                         <td>Callsign</td>                    
                         <td>Time</td>
@@ -1917,13 +1917,21 @@ class GridMapWidget(QWidget):
                         <td>{highlighted_data['delta_freq']:+6d}Hz</td>
                     </tr>
                 </table>
-                """
+                """)
 
-            if qso_datas:             
-                tooltip_html += f"Worded Grid: <b>{self.current_tooltip_grid}</b>"           
-                tooltip_html += f"""
-                <table border="1" cellpadding="3" cellspacing="0" style="border-collapse: collapse; font-size: 12px; table-layout: fixed;">
-                    <tr style="color: #ffffff; background-color: {BG_COLOR_REGULAR_FOCUS};">
+            if qso_datas: 
+                if highlighted_data:
+                    tooltip_html.append("<br>")
+                    style = ""
+                else:
+                    style = f"""
+                            style="color: #ffffff; background-color: #000000;"
+                        """
+
+                tooltip_html.append(f"Worded Grid: <b>{self.current_tooltip_grid}</b>")           
+                tooltip_html.append(f"""
+                <table border="1" cellpadding="3" cellspacing="0" style="border-collapse: collapse; font-size: 12px;">
+                    <tr{style}>
                         <td>Callsign</td>
                         <td>Date</td>
                         <td>Freq</td>
@@ -1932,7 +1940,7 @@ class GridMapWidget(QWidget):
                         <td>Rcvd</td>
                         <td>QSL</td>
                     </tr>
-                """
+                """)                
 
                 for qso in qso_datas:                    
                     freq_mhz = ""
@@ -1954,7 +1962,7 @@ class GridMapWidget(QWidget):
                         font_color = "#000000"
                         qsl_rcvd     = ''
 
-                    tooltip_html += f"""
+                    tooltip_html.append(f"""
                     <tr style="background-color: {background_color}; color: {font_color};">
                         <td><b>{qso['call']}</b></td>
                         <td>{qso['formatted_date']}</td>
@@ -1964,16 +1972,18 @@ class GridMapWidget(QWidget):
                         <td>{qso['rst_rcvd']}</td>
                         <td>{qsl_rcvd}</td>
                     </tr>
-                    """
-                
-                tooltip_html += "</table>"
-                
+                    """)
+
+                tooltip_html.append("</table>")
+
+            tooltip_html = "\n".join(tooltip_html)
+
             if highlighted_data:
                 self.custom_tooltip = CustomToolTip(
                     tooltip_html, 
                     "default",
-                    bg_color=self.new_grid_color_fill.name(),
-                    fg_color=self.new_grid_border_color.name()
+                    bg_color = self.new_grid_color_fill.name() if not qso_datas else self.worked_grid_color_fill.name(),
+                    fg_color = self.new_grid_border_color.name() if not qso_datas else self.worked_grid_border_color.name()
                 )
             elif qso_datas:
                 self.custom_tooltip = CustomToolTip(
