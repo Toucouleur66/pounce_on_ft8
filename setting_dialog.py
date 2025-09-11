@@ -283,7 +283,7 @@ class SettingsDialog(QtWidgets.QDialog):
             Offset Settings
         """
         offset_notice_text = (
-            f"<p>The frequency offset updater helps to find a free frequency offset from nominal (DF).</p><p>You can select different operating modes (Normal, Fox/Hound, SuperFox) which use different frequency ranges to optimize performance for your specific operating conditions.</p>"
+            f"<p>The frequency offset updater helps to find a free frequency offset from nominal (DF).</p><p>Select one of the pre-defined  operating modes from <u>Normal</u>, <u>Fox/Hound</u>, or <u>SuperFox</u>.</p><p>You can also set your own custom frequency range.</p>"
         )
         offset_notice_label = QtWidgets.QLabel(offset_notice_text)
         offset_notice_label.setWordWrap(True)
@@ -486,14 +486,21 @@ class SettingsDialog(QtWidgets.QDialog):
 
         udp_freq_range_type_layout.addWidget(self.mode_table_widget)
 
-        # Frequency range input fields - always visible
-        freq_widget = QtWidgets.QWidget()
-        freq_layout = QtWidgets.QHBoxLayout(freq_widget)
-        freq_layout.setContentsMargins(0, 5, 0, 0)
+        self.freq_range_type_group.setLayout(QtWidgets.QVBoxLayout())
+        self.freq_range_type_group.layout().setContentsMargins(0, 0, 0, 0)
+        self.freq_range_type_group.layout().addWidget(udp_freq_range_type_widget)
+
+        # Custom range group
+        self.custom_range_group = QtWidgets.QGroupBox("Custom frequency range")
+        self.custom_range_group.setFont(CUSTOM_FONT_SMALL)
+        
+        custom_range_widget = QtWidgets.QWidget()
+        custom_range_layout = QtWidgets.QHBoxLayout(custom_range_widget)
+        custom_range_layout.setContentsMargins(0, 5, 0, 0)
         
         # Labels and input fields for frequency range
         min_label = QtWidgets.QLabel("Min Freq (Hz):")
-        min_label.setFont(CUSTOM_FONT)
+        min_label.setFont(CUSTOM_FONT_SMALL)
         self.min_freq = QtWidgets.QSpinBox()
         self.min_freq.setRange(0, 10000)
         self.min_freq.setValue(FREQ_MINIMUM)
@@ -501,18 +508,18 @@ class SettingsDialog(QtWidgets.QDialog):
         self.min_freq.setFont(CUSTOM_FONT_SMALL)
         
         max_label = QtWidgets.QLabel("Max Freq (Hz):")
-        max_label.setFont(CUSTOM_FONT)
+        max_label.setFont(CUSTOM_FONT_SMALL)
         self.max_freq = QtWidgets.QSpinBox()
         self.max_freq.setRange(0, 10000)
         self.max_freq.setValue(FREQ_MAXIMUM)
         self.max_freq.setSuffix("Hz")
         self.max_freq.setFont(CUSTOM_FONT_SMALL)
         
-        freq_layout.addWidget(min_label)
-        freq_layout.addWidget(self.min_freq)
-        freq_layout.addStretch()  # This pushes max fields to the right
-        freq_layout.addWidget(max_label)
-        freq_layout.addWidget(self.max_freq)
+        custom_range_layout.addWidget(min_label)
+        custom_range_layout.addWidget(self.min_freq)
+        custom_range_layout.addStretch()  # This pushes max fields to the right
+        custom_range_layout.addWidget(max_label)
+        custom_range_layout.addWidget(self.max_freq)
         
         # Store custom frequency values
         self.custom_min_freq_value = FREQ_MINIMUM
@@ -522,15 +529,14 @@ class SettingsDialog(QtWidgets.QDialog):
         self.min_freq.valueChanged.connect(self.on_frequency_changed)
         self.max_freq.valueChanged.connect(self.on_frequency_changed)
         
-        udp_freq_range_type_layout.addWidget(freq_widget)
-
-        self.freq_range_type_group.setLayout(QtWidgets.QVBoxLayout())
-        self.freq_range_type_group.layout().setContentsMargins(0, 0, 0, 0)
-        self.freq_range_type_group.layout().addWidget(udp_freq_range_type_widget)
+        self.custom_range_group.setLayout(QtWidgets.QVBoxLayout())
+        self.custom_range_group.layout().setContentsMargins(10, 10, 10, 10)
+        self.custom_range_group.layout().addWidget(custom_range_widget)
 
         offset_layout.addWidget(offset_notice_label)
         offset_layout.addWidget(offset_settings_group)
         offset_layout.addWidget(self.freq_range_type_group)
+        offset_layout.addWidget(self.custom_range_group)
         offset_layout.addStretch()
 
         minimum_report_text = (
