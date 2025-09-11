@@ -436,12 +436,10 @@ class SettingsDialog(QtWidgets.QDialog):
             QtWidgets.QSizePolicy.Policy.Fixed
         )
         
-        # Disable scrollbars since table will fit all content
         self.mode_table_widget.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.mode_table_widget.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
-        row_height = 28
-        # Store radio button references for each row
+        row_height = 30 
         self.row_to_radio = {}
         
         for row, (button, label, freq_min, freq_max) in enumerate(modes):
@@ -453,22 +451,25 @@ class SettingsDialog(QtWidgets.QDialog):
             freq_min_item = QTableWidgetItem(f"{freq_min}Hz")
             freq_min_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
             freq_min_item.setFont(CUSTOM_FONT_SMALL)
+            freq_min_item.setFlags(freq_min_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.mode_table_widget.setItem(row, 0, freq_min_item)
 
             freq_max_item = QTableWidgetItem(f"{freq_max}Hz")
             freq_max_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
             freq_max_item.setFont(CUSTOM_FONT_SMALL)
+            freq_max_item.setFlags(freq_max_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.mode_table_widget.setItem(row, 1, freq_max_item)
 
             label_item = QTableWidgetItem(f"{label}")
             label_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
+            label_item.setFlags(label_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             label_item.setFont(CUSTOM_FONT_SMALL)
             self.mode_table_widget.setItem(row, 2, label_item)
 
         # Auto-size table to fit all rows without scrolling
-        self.mode_table_widget.resizeRowsToContents()
+        # self.mode_table_widget.resizeRowsToContents()
         header_height = self.mode_table_widget.horizontalHeader().sizeHint().height()
-        total_height = header_height + (row_height * len(modes)) + 12 
+        total_height = header_height + (row_height * len(modes)) + 15 
         self.mode_table_widget.setFixedHeight(total_height)
 
         self.mode_table_widget.horizontalHeader().setStyleSheet("""
@@ -492,26 +493,26 @@ class SettingsDialog(QtWidgets.QDialog):
         
         # Labels and input fields for frequency range
         min_label = QtWidgets.QLabel("Min Freq (Hz):")
-        min_label.setFont(CUSTOM_FONT_SMALL)
+        min_label.setFont(CUSTOM_FONT)
         self.min_freq = QtWidgets.QSpinBox()
         self.min_freq.setRange(0, 10000)
         self.min_freq.setValue(FREQ_MINIMUM)
-        self.min_freq.setSuffix(" Hz")
+        self.min_freq.setSuffix("Hz")
         self.min_freq.setFont(CUSTOM_FONT_SMALL)
         
         max_label = QtWidgets.QLabel("Max Freq (Hz):")
-        max_label.setFont(CUSTOM_FONT_SMALL)
+        max_label.setFont(CUSTOM_FONT)
         self.max_freq = QtWidgets.QSpinBox()
         self.max_freq.setRange(0, 10000)
         self.max_freq.setValue(FREQ_MAXIMUM)
-        self.max_freq.setSuffix(" Hz")
+        self.max_freq.setSuffix("Hz")
         self.max_freq.setFont(CUSTOM_FONT_SMALL)
         
         freq_layout.addWidget(min_label)
         freq_layout.addWidget(self.min_freq)
+        freq_layout.addStretch()  # This pushes max fields to the right
         freq_layout.addWidget(max_label)
         freq_layout.addWidget(self.max_freq)
-        freq_layout.addStretch()
         
         # Store custom frequency values
         self.custom_min_freq_value = FREQ_MINIMUM
@@ -697,7 +698,7 @@ class SettingsDialog(QtWidgets.QDialog):
         else:
             lotw_cache_text = "No LoTW data available yet"
         
-        lotw_notice_text = f"<p>LoTW (Logbook of The World®) is ARRL's online QSO confirmation system.</p><p>Enable it to limit sound alerts and only respond to callsigns who use LoTW especially if you use a wildcard in your Wanted callsigns.</p><p>{GUI_LABEL_NAME} will always respond to the callsign if it exactly matches a wanted callsign that is not LoTW.</p><p>This setting is ignored for Marathon but is used for GridTracker.</p>"
+        lotw_notice_text = f"<p>LoTW (Logbook of The World®) is ARRL's online QSO confirmation system.</p><p>Enable it to limit sound alerts and only respond to callsigns who use LoTW especially <u>if you use a Wildcard in your Wanted callsigns</u>.</p><p>{GUI_LABEL_NAME} will always respond to the callsign if it exactly matches a wanted callsign that is not LoTW.</p><p><u>This setting is ignored for Marathon</u> but is used for GridTracker and if you make use of Wildcard.</p>"
         lotw_notice_label = QtWidgets.QLabel(lotw_notice_text)
         lotw_notice_label.setWordWrap(True)
         lotw_notice_label.setFont(CUSTOM_FONT_SMALL)
@@ -957,7 +958,7 @@ class SettingsDialog(QtWidgets.QDialog):
         marathon_select_layout = QtWidgets.QGridLayout()
 
         self.band_buttons = {}
-        max_cols = 4
+        max_cols = 3
         row = 0
         col = 0
 
@@ -1019,7 +1020,7 @@ class SettingsDialog(QtWidgets.QDialog):
         grid_tracker_select_layout = QtWidgets.QGridLayout()
 
         self.grid_tracker_band_buttons = {}
-        max_cols = 4
+        max_cols = 3
         row = 0
         col = 0
 
@@ -1368,13 +1369,29 @@ class SettingsDialog(QtWidgets.QDialog):
             self.mode_table_widget.selectRow(custom_row)
     
     def update_custom_table_display(self):
-        """Update the Custom row in the table with current frequency values"""
         custom_row = 3  # Custom is the 4th row (0-indexed)
         freq_min_item = self.mode_table_widget.item(custom_row, 0)  # Column 0 now
         freq_max_item = self.mode_table_widget.item(custom_row, 1)  # Column 1 now
         if freq_min_item and freq_max_item:
-            freq_min_item.setText(f"{self.min_freq.value()}Hz")
-            freq_max_item.setText(f"{self.max_freq.value()}Hz")
+            freq_min_item.setText(f"{self.custom_min_freq_value}Hz")
+            freq_max_item.setText(f"{self.custom_max_freq_value}Hz")
+            
+    def highlight_selected_mode_row(self):
+        selected_radio = None
+        if self.radio_normal.isChecked():
+            selected_radio = self.radio_normal
+        elif self.radio_foxhound.isChecked():
+            selected_radio = self.radio_foxhound
+        elif self.radio_superfox.isChecked():
+            selected_radio = self.radio_superfox
+        elif self.radio_custom.isChecked():
+            selected_radio = self.radio_custom
+            
+        if selected_radio:
+            for row, button in self.row_to_radio.items():
+                if button == selected_radio:
+                    self.mode_table_widget.selectRow(row)
+                    break
 
     def on_page_changed(self, index):
         # Clear focus from any widget to prevent unwanted field focus
@@ -1397,18 +1414,12 @@ class SettingsDialog(QtWidgets.QDialog):
             return "File not found", 0, 0, "N/A", "N/A"
         
         try:
-            # Check if file is empty
             if os.path.getsize(file_path) == 0:
                 return "Empty file", 0, 0, "N/A", "N/A"
-            
-            # Count records and callsigns directly from file content
             with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
                 content = f.read()
-            
-            # Count records by looking for <EOR> markers (End of Record)
             total_entries = content.upper().count('<EOR>')
             
-            # Extract unique callsigns and find first entry date
             callsigns = set()
             first_entry_date = None
             records = re.split(r'<EOR>', content, flags=re.IGNORECASE)
@@ -1438,7 +1449,6 @@ class SettingsDialog(QtWidgets.QDialog):
             
             unique_calls = len(callsigns)
             
-            # Get file modification time
             mod_time = os.path.getmtime(file_path)
             last_update = datetime.fromtimestamp(mod_time).strftime("%Y-%m-%d %H:%M")
             
@@ -1657,9 +1667,9 @@ class SettingsDialog(QtWidgets.QDialog):
         min_freq = self.params.get("min_freq", FREQ_MINIMUM)
         max_freq = self.params.get("max_freq", FREQ_MAXIMUM)
         
-        # Store the loaded values as custom values (they might be custom values from last session)
-        self.custom_min_freq_value = min_freq
-        self.custom_max_freq_value = max_freq
+        # Load the saved custom frequency values (separate from current min/max)
+        self.custom_min_freq_value = self.params.get("custom_min_freq", FREQ_MINIMUM)
+        self.custom_max_freq_value = self.params.get("custom_max_freq", FREQ_MAXIMUM)
         
         # Temporarily disconnect signals to avoid triggering on_frequency_changed during load
         self.min_freq.valueChanged.disconnect(self.on_frequency_changed)
@@ -1672,9 +1682,11 @@ class SettingsDialog(QtWidgets.QDialog):
         self.min_freq.valueChanged.connect(self.on_frequency_changed)
         self.max_freq.valueChanged.connect(self.on_frequency_changed)
         
-        # Update custom table display only if Custom mode is selected
-        if freq_range_mode == "Custom":
-            self.update_custom_table_display()
+        # Always update custom table display with loaded custom values
+        self.update_custom_table_display()
+            
+        # Highlight the currently selected row in the table
+        self.highlight_selected_mode_row()
 
         self.primary_udp_server_address.setText(
             self.params.get('primary_udp_server_address') or local_ip_address
@@ -1903,6 +1915,8 @@ class SettingsDialog(QtWidgets.QDialog):
             'freq_range_mode'                            : freq_range_mode,
             'min_freq'                                   : self.min_freq.value(),
             'max_freq'                                   : self.max_freq.value(),
+            'custom_min_freq'                            : self.custom_min_freq_value,
+            'custom_max_freq'                            : self.custom_max_freq_value,
             'worked_before_preference'                   : worked_before_preference,
             'marathon_preference'                        : marathon_preference,
             'enable_grid_tracker'                        : any(grid_tracker_preference.values()),
