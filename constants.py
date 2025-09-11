@@ -92,6 +92,7 @@ DATE_COLUMN_DATETIME            = "Time"
 DATE_COLUMN_AGE                 = "Age"
 
 LOTW_SYMBOL                     = "•"
+QSL_RCVD_SYMBOL                 = "✓"
 
 WAITING_DATA_PACKETS_LABEL      = "Waiting for UDP Packets"
 WORKED_CALLSIGNS_HISTORY_LABEL  = "Worked Callsigns"

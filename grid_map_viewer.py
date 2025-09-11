@@ -29,14 +29,18 @@ from constants import (
     CUSTOM_FONT,
     CUSTOM_FONT_SMALL,
     GUI_LABEL_VERSION,
+    # Colors
     STATUS_MONITORING_COLOR,
     BG_COLOR_BLACK_ON_YELLOW,
     FG_COLOR_REGULAR_FOCUS,
-    QSLIDER_QSS,
-    SLIDER_VALUE_LABEL_QSS,
     FG_COLOR_REGULAR_FOCUS,
     BG_COLOR_REGULAR_FOCUS,
-    LOTW_SYMBOL
+    # Stylesheets
+    QSLIDER_QSS,
+    SLIDER_VALUE_LABEL_QSS,
+    # Symbols
+    LOTW_SYMBOL,
+    QSL_RCVD_SYMBOL
 )
 
 log     = get_logger(__name__)
@@ -1888,86 +1892,98 @@ class GridMapWidget(QWidget):
         """
             Show tooltip after delay
         """
-        if self.current_tooltip_grid and self.current_tooltip_pos:
-            tooltip_text = ""
-            
+        if self.current_tooltip_grid and self.current_tooltip_pos:        
+            qso_datas        = self.get_qso_datas_for_grid(self.current_tooltip_grid)
             highlighted_data = self.get_new_grid_data(self.current_tooltip_grid)
+
+            tooltip_html = ""
+
             if highlighted_data:
-                tooltip_text = f"Grid: <b>{self.current_tooltip_grid}</b><br/>"
-                if 'callsign' in highlighted_data:
-                    tooltip_text += f"Callsign: {highlighted_data['callsign']}<br/>"
-                if 'frequency' in highlighted_data:
-                    tooltip_text += f"Frequency: {highlighted_data['frequency']}<br/>"
-                if 'message' in highlighted_data:
-                    tooltip_text += f"Message: {highlighted_data['message']}"                
+                tooltip_html += f"Decoded Grid: <b>{self.current_tooltip_grid}</b>"
+                tooltip_html += f"""
+                <table border="1" cellpadding="3" cellspacing="0" style="border-collapse: collapse; font-size: 12px; table-layout: fixed;">
+                    <tr>
+                        <td>Callsign</td>                    
+                        <td>Time</td>
+                        <td>Report</td>
+                        <td>DT</td>
+                        <td>Freq</td>
+                    </tr>
+                    <tr style="color: {FG_COLOR_REGULAR_FOCUS}; background-color: {BG_COLOR_REGULAR_FOCUS};">
+                        <td><b>{highlighted_data['callsign']}</b></td>                        
+                        <td>{highlighted_data['decode_time'].strftime("%H:%M:%S")}</td>                        
+                        <td>{highlighted_data['snr']:+3d} dB</td>
+                        <td>{highlighted_data['delta_time']:+5.1f}s</td>
+                        <td>{highlighted_data['delta_freq']:+6d}Hz</td>
+                    </tr>
+                </table>
+                """
+
+            if qso_datas:             
+                tooltip_html += f"Worded Grid: <b>{self.current_tooltip_grid}</b>"           
+                tooltip_html += f"""
+                <table border="1" cellpadding="3" cellspacing="0" style="border-collapse: collapse; font-size: 12px; table-layout: fixed;">
+                    <tr style="color: #ffffff; background-color: {BG_COLOR_REGULAR_FOCUS};">
+                        <td>Callsign</td>
+                        <td>Date</td>
+                        <td>Freq</td>
+                        <td>Mode</td>
+                        <td>Sent</td>
+                        <td>Rcvd</td>
+                        <td>QSL</td>
+                    </tr>
+                """
+
+                for qso in qso_datas:                    
+                    freq_mhz = ""
+                    if qso['freq']:
+                        try:
+                            freq_val = float(qso['freq'])
+                            freq_mhz = f"{freq_val:.4f}"
+                        except (ValueError, TypeError):
+                            freq_mhz = str(qso['freq'])
+                    
+                    if qso['qsl_status']:
+                        background_color = self.confirmed_color_fill.name()
+                        font_color = "#ffffff"
+                        qsl_rcvd = QSL_RCVD_SYMBOL
+                        if qso['qsl_status'] == 'V':
+                            qsl_rcvd += LOTW_SYMBOL
+                    else:
+                        background_color = self.worked_color_fill.name()
+                        font_color = "#000000"
+                        qsl_rcvd     = ''
+
+                    tooltip_html += f"""
+                    <tr style="background-color: {background_color}; color: {font_color};">
+                        <td><b>{qso['call']}</b></td>
+                        <td>{qso['formatted_date']}</td>
+                        <td style="vertical-align: middle;"><small>{freq_mhz}</small></td>
+                        <td>{qso['mode']}</td>
+                        <td>{qso['rst_sent']}</td>
+                        <td>{qso['rst_rcvd']}</td>
+                        <td>{qsl_rcvd}</td>
+                    </tr>
+                    """
                 
-                self.hide_custom_tooltip()
+                tooltip_html += "</table>"
+                
+            if highlighted_data:
                 self.custom_tooltip = CustomToolTip(
-                    tooltip_text, 
+                    tooltip_html, 
                     "default",
                     bg_color=self.new_grid_color_fill.name(),
                     fg_color=self.new_grid_border_color.name()
                 )
+            elif qso_datas:
+                self.custom_tooltip = CustomToolTip(
+                    tooltip_html,
+                    "default"
+                )
+            if self.custom_tooltip:
                 global_pos = self.mapToGlobal(self.current_tooltip_pos)
                 self.custom_tooltip.showToolTip(global_pos)
-            else:
-                qso_details = self.get_qso_details_for_grid(self.current_tooltip_grid)
-                if qso_details:
-                    tooltip_html = f"Grid: <b>{self.current_tooltip_grid}</b>"
-                    
-                    # Create HTML table
-                    tooltip_html += f"""
-                    <table border="1" cellpadding="3" cellspacing="0" style="border-collapse: collapse; font-size: 12px;">
-                        <tr style="color: {FG_COLOR_REGULAR_FOCUS};">
-                            <td>Callsign</td>
-                            <td>Date</td>
-                            <td>Freq</td>
-                            <td>Mode</td>
-                            <td>Sent</td>
-                            <td>Rcvd</td>
-                            <td>QSL</td>
-                        </tr>
-                    """
 
-                    for qso in qso_details:                    
-                        freq_mhz = ""
-                        if qso['freq']:
-                            try:
-                                freq_val = float(qso['freq'])
-                                freq_mhz = f"{freq_val:.4f}"
-                            except (ValueError, TypeError):
-                                freq_mhz = str(qso['freq'])
-                        
-                        if qso['qsl_status']:
-                            background_color = self.confirmed_color_fill.name()
-                            font_color = "#ffffff"
-                            qsl_rcvd = '✓'
-                            if qso['qsl_status'] == 'V':
-                                qsl_rcvd += LOTW_SYMBOL
-                        else:
-                            background_color = self.worked_color_fill.name()
-                            font_color = "#000000"
-                            qsl_rcvd     = ''
-
-                        tooltip_html += f"""
-                        <tr style="background-color: {background_color}; color: {font_color};">
-                            <td><b>{qso['call']}</b></td>
-                            <td>{qso['formatted_date']}</td>
-                            <td>{freq_mhz}</td>
-                            <td>{qso['mode']}</td>
-                            <td>{qso['rst_sent']}</td>
-                            <td>{qso['rst_rcvd']}</td>
-                            <td>{qsl_rcvd}</td>
-                        </tr>
-                        """
-                    
-                    tooltip_html += "</table>"
-                    
-                    self.hide_custom_tooltip()
-                    self.custom_tooltip = CustomToolTip(tooltip_html, "default")
-                    global_pos = self.mapToGlobal(self.current_tooltip_pos)
-                    self.custom_tooltip.showToolTip(global_pos)
-    
     def hide_custom_tooltip(self):
         """
             Hide the custom tooltip
@@ -2088,7 +2104,7 @@ class GridMapWidget(QWidget):
 
         return sorted(confirmed_calls)[:10], sorted(worked_calls)[:10]
     
-    def get_qso_details_for_grid(self, grid_square):
+    def get_qso_datas_for_grid(self, grid_square):
         """
             Get detailed QSO information for the given grid square, sorted by date (newest first)
         """

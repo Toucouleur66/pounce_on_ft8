@@ -207,7 +207,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.grid_monitor        = None
         self.app_shutting_down   = False
 
-        self.grid_monitor_geometry = {}
+        self.grid_monitor_geometry  = {}
 
         self.monitoring_settings    = MonitoringSettings()       
         self.clublog_manager        = ClubLogManager(self)
