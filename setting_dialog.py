@@ -32,6 +32,7 @@ from constants import (
     MODE_NORMAL,
     MODE_FOX_HOUND,
     MODE_SUPER_FOX,
+    MODE_CUSTOM,
     WKB4_REPLY_MODE_ALWAYS,
     WKB4_REPLY_MODE_CURRENT_YEAR,
     WKB4_REPLY_MODE_NEVER,
@@ -362,25 +363,54 @@ class SettingsDialog(QtWidgets.QDialog):
         self.radio_normal   = QtWidgets.QRadioButton()
         self.radio_foxhound = QtWidgets.QRadioButton()
         self.radio_superfox = QtWidgets.QRadioButton()
+        self.radio_custom   = QtWidgets.QRadioButton()
 
         self.freq_range_mode_var = QtWidgets.QButtonGroup()
         self.freq_range_mode_var.addButton(self.radio_normal)
         self.freq_range_mode_var.addButton(self.radio_foxhound)
-        self.freq_range_mode_var.addButton(self.radio_superfox)        
+        self.freq_range_mode_var.addButton(self.radio_superfox)
+        self.freq_range_mode_var.addButton(self.radio_custom)        
+
+        # Define frequency ranges for each preset
+        self.freq_range = {
+            self.radio_normal:   (FREQ_MINIMUM, FREQ_MAXIMUM),
+            self.radio_foxhound: (FREQ_MINIMUM_FOX_HOUND, FREQ_MAXIMUM),
+            self.radio_superfox: (FREQ_MINIMUM, FREQ_MAXIMUM_SUPER_FOX),
+        }
 
         modes = [
-            (self.radio_normal, MODE_NORMAL, FREQ_MINIMUM, FREQ_MAXIMUM),
-            (self.radio_foxhound, MODE_FOX_HOUND, FREQ_MINIMUM_FOX_HOUND, FREQ_MAXIMUM),
-            (self.radio_superfox, MODE_SUPER_FOX, FREQ_MINIMUM, FREQ_MAXIMUM_SUPER_FOX),
+            (
+                self.radio_normal,
+                MODE_NORMAL,
+                FREQ_MINIMUM,
+                FREQ_MAXIMUM
+            ),
+            (
+                self.radio_foxhound,
+                MODE_FOX_HOUND,
+                FREQ_MINIMUM_FOX_HOUND,
+                FREQ_MAXIMUM
+            ),
+            (
+                self.radio_superfox,
+                MODE_SUPER_FOX,
+                FREQ_MINIMUM,
+                FREQ_MAXIMUM_SUPER_FOX
+            ),
+            (
+                self.radio_custom,
+                MODE_CUSTOM,
+                FREQ_MINIMUM,
+                FREQ_MAXIMUM
+            ),
         ]
 
         self.mode_table_widget = QtWidgets.QTableWidget()
         self.mode_table_widget.setRowCount(len(modes))
-        self.mode_table_widget.setColumnCount(4)
+        self.mode_table_widget.setColumnCount(3)  # Removed radio button column
 
-        self.mode_table_widget.setColumnWidth(0, 40)
-        self.mode_table_widget.setColumnWidth(1, 95)
-        self.mode_table_widget.setColumnWidth(2, 195)
+        self.mode_table_widget.setColumnWidth(0, 120)  # Min Frequency
+        self.mode_table_widget.setColumnWidth(1, 120)  # Max Frequency
 
         self.mode_table_widget.horizontalHeader().setStretchLastSection(True)
         self.mode_table_widget.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
@@ -395,7 +425,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.mode_table_widget.verticalHeader().setHighlightSections(False)
         self.mode_table_widget.setFrameStyle(QtWidgets.QFrame.Shape.NoFrame)
 
-        headers = ["", "Min Frequency", "Max Frequency", "Mode"]
+        headers = ["Min Frequency", "Max Frequency", "Mode"]
         self.mode_table_widget.setHorizontalHeaderLabels(headers)
         self.mode_table_widget.horizontalHeader().setFont(CUSTOM_FONT_SMALL)  
         self.mode_table_widget.horizontalHeader().setVisible(True)
@@ -411,25 +441,29 @@ class SettingsDialog(QtWidgets.QDialog):
         self.mode_table_widget.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         row_height = 28
+        # Store radio button references for each row
+        self.row_to_radio = {}
+        
         for row, (button, label, freq_min, freq_max) in enumerate(modes):
             self.mode_table_widget.setRowHeight(row, row_height)
-
-            self.mode_table_widget.setCellWidget(row, 0, button)
+            
+            # Store the mapping between row and radio button
+            self.row_to_radio[row] = button
 
             freq_min_item = QTableWidgetItem(f"{freq_min}Hz")
             freq_min_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
             freq_min_item.setFont(CUSTOM_FONT_SMALL)
-            self.mode_table_widget.setItem(row, 1, freq_min_item)
+            self.mode_table_widget.setItem(row, 0, freq_min_item)
 
             freq_max_item = QTableWidgetItem(f"{freq_max}Hz")
             freq_max_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
             freq_max_item.setFont(CUSTOM_FONT_SMALL)
-            self.mode_table_widget.setItem(row, 2, freq_max_item)
+            self.mode_table_widget.setItem(row, 1, freq_max_item)
 
             label_item = QTableWidgetItem(f"{label}")
             label_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
             label_item.setFont(CUSTOM_FONT_SMALL)
-            self.mode_table_widget.setItem(row, 3, label_item)
+            self.mode_table_widget.setItem(row, 2, label_item)
 
         # Auto-size table to fit all rows without scrolling
         self.mode_table_widget.resizeRowsToContents()
@@ -450,6 +484,44 @@ class SettingsDialog(QtWidgets.QDialog):
         self.mode_table_widget.cellClicked.connect(self.on_table_row_selected)
 
         udp_freq_range_type_layout.addWidget(self.mode_table_widget)
+
+        # Frequency range input fields - always visible
+        freq_widget = QtWidgets.QWidget()
+        freq_layout = QtWidgets.QHBoxLayout(freq_widget)
+        freq_layout.setContentsMargins(0, 5, 0, 0)
+        
+        # Labels and input fields for frequency range
+        min_label = QtWidgets.QLabel("Min Freq (Hz):")
+        min_label.setFont(CUSTOM_FONT_SMALL)
+        self.min_freq = QtWidgets.QSpinBox()
+        self.min_freq.setRange(0, 10000)
+        self.min_freq.setValue(FREQ_MINIMUM)
+        self.min_freq.setSuffix(" Hz")
+        self.min_freq.setFont(CUSTOM_FONT_SMALL)
+        
+        max_label = QtWidgets.QLabel("Max Freq (Hz):")
+        max_label.setFont(CUSTOM_FONT_SMALL)
+        self.max_freq = QtWidgets.QSpinBox()
+        self.max_freq.setRange(0, 10000)
+        self.max_freq.setValue(FREQ_MAXIMUM)
+        self.max_freq.setSuffix(" Hz")
+        self.max_freq.setFont(CUSTOM_FONT_SMALL)
+        
+        freq_layout.addWidget(min_label)
+        freq_layout.addWidget(self.min_freq)
+        freq_layout.addWidget(max_label)
+        freq_layout.addWidget(self.max_freq)
+        freq_layout.addStretch()
+        
+        # Store custom frequency values
+        self.custom_min_freq_value = FREQ_MINIMUM
+        self.custom_max_freq_value = FREQ_MAXIMUM
+        
+        # Connect frequency input changes to auto-select custom and update table
+        self.min_freq.valueChanged.connect(self.on_frequency_changed)
+        self.max_freq.valueChanged.connect(self.on_frequency_changed)
+        
+        udp_freq_range_type_layout.addWidget(freq_widget)
 
         self.freq_range_type_group.setLayout(QtWidgets.QVBoxLayout())
         self.freq_range_type_group.layout().setContentsMargins(0, 0, 0, 0)
@@ -1226,10 +1298,83 @@ class SettingsDialog(QtWidgets.QDialog):
         self.populate_priority_list()            
 
     def on_table_row_selected(self, row, _column):
-        button = self.mode_table_widget.cellWidget(row, 0)
+        # Get the radio button for this row
+        button = self.row_to_radio.get(row)
         
-        if isinstance(button, QtWidgets.QRadioButton):
-            button.setChecked(True)        
+        if button:
+            button.setChecked(True)
+            # Ensure the row stays selected
+            self.mode_table_widget.selectRow(row)
+            
+            # If Custom row is selected, restore the custom frequency values
+            if button == self.radio_custom:
+                # Temporarily disconnect signals to avoid triggering on_frequency_changed
+                self.min_freq.valueChanged.disconnect(self.on_frequency_changed)
+                self.max_freq.valueChanged.disconnect(self.on_frequency_changed)
+                
+                # Restore the stored custom values
+                self.min_freq.setValue(self.custom_min_freq_value)
+                self.max_freq.setValue(self.custom_max_freq_value)
+                
+                # Reconnect signals
+                self.min_freq.valueChanged.connect(self.on_frequency_changed)
+                self.max_freq.valueChanged.connect(self.on_frequency_changed)
+            else:
+                # For preset rows, update frequency inputs from the preset values
+                if button in self.freq_range:
+                    preset_min, preset_max = self.freq_range[button]
+                    # Temporarily disconnect signals to avoid triggering on_frequency_changed
+                    self.min_freq.valueChanged.disconnect(self.on_frequency_changed)
+                    self.max_freq.valueChanged.disconnect(self.on_frequency_changed)
+                    
+                    self.min_freq.setValue(preset_min)
+                    self.max_freq.setValue(preset_max)
+                    
+                    # Reconnect signals
+                    self.min_freq.valueChanged.connect(self.on_frequency_changed)
+                    self.max_freq.valueChanged.connect(self.on_frequency_changed)
+    
+    def on_frequency_changed(self):
+        """Called when frequency spinbox values change - auto-select Custom and update table"""
+        min_freq = self.min_freq.value()
+        max_freq = self.max_freq.value()
+        
+        # Check if current frequencies match any preset
+        matches_preset = False
+        for radio, (preset_min, preset_max) in self.freq_range.items():
+            if min_freq == preset_min and max_freq == preset_max:
+                radio.setChecked(True)
+                matches_preset = True
+                
+                # Highlight the matching preset row in the table
+                for row, button in self.row_to_radio.items():
+                    if button == radio:
+                        self.mode_table_widget.selectRow(row)
+                        break
+                break
+                
+        # If no preset matches, select Custom and update its table row
+        if not matches_preset:
+            # Store the custom values
+            self.custom_min_freq_value = min_freq
+            self.custom_max_freq_value = max_freq
+            
+            self.radio_custom.setChecked(True)
+            # Update the table display for the Custom row only
+            self.update_custom_table_display()
+            
+            # Highlight the Custom row in the table
+            custom_row = 3  # Custom is the 4th row (0-indexed)
+            self.mode_table_widget.selectRow(custom_row)
+    
+    def update_custom_table_display(self):
+        """Update the Custom row in the table with current frequency values"""
+        custom_row = 3  # Custom is the 4th row (0-indexed)
+        freq_min_item = self.mode_table_widget.item(custom_row, 0)  # Column 0 now
+        freq_max_item = self.mode_table_widget.item(custom_row, 1)  # Column 1 now
+        if freq_min_item and freq_max_item:
+            freq_min_item.setText(f"{self.min_freq.value()}Hz")
+            freq_max_item.setText(f"{self.max_freq.value()}Hz")
 
     def on_page_changed(self, index):
         # Clear focus from any widget to prevent unwanted field focus
@@ -1503,8 +1648,33 @@ class SettingsDialog(QtWidgets.QDialog):
             self.radio_foxhound.setChecked(True)
         elif freq_range_mode == "SuperFox":
             self.radio_superfox.setChecked(True)
+        elif freq_range_mode == "Custom":
+            self.radio_custom.setChecked(True)
         else:
             self.radio_normal.setChecked(True)
+            
+        # Load frequency values 
+        min_freq = self.params.get("min_freq", FREQ_MINIMUM)
+        max_freq = self.params.get("max_freq", FREQ_MAXIMUM)
+        
+        # Store the loaded values as custom values (they might be custom values from last session)
+        self.custom_min_freq_value = min_freq
+        self.custom_max_freq_value = max_freq
+        
+        # Temporarily disconnect signals to avoid triggering on_frequency_changed during load
+        self.min_freq.valueChanged.disconnect(self.on_frequency_changed)
+        self.max_freq.valueChanged.disconnect(self.on_frequency_changed)
+        
+        self.min_freq.setValue(min_freq)
+        self.max_freq.setValue(max_freq)
+        
+        # Reconnect signals
+        self.min_freq.valueChanged.connect(self.on_frequency_changed)
+        self.max_freq.valueChanged.connect(self.on_frequency_changed)
+        
+        # Update custom table display only if Custom mode is selected
+        if freq_range_mode == "Custom":
+            self.update_custom_table_display()
 
         self.primary_udp_server_address.setText(
             self.params.get('primary_udp_server_address') or local_ip_address
@@ -1663,6 +1833,8 @@ class SettingsDialog(QtWidgets.QDialog):
             freq_range_mode = MODE_FOX_HOUND
         elif self.radio_superfox.isChecked():
             freq_range_mode = MODE_SUPER_FOX
+        elif self.radio_custom.isChecked():
+            freq_range_mode = MODE_CUSTOM
 
         if self.radio_reply_always.isChecked():
             worked_before_preference = WKB4_REPLY_MODE_ALWAYS
@@ -1729,6 +1901,8 @@ class SettingsDialog(QtWidgets.QDialog):
             'adif_file_paths'                             : self.selected_adif_files,      
             'adif_worked_backup_file_path'                : self.show_backup_file_path.text(),
             'freq_range_mode'                            : freq_range_mode,
+            'min_freq'                                   : self.min_freq.value(),
+            'max_freq'                                   : self.max_freq.value(),
             'worked_before_preference'                   : worked_before_preference,
             'marathon_preference'                        : marathon_preference,
             'enable_grid_tracker'                        : any(grid_tracker_preference.values()),

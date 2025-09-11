@@ -21,7 +21,9 @@ from constants import (
     DEFAULT_POUNCE_LOG,
     DEFAULT_LOG_PACKET_DATA,
     DEFAULT_MINIMUM_REPORT,
-    WKB4_REPLY_MODE_ALWAYS
+    WKB4_REPLY_MODE_ALWAYS,
+    FREQ_MINIMUM,
+    FREQ_MAXIMUM
 )
 
 class Worker(QObject):
@@ -37,8 +39,10 @@ class Worker(QObject):
     def __init__(
             self,
             monitoring_settings, 
-            mode, 
+            mode,
             stop_event,
+            min_freq                           = FREQ_MINIMUM,
+            max_freq                           = FREQ_MAXIMUM,
             primary_udp_server_address         = None, 
             primary_udp_server_port            = None,
             secondary_udp_server_address       = None, 
@@ -84,6 +88,8 @@ class Worker(QObject):
         self.stop_event                         = stop_event
 
         self.mode                               = mode
+        self.min_freq                           = min_freq
+        self.max_freq                           = max_freq
         self.monitoring_settings                = monitoring_settings
 
         self.primary_udp_server_address         = primary_udp_server_address or local_ip
@@ -159,7 +165,8 @@ class Worker(QObject):
 
                 monitoring_settings             = self.monitoring_settings,
                 
-                freq_range_mode                 = self.mode,
+                min_freq                        = self.min_freq,
+                max_freq                        = self.max_freq,
                 
                 enable_marathon                 = self.enable_marathon,                
                 marathon_preference             = self.marathon_preference,

@@ -43,15 +43,8 @@ from constants import (
     MARATHON_UNLIMITED,
     WAITING_TIME_BEFORE_REPLY,
     HEARTBEAT_TIMEOUT_THRESHOLD,
-    MODE_FOX_HOUND,
-    MODE_NORMAL,
-    MODE_SUPER_FOX,
     WKB4_REPLY_MODE_NEVER,
     WKB4_REPLY_MODE_CURRENT_YEAR,
-    FREQ_MINIMUM,
-    FREQ_MAXIMUM,
-    FREQ_MAXIMUM_SUPER_FOX,
-    FREQ_MINIMUM_FOX_HOUND,
     ADIF_WORKED_CALLSIGNS_FILE,
     MARATHON_FILE,
     PRIORITY_LIST
@@ -82,7 +75,8 @@ class Listener(QObject):
             enable_pounce_log,        
             enable_log_packet_data, 
             monitoring_settings,
-            freq_range_mode,
+            min_freq,
+            max_freq,
             enable_marathon,
             marathon_preference,
             enable_grid_tracker,
@@ -203,7 +197,8 @@ class Listener(QObject):
 
         self.wanted_callsigns_per_entity   = {}
 
-        self.freq_range_mode                = freq_range_mode
+        self.min_freq                       = min_freq
+        self.max_freq                       = max_freq
         self.message_callback               = message_callback
 
         self.worked_before_preference       = worked_before_preference      
@@ -899,15 +894,8 @@ class Listener(QObject):
 
         used_frequencies = sorted(used_frequencies)
 
-        freq_min = FREQ_MINIMUM
-        freq_max = FREQ_MAXIMUM 
-        if (
-            self.freq_range_mode == MODE_FOX_HOUND or 
-            self.freq_range_mode == MODE_SUPER_FOX
-        ):
-            freq_min = FREQ_MINIMUM_FOX_HOUND
-            if self.freq_range_mode == MODE_SUPER_FOX:
-               freq_max = FREQ_MAXIMUM_SUPER_FOX 
+        freq_min = self.min_freq
+        freq_max = self.max_freq
 
         frequency_range = [freq_min] + used_frequencies + [freq_max]
 
@@ -919,7 +907,7 @@ class Listener(QObject):
             if gap_size > 50:
                 gaps.append((gap_start, gap_end))
 
-        if self.freq_range_mode == MODE_NORMAL and self.targeted_call_frequencies:
+        if self.targeted_call_frequencies:
             min_targeted = min(self.targeted_call_frequencies)
             max_targeted = max(self.targeted_call_frequencies)
             adjusted_gaps = []

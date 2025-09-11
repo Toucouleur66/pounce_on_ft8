@@ -102,6 +102,7 @@ CQ_ZONE_NOTICE_LABEL            = "Comma separated list of CQ Zone"
 MODE_NORMAL                     = "Regular"
 MODE_FOX_HOUND                  = "Hound"
 MODE_SUPER_FOX                  = "SuperFox"
+MODE_CUSTOM                     = "Custom"
 
 MARATHON_UNLIMITED              = "Unlimited"
 
