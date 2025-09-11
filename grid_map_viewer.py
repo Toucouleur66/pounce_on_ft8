@@ -1921,7 +1921,7 @@ class GridMapWidget(QWidget):
 
             if qso_datas: 
                 if highlighted_data:
-                    tooltip_html.append("<br>")
+                    tooltip_html.append("""<br style=\"font-size: 6px;">""")
                     style = ""
                 else:
                     style = f"""
