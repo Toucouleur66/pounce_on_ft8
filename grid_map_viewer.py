@@ -65,6 +65,11 @@ class GridMapWidget(QWidget):
         self.current_tooltip_pos = None
         self.current_tooltip_grid = None
         self.custom_tooltip = None
+        
+        # Settings save debounce timer
+        self.save_timer = QTimer()
+        self.save_timer.setSingleShot(True)
+        self.save_timer.timeout.connect(self._save_grid_map_settings_now)
 
         self.zoom                       = 2
         self.center_lat                 = 0.0
@@ -221,15 +226,24 @@ class GridMapWidget(QWidget):
             window.update_toggle_labels()
     
     def save_grid_map_settings(self):
+        # Use debounced saving to reduce I/O during frequent operations like panning
+        self.save_timer.stop()  # Reset the timer
+        self.save_timer.start(500)  # Wait 500ms before saving
+    
+    def _save_grid_map_settings_now(self):
         if self.parent_app:
-            self.parent_app.save_unique_param('grid_map_show_grid', self.show_grid)
-            self.parent_app.save_unique_param('grid_map_show_heatmap', self.show_heatmap)
-            self.parent_app.save_unique_param('grid_map_show_worked', self.show_worked)
-            self.parent_app.save_unique_param('grid_map_show_night', self.show_night)
-
-            self.parent_app.save_unique_param('grid_map_zoom', self.zoom)
-            self.parent_app.save_unique_param('grid_map_center_lat', self.center_lat)
-            self.parent_app.save_unique_param('grid_map_center_lon', self.center_lon)
+            params = self.parent_app.load_params()
+            
+            # Update all grid map parameters in one batch
+            params['grid_map_show_grid']    = self.show_grid
+            params['grid_map_show_heatmap'] = self.show_heatmap
+            params['grid_map_show_worked']  = self.show_worked
+            params['grid_map_show_night']   = self.show_night
+            params['grid_map_zoom']         = self.zoom
+            params['grid_map_center_lat']   = self.center_lat
+            params['grid_map_center_lon']   = self.center_lon
+            
+            self.parent_app.save_params(params)
     
     def load_grid_map_settings(self):
         self.show_grid      = True

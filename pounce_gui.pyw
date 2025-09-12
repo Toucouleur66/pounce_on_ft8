@@ -1036,7 +1036,7 @@ class MainApp(QtWidgets.QMainWindow):
             }
         """)
 
-        column_widths = [160, 45, 60, 60, 80, 450, 5, 100, 70, 60, 80]  
+        column_widths = [160, 45, 60, 60, 80, 450, 5, 140, 70, 60, 80]  
         
         header = output_table.horizontalHeader()
         header.setMinimumSectionSize(20)  # Set global minimum
