@@ -92,9 +92,8 @@ class CustomToolTip(QtWidgets.QWidget):
         self.custom_bg_color = bg_color
         self.custom_fg_color = fg_color
         self.padding = 8
-        # Reduce border radius on macOS for cleaner appearance
-        self.radius = 1 if platform.system() == 'Darwin' else 3
-        
+        self.radius = 5
+
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_ShowWithoutActivating)
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents)
@@ -196,12 +195,15 @@ class CustomToolTip(QtWidgets.QWidget):
     
     def paintEvent(self, event):
         painter = QtGui.QPainter(self)
-        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.SmoothPixmapTransform, True)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.TextAntialiasing, True)
         
         rect = self.rect()
         path = QtGui.QPainterPath()
         path.addRoundedRect(QtCore.QRectF(rect), self.radius, self.radius)
         
+        # Apply mask for proper rounded corners
         self.setMask(QtGui.QRegion(path.toFillPolygon().toPolygon()))
         
         if self.custom_bg_color and self.custom_fg_color:
