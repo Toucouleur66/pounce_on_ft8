@@ -1944,7 +1944,10 @@ class GridMapWidget(QWidget):
                     </tr>
                 """)                
 
-                for qso in qso_datas:                    
+                limit_qsos = 25
+                display_qsos = qso_datas[:limit_qsos] if len(qso_datas) > limit_qsos else qso_datas
+                
+                for qso in display_qsos:                    
                     freq_mhz = ""
                     if qso['freq']:
                         try:
@@ -1966,7 +1969,7 @@ class GridMapWidget(QWidget):
 
                     tooltip_html.append(f"""
                     <tr style="background-color: {background_color}; color: {font_color};">
-                        <td><b>{qso['call']}</b></td>
+                        <td nowrap><b>{qso['call']}</b></td>
                         <td>{qso['formatted_date']}</td>
                         <td style="vertical-align: middle;"><small>{freq_mhz}</small></td>
                         <td>{qso['mode']}</td>
@@ -1975,15 +1978,21 @@ class GridMapWidget(QWidget):
                         <td>{qsl_rcvd}</td>
                     </tr>
                     """)
-
+                
                 tooltip_html.append("</table>")
+
+                if len(qso_datas) > limit_qsos:
+                    tooltip_html.append(f"""
+                    <br style="font-size: 6px;">
+                    * The last <u>{limit_qsos}</u> are displayed out of a total of <b>{len(qso_datas)}</b> for <b>{self.current_tooltip_grid}</b>
+                    """)
 
             if highlighted_data:
                 tooltip_html.append(f"""
                 <br style="font-size: 6px;">
-                <i style="font-size: 10px;"><small>
+                <i style="font-size: 10px;">
                     * Right click on Grid for context-menu
-                </small></i>
+                </i>
                 """)
 
             tooltip_html = "\n".join(tooltip_html)

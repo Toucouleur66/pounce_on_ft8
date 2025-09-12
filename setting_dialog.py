@@ -91,6 +91,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.menu_list.setFixedWidth(180)
         self.menu_list.setAlternatingRowColors(True)
         self.menu_list.setUniformItemSizes(True)
+        
         menu_items = [
             "Server",
             "General Settings", 
@@ -108,12 +109,12 @@ class SettingsDialog(QtWidgets.QDialog):
         
         for i, item in enumerate(menu_items, 1):
             #self.menu_list.addItem(f"{i}. {item}")
-            self.menu_list.addItem(f"{item}")
+            self.menu_list.addItem(f" {item}")  # Add spaces for Windows 11 spacing
         
         # Set higher height for all items
         for i in range(self.menu_list.count()):
             item = self.menu_list.item(i)
-            item.setSizeHint(QtCore.QSize(170, 35))
+            item.setSizeHint(QtCore.QSize(170, 32))
         
         self.stacked_widget = QtWidgets.QStackedWidget()
         
@@ -1916,8 +1917,8 @@ class SettingsDialog(QtWidgets.QDialog):
             'enable_sound_directed_my_callsign'          : self.enable_sound_directed_my_callsign.isChecked(),
             'enable_sound_monitored_callsigns'           : self.enable_sound_monitored_callsigns.isChecked(),
             'delay_between_sound_for_monitored'          : self.delay_between_sound_for_monitored.text(),
-            'adif_file_paths'                             : self.selected_adif_files,      
-            'adif_worked_backup_file_path'                : self.show_backup_file_path.text(),
+            'adif_file_paths'                            : self.selected_adif_files,      
+            'adif_worked_backup_file_path'               : self.show_backup_file_path.text(),
             'freq_range_mode'                            : freq_range_mode,
             'min_freq'                                   : self.min_freq.value(),
             'max_freq'                                   : self.max_freq.value(),
