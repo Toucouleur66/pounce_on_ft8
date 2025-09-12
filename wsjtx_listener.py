@@ -469,6 +469,7 @@ class Listener(QObject):
         log_output.append(f"MyCall={self.my_call}")
         log_output.append(f"EnableSendingReply={self.enable_sending_reply}")    
         log_output.append(f"Band={self.band}")   
+        log_output.append(f"FrequencyRange={self.min_freq}-{self.max_freq}Hz")
         log_output.append(f"MinimumSignalReport={self.minimum_report_for_reply}db")        
         log_output.append(f"WantedCallsigns={self.wanted_callsigns}")
         log_output.append(f"MonitoredCallsigns={self.monitored_callsigns}")

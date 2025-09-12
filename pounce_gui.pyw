@@ -3490,22 +3490,11 @@ class MainApp(QtWidgets.QMainWindow):
         # self.apply_band_change(self.gui_selected_band)
         
         params = self.load_params()
-        freq_range_mode = params.get('freq_range_mode')
-        min_freq = params.get('min_freq', FREQ_MINIMUM)
-        max_freq = params.get('max_freq', FREQ_MAXIMUM)
-        
-        self.save_unique_param('freq_range_mode', freq_range_mode )
-        self.save_unique_param('min_freq', min_freq )
-        self.save_unique_param('max_freq', max_freq )
-
         # Create a QThread and a Worker object with default parameters
         self.thread = QThread()
         self.worker = Worker(
             self.monitoring_settings,
-            freq_range_mode,
-            self.stop_event,
-            min_freq=min_freq,
-            max_freq=max_freq
+            self.stop_event
         )
         
         # Update worker with all current parameters
@@ -3604,6 +3593,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.worker.grid_tracker_preference        = params.get('grid_tracker_preference', {})
         self.worker.minimum_report_for_reply       = params.get('minimum_report_for_reply', DEFAULT_MINIMUM_REPORT)
         self.worker.priority_order                 = params.get('priority_order', list(PRIORITY_LIST.values()))
+        
+        self.worker.min_freq                       = params.get('min_freq', FREQ_MINIMUM)
+        self.worker.max_freq                       = params.get('max_freq', FREQ_MAXIMUM)
 
         self.adif_file_paths                        = self.worker.adif_file_paths
         self.adif_worked_backup_file_path           = self.worker.adif_worked_backup_file_path

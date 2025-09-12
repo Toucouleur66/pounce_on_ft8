@@ -39,7 +39,6 @@ class Worker(QObject):
     def __init__(
             self,
             monitoring_settings, 
-            mode,
             stop_event,
             min_freq                           = FREQ_MINIMUM,
             max_freq                           = FREQ_MAXIMUM,
@@ -87,7 +86,6 @@ class Worker(QObject):
         self.listener                           = None
         self.stop_event                         = stop_event
 
-        self.mode                               = mode
         self.min_freq                           = min_freq
         self.max_freq                           = max_freq
         self.monitoring_settings                = monitoring_settings
@@ -219,8 +217,8 @@ class Worker(QObject):
                 self.listener.start_udp_server(self.primary_udp_server_address, self.primary_udp_server_port)
             else:
                 # Update settings normally if UDP server hasn't changed
-                self.listener.primary_udp_server_address            = self.primary_udp_server_address
-                self.listener.primary_udp_server_port               = self.primary_udp_server_port
+                self.listener.primary_udp_server_address        = self.primary_udp_server_address
+                self.listener.primary_udp_server_port           = self.primary_udp_server_port
                 
             self.listener.secondary_udp_server_address          = self.secondary_udp_server_address
             self.listener.secondary_udp_server_port             = self.secondary_udp_server_port
@@ -230,13 +228,15 @@ class Worker(QObject):
             self.listener.enable_logging_udp_server             = self.enable_logging_udp_server
             self.listener.enable_sending_reply                  = self.enable_sending_reply
             self.listener.enable_polite_reply                   = self.enable_polite_reply
+            self.listener.min_freq                              = self.min_freq
+            self.listener.max_freq                              = self.max_freq
             self.listener.max_reply_attempts_to_callsign        = self.max_reply_attempts_to_callsign
             self.listener.max_working_delay_seconds             = self.max_working_delay * 60
             self.listener.enable_log_all_valid_contact          = self.enable_log_all_valid_contact
             self.listener.enable_reply_to_valid_callsign        = self.enable_reply_to_valid_callsign
             self.listener.enable_reply_to_valid_direction       = self.enable_reply_to_valid_direction
             self.listener.enable_reply_to_lotw_only             = self.enable_reply_to_lotw_only
-            self.listener.enable_gap_finder                      = self.enable_gap_finder
+            self.listener.enable_gap_finder                     = self.enable_gap_finder
             self.listener.enable_watchdog_bypass                = self.enable_watchdog_bypass
             self.listener.enable_debug_output                   = self.enable_debug_output
             self.listener.enable_pounce_log                     = self.enable_pounce_log
