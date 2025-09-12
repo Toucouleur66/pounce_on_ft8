@@ -7,6 +7,7 @@ from datetime import datetime
 
 from constants import (
     CUSTOM_FONT,
+    CUSTOM_FONT_SMALL,
     BG_COLOR_BLACK_ON_YELLOW,
     FG_COLOR_BLACK_ON_YELLOW,
     BG_COLOR_BLACK_ON_PURPLE,
@@ -130,21 +131,22 @@ class CustomToolTip(QtWidgets.QWidget):
         
         self.adjustSize()
 
+    def _prepare_html_text(self):
+        # Convert <br/> to <br> for proper HTML parsing
+        return self.text.replace("<br/>", "<br>")
+
     def sizeHint(self):
         # Use QTextDocument to calculate proper size for HTML content
         doc = QTextDocument()
         doc.setDefaultFont(self.font())
         
-        # Convert <br/> to <br> for proper HTML parsing
-        html_text = self.text.replace("<br/>", "<br>")
+        html_text = self._prepare_html_text()
         doc.setHtml(html_text)
         
-        # Get the document size
         doc_size = doc.size()
         
-        # Add padding
-        width = int(doc_size.width()) + 2 * self.padding 
-        height = int(doc_size.height()) + 2 * self.padding + 4
+        width = max(int(doc_size.width()) + 2 * self.padding, 120)
+        height = int(doc_size.height()) + 2 * self.padding
         
         return QtCore.QSize(width, height)
     
@@ -218,11 +220,10 @@ class CustomToolTip(QtWidgets.QWidget):
         doc = QTextDocument()
         doc.setDefaultFont(self.font())
         
-        # Convert <br/> to <br> for proper HTML parsing
-        html_text = self.text.replace("<br/>", "<br>")
+        html_text = self._prepare_html_text()
         
         # Set HTML content with custom styling
-        html_content = f'<div style="color: {fg_color};">{html_text}</div>'
+        html_content = f'<div style="color: {fg_color}; ">{html_text}</div>'
         doc.setHtml(html_content)
         
         # Set the document size to fit our text area
@@ -292,7 +293,14 @@ class ToolTip(QtWidgets.QWidget):
             return
 
         text_parts = [part.strip() for part in raw_text.split(",") if part.strip()]
-        tooltip_text = "<br/>".join(sorted(text_parts))
+        
+        def smart_sort_key(item):
+            try:
+                return (0, int(item))  
+            except ValueError:
+                return (1, item.lower()) 
+        
+        tooltip_text = "<br />".join(sorted(text_parts, key=smart_sort_key)) 
             
         if self.mouse_over:
             if self.tooltip_window:
@@ -386,7 +394,7 @@ class ExcludedCallsignsToolTip(ToolTip):
             else:
                 enhanced_parts.append(callsign)
         
-        tooltip_text = "<br/>".join(sorted(enhanced_parts))
+        tooltip_text = "<br/>".join(enhanced_parts)
             
         if self.mouse_over:
             if self.tooltip_window:

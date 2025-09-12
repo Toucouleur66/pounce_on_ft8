@@ -1913,7 +1913,9 @@ class GridMapWidget(QWidget):
             tooltip_html = []
 
             if highlighted_data:
-                tooltip_html.append(f"Decoded Grid: <b>{self.current_tooltip_grid}</b>")
+                tooltip_html.append(f"""
+                    <span style="font-size: 12px;">Decoded Grid: <b>{self.current_tooltip_grid}</b></span>
+                    """)
                 tooltip_html.append(f"""
                 <table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; font-size: 12px;">
                     <tr>
@@ -1944,7 +1946,9 @@ class GridMapWidget(QWidget):
                             style="color: #ffffff; background-color: #000000;"
                         """
 
-                tooltip_html.append(f"Worded Grid: <b>{self.current_tooltip_grid}</b>")           
+                tooltip_html.append(f"""
+                    <span style="font-size: 12px;">Worked Grid: <b>{self.current_tooltip_grid}</b></span>
+                """)
                 tooltip_html.append(f"""
                 <table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; font-size: 12px;">
                     <tr{style}>
