@@ -66,9 +66,7 @@ class Worker(QObject):
             adif_file_paths                    = None, 
             adif_worked_backup_file_path       = None, 
             worked_before_preference           = WKB4_REPLY_MODE_ALWAYS,
-            enable_marathon                    = False,
             marathon_preference                = None,
-            enable_grid_tracker                = False,
             grid_tracker_preference            = None,
             minimum_report_for_reply           = DEFAULT_MINIMUM_REPORT,
             priority_order                     = None
@@ -109,18 +107,16 @@ class Worker(QObject):
         self.enable_reply_to_valid_callsign     = enable_reply_to_valid_callsign
         self.enable_reply_to_valid_direction    = enable_reply_to_valid_direction
         self.enable_reply_to_lotw_only          = enable_reply_to_lotw_only
-        self.enable_gap_finder                   = enable_gap_finder
+        self.enable_gap_finder                  = enable_gap_finder
         self.enable_watchdog_bypass             = enable_watchdog_bypass
         self.enable_debug_output                = enable_debug_output
         self.enable_pounce_log                  = enable_pounce_log
         self.enable_log_packet_data             = enable_log_packet_data
 
-        self.adif_file_paths                     = adif_file_paths
-        self.adif_worked_backup_file_path        = adif_worked_backup_file_path
+        self.adif_file_paths                    = adif_file_paths
+        self.adif_worked_backup_file_path       = adif_worked_backup_file_path
         self.worked_before_preference           = worked_before_preference
-        self.enable_marathon                    = enable_marathon
         self.marathon_preference                = marathon_preference or {}
-        self.enable_grid_tracker                = enable_grid_tracker
         self.grid_tracker_preference            = grid_tracker_preference or {}
         self.minimum_report_for_reply           = minimum_report_for_reply
         self.priority_order                     = priority_order
@@ -155,7 +151,7 @@ class Worker(QObject):
                 enable_reply_to_valid_direction = self.enable_reply_to_valid_direction,
                 enable_reply_to_lotw_only       = self.enable_reply_to_lotw_only,
 
-                enable_gap_finder                = self.enable_gap_finder,
+                enable_gap_finder               = self.enable_gap_finder,
                 enable_watchdog_bypass          = self.enable_watchdog_bypass,
                 enable_debug_output             = self.enable_debug_output,
                 enable_pounce_log               = self.enable_pounce_log,
@@ -166,10 +162,7 @@ class Worker(QObject):
                 min_freq                        = self.min_freq,
                 max_freq                        = self.max_freq,
                 
-                enable_marathon                 = self.enable_marathon,                
                 marathon_preference             = self.marathon_preference,
-                
-                enable_grid_tracker             = self.enable_grid_tracker,
                 grid_tracker_preference         = self.grid_tracker_preference,
                 
                 adif_file_paths                  = self.adif_file_paths,
@@ -241,9 +234,7 @@ class Worker(QObject):
             self.listener.enable_debug_output                   = self.enable_debug_output
             self.listener.enable_pounce_log                     = self.enable_pounce_log
             self.listener.enable_log_packet_data                = self.enable_log_packet_data
-            self.listener.enable_marathon                       = self.enable_marathon
             self.listener.marathon_preference                   = self.marathon_preference
-            self.listener.enable_grid_tracker                   = self.enable_grid_tracker
             self.listener.grid_tracker_preference               = self.grid_tracker_preference
             self.listener.worked_before_preference              = self.worked_before_preference
             self.listener.minimum_report_for_reply              = self.minimum_report_for_reply

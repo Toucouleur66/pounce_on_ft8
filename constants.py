@@ -107,9 +107,24 @@ MODE_CUSTOM                     = "Custom"
 
 MARATHON_UNLIMITED              = "Unlimited"
 
-WKB4_REPLY_MODE_ALWAYS          = 1
-WKB4_REPLY_MODE_CURRENT_YEAR    = 2
-WKB4_REPLY_MODE_NEVER           = 3
+WKB4_REPLY_MODE_ALWAYS          = "always"
+WKB4_REPLY_MODE_CURRENT_YEAR    = "current_year"
+WKB4_REPLY_MODE_NEVER           = "never"
+
+def convert_wkb4_reply_mode(value):
+    """
+        Convert old integer WKB4 reply mode values to new string values for backward compatibility
+    """
+    if isinstance(value, int):
+        if value == 1:
+            return WKB4_REPLY_MODE_ALWAYS
+        elif value == 2:
+            return WKB4_REPLY_MODE_CURRENT_YEAR
+        elif value == 3:
+            return WKB4_REPLY_MODE_NEVER
+        else:
+            return WKB4_REPLY_MODE_ALWAYS  # fallback
+    return value  # assume it's already a string
 
 DEFAULT_MODE_TIMER_VALUE        = "--:--:--"
 

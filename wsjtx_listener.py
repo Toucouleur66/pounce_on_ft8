@@ -77,9 +77,7 @@ class Listener(QObject):
             monitoring_settings,
             min_freq,
             max_freq,
-            enable_marathon,
             marathon_preference,
-            enable_grid_tracker,
             grid_tracker_preference,
             adif_file_paths,
             adif_worked_backup_file_path,
@@ -145,12 +143,17 @@ class Listener(QObject):
         self.enable_reply_to_valid_callsign     = enable_reply_to_valid_callsign
         self.enable_reply_to_valid_direction    = enable_reply_to_valid_direction
         self.enable_reply_to_lotw_only          = enable_reply_to_lotw_only
-        self.enable_gap_finder                   = enable_gap_finder
+        self.enable_gap_finder                  = enable_gap_finder
         self.enable_watchdog_bypass             = enable_watchdog_bypass
         self.enable_debug_output                = enable_debug_output
         self.enable_pounce_log                  = enable_pounce_log 
         self.enable_log_packet_data             = enable_log_packet_data
-        self.enable_marathon                    = enable_marathon
+
+        self.enable_marathon                    = None
+        self.enable_grid_tracker                = None
+
+        self.marathon_preference                = marathon_preference
+        self.grid_tracker_preference            = grid_tracker_preference
 
         self.max_reply_attempts_to_callsign     = max_reply_attempts_to_callsign
 
@@ -202,9 +205,7 @@ class Listener(QObject):
         self.message_callback               = message_callback
 
         self.worked_before_preference       = worked_before_preference      
-        self.marathon_preference            = marathon_preference
-        self.enable_grid_tracker            = enable_grid_tracker
-        self.grid_tracker_preference        = grid_tracker_preference
+
         self.minimum_report_for_reply       = minimum_report_for_reply
 
         self.adif_data                      = {} 
@@ -229,14 +230,10 @@ class Listener(QObject):
         """
             Check ADIF file to handle Worked B4 
         """          
-        self.adif_monitor               = AdifMonitor(adif_file_paths, ADIF_WORKED_CALLSIGNS_FILE)
-        if (
-            self.enable_marathon and 
-            lookup
-        ):
-            self.wanted_callsigns_per_entity = load_marathon_wanted_data(MARATHON_FILE)
-            # register_lookup allow us to get adif data per band, year and entity
-            self.adif_monitor.register_lookup(lookup)
+        self.adif_monitor = AdifMonitor(adif_file_paths, ADIF_WORKED_CALLSIGNS_FILE)
+        self.wanted_callsigns_per_entity = load_marathon_wanted_data(MARATHON_FILE)
+    
+        self.adif_monitor.register_lookup(lookup)
         self.adif_monitor.start()
         self.adif_monitor.register_callback(self.update_adif_data)
         self.adif_monitor.register_processing_callback(self.update_adif_processing_status)
@@ -457,6 +454,23 @@ class Listener(QObject):
         self.excluded_cq_zones      = self.monitoring_settings.get_excluded_cq_zones()
         self.synched_band           = self.monitoring_settings.get_operating_band()
 
+        if self.marathon_preference.get(self.band):
+            self.enable_marathon    = True
+        else:
+            self.enable_marathon    = False
+        
+        if self.grid_tracker_preference.get(self.band):
+           self.enable_grid_tracker = True
+        else:
+           self.enable_grid_tracker = False
+
+        if self.worked_callsigns:
+            callsigns_to_remove = [
+                callsign for callsign in self.worked_callsigns if callsign in self.wanted_callsigns
+            ]
+            for callsign in callsigns_to_remove:
+                self.worked_callsigns.remove(callsign)           
+            
         self.synch_time             = datetime.now()
         
         self.show_listener_settings()
@@ -477,27 +491,9 @@ class Listener(QObject):
         log_output.append(f"WantedZones={self.wanted_cq_zones}")
         log_output.append(f"MonitoredZones={self.monitored_cq_zones}")
         log_output.append(f"ExcludedZones={self.excluded_cq_zones}")
-
-        # Update worked callsigns
-        if self.worked_callsigns:
-            callsigns_to_remove = [
-                callsign for callsign in self.worked_callsigns if callsign in self.wanted_callsigns
-            ]
-            for callsign in callsigns_to_remove:
-                self.worked_callsigns.remove(callsign)
-        
-        if self.enable_marathon:
-            marathon_preference = self.marathon_preference.get(self.band)
-            if not marathon_preference:
-                marathon_preference = None                
-            log_output.append(f"Marathon={marathon_preference}")
-
-        if self.enable_grid_tracker:
-            grid_tracker_preference = self.grid_tracker_preference.get(self.band)
-            if not grid_tracker_preference:
-                grid_tracker_preference = None                
-            log_output.append(f"GridTracker={grid_tracker_preference}")
-
+        log_output.append(f"WorkedBeforePreference={self.worked_before_preference}")
+        log_output.append(f"Marathon={self.enable_marathon}")
+        log_output.append(f"GridTracker={self.enable_grid_tracker}")
         log_output.append(f"LotwOnly={self.enable_reply_to_lotw_only }") 
         log_output.append(f"PriorityOrder={self.priority_order}")                   
 

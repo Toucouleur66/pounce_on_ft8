@@ -1926,7 +1926,6 @@ class SettingsDialog(QtWidgets.QDialog):
             'custom_max_freq'                            : self.custom_max_freq_value,
             'worked_before_preference'                   : worked_before_preference,
             'marathon_preference'                        : marathon_preference,
-            'enable_grid_tracker'                        : any(grid_tracker_preference.values()),
             'grid_tracker_preference'                    : grid_tracker_preference,
             'priority_order'                             : priority_order            
         }

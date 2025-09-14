@@ -155,15 +155,11 @@ from constants import (
     DEFAULT_MINIMUM_REPORT,
     ACTIVITY_BAR_MAX_VALUE,
     WKB4_REPLY_MODE_ALWAYS,
-    # QSS
-    CONTEXT_MENU_DARWIN_QSS,
-    CONTEXT_MENU_HEADER_QSS,
-    CONTEXT_MENU_EXCLUDED_QSS,
+    convert_wkb4_reply_mode,
     # Fonts
     CUSTOM_FONT,
     CUSTOM_FONT_MONO_LG,
     CUSTOM_FONT_SMALL,
-    MENU_FONT,
     # URL
     DISCORD_SECTION,
     DONATION_SECTION,
@@ -342,7 +338,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.enable_pounce_log                  = params.get('enable_pounce_log', True)
         self.enable_extra_gui_debug_output      = params.get('enable_extra_gui_debug_output', False)
-        self.enable_filter_gui                   = params.get('enable_filter_gui', False)        
+        self.enable_filter_gui                  = params.get('enable_filter_gui', False)        
         self.enable_grid_monitor                = params.get('enable_grid_monitor', False)
         self.enable_compact_view                = params.get('enable_compact_view', False)   
         self.enable_alternate_compact_view      = params.get('enable_alternate_compact_view', False)
@@ -350,11 +346,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.enable_show_all_decoded            = params.get('enable_show_all_decoded', DEFAULT_SHOW_ALL_DECODED)
         self.datetime_column_setting            = params.get('datetime_column_setting', DATE_COLUMN_DATETIME)
 
-        self.adif_file_path                      = params.get('adif_file_path', None)
-        self.worked_before_preference           = params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS)
-        self.enable_marathon                    = params.get('enable_marathon', False)
+        self.adif_file_path                     = params.get('adif_file_path', None)
+        self.worked_before_preference           = convert_wkb4_reply_mode(params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS))
         self.marathon_preference                = params.get('marathon_preference', {})
-        self.enable_grid_tracker                = params.get('enable_grid_tracker', False)
         self.grid_tracker_preference            = params.get('grid_tracker_preference', {})
 
         self.enable_auto_start_monitoring       = params.get('enable_auto_start_monitoring', DEFAULT_AUTO_START_MONITORING)
@@ -1119,15 +1113,6 @@ class MainApp(QtWidgets.QMainWindow):
 
         return filter_widget
 
-    def update_marathon_preference(self, checked):  
-        if self.enable_marathon != checked:
-            self.enable_marathon = checked
-            self.save_unique_param('enable_marathon', checked)   
-
-            if self._running:
-                self.stop_monitoring()
-                self.start_monitoring()    
-
     def update_global_sound_preference(self, checked):  
         if self.enable_global_sound != checked:
             self.enable_global_sound = checked
@@ -1171,9 +1156,9 @@ class MainApp(QtWidgets.QMainWindow):
 
     def toggle_wkb4_column_visibility(self):
         if self.worked_before_preference == WKB4_REPLY_MODE_ALWAYS:
-            self.output_table.setColumnHidden(9, True)
+            self.output_table.setColumnHidden(10, True)
         else:
-            self.output_table.setColumnHidden(9, False)
+            self.output_table.setColumnHidden(10, False)
 
     def hide_filter_layout(self):
         self.filter_widget_visible = False
@@ -2554,8 +2539,8 @@ class MainApp(QtWidgets.QMainWindow):
             self.enable_sound_directed_my_callsign  = params.get('enable_sound_directed_my_callsign', True)
             self.enable_sound_monitored_callsigns   = params.get('enable_sound_monitored_callsigns', True)
             
-            self.adif_file_path                      = params.get('adif_file_path', None)
-            self.worked_before_preference           = params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS)
+            self.adif_file_path                     = params.get('adif_file_path', None)
+            self.worked_before_preference           = convert_wkb4_reply_mode(params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS))
 
             self.toggle_wkb4_column_visibility()
 
@@ -3214,13 +3199,6 @@ class MainApp(QtWidgets.QMainWindow):
         enable_sound_action.setChecked(self.enable_global_sound)  
         main_menu.addAction(enable_sound_action)
 
-        enable_marathon_action = QtGui.QAction("Enable Marathon", self)
-        enable_marathon_action.setShortcut(QtGui.QKeySequence("Ctrl+H"))
-        enable_marathon_action.triggered.connect(self.update_marathon_preference)
-        enable_marathon_action.setCheckable(True)  
-        enable_marathon_action.setChecked(self.enable_marathon)  
-        main_menu.addAction(enable_marathon_action)
-
         settings_action = QtGui.QAction("Settings...", self)
         settings_action.setShortcut("Ctrl+,")  # Default shortcut for macOS
         settings_action.triggered.connect(self.open_settings)
@@ -3579,7 +3557,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.worker.enable_reply_to_valid_callsign  = params.get('enable_reply_to_valid_callsign', DEFAULT_LOG_ALL_VALID_CONTACT)
         self.worker.enable_reply_to_valid_direction = params.get('enable_reply_to_valid_direction', DEFAULT_LOG_ALL_VALID_CONTACT)
         self.worker.enable_reply_to_lotw_only       = params.get('enable_reply_to_lotw_only', False)
-        self.worker.enable_gap_finder                = params.get('enable_gap_finder', DEFAULT_GAP_FINDER)
+        self.worker.enable_gap_finder               = params.get('enable_gap_finder', DEFAULT_GAP_FINDER)
         self.worker.enable_watchdog_bypass          = params.get('enable_watchdog_bypass', DEFAULT_WATCHDOG_BYPASS)
         self.worker.enable_debug_output             = params.get('enable_debug_output', DEFAULT_DEBUG_OUTPUT)
         self.worker.enable_pounce_log               = params.get('enable_pounce_log', DEFAULT_POUNCE_LOG)
@@ -3587,23 +3565,14 @@ class MainApp(QtWidgets.QMainWindow):
         
         self.worker.adif_file_paths                 = params.get('adif_file_paths', None)
         self.worker.adif_worked_backup_file_path    = params.get('adif_worked_backup_file_path', None)
-        self.worker.worked_before_preference       = params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS)
-        self.worker.enable_marathon                = params.get('enable_marathon', False)
-        self.worker.marathon_preference            = params.get('marathon_preference', {})
-        self.worker.enable_grid_tracker            = params.get('enable_grid_tracker', False)
-        self.worker.grid_tracker_preference        = params.get('grid_tracker_preference', {})
-        self.worker.minimum_report_for_reply       = params.get('minimum_report_for_reply', DEFAULT_MINIMUM_REPORT)
-        self.worker.priority_order                 = params.get('priority_order', list(PRIORITY_LIST.values()))
-        
-        self.worker.min_freq                       = params.get('min_freq', FREQ_MINIMUM)
-        self.worker.max_freq                       = params.get('max_freq', FREQ_MAXIMUM)
+        self.worker.worked_before_preference        = convert_wkb4_reply_mode(params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS))
+        self.worker.marathon_preference             = params.get('marathon_preference', {})
+        self.worker.grid_tracker_preference         = params.get('grid_tracker_preference', {})
+        self.worker.minimum_report_for_reply        = params.get('minimum_report_for_reply', DEFAULT_MINIMUM_REPORT)
+        self.worker.priority_order                  = params.get('priority_order', list(PRIORITY_LIST.values()))
 
-        self.adif_file_paths                        = self.worker.adif_file_paths
-        self.adif_worked_backup_file_path           = self.worker.adif_worked_backup_file_path
-        self.worked_before_preference              = self.worker.worked_before_preference
-        self.marathon_preference                   = self.worker.marathon_preference
-        self.enable_grid_tracker                   = self.worker.enable_grid_tracker
-        self.grid_tracker_preference               = self.worker.grid_tracker_preference
+        self.worker.min_freq                        = params.get('min_freq', FREQ_MINIMUM)
+        self.worker.max_freq                        = params.get('max_freq', FREQ_MAXIMUM)
 
     def stop_monitoring(self):
         self.network_check_status.stop()        
