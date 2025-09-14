@@ -1742,6 +1742,7 @@ class MainApp(QtWidgets.QMainWindow):
                 message['lotw'] = lotw                    
 
                 if entity_wkb4:
+                    log.error(f"entity_wkb4 found: {entity_wkb4}")
                     if wkb4_year is None:
                         wkb4_year = '⋆'
                  
@@ -3172,7 +3173,7 @@ class MainApp(QtWidgets.QMainWindow):
                         input_widget.setStyleSheet("")
                 else:
                     label_widget.setStyleSheet(default_style)
-                    if idx == 1 or idx == 3:
+                    if idx == 1 or idx == 3 or idx == 5 or idx == 6:
                         input_widget.setEnabled(True)
                         input_widget.setStyleSheet("")
 
