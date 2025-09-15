@@ -126,6 +126,13 @@ class AdifProcessor:
                         task_id=task['id']
                     )
                     
+                    # Save cache after processing if lookup was used
+                    if lookup:
+                        try:
+                            lookup.force_cache_save()
+                        except Exception as e:
+                            log.warning(f"Failed to save cache after ADIF processing: {e}")
+                    
                     result = {
                         'task_id': task['id'],
                         'file_path': task['file_path'],

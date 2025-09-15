@@ -5,6 +5,7 @@ import os
 import threading
 import sys
 import re
+import time
 
 from collections import OrderedDict
 from shapely.geometry import shape, Point, Polygon
@@ -28,16 +29,16 @@ class CallsignLookup:
         lotw_cache_file     = get_data_file_path("lotw_cache.json"),
         cty_dat_file        = get_data_file_path("CTY_WT_MOD.DAT"),
         grids_file          = get_data_file_path("GRD_WP.txt"),
-        cache_size         = 4_000,
-        lookup_debug       = False
+        cache_size          = 16_000,
+        lookup_debug        = False
     ):
         self.callsign_exceptions = {}
-        self.prefixes             = {}
+        self.prefixes            = {}
         self.entities            = {}
         self.invalid_operations  = {}
         self.zone_exceptions     = {}
         self.cty_entities        = {}
-        self.cty_prefixes         = {}
+        self.cty_prefixes        = {}
         self.cty_exact_calls     = {}
 
         self.xml_file_path        = xml_file_path
@@ -59,6 +60,8 @@ class CallsignLookup:
         self.zone_polygons       = []
         self.lotw_cache          = {}
         self.grids_cache         = {}
+        
+        self.instance_id         = int(time.time() * 1000) % 100000
 
         self.cache_lock          = threading.Lock()
         self.zone_polygons       = self.load_cq_zones(self.cq_zones_file_path)
@@ -148,13 +151,43 @@ class CallsignLookup:
                 data_to_save[callsign] = self._serialize_info(info)
 
         try:
+            # Load existing cache data to merge with
+            existing_data = {}
+            if os.path.exists(self.cache_file):
+                try:
+                    with open(self.cache_file, "r", encoding="utf-8") as f:
+                        existing_data = json.load(f)
+                except Exception as e:
+                    log.warning(f"Failed to load existing cache for merging: {e}")
+            
+            # Merge: existing data + new data (new data takes precedence)
+            merged_data = existing_data.copy()
+            merged_data.update(data_to_save)
+            
+            # Respect cache size limit - keep most recent entries
+            if len(merged_data) > self.cache_size:
+                # Keep the cache_size most recent entries (those from data_to_save first, then existing)
+                items_to_keep = list(data_to_save.items())
+                remaining_space = self.cache_size - len(data_to_save)
+                if remaining_space > 0:
+                    existing_items = [(k, v) for k, v in existing_data.items() if k not in data_to_save]
+                    items_to_keep.extend(existing_items[-remaining_space:])
+                merged_data = dict(items_to_keep)
+         
             with open(self.cache_file, "w", encoding="utf-8") as f:
-                json.dump(data_to_save, f, indent=2)
+                json.dump(merged_data, f, indent=2)
         except Exception as e:
             log.error(f"Failed to save cache to {self.cache_file}: {e}")
 
     def save_grid_update_to_cache(self):
         self._cache_dirty = True
+    
+    def force_cache_save(self):
+        try:
+            self.save_cache()
+            self._cache_dirty = False
+        except Exception as e:
+            log.error(f"Failed to force save cache: {e}")
 
     def _save_cache_if_dirty(self):
         if hasattr(self, '_cache_dirty') and self._cache_dirty:
@@ -721,7 +754,7 @@ class CallsignLookup:
             callsign = callsign.strip().upper()
             if date is None:
                 date = datetime.datetime.now(datetime.timezone.utc)
-
+            
             if enable_cache and callsign in self.cache:
                 with self.cache_lock:
                     cached_result = self.cache[callsign].copy()
@@ -1006,7 +1039,6 @@ class CallsignLookup:
         return None
 
     def _add_adif_from_entities(self, result):
-        """Add entity_code from ClubLog entities by matching entity names"""
         entity_name = result.get("entity", "").strip()
         if not entity_name:
             return
@@ -1036,7 +1068,6 @@ class CallsignLookup:
             log.debug(f"No entity_code match found for entity: '{entity_name}'")
 
     def clear_cache_entry(self, callsign):
-        """Clear a specific callsign from cache for testing"""
         callsign = callsign.upper()
         with self.cache_lock:
             if callsign in self.cache:
@@ -1051,7 +1082,8 @@ class CallsignLookup:
                     self.cache.popitem(last=False)
                 # Mark cache dirty if this entry has grid_updated field
                 if 'grid_updated' in info:
-                    self.save_grid_update_to_cache()  
+                    self.save_grid_update_to_cache()
+                # Trigger periodic cache saves
 
     def is_valid_for_date(self, info, date):
         start = info.get("start")
@@ -1062,71 +1094,6 @@ class CallsignLookup:
             return False
         return True
 
-    def get_entity_code(self, callsign):
-        """
-            Lightweight method to get only entity_code for ADIF processing.
-            Uses session-level caching and optimized prefix matching.
-        """
-        callsign = callsign.strip().upper()
-        
-        if not hasattr(self, '_entity_session_cache'):
-            self._entity_session_cache = {}
-        
-        if callsign in self._entity_session_cache:
-            return self._entity_session_cache[callsign]
-        
-        entity_code = None
-        
-        # Check memory cache first (fastest)
-        if callsign in self.cache:
-            cached_result = self.cache[callsign]
-            entity_code = cached_result.get('entity_code')
-            if entity_code:
-                self._entity_session_cache[callsign] = entity_code
-                return entity_code
-        
-        # Check exact callsign match in CTY data
-        if callsign in self.cty_exact_calls:
-            result = self.cty_exact_calls[callsign]
-            entity_code = result.get('entity_code') or result.get('adif')
-            if entity_code:
-                self._entity_session_cache[callsign] = entity_code
-                return entity_code
-        
-        # Check exact prefix match in CTY data
-        if callsign in self.cty_prefixes:
-            result = self.cty_prefixes[callsign]
-            entity_code = result.get('entity_code') or result.get('adif')
-            if entity_code:
-                self._entity_session_cache[callsign] = entity_code
-                return entity_code
-        
-        # Optimized prefix matching and try only likely prefixes first
-        # Start with longer prefixes (more specific)
-        for prefix_len in range(min(6, len(callsign)), 0, -1):
-            prefix = callsign[:prefix_len]
-            if prefix in self.cty_prefixes:
-                result = self.cty_prefixes[prefix]
-                entity_code = result.get('entity_code') or result.get('adif')
-                if entity_code:
-                    self._entity_session_cache[callsign] = entity_code
-                    return entity_code
-        
-        # Final fallback: optimized CTY lookup using sorted prefixes
-        if hasattr(self, '_sorted_cty_prefixes'):
-            for prefix in self._sorted_cty_prefixes:
-                if callsign.startswith(prefix):
-                    result = self.cty_prefixes[prefix]
-                    entity_code = result.get('entity_code') or result.get('adif')
-                    if entity_code:
-                        self._entity_session_cache[callsign] = entity_code
-                        return entity_code
-                    break  # First match wins (longest prefix due to sorting)
-        
-        # Cache negative result to avoid re-processing
-        self._entity_session_cache[callsign] = None
-        return None
-    
     def clear_entity_session_cache(self):
         if hasattr(self, '_entity_session_cache'):
             self._entity_session_cache.clear()

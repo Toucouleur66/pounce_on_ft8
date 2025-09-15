@@ -632,9 +632,10 @@ def parse_adif_record(record, lookup):
 
     info = {}
     if lookup and call:
-        entity_code = lookup.get_entity_code(call)
-        if entity_code:
-            info = {'entity_code': entity_code}
+        if qso_datetime:
+            info = lookup.lookup_callsign(call, date=qso_datetime, enable_cache=True)
+        else:
+            info = lookup.lookup_callsign(call, enable_cache=True)
 
     return year, qso_date, band, grid, call, freq, mode, rst_sent, rst_rcvd, qsl_status, info
 

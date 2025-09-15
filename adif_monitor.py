@@ -477,6 +477,8 @@ class AdifMonitor:
             self.notify_callbacks()
             if not self.pending_tasks:
                 self.notify_processing_callbacks({'type': 'adif_processing_finished'})
+
+                self._lookup.force_cache_save()
                 # Show statistics after processing is complete
                 # self._log_adif_statistics()
     
