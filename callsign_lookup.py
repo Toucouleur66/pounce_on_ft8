@@ -29,7 +29,7 @@ class CallsignLookup:
         lotw_cache_file     = get_data_file_path("lotw_cache.json"),
         cty_dat_file        = get_data_file_path("CTY_WT_MOD.DAT"),
         grids_file          = get_data_file_path("GRD_WP.txt"),
-        cache_size          = 16_000,
+        cache_size          = 32_000,
         lookup_debug        = False
     ):
         self.callsign_exceptions = {}
