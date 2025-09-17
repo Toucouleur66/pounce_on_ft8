@@ -1753,12 +1753,13 @@ class Listener(QObject):
             directed
         ):
         if cqing:
-            if is_valid_continent(directed) and directed != self.my_cont:
-                self.wanted_callsigns_direction[callsign] = directed
+            self.wanted_callsigns_direction[callsign] = directed
+            if is_valid_continent(directed) and directed != self.my_cont:                
                 return False
             elif directed == "DX" and lookup.lookup_callsign(callsign).get('cont', None) == self.my_cont:
-                self.wanted_callsigns_direction[callsign] = directed
                 return False
+            else:
+                return True
         elif (
             self.wanted_callsigns_direction.get(callsign) 
             and self.wanted_callsigns_direction.get(callsign) != self.my_cont
