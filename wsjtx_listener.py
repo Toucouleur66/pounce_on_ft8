@@ -1130,7 +1130,11 @@ class Listener(QObject):
                 if (
                     self.enable_reply_to_valid_callsign 
                     and entity_code is None
-                    and not (wanted and wanted_cq_zone)
+                    and not exactly_matched
+                    and (
+                        wanted 
+                        or wanted_cq_zone
+                    )
                 ):
                     wanted         = False
                     wanted_cq_zone = False
