@@ -593,6 +593,7 @@ def parse_adif_record(record, lookup):
     grid        = fields.get('GRIDSQUARE') 
     lotw_rcvd   = fields.get('LOTW_QSL_RCVD')
     qsl_rcvd    = fields.get('QSL_RCVD')
+    eqsl_rcvd   = fields.get('EQSL_RCVD')
     freq        = fields.get('FREQ')
     mode        = fields.get('MODE')
     rst_sent    = fields.get('RST_SENT')
@@ -623,9 +624,11 @@ def parse_adif_record(record, lookup):
     band = band.lower() if band else None
     year = qso_date[0:4] if qso_date and len(qso_date) >= 4 else None
 
-    if lotw_rcvd == 'Y' or lotw_rcvd == 'V':
-        qsl_status = 'V'
-    elif qsl_rcvd == 'Y':
+    if (
+        lotw_rcvd in ["V", "Y"]
+        or qsl_rcvd in ["V", "Y", "S"]
+        or eqsl_rcvd in ["Y"]
+    ):
         qsl_status = 'Y'
     else:
         qsl_status = None

@@ -1055,9 +1055,16 @@ class CallsignLookup:
                 return
         
         # Try partial match (e.g., "FIJI" should match "FIJI ISLANDS")
+        # Also handle common abbreviations like "ST." vs "SAINT"
         for adif_num, entity_data in self.entities.items():
             clublog_entity = entity_data.get("entity", "").upper().strip()
-            if entity_upper in clublog_entity or clublog_entity in entity_upper:
+            
+            # Normalize common abbreviations for comparison
+            normalized_entity = entity_upper.replace("ST. ", "SAINT ").replace("ST ", "SAINT ")
+            normalized_clublog = clublog_entity.replace("ST. ", "SAINT ").replace("ST ", "SAINT ")
+            
+            if (entity_upper in clublog_entity or clublog_entity in entity_upper or
+                normalized_entity in normalized_clublog or normalized_clublog in normalized_entity):
                 result["entity_code"] = adif_num                
                 return
         
