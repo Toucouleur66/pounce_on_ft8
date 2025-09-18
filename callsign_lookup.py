@@ -71,9 +71,71 @@ class CallsignLookup:
         self._sorted_cty_prefixes = sorted(self.cty_prefixes.keys(), key=lambda x: -len(x))
         log.info(f"Pre-computed {len(self._sorted_cty_prefixes):,} sorted CTY prefixes for optimization")
         
+        # Build prefix lookup index for O(1) access
+        self._build_cty_prefix_index()
+        
         self.load_cache_from_disk()
         self.load_lotw_cache()
         self.load_grids_file()
+
+    def _build_cty_prefix_index(self):
+        """
+            Build an optimized index for CTY prefix lookups to avoid linear search
+        """
+        self._cty_prefix_index = {}
+        
+        # Create index by callsign length and starting characters for faster matching
+        for prefix in self._sorted_cty_prefixes:
+            prefix_len = len(prefix)
+            
+            # Index by length first to reduce search space
+            if prefix_len not in self._cty_prefix_index:
+                self._cty_prefix_index[prefix_len] = {}
+            
+            # Then index by starting characters for each length
+            for start_len in range(1, min(prefix_len + 1, 4)):  # Index up to first 3 chars
+                start_chars = prefix[:start_len]
+                if start_chars not in self._cty_prefix_index[prefix_len]:
+                    self._cty_prefix_index[prefix_len][start_chars] = []
+                
+                # Store prefix sorted by length (longest first within each bucket)
+                self._cty_prefix_index[prefix_len][start_chars].append(prefix)
+        
+        # Sort each bucket by length descending (longest match first)
+        total_buckets = 0
+        for length_dict in self._cty_prefix_index.values():
+            for prefix_list in length_dict.values():
+                prefix_list.sort(key=len, reverse=True)
+                total_buckets += 1
+        
+        log.info(f"Built CTY prefix index with {len(self._cty_prefix_index):,} length groups and {total_buckets:,} prefix buckets")
+
+    def _find_matching_cty_prefixes(self, callsign):
+        """Find matching CTY prefixes using optimized index instead of linear search"""
+        callsign_upper = callsign.upper()
+        callsign_len = len(callsign_upper)
+        
+        # Search through length groups in descending order (longest prefixes first)
+        for prefix_len in sorted(self._cty_prefix_index.keys(), reverse=True):
+            if prefix_len > callsign_len:
+                continue
+                
+            length_dict = self._cty_prefix_index[prefix_len]
+            
+            # Try different starting character lengths for this prefix length
+            for start_len in range(min(3, prefix_len), 0, -1):  # Try 3, 2, then 1 char starts
+                if start_len > callsign_len:
+                    continue
+                    
+                start_chars = callsign_upper[:start_len]
+                
+                if start_chars in length_dict:
+                    # Check each prefix in this bucket
+                    for prefix in length_dict[start_chars]:
+                        if callsign_upper.startswith(prefix):
+                            return prefix  # Return first (longest) match
+        
+        return None
 
     def load_cache_from_disk(self):
         if not os.path.exists(self.cache_file):
@@ -989,54 +1051,55 @@ class CallsignLookup:
             
             return result
         
-        for prefix in self._sorted_cty_prefixes:
-            if callsign.upper().startswith(prefix):
-                result = self.cty_prefixes[prefix].copy()
-                result["call"] = prefix 
-                
-                # Update with provided grid if available
-                if grid:
-                    result["grid"] = grid
-                    result["grid_source"] = "provided"
+        # Use optimized prefix lookup instead of linear search
+        matching_prefix = self._find_matching_cty_prefixes(callsign)
+        if matching_prefix:
+            result = self.cty_prefixes[matching_prefix].copy()
+            result["call"] = matching_prefix 
+            
+            # Update with provided grid if available
+            if grid:
+                result["grid"] = grid
+                result["grid_source"] = "provided"
+                if date:
+                    result["grid_updated"] = date.strftime("%Y-%m-%d")
+                new_zone = self.grid_to_cq_zone(grid)
+                if new_zone is not None and result.get("cqz") != new_zone:
+                    result["cqz"] = new_zone
+            elif "grid" not in result and callsign in self.grids_cache:
+                # Use grid from grids_cache as fallback
+                cached_grid = self.grids_cache[callsign]
+                result["grid"] = cached_grid
+                if date:
+                    result["grid_updated"] = date.strftime("%Y-%m-%d")
+                result["grid_source"] = "cache"
+                new_zone = self.grid_to_cq_zone(cached_grid)
+                if new_zone is not None and result.get("cqz") != new_zone:
+                    result["cqz"] = new_zone
+                if self.lookup_debug:
+                    log.debug(f"Used grid {cached_grid} from grids file for {callsign}")
+            elif "grid" not in result and result.get("lat") is not None and result.get("long") is not None:
+                # Calculate 4-character grid from lat/lon as final fallback
+                try:
+                    guessed_grid = latlon_to_grid(result["lat"], result["long"])[:4]
+                    result["grid"] = guessed_grid
                     if date:
                         result["grid_updated"] = date.strftime("%Y-%m-%d")
-                    new_zone = self.grid_to_cq_zone(grid)
-                    if new_zone is not None and result.get("cqz") != new_zone:
-                        result["cqz"] = new_zone
-                elif "grid" not in result and callsign in self.grids_cache:
-                    # Use grid from grids_cache as fallback
-                    cached_grid = self.grids_cache[callsign]
-                    result["grid"] = cached_grid
-                    if date:
-                        result["grid_updated"] = date.strftime("%Y-%m-%d")
-                    result["grid_source"] = "cache"
-                    new_zone = self.grid_to_cq_zone(cached_grid)
+                    result["grid_source"] = "guessed"
+                    new_zone = self.grid_to_cq_zone(guessed_grid)
                     if new_zone is not None and result.get("cqz") != new_zone:
                         result["cqz"] = new_zone
                     if self.lookup_debug:
-                        log.debug(f"Used grid {cached_grid} from grids file for {callsign}")
-                elif "grid" not in result and result.get("lat") is not None and result.get("long") is not None:
-                    # Calculate 4-character grid from lat/lon as final fallback
-                    try:
-                        guessed_grid = latlon_to_grid(result["lat"], result["long"])[:4]
-                        result["grid"] = guessed_grid
-                        if date:
-                            result["grid_updated"] = date.strftime("%Y-%m-%d")
-                        result["grid_source"] = "guessed"
-                        new_zone = self.grid_to_cq_zone(guessed_grid)
-                        if new_zone is not None and result.get("cqz") != new_zone:
-                            result["cqz"] = new_zone
-                        if self.lookup_debug:
-                            log.debug(f"Used guessed grid {guessed_grid} from lat/lon for {callsign}")
-                    except Exception as e:
-                        if self.lookup_debug:
-                            log.debug(f"Failed to calculate guessed grid for {callsign}: {e}")
-                
-                # Try to add ADIF number from ClubLog entities if not present
-                if "entity_code" not in result or result["entity_code"] is None:
-                    self._add_adif_from_entities(result)
-                
-                return result
+                        log.debug(f"Used guessed grid {guessed_grid} from lat/lon for {callsign}")
+                except Exception as e:
+                    if self.lookup_debug:
+                        log.debug(f"Failed to calculate guessed grid for {callsign}: {e}")
+            
+            # Try to add ADIF number from ClubLog entities if not present
+            if "entity_code" not in result or result["entity_code"] is None:
+                self._add_adif_from_entities(result)
+            
+            return result
         
         return None
 
@@ -1120,3 +1183,18 @@ class CallsignLookup:
             'lat_lon_to_cq_zone': self.lat_lon_to_cq_zone.cache_info()
         }
         return stats
+    
+    def get_cty_prefix_index_stats(self):
+        if not hasattr(self, '_cty_prefix_index'):
+            return {"error": "CTY prefix index not built"}
+        
+        total_prefixes = len(self._sorted_cty_prefixes)
+        length_groups = len(self._cty_prefix_index)
+        total_buckets = sum(len(length_dict) for length_dict in self._cty_prefix_index.values())
+        
+        return {
+            'total_prefixes': total_prefixes,
+            'length_groups': length_groups,
+            'total_buckets': total_buckets,
+            'avg_prefixes_per_bucket': total_prefixes / total_buckets if total_buckets > 0 else 0
+        }
