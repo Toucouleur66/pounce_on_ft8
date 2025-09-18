@@ -18,7 +18,6 @@ from logger import get_logger
 
 log = get_logger(__name__)
 
-@lru_cache(maxsize=3_000)
 class CallsignLookup:
     def __init__(
         self,
@@ -684,6 +683,7 @@ class CallsignLookup:
             except Exception as e:
                 log.warning(f"Failed to load Go zone data from {go_file_path}: {e}, falling back to GeoJSON")        
 
+    @lru_cache(maxsize=10000)
     def locator_to_lat_lon_partial(self, grid: str):
         grid = grid.strip().upper()
         if len(grid) < 2:
@@ -717,6 +717,7 @@ class CallsignLookup:
 
         return (lat, lon)
 
+    @lru_cache(maxsize=8000)
     def lat_lon_to_cq_zone(self, lat: float, lon: float):
         pt = Point(lon, lat)
         
@@ -742,6 +743,7 @@ class CallsignLookup:
             
         return None
 
+    @lru_cache(maxsize=5000)
     def grid_to_cq_zone(self, grid: str):
         lat, lon = self.locator_to_lat_lon_partial(grid)
         zone = self.lat_lon_to_cq_zone(lat, lon)
@@ -1104,3 +1106,17 @@ class CallsignLookup:
     def clear_entity_session_cache(self):
         if hasattr(self, '_entity_session_cache'):
             self._entity_session_cache.clear()
+    
+    def clear_lru_caches(self):
+        self.grid_to_cq_zone.cache_clear()
+        self.locator_to_lat_lon_partial.cache_clear()
+        self.lat_lon_to_cq_zone.cache_clear()
+        log.info("Cleared all LRU caches")
+    
+    def get_lru_cache_stats(self):
+        stats = {
+            'grid_to_cq_zone': self.grid_to_cq_zone.cache_info(),
+            'locator_to_lat_lon': self.locator_to_lat_lon_partial.cache_info(),
+            'lat_lon_to_cq_zone': self.lat_lon_to_cq_zone.cache_info()
+        }
+        return stats

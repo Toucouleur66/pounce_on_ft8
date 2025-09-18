@@ -593,7 +593,7 @@ def parse_adif_record(record, lookup):
     grid        = fields.get('GRIDSQUARE') 
     lotw_rcvd   = fields.get('LOTW_QSL_RCVD')
     qsl_rcvd    = fields.get('QSL_RCVD')
-    eqsl_rcvd   = fields.get('EQSL_RCVD')
+    eqsl_rcvd   = fields.get('EQSL_QSL_RCVD')
     freq        = fields.get('FREQ')
     mode        = fields.get('MODE')
     rst_sent    = fields.get('RST_SENT')
