@@ -276,8 +276,11 @@ def parse_single_wsjtx_message(
         monitored         = is_monitored 
         wanted_cq_zone    = is_wanted_cq_zone and not is_worked and not is_excluded
         monitored_cq_zone = is_monitored_cq_zone and not is_excluded
-        
-        excluded          = False if exactly_matched else excluded
+
+        if is_exact_match(excluded_callsigns, callsign):
+            excluded      = True
+        elif exactly_matched:
+            excluded      = False
 
     return {
         'directed'           : directed,

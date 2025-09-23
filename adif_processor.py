@@ -69,7 +69,7 @@ class AdifProcessor:
             'id': task_id,
             'file_path': file_path,
             'last_size': last_size,
-            'lookup_data': self._serialize_lookup(lookup) if lookup else None,
+            'needs_lookup': lookup is not None,  # Just flag if lookup is needed
             'max_lines': max_lines
         }
         
@@ -94,14 +94,29 @@ class AdifProcessor:
         except queue.Empty:
             return None
     
-    def _serialize_lookup(self, lookup):
-        if not lookup:
+    @staticmethod
+    def _get_or_create_lookup(needs_lookup):
+        """
+            Get or create the shared lookup instance for the worker process
+        """
+        if not needs_lookup:
             return None
+            
+        if AdifProcessor._worker_lookup_instance is None:
+            try:
+                from callsign_lookup import CallsignLookup
+                AdifProcessor._worker_lookup_instance = CallsignLookup()
+                log.info("Initialized shared lookup instance in worker process")
+            except ImportError:
+                log.warning("CallsignLookup not available in worker process")
+                return None
         
-        return {
-            'has_lookup': True
-        }
+        return AdifProcessor._worker_lookup_instance
     
+    # Global lookup instance for the worker process - initialized once and reused
+    _worker_lookup_instance = None
+    
+
     @staticmethod
     def _worker_process(task_queue, result_queue, progress_queue, stop_event):
         log.info("ADIF worker process started")
@@ -115,7 +130,7 @@ class AdifProcessor:
                     
                     # log.info(f"Processing ADIF task: {task['id']}")
                     
-                    lookup = AdifProcessor._deserialize_lookup(task.get('lookup_data'))
+                    lookup = AdifProcessor._get_or_create_lookup(task.get('needs_lookup', False))
                     
                     processing_time, parsed_data = AdifProcessor._parse_adif_multiprocess(
                         task['file_path'],
@@ -164,17 +179,6 @@ class AdifProcessor:
         finally:
             log.info("ADIF worker process stopped")
     
-    @staticmethod
-    def _deserialize_lookup(lookup_data):
-        if not lookup_data or not lookup_data.get('has_lookup'):
-            return None
-        
-        try:
-            from callsign_lookup import CallsignLookup
-            return CallsignLookup()
-        except ImportError:
-            log.warning("CallsignLookup not available in worker process")
-            return None
     
     @staticmethod
     def _parse_adif_multiprocess(
@@ -183,7 +187,8 @@ class AdifProcessor:
         lookup=None,
         max_lines=10,
         progress_queue=None,
-        task_id=None):
+        task_id=None
+    ):
         start_time = time.time()
         
         parsed_wkb4_data = {}

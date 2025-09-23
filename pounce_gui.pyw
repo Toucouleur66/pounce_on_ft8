@@ -305,7 +305,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.gui_selected_band                  = None
         self.operating_band                     = None
         self.enable_show_all_decoded            = None
-        self.message_buffer                     = deque()        
+        self.message_buffer                     = deque(maxlen=500)      
                 
         self.menu_bar                           = self.menuBar() 
 
@@ -1727,7 +1727,6 @@ class MainApp(QtWidgets.QMainWindow):
                 message['lotw'] = lotw                    
 
                 if entity_wkb4:
-                    log.error(f"entity_wkb4 found: {entity_wkb4}")
                     if wkb4_year is None:
                         wkb4_year = '⋆'
                  
@@ -2048,7 +2047,7 @@ class MainApp(QtWidgets.QMainWindow):
         items.sort()
         var.setText(','.join(map(str, items)))
 
-        self.message_buffer = deque()
+        self.message_buffer = deque(maxlen=500)
 
     def add_callsign_to_temp_exclusion(self, callsign, exclusion_minutes):
         if not self.gui_selected_band:
@@ -2209,7 +2208,7 @@ class MainApp(QtWidgets.QMainWindow):
             fg_color_hex=FG_COLOR_BLACK_ON_WHITE,
             bg_color_hex=STATUS_TRX_COLOR
         ):           
-        self.message_buffer = deque()                 
+        self.message_buffer = deque(maxlen=500)                 
         self.update_status_menu_message(notice_message, bg_color_hex, fg_color_hex)
         self.output_table.scrollToBottom()
         self.last_focus_value_message_uid = None
