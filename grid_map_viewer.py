@@ -126,6 +126,8 @@ class GridMapWidget(QWidget):
         self.confirmed_color_fill       = QColor(91, 105, 171, 175)
         self.worked_color_fill          = QColor(255, 168, 180, 175)
 
+        #self.set_test_date_time(2025, 7,21, 12)
+
         # First value is intensity
         # Viridis
         self.heatmap_gradient = {
@@ -949,9 +951,25 @@ class GridMapWidget(QWidget):
         self.test_time = datetime.combine(today, datetime.min.time().replace(
             hour=hour, minute=minute, second=second
         )).replace(tzinfo=timezone.utc)
-        
+
         log.info(f"Test time UTC: {self.test_time.isoformat()}")
 
+        self.update()
+
+    def set_test_date_time(self, year, month, day, hour=12, minute=0, second=0):
+        """
+            Set a specific date and time for testing day/night overlay            
+        """
+        self.test_time = datetime(year, month, day, hour, minute, second, tzinfo=timezone.utc)
+        log.info(f"Test date/time UTC: {self.test_time.isoformat()}")
+        self.update()
+
+    def clear_test_time(self):
+        """
+            Clear test time and return to real-time display
+        """
+        self.test_time = None
+        log.info("Cleared test time - using real time")
         self.update()
     
     def draw_daylight_overlay(self, painter):
@@ -1052,19 +1070,48 @@ class GridMapWidget(QWidget):
         # Create day area by connecting terminator to appropriate screen edge
         day_path = QPainterPath(extended_terminator)
         
-        # Determine which side of terminator is day based on terminator slope
-        first_y = extended_points[0][1]
-        last_y = extended_points[-1][1]
-        terminator_slopes_down = last_y > first_y
-        
-        if terminator_slopes_down:
-            # Terminator slopes down, day is above it
-            day_path.lineTo(screen_w + margin, -margin)
-            day_path.lineTo(-margin, -margin)
+        # Determine which side of terminator is day based on sun's position
+        # Simple approach: test if the subsolar point (where sun is directly overhead)
+        # is north or south of the terminator at the same longitude
+
+        # Get the subsolar point position on screen
+        subsolar_screen_x, subsolar_screen_y = self.lat_lon_to_screen_stable(solar_lat, solar_lon)
+
+        # Find the terminator point at approximately the same longitude as the subsolar point
+        closest_terminator_y = None
+        min_x_diff = float('inf')
+
+        for x, y in extended_points:
+            x_diff = abs(x - subsolar_screen_x)
+            if x_diff < min_x_diff:
+                min_x_diff = x_diff
+                closest_terminator_y = y
+
+        # If subsolar point is above (north of) the terminator, then north side is day
+        # If subsolar point is below (south of) the terminator, then south side is day
+        if closest_terminator_y is not None:
+            subsolar_is_north_of_terminator = subsolar_screen_y < closest_terminator_y
+
+            if subsolar_is_north_of_terminator:
+                # Sun is north of terminator, so north side is day
+                day_path.lineTo(screen_w + margin, -margin)
+                day_path.lineTo(-margin, -margin)
+            else:
+                # Sun is south of terminator, so south side is day
+                day_path.lineTo(screen_w + margin, screen_h + margin)
+                day_path.lineTo(-margin, screen_h + margin)
         else:
-            # Terminator slopes up, day is below it  
-            day_path.lineTo(screen_w + margin, screen_h + margin)
-            day_path.lineTo(-margin, screen_h + margin)
+            # Fallback to original logic if we can't find terminator point
+            first_y = extended_points[0][1]
+            last_y = extended_points[-1][1]
+            terminator_slopes_down = last_y > first_y
+
+            if terminator_slopes_down:
+                day_path.lineTo(screen_w + margin, -margin)
+                day_path.lineTo(-margin, -margin)
+            else:
+                day_path.lineTo(screen_w + margin, screen_h + margin)
+                day_path.lineTo(-margin, screen_h + margin)
         
         day_path.closeSubpath()
 
