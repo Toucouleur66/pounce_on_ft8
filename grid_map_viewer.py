@@ -1070,38 +1070,47 @@ class GridMapWidget(QWidget):
         # Create day area by connecting terminator to appropriate screen edge
         day_path = QPainterPath(extended_terminator)
         
-        # Determine which side of terminator is day based on sun's position
-        # Simple approach: test if the subsolar point (where sun is directly overhead)
-        # is north or south of the terminator at the same longitude
+        test_lat = 60.0
+        test_lon = 0.0  # Test at Greenwich meridian
 
-        # Get the subsolar point position on screen
-        subsolar_screen_x, subsolar_screen_y = self.lat_lon_to_screen_stable(solar_lat, solar_lon)
+        hour_angle = math.radians(test_lon - solar_lon)
+        solar_lat_rad = math.radians(solar_lat)
+        test_lat_rad = math.radians(test_lat)
 
-        # Find the terminator point at approximately the same longitude as the subsolar point
+        cos_zenith = (math.sin(solar_lat_rad) * math.sin(test_lat_rad) +
+                     math.cos(solar_lat_rad) * math.cos(test_lat_rad) * math.cos(hour_angle))
+
+        test_point_in_daylight = cos_zenith > 0
+
+        test_screen_x, test_screen_y = self.lat_lon_to_screen_stable(test_lat, test_lon)
+
         closest_terminator_y = None
         min_x_diff = float('inf')
 
         for x, y in extended_points:
-            x_diff = abs(x - subsolar_screen_x)
+            x_diff = abs(x - test_screen_x)
             if x_diff < min_x_diff:
                 min_x_diff = x_diff
                 closest_terminator_y = y
 
-        # If subsolar point is above (north of) the terminator, then north side is day
-        # If subsolar point is below (south of) the terminator, then south side is day
+        # Debug logging
+        """
+        log.debug(f"Solar position: lat={solar_lat:.2f}, lon={solar_lon:.2f}")
+        log.debug(f"Test point (60°N, 0°): in daylight={test_point_in_daylight}")
+        log.debug(f"Test screen: x={test_screen_x:.1f}, y={test_screen_y:.1f}")
+        log.debug(f"Closest terminator y: {closest_terminator_y:.1f}")
+        """
         if closest_terminator_y is not None:
-            subsolar_is_north_of_terminator = subsolar_screen_y < closest_terminator_y
-
-            if subsolar_is_north_of_terminator:
-                # Sun is north of terminator, so north side is day
+            test_north_of_terminator = test_screen_y < closest_terminator_y
+            if test_point_in_daylight == test_north_of_terminator:
                 day_path.lineTo(screen_w + margin, -margin)
                 day_path.lineTo(-margin, -margin)
+                # log.debug("Drawing day area: north side")
             else:
-                # Sun is south of terminator, so south side is day
                 day_path.lineTo(screen_w + margin, screen_h + margin)
                 day_path.lineTo(-margin, screen_h + margin)
+                # log.debug("Drawing day area: south side")
         else:
-            # Fallback to original logic if we can't find terminator point
             first_y = extended_points[0][1]
             last_y = extended_points[-1][1]
             terminator_slopes_down = last_y > first_y
