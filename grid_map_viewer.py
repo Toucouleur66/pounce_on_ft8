@@ -1070,8 +1070,11 @@ class GridMapWidget(QWidget):
         # Create day area by connecting terminator to appropriate screen edge
         day_path = QPainterPath(extended_terminator)
         
+        # Use a test point at the center longitude of current view to avoid edge cases
+        _, center_lon = self.screen_to_lat_lon_stable(self.width() // 2, self.height() // 2)
+
         test_lat = 60.0
-        test_lon = 0.0  # Test at Greenwich meridian
+        test_lon = center_lon  # Test at center longitude of current view
 
         hour_angle = math.radians(test_lon - solar_lon)
         solar_lat_rad = math.radians(solar_lat)
@@ -2224,7 +2227,23 @@ class GridMapWidget(QWidget):
                 formatted_date = ''
                 if qso_date and len(qso_date) >= 8:
                     try:
-                        formatted_date = f"{qso_date[0:4]}-{qso_date[4:6]}-{qso_date[6:8]}"
+                        # Parse QSO date
+                        qso_datetime = datetime.strptime(qso_date[:8], '%Y%m%d')
+                        today = datetime.now(timezone.utc).date()
+                        qso_date_obj = qso_datetime.date()
+
+                        # Calculate days difference
+                        days_diff = (today - qso_date_obj).days
+
+                        if days_diff == 0:
+                            formatted_date = "Today"
+                        elif days_diff == 1:
+                            formatted_date = "Yesterday"
+                        elif 2 <= days_diff <= 7:
+                            formatted_date = f"{days_diff} days ago"
+                        else:
+                            # Use normal date format for older dates
+                            formatted_date = f"{qso_date[0:4]}-{qso_date[4:6]}-{qso_date[6:8]}"
                     except:
                         formatted_date = qso_date
                 
