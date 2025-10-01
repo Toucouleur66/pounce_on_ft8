@@ -599,6 +599,7 @@ def parse_adif_record(record, lookup):
     eqsl_rcvd   = fields.get('EQSL_QSL_RCVD')
     freq        = fields.get('FREQ')
     mode        = fields.get('MODE')
+    submode     = fields.get('SUBMODE')
     rst_sent    = fields.get('RST_SENT')
     rst_rcvd    = fields.get('RST_RCVD')
 
@@ -626,6 +627,9 @@ def parse_adif_record(record, lookup):
     grid = grid.upper()[:4] if grid else None
     band = band.lower() if band else None
     year = qso_date[0:4] if qso_date and len(qso_date) >= 4 else None
+
+    if mode == 'MFSK' and submode == 'FT4':
+        mode = submode
 
     if (
         lotw_rcvd in ["V", "Y"]
@@ -788,6 +792,18 @@ def is_entity_worked_b4(data, entity_code, year):
         if entity_code in entities:
             return True
     return False
+
+def is_grid_needed(data, grid, band, check_qsl_status=True):
+    grids = data.get('grid', {}).get(band, {})
+    if grid not in grids:
+        return True
+    elif check_qsl_status:
+        for qso in grids[grid]:
+            if bool(qso.get('qsl_status')):
+                return False
+        return True
+    else:
+        return False
 
 def get_wkb4_year(data, callsign, band):
     worked_years = []    

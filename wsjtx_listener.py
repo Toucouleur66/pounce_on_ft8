@@ -22,7 +22,7 @@ from logger import get_logger
 
 from utils import get_local_ip_address, get_mode_interval, get_amateur_band, parse_wsjtx_message
 from utils import get_wkb4_year, is_entity_worked_b4, get_clean_rst
-from utils import is_valid_continent, is_valid_grid
+from utils import is_valid_continent, is_valid_grid, is_grid_needed
 from utils import load_marathon_wanted_data, save_marathon_wanted_data
 
 from callsign_lookup import CallsignLookup
@@ -79,6 +79,7 @@ class Listener(QObject):
             max_freq,
             marathon_preference,
             grid_tracker_preference,
+            enable_grid_reply_unconfirmed,
             adif_file_paths,
             adif_worked_backup_file_path,
             worked_before_preference,
@@ -154,6 +155,7 @@ class Listener(QObject):
 
         self.marathon_preference                = marathon_preference
         self.grid_tracker_preference            = grid_tracker_preference
+        self.enable_grid_reply_unconfirmed      = enable_grid_reply_unconfirmed
 
         self.max_reply_attempts_to_callsign     = max_reply_attempts_to_callsign
 
@@ -1114,15 +1116,20 @@ class Listener(QObject):
                     and is_valid_grid(grid, callsign_info)
                     and not (wanted and wanted_cq_zone)
                     and self.grid_tracker_preference.get(self.band)
-                    and grid not in self.adif_data.get('grid', {}).get(self.band, {})
                     and not (
                         wkb4_year is not None 
                         and grid_updated is None
                         )
                 ):
-                    log.info(f"Grid [ {grid} ] not found in ADIF data for {self.band} band")
-                    wanted_grid     = True
-                    reply_to_packet = True                        
+                    if is_grid_needed(
+                        self.adif_data,
+                        grid,
+                        self.band,
+                        self.enable_grid_reply_unconfirmed
+                    ):
+                        log.info(f"Focus on [ {callsign} ] for grid [ {grid} ] [ {self.band} ]")
+                        wanted_grid     = True
+                        reply_to_packet = True                        
 
                 """
                     Ignore if callsign is not valid
@@ -1180,7 +1187,7 @@ class Listener(QObject):
                     and not marathon
                     and self.enable_reply_to_lotw_only 
                 ):
-                    log.warning(f"Skipping [ {callsign} ] as it is not a LoTW user")
+                    log.debug(f"Skipping [ {callsign} ] as it is not a LoTW user")
                     reply_to_packet = False
                     wanted          = False
                     wanted_cq_zone  = False
@@ -1210,7 +1217,7 @@ class Listener(QObject):
                         log.warning(f"Waiting for [ {self.targeted_call} ] but we are about to switch on [ {callsign} ]")
                         self.reset_targeted_call()
                     
-                    if len(self.reply_attempts.get('self.targeted_call') or []) >= self.max_reply_attempts_to_callsign:
+                    if len(self.reply_attempts.get(self.targeted_call) or []) >= self.max_reply_attempts_to_callsign:
                         log.warning(f"{len(self.reply_attempts[self.targeted_call])} attempts for [ {self.targeted_call} ] but we are about to switch on [ {callsign} ]")
                         self.reset_targeted_call()
 
@@ -1346,11 +1353,29 @@ class Listener(QObject):
                     reply_to_packet
                     and message_type != 'ready_to_log'
                 ):
+                    
+                    """
+                        Exclude if needed
+                    """
+                    if (
+                        not exactly_matched
+                        and directed != self.my_call
+                        and callsign not in self.excluded_callsigns
+                        and len(self.reply_attempts.get(self.targeted_call) or []) >= self.max_reply_attempts_to_callsign
+                    ):
+                        self.reply_attempts[callsign] = []
+                        log.error(f"Add [ {callsign} ] to temporarily excluded")
+                        self.message_callback({
+                            'type': 'temporarily_excluded',
+                            'callsign': callsign 
+                        })
+                        reply_to_packet = False
+
                     """
                         Ignore if excluded
                     """
                     if excluded:
-                        log.warning(f"Ignore callsign [ {callsign} ] as it is set as excluded [ {excluded} ]")
+                        log.debug(f"Skipping [ {callsign} ] as it is set as excluded [ {excluded} ]")
                         reply_to_packet = False
                         wanted          = False
                         wanted_grid     = False
@@ -1576,8 +1601,7 @@ class Listener(QObject):
             self.reply_attempts[callsign].append(callsign_packet.time)
             count_attempts = len(self.reply_attempts[callsign])
             if count_attempts >= (self.max_reply_attempts_to_callsign - 1):
-                log.warning(f"{count_attempts} attempts for [ {callsign} ]") 
-
+                log.warning(f"{count_attempts} attempts for [ {callsign} ]")             
         """
             Update frequency if necessary 
         """

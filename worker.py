@@ -68,6 +68,7 @@ class Worker(QObject):
             worked_before_preference           = WKB4_REPLY_MODE_ALWAYS,
             marathon_preference                = None,
             grid_tracker_preference            = None,
+            enable_grid_reply_unconfirmed      = False,
             minimum_report_for_reply           = DEFAULT_MINIMUM_REPORT,
             priority_order                     = None
         ):
@@ -118,6 +119,7 @@ class Worker(QObject):
         self.worked_before_preference           = worked_before_preference
         self.marathon_preference                = marathon_preference or {}
         self.grid_tracker_preference            = grid_tracker_preference or {}
+        self.enable_grid_reply_unconfirmed      = enable_grid_reply_unconfirmed
         self.minimum_report_for_reply           = minimum_report_for_reply
         self.priority_order                     = priority_order
 
@@ -164,7 +166,8 @@ class Worker(QObject):
                 
                 marathon_preference             = self.marathon_preference,
                 grid_tracker_preference         = self.grid_tracker_preference,
-                
+                enable_grid_reply_unconfirmed   = self.enable_grid_reply_unconfirmed,
+
                 adif_file_paths                  = self.adif_file_paths,
                 adif_worked_backup_file_path     = self.adif_worked_backup_file_path,                
                 worked_before_preference        = self.worked_before_preference,
@@ -236,6 +239,7 @@ class Worker(QObject):
             self.listener.enable_log_packet_data                = self.enable_log_packet_data
             self.listener.marathon_preference                   = self.marathon_preference
             self.listener.grid_tracker_preference               = self.grid_tracker_preference
+            self.listener.enable_grid_reply_unconfirmed         = self.enable_grid_reply_unconfirmed
             self.listener.worked_before_preference              = self.worked_before_preference
             self.listener.minimum_report_for_reply              = self.minimum_report_for_reply
             if self.priority_order is not None:

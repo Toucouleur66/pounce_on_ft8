@@ -1662,7 +1662,11 @@ class MainApp(QtWidgets.QMainWindow):
                         message.get('last_heartbeat_time'),
                         message.get('frequency'),
                         message.get('transmitting')
-                    )          
+                    )     
+            elif message_type == 'temporarily_excluded':     
+                self.add_callsign_to_exclusion_list(
+                    message.get('callsign'),
+                )
             elif 'decode_time_str' in message:
                 formatted_message   = message.get('formatted_message')
                 message_type        = message.get('message_type')
@@ -2049,7 +2053,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.message_buffer = deque(maxlen=500)
 
-    def add_callsign_to_temp_exclusion(self, callsign, exclusion_minutes):
+    def add_callsign_to_exclusion_list(self, callsign, exclusion_minutes = 10):
         if not self.gui_selected_band:
             return
 
@@ -2067,37 +2071,36 @@ class MainApp(QtWidgets.QMainWindow):
         self.save_temp_excluded_callsigns()
 
     def cleanup_expired_exclusions(self):
-        if self._instance in (MASTER, None):
-            current_time = datetime.now()
-            changes_made = False
+        current_time = datetime.now()
+        changes_made = False
+        
+        for band in list(self.temp_excluded_callsigns.keys()):
+            callsigns_to_remove = []
             
-            for band in list(self.temp_excluded_callsigns.keys()):
-                callsigns_to_remove = []
-                
-                for callsign, expiration_time in self.temp_excluded_callsigns[band].items():
-                    if current_time >= expiration_time:
-                        callsigns_to_remove.append(callsign)
-                
-                # Remove expired callsigns from both temp and permanent exclusion lists
-                for callsign in callsigns_to_remove:
-                    del self.temp_excluded_callsigns[band][callsign]
-                    if band in self.excluded_callsigns_vars:
-                        self.update_var(self.excluded_callsigns_vars[band], callsign, "remove")
-                    changes_made = True
-                
-                # Clean up empty band dictionaries
-                if not self.temp_excluded_callsigns[band]:
-                    del self.temp_excluded_callsigns[band]
+            for callsign, expiration_time in self.temp_excluded_callsigns[band].items():
+                if current_time >= expiration_time:
+                    callsigns_to_remove.append(callsign)
             
-            # Save to file if any changes were made
-            if changes_made:
-                self.save_temp_excluded_callsigns()
+            # Remove expired callsigns from both temp and permanent exclusion lists
+            for callsign in callsigns_to_remove:
+                del self.temp_excluded_callsigns[band][callsign]
+                if band in self.excluded_callsigns_vars:
+                    self.update_var(self.excluded_callsigns_vars[band], callsign, "remove")
+                changes_made = True
+            
+            # Clean up empty band dictionaries
+            if not self.temp_excluded_callsigns[band]:
+                del self.temp_excluded_callsigns[band]
+        
+        # Save to file if any changes were made
+        if changes_made:
+            self.save_temp_excluded_callsigns()
 
     def show_exclusion_time_dialog(self, callsign):
         dialog = ExclusionDialog(callsign, self)
         if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
             selected_minutes = dialog.get_selected_minutes()
-            self.add_callsign_to_temp_exclusion(callsign, selected_minutes)
+            self.add_callsign_to_exclusion_list(callsign, selected_minutes)
 
     def update_window_title(self):            
             self.window_title = f"{self.base_title}"
@@ -3567,6 +3570,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.worker.worked_before_preference        = convert_wkb4_reply_mode(params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS))
         self.worker.marathon_preference             = params.get('marathon_preference', {})
         self.worker.grid_tracker_preference         = params.get('grid_tracker_preference', {})
+        self.worker.enable_grid_reply_unconfirmed   = params.get('enable_grid_reply_unconfirmed', False)
         self.worker.minimum_report_for_reply        = params.get('minimum_report_for_reply', DEFAULT_MINIMUM_REPORT)
         self.worker.priority_order                  = params.get('priority_order', list(PRIORITY_LIST.values()))
 

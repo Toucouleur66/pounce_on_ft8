@@ -1044,8 +1044,15 @@ class SettingsDialog(QtWidgets.QDialog):
                 row += 1
 
         self.grid_tracker_group.setLayout(grid_tracker_select_layout)
+
+        # Grid reply unconfirmed checkbox
+        self.enable_grid_reply_unconfirmed = QtWidgets.QCheckBox("Reply to callsign if grid not yet confirmed and not worked before")
+        self.enable_grid_reply_unconfirmed.setFont(CUSTOM_FONT_SMALL)
+        self.enable_grid_reply_unconfirmed.setChecked(False)
+
         grid_tracker_layout.addWidget(grid_tracker_notice_label)
         grid_tracker_layout.addWidget(self.grid_tracker_group)
+        grid_tracker_layout.addWidget(self.enable_grid_reply_unconfirmed)
         grid_tracker_layout.addStretch()
 
         """
@@ -1757,7 +1764,10 @@ class SettingsDialog(QtWidgets.QDialog):
         )
         self.enable_reply_to_lotw_only.setChecked(
             self.params.get('enable_reply_to_lotw_only', True)
-        )               
+        )
+        self.enable_grid_reply_unconfirmed.setChecked(
+            self.params.get('enable_grid_reply_unconfirmed', False)
+        )
         self.delay_between_sound_for_monitored.setText(
             str(self.params.get('delay_between_sound_for_monitored', DEFAULT_DELAY_BETWEEN_SOUND))
         )
@@ -1927,5 +1937,6 @@ class SettingsDialog(QtWidgets.QDialog):
             'worked_before_preference'                   : worked_before_preference,
             'marathon_preference'                        : marathon_preference,
             'grid_tracker_preference'                    : grid_tracker_preference,
-            'priority_order'                             : priority_order            
+            'enable_grid_reply_unconfirmed'              : self.enable_grid_reply_unconfirmed.isChecked(),
+            'priority_order'                             : priority_order
         }
