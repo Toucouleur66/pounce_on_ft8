@@ -555,6 +555,7 @@ class Listener(QObject):
                     'wanted_cq_zones'       : self.wanted_cq_zones,
                     'monitored_cq_zones'    : self.monitored_cq_zones,
                     'excluded_cq_zones'     : self.excluded_cq_zones,
+                    'enable_sending_reply'  : self.enable_sending_reply
                 }, addr_port)
         except Exception as e:
             log.error(f"Failed to synch settings: {e}\n{traceback.format_exc()}")
