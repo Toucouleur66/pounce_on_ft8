@@ -1145,6 +1145,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.monitoring_settings.set_sending_reply(self.enable_sending_reply)
         self.send_worker_signal()
 
+        if not self.enable_sending_reply:
+            self.play_sound("error_occurred")
+
         if self.worker:
             self.worker.enable_sending_reply = self.enable_sending_reply
             self.refresh_monitoring()
@@ -1860,7 +1863,6 @@ class MainApp(QtWidgets.QMainWindow):
             # Unblock signal
             self._synch_signal = True
 
-            # Update reply toggle if enable_sending_reply is provided
             if master_enable_sending_reply is not None:
                 self.enable_sending_reply = master_enable_sending_reply
                 self.reply_toggle.setChecked(master_enable_sending_reply)
