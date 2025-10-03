@@ -1801,6 +1801,7 @@ class MainApp(QtWidgets.QMainWindow):
             master_wanted_cq_zones      = instance_settings.get('wanted_cq_zones')
             master_excluded_callsigns   = instance_settings.get('excluded_callsigns')
             master_excluded_cq_zones    = instance_settings.get('excluded_cq_zones')
+            master_enable_sending_reply = instance_settings.get('enable_sending_reply')
             if(
                 self.global_sound_toggle.isChecked() and
                 (
@@ -1856,8 +1857,13 @@ class MainApp(QtWidgets.QMainWindow):
             else:  
                 self.excluded_cq_zones_vars[band].setText(", ".join(str(zone) for zone in master_excluded_cq_zones))
 
-            # Unblock signal 
+            # Unblock signal
             self._synch_signal = True
+
+            # Update reply toggle if enable_sending_reply is provided
+            if master_enable_sending_reply is not None:
+                self.enable_sending_reply = master_enable_sending_reply
+                self.reply_toggle.setChecked(master_enable_sending_reply)
 
             if play_sound:
                 self.play_sound("updated_settings")     

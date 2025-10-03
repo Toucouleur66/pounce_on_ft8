@@ -948,6 +948,7 @@ class Listener(QObject):
                     wanted_cq_zones     = self.synched_settings.get('wanted_cq_zones')
                     excluded_callsigns  = self.synched_settings.get('excluded_callsigns')
                     excluded_cq_zones   = self.synched_settings.get('excluded_cq_zones')
+                    enable_sending_reply = self.synched_settings.get('enable_sending_reply')
                     """
                         Make sure to set synch_time after we checked if wanted_callsigns is valid
                     """
@@ -958,10 +959,16 @@ class Listener(QObject):
                         excluded_cq_zones   and isinstance(excluded_cq_zones, (list, tuple))
                     ):
                         self.synch_time = synch_time
+
+                        # Update enable_sending_reply if provided
+                        if enable_sending_reply is not None:
+                            self.enable_sending_reply = enable_sending_reply
+                            self.monitoring_settings.set_sending_reply(enable_sending_reply)
+
                         self.message_callback({
                             'type'     : 'instance_settings',
                             'settings' : self.synched_settings
-                        })   
+                        })
                         log.info(f"SettingPacket has been processed")     
             except Exception as e:
                 log.error(f"Error processing SettingPacket: {e}")          
