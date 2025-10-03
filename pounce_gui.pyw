@@ -1056,6 +1056,7 @@ class MainApp(QtWidgets.QMainWindow):
                     output_table.setColumnWidth(i, width)  
         
         output_table.horizontalHeader().sectionClicked.connect(self.on_header_clicked)
+        output_table.horizontalHeader().sectionResized.connect(self.on_country_column_resized)
 
         self.refresh_table_timer = QtCore.QTimer(self)
         self.refresh_table_timer.timeout.connect(lambda: self.output_table.viewport().update())
@@ -1143,7 +1144,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.save_unique_param('enable_sending_reply', self.enable_sending_reply)
         
         self.monitoring_settings.set_sending_reply(self.enable_sending_reply)
-        self.send_worker_signal()
 
         if not self.enable_sending_reply:
             self.play_sound("error_occurred")
@@ -3056,7 +3056,11 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.apply_filters
 
-        self.output_table.scrollToBottom() 
+        self.output_table.scrollToBottom()
+
+    def on_country_column_resized(self, logical_index, old_size, new_size):
+        if logical_index == 7:  # Country column
+            self.save_window_position()
 
     def save_window_position(self):
         try:
@@ -3072,12 +3076,13 @@ class MainApp(QtWidgets.QMainWindow):
                 height      = self.geometry().height()
                 
             position_data = {
-                'x'               : self.geometry().x(),
-                'y'               : self.geometry().y(), 
-                'width'           : width,
-                'height'          : height
+                'x'                     : self.geometry().x(),
+                'y'                     : self.geometry().y(),
+                'width'                 : width,
+                'height'                : height,
+                'country_column_width'  : self.output_table.columnWidth(7)
             }
-            
+
             position_data['grid_map_window'] = self.grid_monitor_geometry
 
             with open(POSITION_FILE, "wb") as f:
@@ -3107,7 +3112,13 @@ class MainApp(QtWidgets.QMainWindow):
                     os.remove(POSITION_FILE)
 
                 self.grid_monitor_geometry = position_data.get('grid_map_window')
-                QtCore.QTimer.singleShot(100, lambda: self.toggle_grid_monitor(self.enable_grid_monitor))                    
+
+                # Restore country column width if saved
+                country_column_width = position_data.get('country_column_width')
+                if country_column_width:
+                    self.output_table.setColumnWidth(7, country_column_width)
+
+                QtCore.QTimer.singleShot(100, lambda: self.toggle_grid_monitor(self.enable_grid_monitor))
         else:
             self.setGeometry(100, 100, 900, 700) 
 
