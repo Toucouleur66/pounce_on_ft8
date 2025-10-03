@@ -340,9 +340,10 @@ class MainApp(QtWidgets.QMainWindow):
         self.enable_extra_gui_debug_output      = params.get('enable_extra_gui_debug_output', False)
         self.enable_filter_gui                  = params.get('enable_filter_gui', False)        
         self.enable_grid_monitor                = params.get('enable_grid_monitor', False)
-        self.enable_compact_view                = params.get('enable_compact_view', False)   
+        self.enable_compact_view                = params.get('enable_compact_view', False)
         self.enable_alternate_compact_view      = params.get('enable_alternate_compact_view', False)
         self.enable_global_sound                = params.get('enable_global_sound', True)
+        self.enable_sending_reply               = params.get('enable_sending_reply', DEFAULT_SENDING_REPLY)
         self.enable_show_all_decoded            = params.get('enable_show_all_decoded', DEFAULT_SHOW_ALL_DECODED)
         self.datetime_column_setting            = params.get('datetime_column_setting', DATE_COLUMN_DATETIME)
 
@@ -472,12 +473,20 @@ class MainApp(QtWidgets.QMainWindow):
         self.settings.clicked.connect(self.open_settings)
 
         self.global_sound_toggle = AnimatedToggle(
-            checked_color=STATUS_MONITORING_COLOR,
-            pulse_checked_color=f"{STATUS_MONITORING_COLOR}FF"
+             checked_color=STATUS_MONITORING_COLOR,
+             pulse_checked_color=f"{STATUS_MONITORING_COLOR}FF"
         )
         self.global_sound_toggle.stateChanged.connect(self.toggle_global_sound_preference)
         self.global_sound_toggle.setFixedSize(self.global_sound_toggle.sizeHint())
         self.global_sound_toggle.setChecked(self.enable_global_sound)
+
+        self.reply_toggle = AnimatedToggle(
+            checked_color=STATUS_MONITORING_COLOR,
+            pulse_checked_color=f"{STATUS_MONITORING_COLOR}FF"
+        )
+        self.reply_toggle.stateChanged.connect(self.toggle_reply_preference)
+        self.reply_toggle.setFixedSize(self.reply_toggle.sizeHint())
+        self.reply_toggle.setChecked(self.enable_sending_reply)
 
         self.show_all_toggle = AnimatedToggle(
             checked_color=STATUS_MONITORING_COLOR,
@@ -519,9 +528,13 @@ class MainApp(QtWidgets.QMainWindow):
         horizontal_layout.setContentsMargins(0, 0, 0, 0)
         horizontal_layout.setSpacing(0)  
 
-        self.sounds_label = CustomQLabel("Sounds")
-        horizontal_layout.addWidget(self.sounds_label)
-        horizontal_layout.addWidget(self.global_sound_toggle)
+        # self.sounds_label = CustomQLabel("Sounds")
+        # horizontal_layout.addWidget(self.sounds_label)
+        # horizontal_layout.addWidget(self.global_sound_toggle)
+
+        self.reply_label = CustomQLabel("Reply")
+        horizontal_layout.addWidget(self.reply_label)
+        horizontal_layout.addWidget(self.reply_toggle)
         
         horizontal_layout_spacer = QtWidgets.QWidget()
         horizontal_layout_spacer.setFixedWidth(20)
@@ -1119,11 +1132,19 @@ class MainApp(QtWidgets.QMainWindow):
             self.global_sound_toggle.setChecked(checked)
             self.save_unique_param('enable_global_sound', checked)      
 
-    def toggle_global_sound_preference(self, checked):        
+    def toggle_global_sound_preference(self, checked):
         if checked:
             QtCore.QTimer.singleShot(500, lambda: self.play_sound('enable_global_sound'))
 
         self.update_global_sound_preference(checked)
+
+    def toggle_reply_preference(self, checked):
+        self.enable_sending_reply = True if checked else False
+        self.save_unique_param('enable_sending_reply', self.enable_sending_reply)
+
+        if self.worker:
+            self.worker.enable_sending_reply = self.enable_sending_reply
+            self.refresh_monitoring()
 
     def update_show_all_preference(self, checked):
         self.filter_proxy_model.setEnableShowAllDecoded(checked)

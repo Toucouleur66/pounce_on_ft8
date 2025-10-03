@@ -2183,33 +2183,6 @@ class GridMapWidget(QWidget):
 
         return sorted(list(callsigns))[:10]  # Limit to 10 callsigns for tooltip
     
-    def get_separated_callsigns_for_grid(self, grid_square):
-        """
-            Get confirmed and worked callsigns separately for the given grid square
-            Priority: if a callsign has ANY confirmed QSO, it appears only in confirmed list
-        """
-        if not self.adif_data or not self.operating_band:
-            return [], []
-        
-        all_calls = {}  # callsign -> has_confirmed_qso
-        grid_data = self.adif_data.get('grid', {}).get(self.operating_band, {})
-        
-        # Get QSO data for this grid and track confirmed status per callsign
-        if grid_square in grid_data and isinstance(grid_data[grid_square], list):
-            for qso in grid_data[grid_square]:
-                call = qso.get('call')
-                if call:
-                    if call not in all_calls:
-                        all_calls[call] = False
-                    if qso.get('qsl_status', False):
-                        all_calls[call] = True
-        
-        # Separate based on priority: confirmed takes precedence
-        confirmed_calls = [call for call, is_confirmed in all_calls.items() if is_confirmed]
-        worked_calls = [call for call, is_confirmed in all_calls.items() if not is_confirmed]
-
-        return sorted(confirmed_calls)[:10], sorted(worked_calls)[:10]
-    
     def get_qso_datas_for_grid(self, grid_square):
         """
             Get detailed QSO information for the given grid square, sorted by date (newest first)
