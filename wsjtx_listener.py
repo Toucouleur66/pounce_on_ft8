@@ -455,6 +455,7 @@ class Listener(QObject):
         self.monitored_cq_zones     = self.monitoring_settings.get_monitored_cq_zones()
         self.excluded_cq_zones      = self.monitoring_settings.get_excluded_cq_zones()
         self.synched_band           = self.monitoring_settings.get_operating_band()
+        self.enable_sending_reply   = self.monitoring_settings.get_sending_reply()
 
         if self.marathon_preference.get(self.band):
             self.enable_marathon    = True

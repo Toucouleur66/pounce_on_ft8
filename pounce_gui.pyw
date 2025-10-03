@@ -1141,6 +1141,9 @@ class MainApp(QtWidgets.QMainWindow):
     def toggle_reply_preference(self, checked):
         self.enable_sending_reply = True if checked else False
         self.save_unique_param('enable_sending_reply', self.enable_sending_reply)
+        
+        self.monitoring_settings.set_sending_reply(self.enable_sending_reply)
+        self.send_worker_signal()
 
         if self.worker:
             self.worker.enable_sending_reply = self.enable_sending_reply

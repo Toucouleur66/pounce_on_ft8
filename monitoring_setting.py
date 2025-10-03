@@ -15,6 +15,15 @@ class MonitoringSettings:
         self._monitored_cq_zones    = set()
         self._excluded_cq_zones     = set()
         self._operating_band        = None
+        self._enable_sending_reply  = None
+
+    def set_sending_reply(self, enable):
+        with self.lock:
+            self._enable_sending_reply = enable
+    
+    def get_sending_reply(self):
+        with self.lock:
+            return self._enable_sending_reply
 
     def get_monitored_callsigns(self):
         with self.lock:
