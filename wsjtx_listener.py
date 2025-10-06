@@ -448,6 +448,12 @@ class Listener(QObject):
         return True
 
     def update_listener_settings(self):
+        # Log the caller
+        """
+        frame = inspect.currentframe().f_back
+        caller_info = f"{frame.f_code.co_filename}:{frame.f_lineno} in {frame.f_code.co_name}"
+        log.error(f"Listener/update_listener_settings called from: {caller_info}")
+        """
         self.wanted_callsigns       = self.monitoring_settings.get_wanted_callsigns()
         self.excluded_callsigns     = self.monitoring_settings.get_excluded_callsigns()
         self.monitored_callsigns    = self.monitoring_settings.get_monitored_callsigns()

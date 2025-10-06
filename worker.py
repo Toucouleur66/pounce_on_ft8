@@ -1,11 +1,15 @@
 # worker.py
 
 import traceback
+import inspect
 
 from PyQt6.QtCore import QObject, pyqtSignal, QTimer
 
 from wsjtx_listener import Listener
 from utils import get_local_ip_address
+from logger import get_logger
+
+log     = get_logger(__name__)
 
 from constants import (
     DEFAULT_UDP_PORT,
@@ -202,6 +206,13 @@ class Worker(QObject):
         self.check_stop_event()
 
     def update_listener_settings(self):
+        """
+        # Log the caller
+        frame = inspect.currentframe().f_back
+        caller_info = f"{frame.f_code.co_filename}:{frame.f_lineno} in {frame.f_code.co_name}"
+        log.error(f"Worker/update_listener_settings called from: {caller_info}")
+        """
+        
         if self.listener is not None:
             # Check if UDP server settings have changed and restart if needed
             udp_server_changed = (

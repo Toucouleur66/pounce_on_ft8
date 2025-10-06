@@ -269,7 +269,11 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.theme_timer = QtCore.QTimer(self)
         self.theme_timer.timeout.connect(self.theme_manager.check_theme_change)
-        self.theme_timer.start(1_000) 
+        self.theme_timer.start(1_000)
+
+        self.worker_signal_timer = QtCore.QTimer(self)
+        self.worker_signal_timer.setSingleShot(True)
+        self.worker_signal_timer.timeout.connect(self._emit_worker_signal) 
 
         self.network_check_status_interval = 5_000
         self.network_check_status = QtCore.QTimer()
@@ -1144,6 +1148,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.save_unique_param('enable_sending_reply', self.enable_sending_reply)
         
         self.monitoring_settings.set_sending_reply(self.enable_sending_reply)
+        self.send_worker_signal()
 
         if not self.enable_sending_reply:
             self.play_sound("error_occurred")
@@ -1618,7 +1623,20 @@ class MainApp(QtWidgets.QMainWindow):
             self.send_worker_signal()
             
     def send_worker_signal(self):
-        if self.worker is not None:            
+        """
+        # Log the caller
+        frame = inspect.currentframe().f_back
+        caller_info = f"{frame.f_code.co_filename}:{frame.f_lineno} in {frame.f_code.co_name}"
+        log.error(f"Pounce/send_worker_signal called from: {caller_info}")
+        """        
+        # Restart the debounce timer - will only emit after 200ms of no calls
+        self.worker_signal_timer.stop()
+        self.worker_signal_timer.start(200)
+
+    def _emit_worker_signal(self):
+        # Actually emit the signals after debounce delay
+        log.error("Pounce/_emit_worker_signal: Emitting worker signals")
+        if self.worker is not None:
             self.worker.update_listener_settings_signal.emit()
             if self._instance is not None and self._synch_signal:
                 self.worker.synch_settings_signal.emit()  
