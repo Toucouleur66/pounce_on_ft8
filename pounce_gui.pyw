@@ -1889,6 +1889,10 @@ class MainApp(QtWidgets.QMainWindow):
                 self.enable_sending_reply = master_enable_sending_reply
                 self.reply_toggle.setChecked(master_enable_sending_reply)
 
+            # Update worker with new settings without triggering synch back to master
+            if self.worker is not None:
+                self.worker.update_listener_settings_signal.emit()
+
             if play_sound:
                 self.play_sound("updated_settings")     
 
