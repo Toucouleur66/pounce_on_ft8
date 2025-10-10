@@ -1628,7 +1628,11 @@ class MainApp(QtWidgets.QMainWindow):
         frame = inspect.currentframe().f_back
         caller_info = f"{frame.f_code.co_filename}:{frame.f_lineno} in {frame.f_code.co_name}"
         log.error(f"Pounce/send_worker_signal called from: {caller_info}")
-        """        
+        """
+        # Don't schedule signal if we're in the middle of applying synched settings
+        if not self._synch_signal:
+            return
+
         # Restart the debounce timer - will only emit after 200ms of no calls
         self.worker_signal_timer.stop()
         self.worker_signal_timer.start(200)
