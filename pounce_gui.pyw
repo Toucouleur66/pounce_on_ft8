@@ -1635,7 +1635,7 @@ class MainApp(QtWidgets.QMainWindow):
 
     def _emit_worker_signal(self):
         # Actually emit the signals after debounce delay
-        log.error("Pounce/_emit_worker_signal: Emitting worker signals")
+        #log.error("Pounce/_emit_worker_signal: Emitting worker signals")
         if self.worker is not None:
             self.worker.update_listener_settings_signal.emit()
             if self._instance is not None and self._synch_signal:
