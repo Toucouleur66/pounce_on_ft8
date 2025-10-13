@@ -1431,6 +1431,7 @@ class Listener(QObject):
                         'wanted_grid'       : wanted_grid,
                         'marathon'          : marathon,
                         'lotw'              : lotw,
+                        'snr'               : snr,
                         'wkb4_year'         : wkb4_year,
                         'grid'              : grid,
                         'cqing'             : cqing,
@@ -1517,6 +1518,7 @@ class Listener(QObject):
             float('inf') if message.get('wkb4_year') is None else -message['wkb4_year'],
             # If LoTW is not None, return 1
             1 if message.get('lotw') else 0,
+            message['snr'],
             # In case of a tie on the first two criteria, the message with the lowest packet_id (the first received) is selected
             -message['packet_id']
         )
@@ -1899,6 +1901,7 @@ class Listener(QObject):
             f"[ {message.get('priority')} ] {decode_time_str} "
             f"de:{message.get('callsign'):<10}{lotw}"
             f"\tdir:{directed_or_grid:<4}" 
+            f"\tsnr:{message.get('snr'):<6}"
             f"\tpid:{message.get('packet_id'):<6}"
             f"\t{wkb4_year}"                                           
         )        
