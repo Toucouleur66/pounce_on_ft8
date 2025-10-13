@@ -1897,11 +1897,13 @@ class Listener(QObject):
         
         lotw = "*" if message.get('lotw') else " "
 
+        snr = f'+{message.get("snr")}' if message.get('snr') >= 0 else message.get('snr')
+
         return (            
             f"[ {message.get('priority')} ] {decode_time_str} "
             f"de:{message.get('callsign'):<10}{lotw}"
             f"\tdir:{directed_or_grid:<4}" 
-            f"\tsnr:{message.get('snr'):<6}"
+            f"\tsnr:{snr:<6}"
             f"\tpid:{message.get('packet_id'):<6}"
             f"\t{wkb4_year}"                                           
         )        
