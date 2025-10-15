@@ -1854,6 +1854,7 @@ class MainApp(QtWidgets.QMainWindow):
                 Restore band and save wanted_callsigns_vars per band
             """
             self._synch_signal = False
+            self.worker_signal_timer.stop()  # Stop any pending worker signal updates
             self.restore_settings()
             for amateur_band in AMATEUR_BANDS.keys():                
                 self.before_synch_wanted_callsigns[amateur_band]    = self.wanted_callsigns_vars[amateur_band].text()   
