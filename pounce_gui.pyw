@@ -216,7 +216,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.updater                = UpdateManager()
 
         self.status_menu_agent      = None
-        params                      = self.load_params()
+        self.local_params          = self.load_params()
 
         """
             Status bar for MacOsx
@@ -340,29 +340,29 @@ class MainApp(QtWidgets.QMainWindow):
         self.media_player = QMediaPlayer()
         self.media_player.setAudioOutput(self.audio_output)
 
-        self.enable_pounce_log                  = params.get('enable_pounce_log', True)
-        self.enable_extra_gui_debug_output      = params.get('enable_extra_gui_debug_output', False)
-        self.enable_filter_gui                  = params.get('enable_filter_gui', False)        
-        self.enable_grid_monitor                = params.get('enable_grid_monitor', False)
-        self.enable_compact_view                = params.get('enable_compact_view', False)
-        self.enable_alternate_compact_view      = params.get('enable_alternate_compact_view', False)
-        self.enable_global_sound                = params.get('enable_global_sound', True)
-        self.enable_sending_reply               = params.get('enable_sending_reply', DEFAULT_SENDING_REPLY)
-        self.enable_show_all_decoded            = params.get('enable_show_all_decoded', DEFAULT_SHOW_ALL_DECODED)
-        self.datetime_column_setting            = params.get('datetime_column_setting', DATE_COLUMN_DATETIME)
+        self.enable_pounce_log                  = self.local_params.get('enable_pounce_log', True)
+        self.enable_extra_gui_debug_output      = self.local_params.get('enable_extra_gui_debug_output', False)
+        self.enable_filter_gui                  = self.local_params.get('enable_filter_gui', False)        
+        self.enable_grid_monitor                = self.local_params.get('enable_grid_monitor', False)
+        self.enable_compact_view                = self.local_params.get('enable_compact_view', False)
+        self.enable_alternate_compact_view      = self.local_params.get('enable_alternate_compact_view', False)
+        self.enable_global_sound                = self.local_params.get('enable_global_sound', True)
+        self.enable_sending_reply               = self.local_params.get('enable_sending_reply', DEFAULT_SENDING_REPLY)
+        self.enable_show_all_decoded            = self.local_params.get('enable_show_all_decoded', DEFAULT_SHOW_ALL_DECODED)
+        self.datetime_column_setting            = self.local_params.get('datetime_column_setting', DATE_COLUMN_DATETIME)
 
-        self.adif_file_path                     = params.get('adif_file_path', None)
-        self.worked_before_preference           = convert_wkb4_reply_mode(params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS))
-        self.marathon_preference                = params.get('marathon_preference', {})
-        self.grid_tracker_preference            = params.get('grid_tracker_preference', {})
+        self.adif_file_path                     = self.local_params.get('adif_file_path', None)
+        self.worked_before_preference           = convert_wkb4_reply_mode(self.local_params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS))
+        self.marathon_preference                = self.local_params.get('marathon_preference', {})
+        self.grid_tracker_preference            = self.local_params.get('grid_tracker_preference', {})
 
-        self.enable_auto_start_monitoring       = params.get('enable_auto_start_monitoring', DEFAULT_AUTO_START_MONITORING)
-        
+        self.enable_auto_start_monitoring       = self.local_params.get('enable_auto_start_monitoring', DEFAULT_AUTO_START_MONITORING)
+
         # Get sound configuration
-        self.enable_sound_wanted_callsigns      = params.get('enable_sound_wanted_callsigns', True)
-        self.enable_sound_directed_my_callsign  = params.get('enable_sound_directed_my_callsign', True)
-        self.enable_sound_monitored_callsigns   = params.get('enable_sound_monitored_callsigns', True)
-        self.delay_between_sound_for_monitored  = params.get('delay_between_sound_for_monitored', DEFAULT_DELAY_BETWEEN_SOUND)
+        self.enable_sound_wanted_callsigns      = self.local_params.get('enable_sound_wanted_callsigns', True)
+        self.enable_sound_directed_my_callsign  = self.local_params.get('enable_sound_directed_my_callsign', True)
+        self.enable_sound_monitored_callsigns   = self.local_params.get('enable_sound_monitored_callsigns', True)
+        self.delay_between_sound_for_monitored  = self.local_params.get('delay_between_sound_for_monitored', DEFAULT_DELAY_BETWEEN_SOUND)
 
         self.file_handler = None
         if self.enable_pounce_log:
@@ -432,7 +432,7 @@ class MainApp(QtWidgets.QMainWindow):
         """
             Widget Tab
         """
-        self.tab_widget = self.init_tab_widget_ui(params)
+        self.tab_widget = self.init_tab_widget_ui()
 
         """
             Status bar
@@ -713,7 +713,7 @@ class MainApp(QtWidgets.QMainWindow):
         """
             self.operating_band might be overided as soon as check_connection_status is used
         """
-        self.gui_selected_band = params.get('last_band_used', DEFAULT_SELECTED_BAND)
+        self.gui_selected_band = self.local_params.get('last_band_used', DEFAULT_SELECTED_BAND)
        
         QtCore.QTimer.singleShot(100, lambda: self.tab_widget.set_selected_tab(self.gui_selected_band))
 
@@ -824,7 +824,7 @@ class MainApp(QtWidgets.QMainWindow):
         if self.status_menu_agent:
             self.status_menu_agent.hide_status_menu_agent()
 
-    def init_tab_widget_ui(self, params):
+    def init_tab_widget_ui(self):
         tab_widget = CustomTabWidget()
         tab_widget.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
         
@@ -913,7 +913,7 @@ class MainApp(QtWidgets.QMainWindow):
             tab_content = QtWidgets.QWidget()
             layout = QtWidgets.QGridLayout(tab_content)
 
-            band_params = params.get(amateur_band, {})
+            band_params = self.local_params.get(amateur_band, {})
 
             for idx, variable_info in enumerate(sought_variables):
                 line_edit = QtWidgets.QLineEdit()
@@ -2581,10 +2581,8 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.last_targeted_call = None
         self.hide_focus_value_label(visible=False)
-        
-        params = self.load_params()
 
-        dialog = SettingsDialog(self, params)
+        dialog = SettingsDialog(self, self.local_params)
         if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
             new_params = dialog.get_result()
         
@@ -2592,15 +2590,15 @@ class MainApp(QtWidgets.QMainWindow):
             self.enable_pounce_log                  = new_params.get('enable_pounce_log', True)
             self.enable_extra_gui_debug_output      = new_params.get('enable_extra_gui_debug_output', False)
 
-            params.update(new_params)
-            self.save_params(params)
+            self.local_params.update(new_params)
+            self.save_params()
 
-            self.enable_sound_wanted_callsigns      = params.get('enable_sound_wanted_callsigns', True)
-            self.enable_sound_directed_my_callsign  = params.get('enable_sound_directed_my_callsign', True)
-            self.enable_sound_monitored_callsigns   = params.get('enable_sound_monitored_callsigns', True)
-            
-            self.adif_file_path                     = params.get('adif_file_path', None)
-            self.worked_before_preference           = convert_wkb4_reply_mode(params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS))
+            self.enable_sound_wanted_callsigns      = self.local_params.get('enable_sound_wanted_callsigns', True)
+            self.enable_sound_directed_my_callsign  = self.local_params.get('enable_sound_directed_my_callsign', True)
+            self.enable_sound_monitored_callsigns   = self.local_params.get('enable_sound_monitored_callsigns', True)
+
+            self.adif_file_path                     = self.local_params.get('adif_file_path', None)
+            self.worked_before_preference           = convert_wkb4_reply_mode(self.local_params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS))
 
             self.toggle_wkb4_column_visibility()
 
@@ -2733,17 +2731,15 @@ class MainApp(QtWidgets.QMainWindow):
             finally:
                 del frame
         """
+        self.local_params[key] = value
+        self.save_params()
 
-        params      = self.load_params()
-        params[key] = value
-        self.save_params(params)  
-
-    def _prepare_params_for_json(self, params):
+    def _prepare_params_for_json(self):
         """
             Convert any non-JSON serializable objects to JSON-compatible format
         """
         json_params = {}
-        for key, value in params.items():
+        for key, value in self.local_params.items():
             try:
                 json.dumps(value)
                 json_params[key] = value
@@ -2755,9 +2751,11 @@ class MainApp(QtWidgets.QMainWindow):
                 log.warning(f"Parameter '{key}' converted to string for JSON serialization")
         return json_params
 
-    def save_params(self, params):
+    def save_params(self, updated_params=None):
         try:
-            json_params = self._prepare_params_for_json(params)
+            json_params = self._prepare_params_for_json()
+            if updated_params:
+                json_params.update(updated_params)
             with open(PARAMS_FILE, "w", encoding='utf-8') as f:
                 json.dump(json_params, f, indent=2, ensure_ascii=False)
             log.info(f"Parameters saved to {PARAMS_FILE}")
@@ -2766,7 +2764,7 @@ class MainApp(QtWidgets.QMainWindow):
             # Fallback to pickle format
             try:
                 with open(PARAMS_FILE_LEGACY, "wb") as f:
-                    pickle.dump(params, f)
+                    pickle.dump(self.local_params, f)
                 log.warning(f"Parameters saved to legacy format {PARAMS_FILE_LEGACY}")
             except Exception as pickle_error:
                 log.error(f"Error saving parameters to pickle: {pickle_error}")
@@ -2798,7 +2796,7 @@ class MainApp(QtWidgets.QMainWindow):
                 
                 # Migrate to JSON format and save
                 try:
-                    self.save_params(params)
+                    self.save_params()
                     log.info(f"Parameters migrated from legacy format to JSON")
                     # Optionally remove legacy file after successful migration
                     # os.remove(PARAMS_FILE_LEGACY)
@@ -3490,8 +3488,6 @@ class MainApp(QtWidgets.QMainWindow):
         dialog.exec()        
 
     def save_band_settings(self):
-        params = self.load_params()
-
         for amateur_band in AMATEUR_BANDS.keys():
             wanted_callsigns                    = self.wanted_callsigns_vars[amateur_band].text()
             monitored_callsigns                 = self.monitored_callsigns_vars[amateur_band].text()
@@ -3499,8 +3495,8 @@ class MainApp(QtWidgets.QMainWindow):
             monitored_cq_zones                  = self.monitored_cq_zones_vars[amateur_band].text()
             excluded_callsigns                  = self.excluded_callsigns_vars[amateur_band].text()
             excluded_cq_zones                   = self.excluded_cq_zones_vars[amateur_band].text()
-            
-            params.setdefault(amateur_band, {}).update({
+
+            self.local_params.setdefault(amateur_band, {}).update({
                 "monitored_callsigns"           : monitored_callsigns,
                 "monitored_cq_zones"            : monitored_cq_zones,
                 "excluded_callsigns"            : excluded_callsigns,
@@ -3508,7 +3504,7 @@ class MainApp(QtWidgets.QMainWindow):
                 "wanted_callsigns"              : wanted_callsigns,
                 "wanted_cq_zones"               : wanted_cq_zones,
             })
-        self.save_params(params)               
+        self.save_params()               
 
     def start_monitoring(self):
         if self._running:
@@ -3539,7 +3535,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         # self.apply_band_change(self.gui_selected_band)
         
-        params = self.load_params()
+        self.local_params = self.load_params()
         # Create a QThread and a Worker object with default parameters
         self.thread = QThread()
         self.worker = Worker(
@@ -3548,7 +3544,7 @@ class MainApp(QtWidgets.QMainWindow):
         )
         
         # Update worker with all current parameters
-        self.set_worker_settings(params)
+        self.set_worker_settings()
         self.worker.moveToThread(self.thread)
 
         if self.worker:
@@ -3600,51 +3596,51 @@ class MainApp(QtWidgets.QMainWindow):
         if not self._running or not self.worker:
             return
             
-        params = self.load_params()
-        self.set_worker_settings(params)
+        self.local_params = self.load_params()
+        self.set_worker_settings()
         
         # Signal the worker to update its listener settings
         self.worker.update_listener_settings_signal.emit()
         self.worker.show_listener_settings_signal.emit()
 
-    def set_worker_settings(self, params):
+    def set_worker_settings(self):
         local_ip_address = get_local_ip_address()
-        
-        self.worker.primary_udp_server_address      = params.get('primary_udp_server_address') or local_ip_address
-        self.worker.primary_udp_server_port         = int(params.get('primary_udp_server_port') or DEFAULT_UDP_PORT)
-        self.worker.secondary_udp_server_address    = params.get('secondary_udp_server_address') or local_ip_address
-        self.worker.secondary_udp_server_port       = int(params.get('secondary_udp_server_port') or DEFAULT_UDP_PORT)
-        self.worker.enable_secondary_udp_server     = params.get('enable_secondary_udp_server', DEFAULT_SECONDARY_UDP_SERVER)
-        self.worker.logging_udp_server_address      = params.get('logging_udp_server_address') or local_ip_address
-        self.worker.logging_udp_server_port         = int(params.get('logging_udp_server_port') or DEFAULT_UDP_PORT)
-        self.worker.enable_logging_udp_server       = params.get('enable_logging_udp_server', DEFAULT_SECONDARY_UDP_SERVER)
-        self.worker.enable_sending_reply            = params.get('enable_sending_reply', DEFAULT_SENDING_REPLY)
-        self.worker.enable_polite_reply             = params.get('enable_polite_reply', DEFAULT_POLITE_REPLY)
 
-        self.worker.max_reply_attempts_to_callsign  = params.get('max_reply_attempts_to_callsign', DEFAULT_REPLY_ATTEMPTS)
-        self.worker.max_working_delay               = params.get('max_working_delay', DEFAULT_MAX_WAITING_DELAY)
+        self.worker.primary_udp_server_address      = self.local_params.get('primary_udp_server_address') or local_ip_address
+        self.worker.primary_udp_server_port         = int(self.local_params.get('primary_udp_server_port') or DEFAULT_UDP_PORT)
+        self.worker.secondary_udp_server_address    = self.local_params.get('secondary_udp_server_address') or local_ip_address
+        self.worker.secondary_udp_server_port       = int(self.local_params.get('secondary_udp_server_port') or DEFAULT_UDP_PORT)
+        self.worker.enable_secondary_udp_server     = self.local_params.get('enable_secondary_udp_server', DEFAULT_SECONDARY_UDP_SERVER)
+        self.worker.logging_udp_server_address      = self.local_params.get('logging_udp_server_address') or local_ip_address
+        self.worker.logging_udp_server_port         = int(self.local_params.get('logging_udp_server_port') or DEFAULT_UDP_PORT)
+        self.worker.enable_logging_udp_server       = self.local_params.get('enable_logging_udp_server', DEFAULT_SECONDARY_UDP_SERVER)
+        self.worker.enable_sending_reply            = self.local_params.get('enable_sending_reply', DEFAULT_SENDING_REPLY)
+        self.worker.enable_polite_reply             = self.local_params.get('enable_polite_reply', DEFAULT_POLITE_REPLY)
 
-        self.worker.enable_log_all_valid_contact    = params.get('enable_log_all_valid_contact', DEFAULT_LOG_ALL_VALID_CONTACT)
-        self.worker.enable_reply_to_valid_callsign  = params.get('enable_reply_to_valid_callsign', DEFAULT_LOG_ALL_VALID_CONTACT)
-        self.worker.enable_reply_to_valid_direction = params.get('enable_reply_to_valid_direction', DEFAULT_LOG_ALL_VALID_CONTACT)
-        self.worker.enable_reply_to_lotw_only       = params.get('enable_reply_to_lotw_only', False)
-        self.worker.enable_gap_finder               = params.get('enable_gap_finder', DEFAULT_GAP_FINDER)
-        self.worker.enable_watchdog_bypass          = params.get('enable_watchdog_bypass', DEFAULT_WATCHDOG_BYPASS)
-        self.worker.enable_debug_output             = params.get('enable_debug_output', DEFAULT_DEBUG_OUTPUT)
-        self.worker.enable_pounce_log               = params.get('enable_pounce_log', DEFAULT_POUNCE_LOG)
-        self.worker.enable_log_packet_data          = params.get('enable_log_packet_data', DEFAULT_LOG_PACKET_DATA)
-        
-        self.worker.adif_file_paths                 = params.get('adif_file_paths', None)
-        self.worker.adif_worked_backup_file_path    = params.get('adif_worked_backup_file_path', None)
-        self.worker.worked_before_preference        = convert_wkb4_reply_mode(params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS))
-        self.worker.marathon_preference             = params.get('marathon_preference', {})
-        self.worker.grid_tracker_preference         = params.get('grid_tracker_preference', {})
-        self.worker.enable_grid_reply_unconfirmed   = params.get('enable_grid_reply_unconfirmed', False)
-        self.worker.minimum_report_for_reply        = params.get('minimum_report_for_reply', DEFAULT_MINIMUM_REPORT)
-        self.worker.priority_order                  = params.get('priority_order', list(PRIORITY_LIST.values()))
+        self.worker.max_reply_attempts_to_callsign  = self.local_params.get('max_reply_attempts_to_callsign', DEFAULT_REPLY_ATTEMPTS)
+        self.worker.max_working_delay               = self.local_params.get('max_working_delay', DEFAULT_MAX_WAITING_DELAY)
 
-        self.worker.min_freq                        = params.get('min_freq', FREQ_MINIMUM)
-        self.worker.max_freq                        = params.get('max_freq', FREQ_MAXIMUM)
+        self.worker.enable_log_all_valid_contact    = self.local_params.get('enable_log_all_valid_contact', DEFAULT_LOG_ALL_VALID_CONTACT)
+        self.worker.enable_reply_to_valid_callsign  = self.local_params.get('enable_reply_to_valid_callsign', DEFAULT_LOG_ALL_VALID_CONTACT)
+        self.worker.enable_reply_to_valid_direction = self.local_params.get('enable_reply_to_valid_direction', DEFAULT_LOG_ALL_VALID_CONTACT)
+        self.worker.enable_reply_to_lotw_only       = self.local_params.get('enable_reply_to_lotw_only', False)
+        self.worker.enable_gap_finder               = self.local_params.get('enable_gap_finder', DEFAULT_GAP_FINDER)
+        self.worker.enable_watchdog_bypass          = self.local_params.get('enable_watchdog_bypass', DEFAULT_WATCHDOG_BYPASS)
+        self.worker.enable_debug_output             = self.local_params.get('enable_debug_output', DEFAULT_DEBUG_OUTPUT)
+        self.worker.enable_pounce_log               = self.local_params.get('enable_pounce_log', DEFAULT_POUNCE_LOG)
+        self.worker.enable_log_packet_data          = self.local_params.get('enable_log_packet_data', DEFAULT_LOG_PACKET_DATA)
+
+        self.worker.adif_file_paths                 = self.local_params.get('adif_file_paths', None)
+        self.worker.adif_worked_backup_file_path    = self.local_params.get('adif_worked_backup_file_path', None)
+        self.worker.worked_before_preference        = convert_wkb4_reply_mode(self.local_params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS))
+        self.worker.marathon_preference             = self.local_params.get('marathon_preference', {})
+        self.worker.grid_tracker_preference         = self.local_params.get('grid_tracker_preference', {})
+        self.worker.enable_grid_reply_unconfirmed   = self.local_params.get('enable_grid_reply_unconfirmed', False)
+        self.worker.minimum_report_for_reply        = self.local_params.get('minimum_report_for_reply', DEFAULT_MINIMUM_REPORT)
+        self.worker.priority_order                  = self.local_params.get('priority_order', list(PRIORITY_LIST.values()))
+
+        self.worker.min_freq                        = self.local_params.get('min_freq', FREQ_MINIMUM)
+        self.worker.max_freq                        = self.local_params.get('max_freq', FREQ_MAXIMUM)
 
     def stop_monitoring(self):
         self.network_check_status.stop()        
