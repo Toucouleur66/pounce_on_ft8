@@ -1623,7 +1623,6 @@ class Listener(QObject):
             Update frequency if necessary 
         """
         if (
-            selected_message.get('wanted') and
             self.enable_gap_finder and
             self.suggested_frequency is None                
         ):
