@@ -91,6 +91,7 @@ class GridMapWidget(QWidget):
         self.show_grid                  = True
         self.show_heatmap               = True
         self.show_worked                = True
+        self.show_all_bands             = False
         self.show_night                 = True
         self.show_excluded              = True
         self.grid_color                 = Qt.GlobalColor.red
@@ -238,11 +239,12 @@ class GridMapWidget(QWidget):
             params = self.parent_app.load_params()
             
             # Update all grid map parameters in one batch
-            params['grid_map_show_grid']     = self.show_grid
-            params['grid_map_show_heatmap']  = self.show_heatmap
-            params['grid_map_show_worked']   = self.show_worked
-            params['grid_map_show_night']    = self.show_night
-            params['grid_map_show_excluded'] = self.show_excluded
+            params['grid_map_show_grid']      = self.show_grid
+            params['grid_map_show_heatmap']   = self.show_heatmap
+            params['grid_map_show_worked']    = self.show_worked
+            params['grid_map_show_all_bands'] = self.show_all_bands
+            params['grid_map_show_night']     = self.show_night
+            params['grid_map_show_excluded']  = self.show_excluded
             params['grid_map_zoom']          = self.zoom
             params['grid_map_center_lat']    = self.center_lat
             params['grid_map_center_lon']    = self.center_lon
@@ -253,6 +255,7 @@ class GridMapWidget(QWidget):
         self.show_grid      = True
         self.show_heatmap   = True
         self.show_worked    = True
+        self.show_all_bands = False
         self.show_night     = True
         self.show_excluded  = True
         self.zoom           = 3
@@ -264,6 +267,7 @@ class GridMapWidget(QWidget):
             self.show_grid      = params.get('grid_map_show_grid', self.show_grid)
             self.show_heatmap   = params.get('grid_map_show_heatmap', self.show_heatmap)
             self.show_worked    = params.get('grid_map_show_worked', self.show_worked)
+            self.show_all_bands = params.get('grid_map_show_all_bands', self.show_all_bands)
             self.show_night     = params.get('grid_map_show_night', self.show_night)
             self.show_excluded  = params.get('grid_map_show_excluded', self.show_excluded)
 
@@ -1317,12 +1321,16 @@ class GridMapWidget(QWidget):
     
     def draw_new_grids_block(self, painter):
         for grid in self.new_grids:
+            # Skip excluded grids if show_excluded is False
+            if not self.show_excluded and grid.get('excluded'):
+                continue
+
             grid_square = grid['grid']
-            
+
             # Skip the clicked grid if it's currently blinking
             if self.clicked_grid and grid_square == self.clicked_grid:
-                continue            
-                        
+                continue
+
             if self.show_worked and (
                 grid_square in self.confirmed_grids
                 or grid_square in self.worked_grids
@@ -1412,7 +1420,7 @@ class GridMapWidget(QWidget):
             self.parent().update_toggle_labels()
     
     def update_grids_for_band(self):
-        if not self.operating_band or not self.adif_data:
+        if not self.adif_data:
             self.worked_grids    = []
             self.confirmed_grids = []
             return
@@ -1420,26 +1428,53 @@ class GridMapWidget(QWidget):
         """
             Update the highlighted squares based on the current band and ADIF data.
         """
-        band_data = self.adif_data.get('grid', {}).get(self.operating_band, {})
-        
         confirmed_grids = []
         worked_grids = []
-        
-        # Process each grid's QSO data to separate confirmed/worked
-        for grid_square, qso_list in band_data.items():
-            if isinstance(qso_list, list):
+
+        if self.show_all_bands:
+            # Process all bands
+            all_grid_data = self.adif_data.get('grid', {})
+
+            # Collect grids from all bands
+            grid_qso_map = {}
+            for band, band_data in all_grid_data.items():
+                for grid_square, qso_list in band_data.items():
+                    if isinstance(qso_list, list):
+                        if grid_square not in grid_qso_map:
+                            grid_qso_map[grid_square] = []
+                        grid_qso_map[grid_square].extend(qso_list)
+
+            # Process each grid's combined QSO data
+            for grid_square, qso_list in grid_qso_map.items():
                 has_confirmed = any(qso.get('qsl_status', False) for qso in qso_list)
-                
-                # Priority: if ANY QSO is confirmed, the grid is confirmed, otherwise worked
                 if has_confirmed:
                     confirmed_grids.append(grid_square)
                 else:
                     worked_grids.append(grid_square)
-        
+        else:
+            # Process only the current band
+            if not self.operating_band:
+                self.worked_grids    = []
+                self.confirmed_grids = []
+                return
+
+            band_data = self.adif_data.get('grid', {}).get(self.operating_band, {})
+
+            # Process each grid's QSO data to separate confirmed/worked
+            for grid_square, qso_list in band_data.items():
+                if isinstance(qso_list, list):
+                    has_confirmed = any(qso.get('qsl_status', False) for qso in qso_list)
+
+                    # Priority: if ANY QSO is confirmed, the grid is confirmed, otherwise worked
+                    if has_confirmed:
+                        confirmed_grids.append(grid_square)
+                    else:
+                        worked_grids.append(grid_square)
+
         # Update the separate lists
         self.confirmed_grids = confirmed_grids
         self.worked_grids = worked_grids
-        
+
         self.update()
 
         window = self.parent()
@@ -1455,10 +1490,6 @@ class GridMapWidget(QWidget):
         try:
             if self.blink_timer:
                 self.blink_timer.stop()
-
-            # Filter out excluded grids if show_excluded is False
-            if grids and not self.show_excluded:
-                grids = [grid for grid in grids if not grid.get('excluded')]
 
             self.set_heatmap_group_indicators(grids)
 
@@ -1554,9 +1585,13 @@ class GridMapWidget(QWidget):
         """
         # Collect all grid data with their weights
         grid_density = {}
-        
+
         for heatmap_group in self.heatmap_buffer:
             for grid_data in heatmap_group:
+                # Skip excluded grids if show_excluded is False
+                if not self.show_excluded and grid_data.get('excluded'):
+                    continue
+
                 grid_square = grid_data['grid']
                 priority    = grid_data.get('priority', 1)
                 
@@ -2382,7 +2417,15 @@ class GridMapWindow(QMainWindow):
         self.worked_toggle.setFixedSize(self.worked_toggle.sizeHint())
         self.worked_toggle.setChecked(self.map_widget.show_worked)
         self.worked_toggle.stateChanged.connect(self.toggle_worked)
-        
+
+        self.all_bands_toggle = AnimatedToggle(
+            checked_color=STATUS_MONITORING_COLOR,
+            pulse_checked_color=f"{STATUS_MONITORING_COLOR}FF"
+        )
+        self.all_bands_toggle.setFixedSize(self.all_bands_toggle.sizeHint())
+        self.all_bands_toggle.setChecked(self.map_widget.show_all_bands)
+        self.all_bands_toggle.stateChanged.connect(self.toggle_all_bands)
+
         self.night_toggle = AnimatedToggle(
             checked_color=STATUS_MONITORING_COLOR,
             pulse_checked_color=f"{STATUS_MONITORING_COLOR}FF"
@@ -2487,7 +2530,10 @@ class GridMapWindow(QMainWindow):
         horizontal_layout.addSpacing(20)                
         horizontal_layout.addWidget(CustomQLabel("Grids"))
         horizontal_layout.addWidget(self.worked_toggle)
-        horizontal_layout.addSpacing(20)        
+        horizontal_layout.addSpacing(20)
+        horizontal_layout.addWidget(CustomQLabel("All bands"))
+        horizontal_layout.addWidget(self.all_bands_toggle)
+        horizontal_layout.addSpacing(20)
         horizontal_layout.addWidget(CustomQLabel("Greyline"))                
         horizontal_layout.addWidget(self.night_toggle)
         horizontal_layout.addSpacing(20)
@@ -2576,11 +2622,14 @@ class GridMapWindow(QMainWindow):
         )
     
     def update_grid_count_display(self, worked_count, confirmed_count=None):
-        if self.map_widget.operating_band:
+        if self.map_widget.show_all_bands:
+            self.status_bar_label_band.setText("All bands")
+        elif self.map_widget.operating_band:
             self.status_bar_label_band.setText(f"Band: <u>{self.map_widget.operating_band}</u>")
-            self.status_bar_label_total_worked_grids.setText(f"Worked: {worked_count}")            
-            if confirmed_count is not None:
-                self.status_bar_label_total_confirmed_grids.setText(f"Confirmed: {confirmed_count}")            
+
+        self.status_bar_label_total_worked_grids.setText(f"Worked: {worked_count}")
+        if confirmed_count is not None:
+            self.status_bar_label_total_confirmed_grids.setText(f"Confirmed: {confirmed_count}")            
     
     def update_toggle_labels(self):
         if hasattr(self, 'grid_toggle'):
@@ -2589,9 +2638,11 @@ class GridMapWindow(QMainWindow):
             self.heatmap_toggle.setChecked(self.map_widget.show_heatmap)
         if hasattr(self, 'worked_toggle'):
             self.worked_toggle.setChecked(self.map_widget.show_worked)
+        if hasattr(self, 'all_bands_toggle'):
+            self.all_bands_toggle.setChecked(self.map_widget.show_all_bands)
         if hasattr(self, 'night_toggle'):
             self.night_toggle.setChecked(self.map_widget.show_night)
-        
+
         # Update status bar labels
         self.check_grid_monitoring_status()
     
@@ -2618,10 +2669,16 @@ class GridMapWindow(QMainWindow):
         else:
             self.map_widget.worked_grids    = []
             self.map_widget.confirmed_grids = []
-        
+
         # Redraw highlighted grids to apply/remove diagonal drawing
         self.map_widget.update()
-    
+
+    def toggle_all_bands(self, checked):
+        self.map_widget.show_all_bands = checked
+        self.map_widget.update_grids_for_band()
+        self.map_widget.save_grid_map_settings()
+        self.map_widget.update()
+
     def toggle_night(self, checked):
         self.map_widget.show_night = checked
         self.map_widget.update()
