@@ -491,6 +491,7 @@ class Listener(QObject):
         log_output.append(f"AdifFiles={self.adif_file_paths}")
         log_output.append(f"MyCall={self.my_call}")
         log_output.append(f"EnableSendingReply={self.enable_sending_reply}")    
+        log_output.append(f"EnableGapFinder={self.enable_gap_finder}")    
         log_output.append(f"Band={self.band}")   
         log_output.append(f"FrequencyRange={self.min_freq}-{self.max_freq}Hz")
         log_output.append(f"MinimumSignalReport={self.minimum_report_for_reply}db")        
@@ -1108,7 +1109,8 @@ class Listener(QObject):
                     and self.adif_data.get('entity')
                     and not entity_wkb4
                     and entity_code 
-                    and not (wanted and wanted_cq_zone)                    
+                    and not wanted
+                    and not wanted_cq_zone
                 ):      
                     marathon = self.is_callsign_needed_for_marathon(
                         callsign,
@@ -1118,6 +1120,7 @@ class Listener(QObject):
                         current_year
                     )       
                     if marathon:
+                        log.info(f"Focus on [ {callsign} ] for marathon on [ {self.band} ]")
                         reply_to_packet = True
                 
                 """
@@ -1129,7 +1132,8 @@ class Listener(QObject):
                     and self.adif_data.get('grid')
                     and not callsign_wkb4 
                     and is_valid_grid(grid, callsign_info)
-                    and not (wanted and wanted_cq_zone)
+                    and not wanted
+                    and not wanted_cq_zone
                     and self.grid_tracker_preference.get(self.band)
                     and not (
                         wkb4_year is not None 
@@ -1142,7 +1146,7 @@ class Listener(QObject):
                         self.band,
                         self.enable_grid_reply_unconfirmed
                     ):
-                        log.info(f"Focus on [ {callsign} ] for grid [ {grid} ] [ {self.band} ]")
+                        log.info(f"Focus on [ {callsign} ] for grid [ {grid} ] on [ {self.band} ]")
                         wanted_grid     = True
                         reply_to_packet = True                        
 
@@ -1158,9 +1162,16 @@ class Listener(QObject):
                         or wanted_cq_zone
                     )
                 ):
+                    log.warning(f"[ {callsign} ] not valid callsign, skipping")
                     wanted         = False
                     wanted_cq_zone = False
                     wanted_grid    = False
+
+                if wanted:
+                    log.info(f"Focus on [ {callsign} ] as wanted on [ {self.band} ]")  
+
+                if wanted_cq_zone:
+                    log.info(f"Focus on [ {callsign} ] as wanted CQ Zone on [ {self.band} ]")                      
 
                 """
                     Handle directional QSO
@@ -1244,7 +1255,7 @@ class Listener(QObject):
                         self.reset_targeted_call()
 
                 """
-                    How to handle the logic for the message 
+                    How to handle RR73 / 73 / RRR messages
                 """
                 if directed == self.my_call and msg in {'RR73', '73', 'RRR'}:
                     if self.targeted_call is not None and callsign != self.targeted_call:
@@ -1297,8 +1308,11 @@ class Listener(QObject):
                     elif self.targeted_call is not None:
                         log.error(f"Received |{msg}| from [ {callsign} ] but ongoing callsign is [ {self.targeted_call} ]")
                         message_type = 'error_occurred'   
-                    
+
                 elif directed == self.my_call:
+                    """
+                        How to handle message directed to my call
+                    """ 
                     log.warning(f"Found message directed to my call [ {directed} ] from [ {callsign} ]")
                     
                     message_type = 'directed_to_my_call'
@@ -1368,7 +1382,6 @@ class Listener(QObject):
                     reply_to_packet
                     and message_type != 'ready_to_log'
                 ):
-                    
                     """
                         Exclude if needed
                     """

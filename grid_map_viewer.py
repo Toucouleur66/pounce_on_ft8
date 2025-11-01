@@ -92,6 +92,7 @@ class GridMapWidget(QWidget):
         self.show_heatmap               = True
         self.show_worked                = True
         self.show_night                 = True
+        self.show_excluded              = True
         self.grid_color                 = Qt.GlobalColor.red
         self.grid_text_color            = Qt.GlobalColor.gray
         
@@ -237,14 +238,15 @@ class GridMapWidget(QWidget):
             params = self.parent_app.load_params()
             
             # Update all grid map parameters in one batch
-            params['grid_map_show_grid']    = self.show_grid
-            params['grid_map_show_heatmap'] = self.show_heatmap
-            params['grid_map_show_worked']  = self.show_worked
-            params['grid_map_show_night']   = self.show_night
-            params['grid_map_zoom']         = self.zoom
-            params['grid_map_center_lat']   = self.center_lat
-            params['grid_map_center_lon']   = self.center_lon
-            
+            params['grid_map_show_grid']     = self.show_grid
+            params['grid_map_show_heatmap']  = self.show_heatmap
+            params['grid_map_show_worked']   = self.show_worked
+            params['grid_map_show_night']    = self.show_night
+            params['grid_map_show_excluded'] = self.show_excluded
+            params['grid_map_zoom']          = self.zoom
+            params['grid_map_center_lat']    = self.center_lat
+            params['grid_map_center_lon']    = self.center_lon
+
             self.parent_app.save_params(params)
     
     def load_grid_map_settings(self):
@@ -252,16 +254,18 @@ class GridMapWidget(QWidget):
         self.show_heatmap   = True
         self.show_worked    = True
         self.show_night     = True
+        self.show_excluded  = True
         self.zoom           = 3
         self.center_lat     = 0.0
         self.center_lon     = 0.0
-    
+
         if self.parent_app:
             params = self.parent_app.load_params()
             self.show_grid      = params.get('grid_map_show_grid', self.show_grid)
             self.show_heatmap   = params.get('grid_map_show_heatmap', self.show_heatmap)
             self.show_worked    = params.get('grid_map_show_worked', self.show_worked)
             self.show_night     = params.get('grid_map_show_night', self.show_night)
+            self.show_excluded  = params.get('grid_map_show_excluded', self.show_excluded)
 
             self.zoom           = params.get('grid_map_zoom', self.zoom)
             self.center_lat     = max(-85, min(85, params.get('grid_map_center_lat', self.center_lat)))
@@ -1451,8 +1455,12 @@ class GridMapWidget(QWidget):
         try:
             if self.blink_timer:
                 self.blink_timer.stop()
-            
-            self.set_heatmap_group_indicators(grids)       
+
+            # Filter out excluded grids if show_excluded is False
+            if grids and not self.show_excluded:
+                grids = [grid for grid in grids if not grid.get('excluded')]
+
+            self.set_heatmap_group_indicators(grids)
 
             self.new_grids = []
             self.blink_count = 0
@@ -2393,8 +2401,16 @@ class GridMapWindow(QMainWindow):
         )
         self.heatmap_toggle.setFixedSize(self.heatmap_toggle.sizeHint())
         self.heatmap_toggle.setChecked(self.map_widget.show_heatmap)
-        self.heatmap_toggle.stateChanged.connect(self.toggle_heatmap)        
-        
+        self.heatmap_toggle.stateChanged.connect(self.toggle_heatmap)
+
+        self.excluded_toggle = AnimatedToggle(
+            checked_color=STATUS_MONITORING_COLOR,
+            pulse_checked_color=f"{STATUS_MONITORING_COLOR}FF"
+        )
+        self.excluded_toggle.setFixedSize(self.excluded_toggle.sizeHint())
+        self.excluded_toggle.setChecked(self.map_widget.show_excluded)
+        self.excluded_toggle.stateChanged.connect(self.toggle_excluded)
+
         self.density_slider = QSlider(Qt.Orientation.Horizontal)
         self.density_slider.setRange(10, 200) 
         self.density_slider.setValue(int(self.map_widget.max_possible_density * 10))
@@ -2478,7 +2494,10 @@ class GridMapWindow(QMainWindow):
         horizontal_layout.addWidget(CustomQLabel("Heatmap"))
         horizontal_layout.addWidget(self.heatmap_toggle)
         horizontal_layout.addSpacing(20)
-        
+        horizontal_layout.addWidget(CustomQLabel("Excluded"))
+        horizontal_layout.addWidget(self.excluded_toggle)
+        horizontal_layout.addSpacing(20)
+
         # Add stretch to push heatmap controls to the right
         horizontal_layout.addStretch()
         
@@ -2586,7 +2605,12 @@ class GridMapWindow(QMainWindow):
         self.map_widget.update()
         self.map_widget.save_grid_map_settings()
         self.update_heatmap_controls_opacity()
-    
+
+    def toggle_excluded(self, checked):
+        self.map_widget.show_excluded = checked
+        self.map_widget.update()
+        self.map_widget.save_grid_map_settings()
+
     def toggle_worked(self, checked):
         self.map_widget.show_worked = checked
         if checked:
