@@ -245,9 +245,9 @@ class GridMapWidget(QWidget):
             params['grid_map_show_all_bands'] = self.show_all_bands
             params['grid_map_show_night']     = self.show_night
             params['grid_map_show_excluded']  = self.show_excluded
-            params['grid_map_zoom']          = self.zoom
-            params['grid_map_center_lat']    = self.center_lat
-            params['grid_map_center_lon']    = self.center_lon
+            params['grid_map_zoom']           = self.zoom
+            params['grid_map_center_lat']     = self.center_lat
+            params['grid_map_center_lon']     = self.center_lon
 
             self.parent_app.save_params(params)
     
@@ -2051,10 +2051,15 @@ class GridMapWidget(QWidget):
                 tooltip_html.append(f"""
                     <span style="font-size: 12px;">Worked Grid: <b>{self.current_tooltip_grid}</b></span>
                 """)
+
+                # Add Band column header if showing all bands
+                band_header = "<td>Band</td>" if self.show_all_bands else ""
+
                 tooltip_html.append(f"""
                 <table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; font-size: 12px;">
                     <tr{style}>
                         <td>Callsign</td>
+                        {band_header}
                         <td>Date</td>
                         <td>Freq</td>
                         <td>Mode</td>
@@ -2087,15 +2092,19 @@ class GridMapWidget(QWidget):
                         font_color = "#000000"
                         qsl_rcvd     = ''
 
+                    # Add Band column data if showing all bands
+                    band_data = f"<td><b>{qso['band']}</b></td>" if self.show_all_bands else ""
+
                     tooltip_html.append(f"""
                     <tr style="background-color: {background_color}; color: {font_color};">
                         <td nowrap><b>{qso['call']}</b></td>
+                        {band_data}
                         <td>{qso['formatted_date']}</td>
                         <td style="vertical-align: middle;"><small>{freq_mhz}</small></td>
                         <td>{qso['mode']}</td>
                         <td>{qso['rst_sent']}</td>
                         <td>{qso['rst_rcvd']}</td>
-                        <td>{qsl_rcvd}</td>
+                        <td>{qsl_rcvd}</td>                        
                     </tr>
                     """)
                 
@@ -2230,67 +2239,81 @@ class GridMapWidget(QWidget):
         """
             Get detailed QSO information for the given grid square, sorted by date (newest first)
         """
-        if not self.adif_data or not self.operating_band:
+        if not self.adif_data:
             return []
-        
-        grid_data = self.adif_data.get('grid', {}).get(self.operating_band, {})
-        
-        if grid_square in grid_data and isinstance(grid_data[grid_square], list):
-            qso_map = {}  
-            
-            for qso in grid_data[grid_square]:
-                qso_date = qso.get('qso_date', '')
-                formatted_date = ''
-                if qso_date and len(qso_date) >= 8:
-                    try:
-                        # Parse QSO date
-                        qso_datetime = datetime.strptime(qso_date[:8], '%Y%m%d')
-                        today = datetime.now(timezone.utc).date()
-                        qso_date_obj = qso_datetime.date()
 
-                        # Calculate days difference
-                        days_diff = (today - qso_date_obj).days
+        qso_map = {}
 
-                        if days_diff == 0:
-                            formatted_date = "Today"
-                        elif days_diff == 1:
-                            formatted_date = "Yesterday"
-                        elif 2 <= days_diff <= 7:
-                            formatted_date = f"{days_diff} days ago"
-                        else:
-                            # Use normal date format for older dates
-                            formatted_date = f"{qso_date[0:4]}-{qso_date[4:6]}-{qso_date[6:8]}"
-                    except:
-                        formatted_date = qso_date
-                
-                call = qso.get('call', '')
-                dedup_key = f"{call}_{qso_date}"
-                
-                qso_detail = {
-                    'call': call,
-                    'qso_date': qso_date, 
-                    'formatted_date': formatted_date, 
-                    'freq': qso.get('freq', ''),
-                    'mode': qso.get('mode', ''),
-                    'rst_sent': qso.get('rst_sent', ''),
-                    'rst_rcvd': qso.get('rst_rcvd', ''),
-                    'qsl_status':  qso.get('qsl_status'),
-                    'is_confirmed': bool(qso.get('qsl_status'))
-                }
-                
-                if dedup_key in qso_map:
-                    existing = qso_map[dedup_key]
-                    if qso_detail['is_confirmed'] and not existing['is_confirmed']:
-                        qso_map[dedup_key] = qso_detail
+        if self.show_all_bands:
+            # Process all bands
+            all_grid_data = self.adif_data.get('grid', {})
+            for band, band_data in all_grid_data.items():
+                if grid_square in band_data and isinstance(band_data[grid_square], list):
+                    for qso in band_data[grid_square]:
+                        self._process_qso(qso, band, qso_map)
+        else:
+            # Process only the current band
+            if not self.operating_band:
+                return []
+
+            grid_data = self.adif_data.get('grid', {}).get(self.operating_band, {})
+            if grid_square in grid_data and isinstance(grid_data[grid_square], list):
+                for qso in grid_data[grid_square]:
+                    self._process_qso(qso, self.operating_band, qso_map)
+
+        qsos = list(qso_map.values())
+        qsos.sort(key=lambda x: x['qso_date'] or '00000000', reverse=True)
+        return qsos
+
+    def _process_qso(self, qso, band, qso_map):
+        """Helper method to process a single QSO and add it to the qso_map"""
+        qso_date = qso.get('qso_date', '')
+        formatted_date = ''
+        if qso_date and len(qso_date) >= 8:
+            try:
+                # Parse QSO date
+                qso_datetime = datetime.strptime(qso_date[:8], '%Y%m%d')
+                today = datetime.now(timezone.utc).date()
+                qso_date_obj = qso_datetime.date()
+
+                # Calculate days difference
+                days_diff = (today - qso_date_obj).days
+
+                if days_diff == 0:
+                    formatted_date = "Today"
+                elif days_diff == 1:
+                    formatted_date = "Yesterday"
+                elif 2 <= days_diff <= 7:
+                    formatted_date = f"{days_diff} days ago"
                 else:
-                    qso_map[dedup_key] = qso_detail
-            
-            qsos = list(qso_map.values())
-            qsos.sort(key=lambda x: x['qso_date'] or '00000000', reverse=True)
-            return qsos
-        
-        return []
-    
+                    # Use normal date format for older dates
+                    formatted_date = f"{qso_date[0:4]}-{qso_date[4:6]}-{qso_date[6:8]}"
+            except:
+                formatted_date = qso_date
+
+        call = qso.get('call', '')
+        dedup_key = f"{call}_{qso_date}_{band}"
+
+        qso_detail = {
+            'call': call,
+            'qso_date': qso_date,
+            'formatted_date': formatted_date,
+            'freq': qso.get('freq', ''),
+            'mode': qso.get('mode', ''),
+            'rst_sent': qso.get('rst_sent', ''),
+            'rst_rcvd': qso.get('rst_rcvd', ''),
+            'qsl_status': qso.get('qsl_status'),
+            'is_confirmed': bool(qso.get('qsl_status')),
+            'band': band
+        }
+
+        if dedup_key in qso_map:
+            existing = qso_map[dedup_key]
+            if qso_detail['is_confirmed'] and not existing['is_confirmed']:
+                qso_map[dedup_key] = qso_detail
+        else:
+            qso_map[dedup_key] = qso_detail
+
     def leaveEvent(self, event):
         """
             Hide tooltip when mouse leaves the widget
