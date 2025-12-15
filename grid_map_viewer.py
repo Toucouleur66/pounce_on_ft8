@@ -494,50 +494,46 @@ class GridMapWidget(QWidget):
 
     def wheelEvent(self, event: QWheelEvent):
         min_zoom = self.get_min_zoom_for_size(self.width(), self.height())
-        
+
         zoom_delta = 1 if event.angleDelta().y() > 0 else -1
         new_zoom = self.zoom + zoom_delta
-        
+
         new_zoom = max(min_zoom, min(16, new_zoom))
-        
+
         if new_zoom != self.zoom:
-            # Store current center position to maintain it during zoom
-            current_center_lat = self.center_lat
-            current_center_lon = self.center_lon
-            
+            # Get mouse position
+            mouse_pos = event.position()
+            mouse_x = mouse_pos.x()
+            mouse_y = mouse_pos.y()
+
+            # Get the lat/lon under the mouse cursor at current zoom
+            target_lat, target_lon = self.screen_to_lat_lon(mouse_x, mouse_y)
+
+            # Update zoom level
             self.zoom = new_zoom
-            
-            # Keep the same center coordinates instead of recalculating based on mouse position
-            self.center_lat = current_center_lat
-            self.center_lon = current_center_lon
-            
+
+            # Calculate new center so that target_lat/lon appears at mouse position
+            new_center_lat, new_center_lon = self.calculate_center_for_cursor_point(
+                mouse_x, mouse_y, target_lat, target_lon
+            )
+
+            # Update center
+            self.center_lat = new_center_lat
+            self.center_lon = new_center_lon
             self.center_pixel_offset_x = 0.0
             self.center_pixel_offset_y = 0.0
-            
-            center_tile_x, center_tile_y = self.deg2num(self.center_lat, self.center_lon, self.zoom)
-            
-            world_size = self.get_world_bounds_at_zoom()
-            center_pixel_x = center_tile_x * self.tile_size
-            center_pixel_y = center_tile_y * self.tile_size
-            
-            half_height = self.height() / 2
-            
-            center_pixel_y = max(half_height, min(world_size - half_height, center_pixel_y))
-            
-            new_tile_x = center_pixel_x / self.tile_size
-            new_tile_y = center_pixel_y / self.tile_size
-            
-            self.center_lat, self.center_lon = self.num2deg(new_tile_x, new_tile_y, self.zoom)
-            self.pan_velocity = QPoint(0, 0)
-            
+
+            # Validate and apply
             self.apply_pan_movement(0, 0)
-            
+
+            self.pan_velocity = QPoint(0, 0)
+
             self.memory_cache.clear()
-            
+
             QApplication.processEvents()
-            
+
             self.repaint()
-            
+
             self.save_grid_map_settings()
     
     def screen_to_lat_lon(self, screen_x, screen_y):

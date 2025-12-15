@@ -326,6 +326,7 @@ class MainApp(QtWidgets.QMainWindow):
             'wanted_callsign_first_time_decoded': f"{CURRENT_DIR}/sounds/709060__scottyd0es__aeroce-proximity-notification.wav",
             'wanted_callsign_decoded': f"{CURRENT_DIR}/sounds/495650__matrixxx__supershort-ping-or-short-notification.wav",
             'wanted_callsign_being_called': f"{CURRENT_DIR}/sounds/716444__scottyd0es__tone12_alert_5.wav",
+            'wanted_grid': f"{CURRENT_DIR}/sounds/709065__scottyd0es__aeroce-polytone-4.wav",
             'directed_to_my_call': f"{CURRENT_DIR}/sounds/716445__scottyd0es__tone12_error.wav",
             'ready_to_log': f"{CURRENT_DIR}/sounds/709072__scottyd0es__aeroce-dualtone-5.wav",
             'error_occurred': f"{CURRENT_DIR}/sounds/142608__autistic-lucario__error.wav",

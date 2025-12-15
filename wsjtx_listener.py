@@ -1140,11 +1140,20 @@ class Listener(QObject):
                         and grid_updated is None
                         )
                 ):
-                    if is_grid_needed(
-                        self.adif_data,
-                        grid,
-                        self.band,
-                        self.enable_grid_reply_unconfirmed
+                    # Check if callsign already exists for this grid on this band
+                    grid_qsos = self.adif_data.get('grid', {}).get(self.band, {}).get(grid, [])
+                    callsign_already_worked_on_grid = any(
+                        qso.get('call') == callsign for qso in grid_qsos
+                    )
+
+                    if (
+                        not callsign_already_worked_on_grid and
+                        is_grid_needed(
+                            self.adif_data,
+                            grid,
+                            self.band,
+                            self.enable_grid_reply_unconfirmed
+                        )
                     ):
                         log.info(f"Focus on [ {callsign} ] for grid [ {grid} ] on [ {self.band} ]")
                         wanted_grid     = True
