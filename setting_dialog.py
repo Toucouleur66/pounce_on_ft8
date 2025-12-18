@@ -1022,7 +1022,27 @@ class SettingsDialog(QtWidgets.QDialog):
         grid_tracker_notice_label.setFont(CUSTOM_FONT_SMALL)
         grid_tracker_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
-        self.grid_tracker_group = QtWidgets.QGroupBox("Enable Grid Tracker for selected bands")
+        # Separator line
+        grid_tracker_separator = QtWidgets.QFrame()
+        grid_tracker_separator.setFrameShape(QtWidgets.QFrame.Shape.HLine)
+        grid_tracker_separator.setFrameShadow(QtWidgets.QFrame.Shadow.Sunken)
+
+        # Grid reply new grid on any band checkbox
+        self.enable_grid_reply_new_grid = QtWidgets.QCheckBox("Enable grid tracker to reply to callsign if new grid regardless of band")
+        self.enable_grid_reply_new_grid.setFont(CUSTOM_FONT_SMALL)
+        self.enable_grid_reply_new_grid.setChecked(False)
+
+        grid_tracker_per_band_notice_text = (
+            f"<p>Select band for which {GUI_LABEL_NAME} will reply to callsign, if callsign is a new grid for the selected band.</p>"
+        )
+
+        grid_tracker_per_band_notice_label = QtWidgets.QLabel(grid_tracker_per_band_notice_text)
+        grid_tracker_per_band_notice_label.setStyleSheet(SETTING_QSS)
+        grid_tracker_per_band_notice_label.setWordWrap(True)
+        grid_tracker_per_band_notice_label.setFont(CUSTOM_FONT_SMALL)
+        grid_tracker_per_band_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
+
+        self.grid_tracker_group = QtWidgets.QGroupBox("Select bands")
         self.grid_tracker_group.setFont(CUSTOM_FONT_SMALL)
         grid_tracker_select_layout = QtWidgets.QGridLayout()
 
@@ -1051,6 +1071,9 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_grid_reply_unconfirmed.setChecked(False)
 
         grid_tracker_layout.addWidget(grid_tracker_notice_label)
+        grid_tracker_layout.addWidget(self.enable_grid_reply_new_grid)
+        grid_tracker_layout.addWidget(grid_tracker_separator)   
+        grid_tracker_layout.addWidget(grid_tracker_per_band_notice_label)     
         grid_tracker_layout.addWidget(self.grid_tracker_group)
         grid_tracker_layout.addWidget(self.enable_grid_reply_unconfirmed)
         grid_tracker_layout.addStretch()
@@ -1765,6 +1788,9 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_reply_to_lotw_only.setChecked(
             self.params.get('enable_reply_to_lotw_only', True)
         )
+        self.enable_grid_reply_new_grid.setChecked(
+            self.params.get('enable_grid_reply_new_grid', False)
+        )
         self.enable_grid_reply_unconfirmed.setChecked(
             self.params.get('enable_grid_reply_unconfirmed', False)
         )
@@ -1937,6 +1963,7 @@ class SettingsDialog(QtWidgets.QDialog):
             'worked_before_preference'                   : worked_before_preference,
             'marathon_preference'                        : marathon_preference,
             'grid_tracker_preference'                    : grid_tracker_preference,
+            'enable_grid_reply_new_grid'                 : self.enable_grid_reply_new_grid.isChecked(),
             'enable_grid_reply_unconfirmed'              : self.enable_grid_reply_unconfirmed.isChecked(),
             'priority_order'                             : priority_order
         }

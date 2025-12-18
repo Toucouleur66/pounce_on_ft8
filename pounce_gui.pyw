@@ -3637,6 +3637,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.worker.worked_before_preference        = convert_wkb4_reply_mode(self.local_params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS))
         self.worker.marathon_preference             = self.local_params.get('marathon_preference', {})
         self.worker.grid_tracker_preference         = self.local_params.get('grid_tracker_preference', {})
+        self.worker.enable_grid_reply_new_grid      = self.local_params.get('enable_grid_reply_new_grid', False)
         self.worker.enable_grid_reply_unconfirmed   = self.local_params.get('enable_grid_reply_unconfirmed', False)
         self.worker.minimum_report_for_reply        = self.local_params.get('minimum_report_for_reply', DEFAULT_MINIMUM_REPORT)
         self.worker.priority_order                  = self.local_params.get('priority_order', list(PRIORITY_LIST.values()))

@@ -79,6 +79,7 @@ class Listener(QObject):
             max_freq,
             marathon_preference,
             grid_tracker_preference,
+            enable_grid_reply_new_grid,
             enable_grid_reply_unconfirmed,
             adif_file_paths,
             adif_worked_backup_file_path,
@@ -155,6 +156,7 @@ class Listener(QObject):
 
         self.marathon_preference                = marathon_preference
         self.grid_tracker_preference            = grid_tracker_preference
+        self.enable_grid_reply_new_grid         = enable_grid_reply_new_grid
         self.enable_grid_reply_unconfirmed      = enable_grid_reply_unconfirmed
 
         self.max_reply_attempts_to_callsign     = max_reply_attempts_to_callsign
@@ -469,9 +471,11 @@ class Listener(QObject):
             self.enable_marathon    = False
         
         if self.grid_tracker_preference.get(self.band):
-           self.enable_grid_tracker = True
+            self.enable_grid_tracker = True
+        elif self.enable_grid_reply_new_grid:
+            self.enable_grid_tracker = True
         else:
-           self.enable_grid_tracker = False
+            self.enable_grid_tracker = False
 
         if self.worked_callsigns:
             callsigns_to_remove = [
@@ -1134,7 +1138,10 @@ class Listener(QObject):
                     and is_valid_grid(grid, callsign_info)
                     and not wanted
                     and not wanted_cq_zone
-                    and self.grid_tracker_preference.get(self.band)
+                    and (
+                        self.grid_tracker_preference.get(self.band) or
+                        self.enable_grid_reply_new_grid
+                    )
                     and not (
                         wkb4_year is not None 
                         and grid_updated is None
@@ -1152,8 +1159,9 @@ class Listener(QObject):
                             self.adif_data,
                             grid,
                             self.band,
-                            self.enable_grid_reply_unconfirmed
-                        )
+                            self.enable_grid_reply_unconfirmed,
+                            self.enable_grid_reply_new_grid
+                        ) 
                     ):
                         log.info(f"Focus on [ {callsign} ] for grid [ {grid} ] on [ {self.band} ]")
                         wanted_grid     = True
