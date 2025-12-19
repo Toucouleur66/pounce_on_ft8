@@ -5,44 +5,18 @@ from PyQt6.QtWidgets import (
     QHeaderView, QPushButton, QHBoxLayout, QLabel
 )
 from PyQt6.QtCore import QTimer, Qt
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont, QPalette, QColor
 from datetime import datetime
 from custom_button import CustomButton
+
 from logger import get_logger
-from constants import TABLE_SETTING_QSS, GUI_LABEL_VERSION
-from utils import AMATEUR_BANDS
+from utils import band_sort_key
+
+from constants import GUI_LABEL_VERSION
 
 log = get_logger(__name__)
 
-
-def get_band_sort_key(band):
-    """
-    Get numeric sort key for band.
-    Converts bands to meters for proper numeric sorting.
-    Examples: 160m -> 160, 10m -> 10, 70cm -> 0.7
-    """
-    if not band:
-        return 9999
-
-    if band.endswith('m'):
-        # Convert to float (e.g., "160m" -> 160.0)
-        try:
-            return float(band[:-1])
-        except ValueError:
-            return 9999
-    elif band.endswith('cm'):
-        # Convert centimeters to meters (e.g., "70cm" -> 0.7)
-        try:
-            return float(band[:-2]) / 100
-        except ValueError:
-            return 9999
-
-    return 9999
-
-
 class SortableTableWidgetItem(QTableWidgetItem):
-    """Custom QTableWidgetItem that sorts by UserRole data if available."""
-
     def __lt__(self, other):
         # Get UserRole data for sorting
         self_data = self.data(Qt.ItemDataRole.UserRole)
@@ -55,16 +29,17 @@ class SortableTableWidgetItem(QTableWidgetItem):
         # Otherwise, fall back to text comparison
         return super().__lt__(other)
 
-
 class ActiveUsersWindow(QDialog):
-    def __init__(self, telemetry_service, parent=None):
+    def __init__(self, telemetry_service, dark_mode=False, parent=None):
         super().__init__(parent)
         self.telemetry_service = telemetry_service
+        self.dark_mode = dark_mode
         self.setWindowTitle(f"Active Users - {GUI_LABEL_VERSION}")
         self.setMinimumSize(600, 500)
         self.first_load = True
 
         self.setup_ui()
+        self.apply_palette(dark_mode)
         self.setup_timer()
 
         # Fetch users immediately
@@ -101,23 +76,6 @@ class ActiveUsersWindow(QDialog):
         # Center-align row numbers
         self.table.verticalHeader().setDefaultAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # Apply stylesheet - remove all separators
-        self.table.setStyleSheet(TABLE_SETTING_QSS + """
-            QHeaderView::section {
-                border: 0px;
-            }
-            QHeaderView {
-                border: none;
-            }
-            QTableView {
-                border: none;
-            }
-            QTableCornerButton::section {
-                border: none;
-                background-color: transparent;
-            }
-        """)
-
         # Set column widths
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)  # Callsign
@@ -150,6 +108,56 @@ class ActiveUsersWindow(QDialog):
         self.refresh_timer = QTimer()
         self.refresh_timer.timeout.connect(self.refresh_users)
         self.refresh_timer.start(5000)  # 5 seconds
+
+    def apply_palette(self, dark_mode):
+        self.dark_mode = dark_mode
+
+        # Create palette for table
+        table_palette = QPalette()
+
+        if dark_mode:
+            log.error("Applying dark mode palette to Active Users window")
+            table_palette.setColor(QPalette.ColorRole.Base, QColor('#353535'))
+            table_palette.setColor(QPalette.ColorRole.AlternateBase, QColor('#454545'))
+            table_palette.setColor(QPalette.ColorRole.Text, QColor('#FFFFFF'))
+
+            gridline_color = '#171717'
+            background_color = '#353535'
+        else:
+            log.error("Applying light mode palette to Active Users window")
+            table_palette.setColor(QPalette.ColorRole.Base, QColor('#FFFFFF'))
+            table_palette.setColor(QPalette.ColorRole.AlternateBase, QColor('#F4F5F5'))
+            table_palette.setColor(QPalette.ColorRole.Text, QColor('#000000'))
+
+            gridline_color = '#D3D3D3'
+            background_color = '#FFFFFF'
+
+        # Apply stylesheet with theme colors
+        table_qss = f"""
+            QTableWidget {{
+                background-color: {background_color};
+                gridline-color: {gridline_color};
+                border: none;
+            }}
+            QTableWidget::item {{
+                padding: 5px;
+            }}
+            QHeaderView::section {{
+                font-weight: normal;
+                border: none;
+                padding: 0 3px 0 3px;
+            }}
+            QTableCornerButton::section {{
+                border: none;
+            }}
+            QHeaderView::section:horizontal:last {{
+                border-right: none;
+            }}
+        """
+
+        self.table.setStyleSheet(table_qss)
+        self.table.setPalette(table_palette)
+        self.table.setShowGrid(False)
 
     def refresh_users(self):
         try:
@@ -184,7 +192,6 @@ class ActiveUsersWindow(QDialog):
             # Callsign
             callsign_item = QTableWidgetItem(user.get('callsign', ''))
             callsign_font = QFont()
-            callsign_font.setBold(True)
             callsign_item.setFont(callsign_font)
             self.table.setItem(row, 0, callsign_item)
 
@@ -208,9 +215,7 @@ class ActiveUsersWindow(QDialog):
             # Band (with sort key for proper numeric ordering)
             band = user.get('band', '')
             band_item = SortableTableWidgetItem(band)
-            # Store numeric band value for proper sorting (70cm=0.7, 2m=2, 10m=10, 160m=160)
-            band_sort_key = get_band_sort_key(band)
-            band_item.setData(Qt.ItemDataRole.UserRole, band_sort_key)
+            band_item.setData(Qt.ItemDataRole.UserRole, band_sort_key(band))
             self.table.setItem(row, 3, band_item)
 
             # Version

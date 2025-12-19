@@ -2600,6 +2600,7 @@ class MainApp(QtWidgets.QMainWindow):
                 log.info("Creating active users window")
                 self.active_users_window = ActiveUsersWindow(
                     self.worker.listener.telemetry_service,
+                    self.dark_mode,
                     self
                 )
 
@@ -2753,6 +2754,10 @@ class MainApp(QtWidgets.QMainWindow):
         self.wait_pounce_history_table.setStyleSheet(table_qss)
         self.wait_pounce_history_table.setPalette(table_palette)
         self.wait_pounce_history_table.setShowGrid(False)
+
+        # Update active users window theme if it exists
+        if hasattr(self, 'active_users_window') and self.active_users_window is not None:
+            self.active_users_window.apply_palette(dark_mode)
 
         self.update_tab_widget_labels_style()
 
