@@ -27,6 +27,7 @@ from utils import load_marathon_wanted_data, save_marathon_wanted_data
 
 from callsign_lookup import CallsignLookup
 from adif_monitor import AdifMonitor
+from telemetry_service import TelemetryService
 
 log     = get_logger(__name__)
 lookup  = CallsignLookup()
@@ -241,9 +242,14 @@ class Listener(QObject):
         self.adif_monitor.start()
         self.adif_monitor.register_callback(self.update_adif_data)
         self.adif_monitor.register_processing_callback(self.update_adif_processing_status)
-        
+
         """
-            Use ADIF file to log        
+            Initialize telemetry service
+        """
+        self.telemetry_service = TelemetryService()
+
+        """
+            Use ADIF file to log
         """
         self.adif_worked_backup_file_path           = adif_worked_backup_file_path
 
@@ -620,9 +626,17 @@ class Listener(QObject):
             self.adif_monitor.stop()
             self.adif_monitor = None
 
+        # Stop telemetry service
+        if self.telemetry_service:
+            log.info("Stopping telemetry service")
+            self.telemetry_service.stop()
+
     def listen(self):
         self.receiver_thread.start()
         self.processor_thread.start()
+
+        # Start telemetry service
+        self.telemetry_service.start()
 
     def send_heartbeat_packet(self):
         if self._instance == SLAVE: 
@@ -645,12 +659,20 @@ class Listener(QObject):
             self.my_call                = self.the_packet.de_call
             self.my_grid                = self.the_packet.de_grid
             self.dx_call                = self.the_packet.dx_call
-            self.tx_df                  = self.the_packet.tx_df       
-            self.rx_df                  = self.the_packet.rx_df  
-            self.mode                   = self.the_packet.mode            
+            self.tx_df                  = self.the_packet.tx_df
+            self.rx_df                  = self.the_packet.rx_df
+            self.mode                   = self.the_packet.mode
             self.special_op_mode        = int(self.the_packet.special_op_mode)
-            self.frequency              = self.the_packet.dial_frequency     
-            self.band                   = get_amateur_band(self.frequency)    
+            self.frequency              = self.the_packet.dial_frequency
+            self.band                   = get_amateur_band(self.frequency)
+
+            # Update telemetry service with user data
+            self.telemetry_service.update_user_data(
+                my_call=self.my_call,
+                my_grid=self.my_grid,
+                band=self.band,
+                ip_address=get_local_ip_address()
+            )    
             self.transmitting           = int(self.the_packet.transmitting)  
             
             self.rst_sent[self.dx_call] = self.the_packet.report               
