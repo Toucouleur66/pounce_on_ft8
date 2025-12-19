@@ -58,6 +58,7 @@ from updater import Updater, UpdateManager
 from raw_data_model import RawDataModel
 from raw_data_filter_proxy_model import RawDataFilterProxyModel
 from grid_map_viewer import GridMapWindow
+from active_users_window import ActiveUsersWindow
 
 if sys.platform == 'darwin':
     from status_menu import StatusMenuAgent
@@ -204,6 +205,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.timer               = None
         self.tray_icon           = None
         self.grid_monitor        = None
+        self.active_users_window = None
         self.app_shutting_down   = False
 
         self.grid_monitor_geometry  = {}
@@ -2574,9 +2576,40 @@ class MainApp(QtWidgets.QMainWindow):
         self.save_window_position()
         if self.grid_monitor:
             self.grid_monitor.close()
+        if self.active_users_window:
+            self.active_users_window.close()
         if self._running:
             self.stop_monitoring()
         event.accept()
+
+    def show_active_users(self):
+        try:
+            if not hasattr(self, 'worker') or self.worker is None:
+                log.error("Worker not initialized")
+                return
+
+            if not hasattr(self.worker, 'listener') or self.worker.listener is None:
+                log.error("Listener not initialized")                
+                return
+
+            if not hasattr(self.worker.listener, 'telemetry_service') or self.worker.listener.telemetry_service is None:
+                log.error("Telemetry service not initialized")                
+                return
+
+            if not hasattr(self, 'active_users_window') or self.active_users_window is None:
+                log.info("Creating active users window")
+                self.active_users_window = ActiveUsersWindow(
+                    self.worker.listener.telemetry_service,
+                    self
+                )
+
+            self.active_users_window.show()
+            self.active_users_window.raise_()
+            self.active_users_window.activateWindow()
+        except Exception as e:
+            log.error(f"Error showing active users window: {e}")
+            import traceback
+            log.error(traceback.format_exc())            
 
     def open_settings(self):
         log.warning("Settings opened")
@@ -3300,6 +3333,12 @@ class MainApp(QtWidgets.QMainWindow):
         self.online_menu.addAction(load_clublog_action)
         self.online_menu.addAction(load_lotw_action)
         self.online_menu.addAction(load_country_file_action)
+        self.online_menu.addSeparator()
+
+        show_active_users_action = QtGui.QAction("List of active users", self)
+        show_active_users_action.triggered.connect(self.show_active_users)
+        self.online_menu.addAction(show_active_users_action)
+        self.online_menu.addSeparator()
 
         # Add Window menu
         self.window_menu = self.menu_bar.addMenu("Window")

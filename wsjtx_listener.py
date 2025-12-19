@@ -670,8 +670,7 @@ class Listener(QObject):
             self.telemetry_service.update_user_data(
                 my_call=self.my_call,
                 my_grid=self.my_grid,
-                band=self.band,
-                ip_address=get_local_ip_address()
+                band=self.band
             )    
             self.transmitting           = int(self.the_packet.transmitting)  
             

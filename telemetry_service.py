@@ -9,20 +9,27 @@ import time
 import uuid
 import threading
 import requests
+import platform
+import logging
 from pathlib import Path
 from logger import get_logger
+from constants import CURRENT_VERSION_NUMBER
 
 log = get_logger(__name__)
 
+# Suppress urllib3 and requests debug logs
+logging.getLogger('urllib3').setLevel(logging.WARNING)
+logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
+
 class TelemetryService:
     """
-    Telemetry service for tracking user activity and sending heartbeats to the API.
+        Telemetry service for tracking user activity and sending heartbeats to the API.
 
-    Features:
-    - HMAC-based authentication with installation_id and installation_secret
-    - Automatic registration on first run (when my_call is set)
-    - Sends heartbeat every 60 seconds
-    - Silent operation - continues retrying if API is unreachable
+        Features:
+        - HMAC-based authentication with installation_id and installation_secret
+        - Automatic registration on first run (when my_call is set)
+        - Sends heartbeat every 60 seconds
+        - Silent operation - continues retrying if API is unreachable
     """
 
     def __init__(self, api_base_url="https://f5ukw.com/api", config_dir=None):
@@ -48,10 +55,35 @@ class TelemetryService:
         self.my_call = None
         self.my_grid = None
         self.band = None
-        self.ip_address = None
+
+        # Application info
+        self.version = CURRENT_VERSION_NUMBER
+        self.os_info = self._get_os_info()
 
         # Load existing config if available
         self._load_config()
+
+    def _get_os_info(self):
+        try:
+            system = platform.system()
+            release = platform.release()
+            version = platform.version()
+
+            if system == "Darwin":
+                # macOS
+                mac_ver = platform.mac_ver()[0]
+                return f"macOS {mac_ver}"
+            elif system == "Windows":
+                # Windows
+                return f"Windows {release}"
+            elif system == "Linux":
+                # Linux
+                return f"Linux {release}"
+            else:
+                return f"{system} {release}"
+        except Exception as e:
+            log.error(f"Error getting OS info: {e}")
+            return "Unknown"
 
     def _load_config(self):
         # Load installation credentials from config file
@@ -82,7 +114,6 @@ class TelemetryService:
             log.error(f"Error saving telemetry config: {e}")
 
     def _generate_credentials(self):
-        """Generate new installation credentials."""
         self.installation_id = str(uuid.uuid4())
         self.installation_secret = base64.b64encode(os.urandom(32)).decode('ascii')
         self.registered = False
@@ -91,12 +122,10 @@ class TelemetryService:
 
     @staticmethod
     def _b64(data: bytes) -> str:
-        """Base64 encode bytes."""
         return base64.b64encode(data).decode("ascii")
 
     @staticmethod
     def _body_hash(body_obj) -> str:
-        """Create SHA256 hash of JSON body."""
         if body_obj is None:
             body_obj = {}
         s = json.dumps(body_obj, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
@@ -104,17 +133,17 @@ class TelemetryService:
 
     def _sign(self, method: str, path: str, ts: int, nonce: str, body_obj) -> str:
         """
-        Create HMAC signature for request.
+            Create HMAC signature for request.
 
-        Args:
-            method: HTTP method (GET, POST, etc.)
-            path: URL path (e.g., /api/heartbeat)
-            ts: Unix timestamp
-            nonce: Random nonce string
-            body_obj: Request body as dict
+            Args:
+                method: HTTP method (GET, POST, etc.)
+                path: URL path (e.g., /api/heartbeat)
+                ts: Unix timestamp
+                nonce: Random nonce string
+                body_obj: Request body as dict
 
-        Returns:
-            Base64-encoded HMAC signature
+            Returns:
+                Base64-encoded HMAC signature
         """
         secret = base64.b64decode(self.installation_secret)
         canonical = "\n".join([
@@ -129,16 +158,16 @@ class TelemetryService:
 
     def _make_authenticated_request(self, method: str, path: str, body_obj=None, timeout=10):
         """
-        Make an authenticated request to the API.
+            Make an authenticated request to the API.
 
-        Args:
-            method: HTTP method
-            path: URL path
-            body_obj: Request body (for POST/PUT)
-            timeout: Request timeout in seconds
+            Args:
+                method: HTTP method
+                path: URL path
+                body_obj: Request body (for POST/PUT)
+                timeout: Request timeout in seconds
 
-        Returns:
-            Response object or None if failed
+            Returns:
+                Response object or None if failed
         """
         try:
             url = f"{self.api_base_url}{path}"
@@ -175,8 +204,8 @@ class TelemetryService:
 
     def register(self):
         """
-        Register this installation with the API.
-        Only called when my_call is set.
+            Register this installation with the API.
+            Only called when my_call is set.
         """
         if self.registered:
             log.debug("Already registered, skipping registration")
@@ -223,15 +252,14 @@ class TelemetryService:
             log.error(f"Error during registration: {e}")
             return False
 
-    def update_user_data(self, my_call=None, my_grid=None, band=None, ip_address=None):
+    def update_user_data(self, my_call=None, my_grid=None, band=None):
         """
-        Update user data that will be sent in heartbeats.
+            Update user data that will be sent in heartbeats.
 
-        Args:
-            my_call: User's callsign
-            my_grid: User's grid square
-            band: Current band
-            ip_address: User's IP address
+            Args:
+                my_call: User's callsign
+                my_grid: User's grid square
+                band: Current band
         """
         if my_call is not None:
             self.my_call = my_call
@@ -246,11 +274,7 @@ class TelemetryService:
         if band is not None:
             self.band = band
 
-        if ip_address is not None:
-            self.ip_address = ip_address
-
     def send_heartbeat(self):
-        """Send a heartbeat to the API with current user data."""
         if not self.registered:
             # Try to register first
             if not self.register():
@@ -265,7 +289,8 @@ class TelemetryService:
                 'callsign': self.my_call,
                 'grid': self.my_grid or '',
                 'band': self.band or '',
-                'ip_address': self.ip_address or ''
+                'version': self.version,
+                'os': self.os_info
             }
 
             response = self._make_authenticated_request('POST', '/heartbeat', body)
@@ -285,7 +310,9 @@ class TelemetryService:
             return False
 
     def _heartbeat_loop(self):
-        """Background thread that sends heartbeats every 60 seconds."""
+        """
+            Background thread that sends heartbeats every 60 seconds.
+        """
         log.info("Heartbeat loop started")
 
         while self.running:
@@ -303,7 +330,6 @@ class TelemetryService:
         log.info("Heartbeat loop stopped")
 
     def start(self):
-        """Start the telemetry service and begin sending heartbeats."""
         if self.running:
             log.warning("Telemetry service already running")
             return
@@ -313,8 +339,24 @@ class TelemetryService:
         self.heartbeat_thread.start()
         log.info("Telemetry service started")
 
+    def get_active_users(self):
+        try:
+            url = f"{self.api_base_url}/users"
+            response = requests.get(url, timeout=10)
+
+            if response.status_code == 200:
+                return response.json()
+            else:
+                log.warning(f"Failed to get active users: {response.status_code}")
+                return None
+        except requests.exceptions.RequestException as e:
+            log.debug(f"Failed to fetch active users: {e}")
+            return None
+        except Exception as e:
+            log.error(f"Error fetching active users: {e}")
+            return None
+
     def stop(self):
-        """Stop the telemetry service."""
         if not self.running:
             return
 
