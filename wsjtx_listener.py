@@ -665,23 +665,19 @@ class Listener(QObject):
             self.special_op_mode        = int(self.the_packet.special_op_mode)
             self.frequency              = self.the_packet.dial_frequency
             self.band                   = get_amateur_band(self.frequency)
-
-            # Update telemetry service with user data
-            self.telemetry_service.update_user_data(
-                my_call=self.my_call,
-                my_grid=self.my_grid,
-                band=self.band
-            )    
+            
             self.transmitting           = int(self.the_packet.transmitting)  
             
             self.rst_sent[self.dx_call] = self.the_packet.report               
 
-            error_found     = False
+            error_found                 = False
+            telemetry_update_needed     = False
 
             self.my_cont                = lookup.lookup_callsign(self.my_call).get('cont', None)
 
             # Updating mode
             if self.last_mode != self.mode:
+                telemetry_update_needed = True
                 self.last_mode = self.mode
                 self.message_callback({
                     'type'      : 'update_mode',
@@ -690,6 +686,7 @@ class Listener(QObject):
 
             # Updating frequency
             if self.last_frequency != self.frequency:
+                telemetry_update_needed = True
                 self.last_frequency = self.frequency
 
                 if self.last_band != self.band:
@@ -706,6 +703,14 @@ class Listener(QObject):
                     'type'      : 'update_frequency',
                     'frequency' : self.frequency
                 })       
+
+            if telemetry_update_needed:
+                # Update telemetry service with user data
+                self.telemetry_service.update_user_data(
+                    my_call=self.my_call,
+                    my_grid=self.my_grid,
+                    band=self.band
+                )        
 
             """
                 If we are running Listerner as a slave instance we have to request settings

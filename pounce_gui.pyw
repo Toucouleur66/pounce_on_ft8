@@ -2721,8 +2721,6 @@ class MainApp(QtWidgets.QMainWindow):
             table_palette.setColor(QtGui.QPalette.ColorRole.Text, QtGui.QColor('#000000'))
 
             self.activity_bar.setColors("#FFFFFF", "#000000", "#C6C6C6")
-        
-        self.output_table.setPalette(table_palette)
 
         gridline_color      = '#D3D3D3' if not dark_mode else '#171717'
         background_color    = '#FFFFFF' if not dark_mode else '#353535'
@@ -3342,8 +3340,8 @@ class MainApp(QtWidgets.QMainWindow):
 
         show_active_users_action = QtGui.QAction("List of active users", self)
         show_active_users_action.triggered.connect(self.show_active_users)
-        self.online_menu.addAction(show_active_users_action)
-        self.online_menu.addSeparator()
+        show_active_users_action.setShortcut(QtGui.QKeySequence("Ctrl+L"))
+        self.addAction(show_active_users_action)  # Shortcut only, not in menu
 
         # Add Window menu
         self.window_menu = self.menu_bar.addMenu("Window")

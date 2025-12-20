@@ -67,8 +67,7 @@ from constants import (
     ODD_COLOR,
     # ADIF
     ADIF_WORKED_CALLSIGNS_FILE,
-    # Symbol
-    LOTW_SYMBOL
+    CLUB_LOG_KEY
 )
 
 class SettingsDialog(QtWidgets.QDialog):
@@ -1051,7 +1050,7 @@ class SettingsDialog(QtWidgets.QDialog):
         row = 0
         col = 0
 
-        for amateur_band in list(AMATEUR_BANDS.keys())[:-2]:
+        for amateur_band in list(AMATEUR_BANDS.keys()):
             btn = CustomButton(amateur_band)
             btn.setCheckable(True)         
             btn.toggled.connect(lambda checked, btn=btn, name=amateur_band: self.on_grid_tracker_band_toggled(btn, name, checked))

@@ -261,22 +261,29 @@ class TelemetryService:
                 my_grid: User's grid square
                 band: Current band
         """
-        if my_call is not None:
+        data_changed = False
+
+        if my_call is not None and my_call != self.my_call:
             self.my_call = my_call
+            data_changed = True
 
             # Try to register if we have a callsign but haven't registered yet
             if not self.registered:
                 self.register()
 
-        if my_grid is not None:
+        if my_grid is not None and my_grid != self.my_grid:
             self.my_grid = my_grid
+            data_changed = True
 
-        if band is not None:
+        if band is not None and band != self.band:
             self.band = band
+            data_changed = True
+
+        if data_changed and self.registered:
+            self.send_heartbeat()
 
     def send_heartbeat(self):
         if not self.registered:
-            # Try to register first
             if not self.register():
                 return False
 
@@ -310,11 +317,6 @@ class TelemetryService:
             return False
 
     def _heartbeat_loop(self):
-        """
-            Background thread that sends heartbeats every 60 seconds.
-        """
-        log.info("Heartbeat loop started")
-
         while self.running:
             try:
                 self.send_heartbeat()
