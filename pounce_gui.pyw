@@ -3684,6 +3684,11 @@ class MainApp(QtWidgets.QMainWindow):
         self.worker.minimum_report_for_reply        = self.local_params.get('minimum_report_for_reply', DEFAULT_MINIMUM_REPORT)
         self.worker.priority_order                  = self.local_params.get('priority_order', list(PRIORITY_LIST.values()))
 
+        self.worker.enable_club_log_synch           = self.local_params.get('enable_club_log_synch', False)
+        self.worker.club_log_email                  = self.local_params.get('club_log_email', '')
+        self.worker.club_log_password               = self.local_params.get('club_log_password', '')
+        self.worker.club_log_callsign               = self.local_params.get('club_log_callsign', '')
+
         self.worker.min_freq                        = self.local_params.get('min_freq', FREQ_MINIMUM)
         self.worker.max_freq                        = self.local_params.get('max_freq', FREQ_MAXIMUM)
 

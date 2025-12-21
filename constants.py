@@ -74,9 +74,12 @@ POSITION_FILE                   = os.path.join(get_app_data_dir(), "window_posit
 WORKED_CALLSIGNS_FILE           = os.path.join(get_app_data_dir(), "worked_callsigns.pkl")
 TEMP_EXCLUDED_CALLSIGNS_FILE    = os.path.join(get_app_data_dir(), "temp_excluded_callsigns.pkl")
 ADIF_WORKED_CALLSIGNS_FILE      = os.path.join(get_app_data_dir(), "wait_pounce_log.adif")
+CLUB_LOG_CACHE_FILE                    = os.path.join(get_app_data_dir(), "club_log_cache.json")
 
 GUI_LABEL_NAME                  = "Wait and Pounce"
 GUI_LABEL_VERSION               = f"{GUI_LABEL_NAME} build {CURRENT_VERSION_NUMBER}"
+
+CLUB_LOG_API_KEY                = "efc2af7050308f03a22275cf51f3fd7749582d66"
 
 STATUS_BUTTON_LABEL_MONITORING  = "Monitoring..."
 STATUS_BUTTON_LABEL_DECODING    = "Decoding..."
@@ -90,6 +93,10 @@ STOP_BUTTON_LABEL               = "Stop all"
 
 DATE_COLUMN_DATETIME            = "Time"
 DATE_COLUMN_AGE                 = "Age"
+
+THEME_MODE_LIGHT                = "Light"
+THEME_MODE_DARK                 = "Dark"
+THEME_MODE_SYSTEM               = "System"
 
 LOTW_SYMBOL                     = "•"
 QSL_RCVD_SYMBOL                 = "✓"
@@ -144,7 +151,7 @@ MAXIMUM_ALLOWED_DT              = 1.9
 
 CURRENT_DIR                     = os.path.dirname(os.path.realpath(__file__))
 CTY_XML                         = 'cty.xml'
-CTY_XML_URL                     = 'https://cdn.clublog.org/cty.php?api=efc2af7050308f03a22275cf51f3fd7749582d66'
+CTY_XML_URL                     = f'https://cdn.clublog.org/cty.php?api={CLUB_LOG_API_KEY}'
 CTY_WT_MOD_URL                  = 'https://www.country-files.com/cty/cty_wt_mod.dat'     
 
 DEFAULT_SECONDARY_UDP_SERVER    = False

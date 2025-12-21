@@ -14,6 +14,7 @@ from custom_button import CustomButton
 from priority_table import PriorityTableWidget
 from adif_summary_dialog import AdifSummaryDialog
 from lotw_manager import LoTWManager
+from clublog import ClubLogUploader
 
 from datetime import datetime
 
@@ -67,7 +68,8 @@ from constants import (
     ODD_COLOR,
     # ADIF
     ADIF_WORKED_CALLSIGNS_FILE,
-    CLUB_LOG_KEY
+    CLUB_LOG_CACHE_FILE,
+    CLUB_LOG_API_KEY
 )
 
 class SettingsDialog(QtWidgets.QDialog):
@@ -93,15 +95,16 @@ class SettingsDialog(QtWidgets.QDialog):
         
         menu_items = [
             "Server",
-            "General Settings", 
+            "General Settings",
             "Offset Updater",
             "Sound Alerts",
             "Logbook of The World®",
             "DX Marathon",
-            "Grid Tracker", 
+            "Grid Tracker",
             "Priority Manager",
             "Logbook Analysis",
             "Worked before",
+            "Club Log",
             "Logbook Backup",
             "Debugging"
         ]
@@ -123,40 +126,43 @@ class SettingsDialog(QtWidgets.QDialog):
         server_page       = QtWidgets.QWidget()
         general_page      = QtWidgets.QWidget()
         offset_page       = QtWidgets.QWidget()
-        sound_page        = QtWidgets.QWidget()        
+        sound_page        = QtWidgets.QWidget()
         lotw_page         = QtWidgets.QWidget()
         marathon_page     = QtWidgets.QWidget()
         grid_tracker_page = QtWidgets.QWidget()
-        priority_page     = QtWidgets.QWidget()        
+        priority_page     = QtWidgets.QWidget()
         log_analysis_page = QtWidgets.QWidget()
-        worked_b4_page    = QtWidgets.QWidget()        
+        worked_b4_page    = QtWidgets.QWidget()
+        club_log_page     = QtWidgets.QWidget()
         backup_page       = QtWidgets.QWidget()
         debugging_page    = QtWidgets.QWidget()
         debugging_page.setMinimumHeight(250)
-        
+
         self.stacked_widget.addWidget(server_page)
         self.stacked_widget.addWidget(general_page)
         self.stacked_widget.addWidget(offset_page)
-        self.stacked_widget.addWidget(sound_page)        
+        self.stacked_widget.addWidget(sound_page)
         self.stacked_widget.addWidget(lotw_page)
         self.stacked_widget.addWidget(marathon_page)
         self.stacked_widget.addWidget(grid_tracker_page)
-        self.stacked_widget.addWidget(priority_page)        
+        self.stacked_widget.addWidget(priority_page)
         self.stacked_widget.addWidget(log_analysis_page)
-        self.stacked_widget.addWidget(worked_b4_page)        
+        self.stacked_widget.addWidget(worked_b4_page)
+        self.stacked_widget.addWidget(club_log_page)
         self.stacked_widget.addWidget(backup_page)
         self.stacked_widget.addWidget(debugging_page)
         
         server_layout        = QtWidgets.QVBoxLayout(server_page)
         general_layout       = QtWidgets.QVBoxLayout(general_page)
         offset_layout        = QtWidgets.QVBoxLayout(offset_page)
-        sound_layout         = QtWidgets.QVBoxLayout(sound_page)        
+        sound_layout         = QtWidgets.QVBoxLayout(sound_page)
         priority_layout      = QtWidgets.QVBoxLayout(priority_page)
         lotw_layout          = QtWidgets.QVBoxLayout(lotw_page)
         marathon_layout      = QtWidgets.QVBoxLayout(marathon_page)
         grid_tracker_layout  = QtWidgets.QVBoxLayout(grid_tracker_page)
         log_analysis_layout  = QtWidgets.QVBoxLayout(log_analysis_page)
         worked_b4_layout     = QtWidgets.QVBoxLayout(worked_b4_page)
+        club_log_layout      = QtWidgets.QVBoxLayout(club_log_page)
         backup_layout        = QtWidgets.QVBoxLayout(backup_page)
         debugging_layout     = QtWidgets.QVBoxLayout(debugging_page)
         
@@ -1010,6 +1016,78 @@ class SettingsDialog(QtWidgets.QDialog):
         worked_b4_layout.addStretch()
 
         """
+            Club Log Settings
+        """
+        club_log_notice_text = (
+            "<p>Wait and Pounce can upload individual QSOs in real-time to Club Log.</p>"
+        )
+
+        club_log_notice_label = QtWidgets.QLabel(club_log_notice_text)
+        club_log_notice_label.setStyleSheet(SETTING_QSS)
+        club_log_notice_label.setWordWrap(True)
+        club_log_notice_label.setFont(CUSTOM_FONT_SMALL)
+        club_log_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
+
+        last_sync, total_qsos, last_callsign, last_band = ClubLogUploader.get_cache_info()
+        if last_sync:
+            club_log_cache_text = f"Club Log Status: {total_qsos} QSOs uploaded<br />Last upload: {last_sync}<br />Last QSO: {last_callsign} on {last_band}"
+        else:
+            club_log_cache_text = "No Club Log uploads yet"
+
+        self.club_log_cache_info = QtWidgets.QLabel(club_log_cache_text)
+        self.club_log_cache_info.setWordWrap(True)
+        self.club_log_cache_info.setFont(CUSTOM_FONT_SMALL)
+        self.club_log_cache_info.setTextFormat(QtCore.Qt.TextFormat.RichText)
+        self.club_log_cache_info.setStyleSheet(SETTING_QSS + f"background-color: {ODD_COLOR};")
+        self.club_log_cache_info.setAutoFillBackground(True)
+
+        club_log_settings_group = QtWidgets.QGroupBox("Club Log Upload Settings")
+        club_log_settings_group.setFont(CUSTOM_FONT_SMALL)
+
+        club_log_settings_widget = QtWidgets.QWidget()
+        club_log_settings_layout = QtWidgets.QGridLayout(club_log_settings_widget)
+
+        self.enable_club_log_synch = QtWidgets.QCheckBox("Enable real-time QSO uploads to Club Log")
+        self.enable_club_log_synch.setFont(CUSTOM_FONT)
+        self.enable_club_log_synch.setChecked(False)
+
+        club_log_email_label = QtWidgets.QLabel("Club Log Email:")
+        club_log_email_label.setFont(CUSTOM_FONT)
+        self.club_log_email = QtWidgets.QLineEdit()
+        self.club_log_email.setFont(CUSTOM_FONT)
+        self.club_log_email.setPlaceholderText("Registered email address in Club Log")
+
+        club_log_password_label = QtWidgets.QLabel("Password:")
+        club_log_password_label.setFont(CUSTOM_FONT)
+        self.club_log_password = QtWidgets.QLineEdit()
+        self.club_log_password.setFont(CUSTOM_FONT)
+        self.club_log_password.setEchoMode(QtWidgets.QLineEdit.EchoMode.Password)
+        self.club_log_password.setPlaceholderText("Application password")
+
+        club_log_callsign_label = QtWidgets.QLabel("Callsign:")
+        club_log_callsign_label.setFont(CUSTOM_FONT)
+        self.club_log_callsign = QtWidgets.QLineEdit()
+        self.club_log_callsign.setFont(CUSTOM_FONT)
+        self.club_log_callsign.setPlaceholderText("Your callsign")
+
+        club_log_settings_layout.addWidget(self.enable_club_log_synch, 0, 0, 1, 2)
+        club_log_settings_layout.addWidget(club_log_email_label, 1, 0, QtCore.Qt.AlignmentFlag.AlignRight)
+        club_log_settings_layout.addWidget(self.club_log_email, 1, 1)
+        club_log_settings_layout.addWidget(club_log_password_label, 2, 0, QtCore.Qt.AlignmentFlag.AlignRight)
+        club_log_settings_layout.addWidget(self.club_log_password, 2, 1)
+        club_log_settings_layout.addWidget(club_log_callsign_label, 3, 0, QtCore.Qt.AlignmentFlag.AlignRight)
+        club_log_settings_layout.addWidget(self.club_log_callsign, 3, 1)
+
+        club_log_settings_group.setLayout(QtWidgets.QVBoxLayout())
+        club_log_settings_group.layout().setContentsMargins(0, 0, 0, 0)
+        club_log_settings_group.layout().addWidget(club_log_settings_widget)
+
+        club_log_layout.addWidget(club_log_notice_label)
+        club_log_layout.addWidget(self.club_log_cache_info)
+        club_log_layout.addWidget(club_log_settings_group)
+        club_log_layout.addStretch()
+
+        """
             Grid Tracker Settings
         """
         grid_tracker_notice_text = (
@@ -1808,6 +1886,21 @@ class SettingsDialog(QtWidgets.QDialog):
         self.show_backup_file_path.setText(
             self.params.get('adif_worked_backup_file_path', ADIF_WORKED_CALLSIGNS_FILE)
         )
+
+        # Load Club Log settings
+        self.enable_club_log_synch.setChecked(
+            self.params.get('enable_club_log_synch', False)
+        )
+        self.club_log_email.setText(
+            self.params.get('club_log_email', '')
+        )
+        self.club_log_password.setText(
+            self.params.get('club_log_password', '')
+        )
+        self.club_log_callsign.setText(
+            self.params.get('club_log_callsign', '')
+        )
+
         # Load ADIF files (support both single file and multiple files for backward compatibility)
         selected_files = self.params.get('adif_file_paths')
         if selected_files is None:
@@ -1964,5 +2057,9 @@ class SettingsDialog(QtWidgets.QDialog):
             'grid_tracker_preference'                    : grid_tracker_preference,
             'enable_grid_reply_new_grid'                 : self.enable_grid_reply_new_grid.isChecked(),
             'enable_grid_reply_unconfirmed'              : self.enable_grid_reply_unconfirmed.isChecked(),
-            'priority_order'                             : priority_order
+            'priority_order'                             : priority_order,
+            'enable_club_log_synch'                      : self.enable_club_log_synch.isChecked(),
+            'club_log_email'                             : self.club_log_email.text(),
+            'club_log_password'                          : self.club_log_password.text(),
+            'club_log_callsign'                          : self.club_log_callsign.text()
         }

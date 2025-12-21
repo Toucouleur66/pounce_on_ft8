@@ -28,6 +28,7 @@ from utils import load_marathon_wanted_data, save_marathon_wanted_data
 from callsign_lookup import CallsignLookup
 from adif_monitor import AdifMonitor
 from telemetry_service import TelemetryService
+from clublog import ClubLogUploader
 
 log     = get_logger(__name__)
 lookup  = CallsignLookup()
@@ -48,7 +49,8 @@ from constants import (
     WKB4_REPLY_MODE_CURRENT_YEAR,
     ADIF_WORKED_CALLSIGNS_FILE,
     MARATHON_FILE,
-    PRIORITY_LIST
+    PRIORITY_LIST,
+    CLUB_LOG_API_KEY
 )
 
 class Listener(QObject):
@@ -87,6 +89,10 @@ class Listener(QObject):
             worked_before_preference,
             minimum_report_for_reply,
             priority_order,
+            enable_club_log_synch,
+            club_log_email,
+            club_log_password,
+            club_log_callsign,
             message_callback
         ):
         super().__init__()
@@ -213,8 +219,14 @@ class Listener(QObject):
 
         self.minimum_report_for_reply       = minimum_report_for_reply
 
-        self.adif_data                      = {} 
-        self.adif_monitor                   = None    
+        self.enable_club_log_synch          = enable_club_log_synch
+        self.club_log_email                 = club_log_email
+        self.club_log_password              = club_log_password
+        self.club_log_callsign              = club_log_callsign
+        self.club_log_uploader              = None
+
+        self.adif_data                      = {}
+        self.adif_monitor                   = None
         self.adif_file_paths                 = adif_file_paths or []      
 
         self._running                       = True     
@@ -247,6 +259,17 @@ class Listener(QObject):
             Initialize telemetry service
         """
         self.telemetry_service = TelemetryService()
+
+        """
+            Initialize Club Log uploader
+        """
+        if self.enable_club_log_synch and self.club_log_email and self.club_log_password:
+            self.club_log_uploader = ClubLogUploader(
+                self.club_log_email,
+                self.club_log_password,
+                CLUB_LOG_API_KEY,
+                self.club_log_callsign or ''
+            )
 
         """
             Use ADIF file to log
@@ -1791,6 +1814,21 @@ class Listener(QObject):
             with open(self.adif_worked_backup_file_path, "a") as adif_file:
                 adif_file.write(adif_entry)
             log.warning("QSO Logged [ {} ]".format(self.call_ready_to_log))
+
+            # Upload to Club Log if enabled
+            if self.club_log_uploader:
+                try:
+                    success, message = self.club_log_uploader.upload_qso(adif_entry)
+                    if success:
+                        self.club_log_uploader.update_cache(callsign, band)
+                        log.info(f"Club Log upload successful for {callsign}: {message}")
+                    else:
+                        log.error(f"Club Log upload failed for {callsign}: {message}")
+                        if "Authentication failed" in message:
+                            self.club_log_uploader = None
+                except Exception as club_log_error:
+                    log.error(f"Club Log upload error for {callsign}: {club_log_error}")
+
         except Exception as e:
             log.error(f"Can't write ADIF file {e}\n{traceback.format_exc()}")
 

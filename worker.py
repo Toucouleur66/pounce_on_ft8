@@ -75,9 +75,13 @@ class Worker(QObject):
             enable_grid_reply_new_grid         = False,
             enable_grid_reply_unconfirmed      = False,
             minimum_report_for_reply           = DEFAULT_MINIMUM_REPORT,
-            priority_order                     = None
+            priority_order                     = None,
+            enable_club_log_synch              = False,
+            club_log_email                     = '',
+            club_log_password                  = '',
+            club_log_callsign                  = ''
         ):
-        
+
         super().__init__()
 
         self.update_listener_settings_signal.connect(self.update_listener_settings)
@@ -129,6 +133,11 @@ class Worker(QObject):
         self.minimum_report_for_reply           = minimum_report_for_reply
         self.priority_order                     = priority_order
 
+        self.enable_club_log_synch              = enable_club_log_synch
+        self.club_log_email                     = club_log_email
+        self.club_log_password                  = club_log_password
+        self.club_log_callsign                  = club_log_callsign
+
         self.timer = QTimer()
         self.timer.timeout.connect(self.check_stop_event)
 
@@ -176,11 +185,16 @@ class Worker(QObject):
                 enable_grid_reply_unconfirmed   = self.enable_grid_reply_unconfirmed,
 
                 adif_file_paths                  = self.adif_file_paths,
-                adif_worked_backup_file_path     = self.adif_worked_backup_file_path,                
+                adif_worked_backup_file_path     = self.adif_worked_backup_file_path,
                 worked_before_preference        = self.worked_before_preference,
                 minimum_report_for_reply        = self.minimum_report_for_reply,
                 priority_order                  = self.priority_order,
-                
+
+                enable_club_log_synch           = self.enable_club_log_synch,
+                club_log_email                  = self.club_log_email,
+                club_log_password               = self.club_log_password,
+                club_log_callsign               = self.club_log_callsign,
+
                 message_callback                = self.message.emit
             )
             self.listener.listen()
@@ -259,6 +273,24 @@ class Worker(QObject):
             self.listener.minimum_report_for_reply              = self.minimum_report_for_reply
             if self.priority_order is not None:
                 self.listener.priority_order                    = self.priority_order
+
+            self.listener.enable_club_log_synch                 = self.enable_club_log_synch
+            self.listener.club_log_email                        = self.club_log_email
+            self.listener.club_log_password                     = self.club_log_password
+            self.listener.club_log_callsign                     = self.club_log_callsign
+
+            # Reinitialize Club Log uploader if settings changed
+            if self.enable_club_log_synch and self.club_log_email and self.club_log_password:
+                from clublog import ClubLogUploader
+                from constants import CLUB_LOG_API_KEY
+                self.listener.club_log_uploader = ClubLogUploader(
+                    self.club_log_email,
+                    self.club_log_password,
+                    CLUB_LOG_API_KEY,
+                    self.club_log_callsign or ''
+                )
+            else:
+                self.listener.club_log_uploader = None
             
             self.listener.update_listener_settings()
 

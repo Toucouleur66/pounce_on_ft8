@@ -3,6 +3,9 @@
 import os
 import xml.etree.ElementTree as ET
 import gzip
+import json
+import requests
+from urllib.parse import urlencode
 
 from updater import DownloadDialog
 
@@ -13,11 +16,16 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
 from PyQt6 import QtWidgets
 
+from logger import get_logger
+
 from utils import get_app_data_dir
 
 from constants import (
-    CTY_XML_URL
+    CTY_XML_URL,
+    CLUB_LOG_CACHE_FILE
     )
+
+log = get_logger(__name__)
 
 class ClubLogManager:
     def __init__(self, parent):
@@ -117,3 +125,93 @@ class ClubLogManager:
                 "Error",
                 f"An error occurred while processing the Club Log DXCC Info file: {str(e)}"
             )
+
+
+class ClubLogUploader:
+    REALTIME_API_URL = "https://clublog.org/realtime.php"
+
+    def __init__(self, email, password, api_key, callsign):
+        self.email = email
+        self.password = password
+        self.api_key = api_key
+        self.callsign = callsign
+        self.cache_file = CLUB_LOG_CACHE_FILE
+
+    @staticmethod
+    def get_cache_info():
+        try:
+            if os.path.exists(CLUB_LOG_CACHE_FILE):
+                with open(CLUB_LOG_CACHE_FILE, 'r') as f:
+                    data = json.load(f)
+                    return (
+                        data.get('last_sync_time'),
+                        data.get('total_qsos', 0),
+                        data.get('last_callsign', ''),
+                        data.get('last_band', '')
+                    )
+        except Exception as e:
+            log.error(f"Error reading Club Log cache: {e}")
+        return None, 0, '', ''
+
+    def update_cache(self, callsign, band):
+        try:
+            data = {
+                'last_sync_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'total_qsos': self.get_cache_info()[1] + 1,
+                'last_callsign': callsign,
+                'last_band': band
+            }
+            with open(self.cache_file, 'w') as f:
+                json.dump(data, f, indent=2)
+        except Exception as e:
+            log.error(f"Error updating Club Log cache: {e}")
+
+    def upload_qso(self, adif_record):
+        try:
+            data = {
+                'email': self.email,
+                'password': self.password,
+                'callsign': self.callsign,
+                'adif': adif_record,
+                'api': self.api_key
+            }
+
+            headers = {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+
+            log.debug(f"Uploading to Club Log: {self.REALTIME_API_URL}")
+            log.debug(f"Request data: email={self.email}, callsign={self.callsign}, api={self.api_key}")
+            log.debug(f"ADIF record: {adif_record}")
+
+            response = requests.post(
+                self.REALTIME_API_URL,
+                data=urlencode(data),
+                headers=headers,
+                timeout=10
+            )
+
+            if response.status_code != 200:
+                log.warning(f"Response status code: {response.status_code}")
+                log.warning(f"Response headers: {dict(response.headers)}")
+                log.warning(f"Response text: {response.text}")
+            
+                if response.status_code == 403:
+                    log.error(f"Club Log authentication failed - stopping uploads")
+                    return False, "Authentication failed"
+                elif response.status_code == 500:
+                    log.error(f"Club Log server error - will retry later")
+                    return False, "Server error"
+                elif response.status_code == 400:
+                    log.error(f"Club Log invalid QSO data: {response.text}")                
+                    return False, "Invalid QSO data"
+                else:
+                    log.error(f"Club Log unexpected response: {response.status_code} - {response.text}")
+                    return False, f"Unexpected response: {response.status_code}"
+
+        except requests.exceptions.Timeout:
+            log.error("Club Log upload timeout")
+            return False, "Timeout"
+        except Exception as e:
+            log.error(f"Club Log upload error: {e}")
+            return False, str(e)
