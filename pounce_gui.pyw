@@ -2745,8 +2745,8 @@ class MainApp(QtWidgets.QMainWindow):
         if dark_mode:
             app_palette.setColor(QtGui.QPalette.ColorRole.Window, QtGui.QColor("#2B2B2B"))
             app_palette.setColor(QtGui.QPalette.ColorRole.WindowText, QtGui.QColor("#FFFFFF"))
-            app_palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor("#353535"))
-            app_palette.setColor(QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor("#454545"))
+            app_palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor(qt_bg_color))
+            app_palette.setColor(QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor("#353535"))
             app_palette.setColor(QtGui.QPalette.ColorRole.ToolTipBase, QtGui.QColor("#353535"))
             app_palette.setColor(QtGui.QPalette.ColorRole.ToolTipText, QtGui.QColor("#FFFFFF"))
             app_palette.setColor(QtGui.QPalette.ColorRole.Text, QtGui.QColor("#FFFFFF"))
@@ -2756,7 +2756,7 @@ class MainApp(QtWidgets.QMainWindow):
             app_palette.setColor(QtGui.QPalette.ColorRole.Link, QtGui.QColor("#42A5F5"))
             app_palette.setColor(QtGui.QPalette.ColorRole.Highlight, QtGui.QColor("#42A5F5"))
             app_palette.setColor(QtGui.QPalette.ColorRole.HighlightedText, QtGui.QColor("#000000"))
-            app_palette.setColor(QtGui.QPalette.ColorRole.Mid, QtGui.QColor("#555555"))
+            app_palette.setColor(QtGui.QPalette.ColorRole.Mid, QtGui.QColor(qt_bg_color))
         else:
             app_palette.setColor(QtGui.QPalette.ColorRole.Window, QtGui.QColor("#F0F0F0"))
             app_palette.setColor(QtGui.QPalette.ColorRole.WindowText, QtGui.QColor("#000000"))
@@ -2788,37 +2788,36 @@ class MainApp(QtWidgets.QMainWindow):
             }}
         """)
 
-        table_palette = QtGui.QPalette()          
-
+        # Set table colors directly in variables for easier control
         if dark_mode:
-            table_palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor('#353535'))
-            table_palette.setColor(QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor('#454545'))
-            table_palette.setColor(QtGui.QPalette.ColorRole.Text, QtGui.QColor('#FFFFFF'))
-
+            table_bg = '#353535'
+            table_alt_bg = '#3f3f3f'
+            table_text = '#FFFFFF'
             self.activity_bar.setColors("#3D3D3D", "#FFFFFF", "#101010")
         else:
-            table_palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor('#FFFFFF'))
-            table_palette.setColor(QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor('#F4F5F5'))
-            table_palette.setColor(QtGui.QPalette.ColorRole.Text, QtGui.QColor('#000000'))
-
+            table_bg = '#FFFFFF'
+            table_alt_bg = '#F4F5F5'
+            table_text = '#000000'
             self.activity_bar.setColors("#FFFFFF", "#000000", "#C6C6C6")
 
-        gridline_color      = '#D3D3D3' if not dark_mode else '#171717'
-        background_color    = '#FFFFFF' if not dark_mode else '#353535'
+        gridline_color = '#D3D3D3' if not dark_mode else '#171717'
 
-        table_qss           = f"""
-            QTableView {{ 
-                background-color: {background_color};
-                gridline-color: {gridline_color}; 
+        # Use stylesheet for complete control over table colors
+        table_qss = f"""
+            QTableView {{
+                background-color: {table_bg};
+                alternate-background-color: {table_alt_bg};
+                color: {table_text};
+                gridline-color: {gridline_color};
                 border: 1px solid palette(Mid);
             }}
             QTableView::item {{
                 padding: 5px;
-            }}            
+            }}
             QHeaderView::section {{
                 font-weight: normal;
                 border: none;
-                font: {CUSTOM_FONT_SMALL.pointSize()}pt '{CUSTOM_FONT_SMALL.family() }';
+                font: {CUSTOM_FONT_SMALL.pointSize()}pt '{CUSTOM_FONT_SMALL.family()}';
                 padding: 0 3px 0 3px;
                 border-right: 1px solid {gridline_color};
             }}
@@ -2828,10 +2827,8 @@ class MainApp(QtWidgets.QMainWindow):
         """
 
         self.output_table.setStyleSheet(table_qss)
-        self.output_table.setPalette(table_palette)
         self.output_table.setShowGrid(False)
         self.wait_pounce_history_table.setStyleSheet(table_qss)
-        self.wait_pounce_history_table.setPalette(table_palette)
         self.wait_pounce_history_table.setShowGrid(False)
 
         # Update active users window theme if it exists
