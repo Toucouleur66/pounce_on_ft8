@@ -2402,9 +2402,22 @@ class GridMapWindow(QMainWindow):
 
         self.theme_timer = QTimer(self)
         self.theme_timer.timeout.connect(self.theme_manager.check_theme_change)
-        self.theme_timer.start(1_000) 
 
-        self.apply_theme_to_all(self.theme_manager.dark_mode)
+        # Get theme mode from main app if available
+        from constants import THEME_MODE_LIGHT, THEME_MODE_DARK, THEME_MODE_SYSTEM
+        if self.main_gui and hasattr(self.main_gui, 'theme_mode_setting'):
+            self.theme_mode_setting = self.main_gui.theme_mode_setting
+        else:
+            self.theme_mode_setting = THEME_MODE_SYSTEM
+
+        # Apply initial theme based on setting
+        if self.theme_mode_setting == THEME_MODE_LIGHT:
+            self.apply_palette(False)
+        elif self.theme_mode_setting == THEME_MODE_DARK:
+            self.apply_palette(True)
+        else:
+            self.theme_timer.start(1_000)
+            self.apply_theme_to_all(self.theme_manager.dark_mode)
         
         self.map_widget.setFocus()
         
@@ -2756,16 +2769,56 @@ class GridMapWindow(QMainWindow):
             self.apply_palette(self.dark_mode)
 
     def apply_theme_to_all(self, dark_mode):
-        self.apply_palette(dark_mode)            
+        from constants import THEME_MODE_SYSTEM
+        if hasattr(self, 'theme_mode_setting') and self.theme_mode_setting == THEME_MODE_SYSTEM:
+            self.apply_palette(dark_mode)            
     
     def apply_palette(self, dark_mode):
+        from PyQt6.QtWidgets import QApplication
+        from PyQt6.QtGui import QPalette, QColor
+
         self.dark_mode = dark_mode
-        
+
         if dark_mode:
             qt_bg_color = "#353535"
         else:
             qt_bg_color = "#E0E0E0"
-        
+
+        # Set global application palette
+        app_palette = QPalette()
+        if dark_mode:
+            app_palette.setColor(QPalette.ColorRole.Window, QColor("#2B2B2B"))
+            app_palette.setColor(QPalette.ColorRole.WindowText, QColor("#FFFFFF"))
+            app_palette.setColor(QPalette.ColorRole.Base, QColor("#353535"))
+            app_palette.setColor(QPalette.ColorRole.AlternateBase, QColor("#454545"))
+            app_palette.setColor(QPalette.ColorRole.ToolTipBase, QColor("#353535"))
+            app_palette.setColor(QPalette.ColorRole.ToolTipText, QColor("#FFFFFF"))
+            app_palette.setColor(QPalette.ColorRole.Text, QColor("#FFFFFF"))
+            app_palette.setColor(QPalette.ColorRole.Button, QColor("#353535"))
+            app_palette.setColor(QPalette.ColorRole.ButtonText, QColor("#FFFFFF"))
+            app_palette.setColor(QPalette.ColorRole.BrightText, QColor("#FF0000"))
+            app_palette.setColor(QPalette.ColorRole.Link, QColor("#42A5F5"))
+            app_palette.setColor(QPalette.ColorRole.Highlight, QColor("#42A5F5"))
+            app_palette.setColor(QPalette.ColorRole.HighlightedText, QColor("#000000"))
+            app_palette.setColor(QPalette.ColorRole.Mid, QColor("#555555"))
+        else:
+            app_palette.setColor(QPalette.ColorRole.Window, QColor("#F0F0F0"))
+            app_palette.setColor(QPalette.ColorRole.WindowText, QColor("#000000"))
+            app_palette.setColor(QPalette.ColorRole.Base, QColor("#FFFFFF"))
+            app_palette.setColor(QPalette.ColorRole.AlternateBase, QColor("#F4F5F5"))
+            app_palette.setColor(QPalette.ColorRole.ToolTipBase, QColor("#FFFFDC"))
+            app_palette.setColor(QPalette.ColorRole.ToolTipText, QColor("#000000"))
+            app_palette.setColor(QPalette.ColorRole.Text, QColor("#000000"))
+            app_palette.setColor(QPalette.ColorRole.Button, QColor("#F0F0F0"))
+            app_palette.setColor(QPalette.ColorRole.ButtonText, QColor("#000000"))
+            app_palette.setColor(QPalette.ColorRole.BrightText, QColor("#FF0000"))
+            app_palette.setColor(QPalette.ColorRole.Link, QColor("#0000FF"))
+            app_palette.setColor(QPalette.ColorRole.Highlight, QColor("#308CC6"))
+            app_palette.setColor(QPalette.ColorRole.HighlightedText, QColor("#FFFFFF"))
+            app_palette.setColor(QPalette.ColorRole.Mid, QColor("#B0B0B0"))
+
+        QApplication.instance().setPalette(app_palette)
+
         # Apply theme to main window
         self.setStyleSheet(f"""
             QMainWindow {{
@@ -2774,11 +2827,27 @@ class GridMapWindow(QMainWindow):
         """)
 
         self.heatmap_controls_widget.setStyleSheet(f"""
-            QWidget#HeatMapControlsWidget {{                
+            QWidget#HeatMapControlsWidget {{
                 border-radius: 8px;
             }}
         """)
-    
+
+    def update_theme_from_main_app(self, theme_mode, dark_mode):
+        """Update theme when main app's theme setting changes"""
+        from constants import THEME_MODE_LIGHT, THEME_MODE_DARK, THEME_MODE_SYSTEM
+
+        self.theme_mode_setting = theme_mode
+
+        if theme_mode == THEME_MODE_LIGHT:
+            self.theme_timer.stop()
+            self.apply_palette(False)
+        elif theme_mode == THEME_MODE_DARK:
+            self.theme_timer.stop()
+            self.apply_palette(True)
+        else:  # THEME_MODE_SYSTEM
+            self.theme_timer.start(1_000)
+            self.apply_palette(dark_mode)
+
     def showEvent(self, event):
         super().showEvent(event)
         if hasattr(self, '_set_taskbar_properties'):

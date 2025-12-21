@@ -128,6 +128,10 @@ from constants import (
     # Datetime column
     DATE_COLUMN_DATETIME,
     DATE_COLUMN_AGE,
+    # Theme mode
+    THEME_MODE_LIGHT,
+    THEME_MODE_DARK,
+    THEME_MODE_SYSTEM,
     # Timer
     DEFAULT_MODE_TIMER_VALUE,
     # Band,
@@ -353,6 +357,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.enable_sending_reply               = self.local_params.get('enable_sending_reply', DEFAULT_SENDING_REPLY)
         self.enable_show_all_decoded            = self.local_params.get('enable_show_all_decoded', DEFAULT_SHOW_ALL_DECODED)
         self.datetime_column_setting            = self.local_params.get('datetime_column_setting', DATE_COLUMN_DATETIME)
+        self.theme_mode_setting                 = self.local_params.get('theme_mode_setting', THEME_MODE_SYSTEM)
 
         self.adif_file_path                     = self.local_params.get('adif_file_path', None)
         self.worked_before_preference           = convert_wkb4_reply_mode(self.local_params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS))
@@ -722,7 +727,16 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.load_worked_history_callsigns()
         self.load_temp_excluded_callsigns()
-        self.apply_theme_to_all(self.theme_manager.dark_mode)
+
+        if self.theme_mode_setting == THEME_MODE_LIGHT:
+            self.theme_timer.stop()
+            self.apply_palette(False)
+        elif self.theme_mode_setting == THEME_MODE_DARK:
+            self.theme_timer.stop()
+            self.apply_palette(True)
+        else:
+            self.apply_theme_to_all(self.theme_manager.dark_mode)
+
         self.load_window_position()
         self.toggle_wkb4_column_visibility()        
 
@@ -1442,7 +1456,44 @@ class MainApp(QtWidgets.QMainWindow):
         self.datetime_column_action.setChecked(self.datetime_column_setting == DATE_COLUMN_DATETIME)
         self.age_column_action.setChecked(self.datetime_column_setting == DATE_COLUMN_AGE)
 
-        self.save_unique_param('datetime_column_setting', self.datetime_column_setting)  
+        self.save_unique_param('datetime_column_setting', self.datetime_column_setting)
+
+    def enable_light_theme(self):
+        self.theme_mode_setting = THEME_MODE_LIGHT
+        self.theme_timer.stop()
+        self.apply_palette(False)
+        self.update_theme_mode_param()
+
+        # Propagate to GridMapWindow if it exists
+        if self.grid_monitor and hasattr(self.grid_monitor, 'update_theme_from_main_app'):
+            self.grid_monitor.update_theme_from_main_app(THEME_MODE_LIGHT, False)
+
+    def enable_dark_theme(self):
+        self.theme_mode_setting = THEME_MODE_DARK
+        self.theme_timer.stop()
+        self.apply_palette(True)
+        self.update_theme_mode_param()
+
+        # Propagate to GridMapWindow if it exists
+        if self.grid_monitor and hasattr(self.grid_monitor, 'update_theme_from_main_app'):
+            self.grid_monitor.update_theme_from_main_app(THEME_MODE_DARK, True)
+
+    def enable_system_theme(self):
+        self.theme_mode_setting = THEME_MODE_SYSTEM
+        self.theme_timer.start(1_000)
+        self.apply_theme_to_all(self.theme_manager.dark_mode)
+        self.update_theme_mode_param()
+
+        # Propagate to GridMapWindow if it exists
+        if self.grid_monitor and hasattr(self.grid_monitor, 'update_theme_from_main_app'):
+            self.grid_monitor.update_theme_from_main_app(THEME_MODE_SYSTEM, self.theme_manager.dark_mode)
+
+    def update_theme_mode_param(self):
+        self.light_theme_action.setChecked(self.theme_mode_setting == THEME_MODE_LIGHT)
+        self.dark_theme_action.setChecked(self.theme_mode_setting == THEME_MODE_DARK)
+        self.system_theme_action.setChecked(self.theme_mode_setting == THEME_MODE_SYSTEM)
+
+        self.save_unique_param('theme_mode_setting', self.theme_mode_setting)
 
     def clear_line_edit(self, line_edit, button):
         line_edit.clear()
@@ -1540,7 +1591,8 @@ class MainApp(QtWidgets.QMainWindow):
         return color_combo
 
     def apply_theme_to_all(self, dark_mode):
-        self.apply_palette(dark_mode)
+        if self.theme_mode_setting == THEME_MODE_SYSTEM:
+            self.apply_palette(dark_mode)
 
     def on_tab_clicked(self, tab_band):
         self.gui_selected_band = tab_band
@@ -2679,27 +2731,56 @@ class MainApp(QtWidgets.QMainWindow):
 
         QtCore.QProcess.startDetached(sys.executable, sys.argv)
         QtWidgets.QApplication.quit()
-    
-    def check_theme_change(self):
-        current_dark_mode = ThemeManager.is_dark_apperance()
-        if current_dark_mode != self.dark_mode:
-            self.dark_mode = current_dark_mode
-            self.apply_palette(self.dark_mode)
         
     def apply_palette(self, dark_mode):
         self.dark_mode = dark_mode
-        
+
         if dark_mode:
             qt_bg_color = "#181818"
         else:
             qt_bg_color = "#E0E0E0"
 
+        # Set global application palette
+        app_palette = QtGui.QPalette()
+        if dark_mode:
+            app_palette.setColor(QtGui.QPalette.ColorRole.Window, QtGui.QColor("#2B2B2B"))
+            app_palette.setColor(QtGui.QPalette.ColorRole.WindowText, QtGui.QColor("#FFFFFF"))
+            app_palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor("#353535"))
+            app_palette.setColor(QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor("#454545"))
+            app_palette.setColor(QtGui.QPalette.ColorRole.ToolTipBase, QtGui.QColor("#353535"))
+            app_palette.setColor(QtGui.QPalette.ColorRole.ToolTipText, QtGui.QColor("#FFFFFF"))
+            app_palette.setColor(QtGui.QPalette.ColorRole.Text, QtGui.QColor("#FFFFFF"))
+            app_palette.setColor(QtGui.QPalette.ColorRole.Button, QtGui.QColor("#353535"))
+            app_palette.setColor(QtGui.QPalette.ColorRole.ButtonText, QtGui.QColor("#FFFFFF"))
+            app_palette.setColor(QtGui.QPalette.ColorRole.BrightText, QtGui.QColor("#FF0000"))
+            app_palette.setColor(QtGui.QPalette.ColorRole.Link, QtGui.QColor("#42A5F5"))
+            app_palette.setColor(QtGui.QPalette.ColorRole.Highlight, QtGui.QColor("#42A5F5"))
+            app_palette.setColor(QtGui.QPalette.ColorRole.HighlightedText, QtGui.QColor("#000000"))
+            app_palette.setColor(QtGui.QPalette.ColorRole.Mid, QtGui.QColor("#555555"))
+        else:
+            app_palette.setColor(QtGui.QPalette.ColorRole.Window, QtGui.QColor("#F0F0F0"))
+            app_palette.setColor(QtGui.QPalette.ColorRole.WindowText, QtGui.QColor("#000000"))
+            app_palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor("#FFFFFF"))
+            app_palette.setColor(QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor("#F4F5F5"))
+            app_palette.setColor(QtGui.QPalette.ColorRole.ToolTipBase, QtGui.QColor("#FFFFDC"))
+            app_palette.setColor(QtGui.QPalette.ColorRole.ToolTipText, QtGui.QColor("#000000"))
+            app_palette.setColor(QtGui.QPalette.ColorRole.Text, QtGui.QColor("#000000"))
+            app_palette.setColor(QtGui.QPalette.ColorRole.Button, QtGui.QColor("#F0F0F0"))
+            app_palette.setColor(QtGui.QPalette.ColorRole.ButtonText, QtGui.QColor("#000000"))
+            app_palette.setColor(QtGui.QPalette.ColorRole.BrightText, QtGui.QColor("#FF0000"))
+            app_palette.setColor(QtGui.QPalette.ColorRole.Link, QtGui.QColor("#0000FF"))
+            app_palette.setColor(QtGui.QPalette.ColorRole.Highlight, QtGui.QColor("#308CC6"))
+            app_palette.setColor(QtGui.QPalette.ColorRole.HighlightedText, QtGui.QColor("#FFFFFF"))
+            app_palette.setColor(QtGui.QPalette.ColorRole.Mid, QtGui.QColor("#B0B0B0"))
+
+        QtWidgets.QApplication.instance().setPalette(app_palette)
+
         self.worked_history_widget.setStyleSheet(f"""
             #worked_history_widget {{
                 border-left: 1px solid palette(Mid);
-            }}                                        
-        """)            
-        
+            }}
+        """)
+
         self.filter_widget.setStyleSheet(f"""
             QWidget#FilterWidget {{
                 background-color: {qt_bg_color};
@@ -2756,6 +2837,24 @@ class MainApp(QtWidgets.QMainWindow):
         # Update active users window theme if it exists
         if hasattr(self, 'active_users_window') and self.active_users_window is not None:
             self.active_users_window.apply_palette(dark_mode)
+
+        # Update CustomQLabel instances with palette colors
+        text_color = "#FFFFFF" if dark_mode else "#000000"
+        custom_labels = [
+            self.reply_label,
+            self.all_label,
+            self.filters_label,
+            self.map_label,
+            self.alternate_compact_view_label
+        ]
+        for label in custom_labels:
+            if label:
+                label.setStyleSheet(f"""
+                    QLabel {{
+                        font: {CUSTOM_FONT.pointSize()}pt '{CUSTOM_FONT.family()}';
+                        color: {text_color};
+                    }}
+                """)
 
         self.update_tab_widget_labels_style()
 
@@ -3425,6 +3524,35 @@ class MainApp(QtWidgets.QMainWindow):
         action_group.addAction(self.age_column_action)
         action_group.addAction(self.datetime_column_action)
         action_group.setExclusive(True)
+
+        self.window_menu.addSeparator()
+
+        theme_menu = self.window_menu.addMenu("Theme")
+
+        self.light_theme_action = QtGui.QAction("Light", self)
+        self.light_theme_action.setCheckable(True)
+        self.light_theme_action.setChecked(self.theme_mode_setting == THEME_MODE_LIGHT)
+        self.light_theme_action.triggered.connect(self.enable_light_theme)
+
+        self.dark_theme_action = QtGui.QAction("Dark", self)
+        self.dark_theme_action.setCheckable(True)
+        self.dark_theme_action.setChecked(self.theme_mode_setting == THEME_MODE_DARK)
+        self.dark_theme_action.triggered.connect(self.enable_dark_theme)
+
+        self.system_theme_action = QtGui.QAction("System", self)
+        self.system_theme_action.setCheckable(True)
+        self.system_theme_action.setChecked(self.theme_mode_setting == THEME_MODE_SYSTEM)
+        self.system_theme_action.triggered.connect(self.enable_system_theme)
+
+        theme_menu.addAction(self.light_theme_action)
+        theme_menu.addAction(self.dark_theme_action)
+        theme_menu.addAction(self.system_theme_action)
+
+        theme_action_group = QtGui.QActionGroup(self)
+        theme_action_group.addAction(self.light_theme_action)
+        theme_action_group.addAction(self.dark_theme_action)
+        theme_action_group.addAction(self.system_theme_action)
+        theme_action_group.setExclusive(True)
 
         self.window_menu.addSeparator()
         self.clear_worked_history_action = QtGui.QAction("Clear Worked Callsigns History", self)
