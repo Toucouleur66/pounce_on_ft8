@@ -7,11 +7,14 @@ from PyQt6 import QtWidgets, QtCore
 from utils import band_sort_key
 
 from constants import (
-    CONTEXT_MENU_DARWIN_QSS,
-    CONTEXT_MENU_HEADER_QSS,
-    CONTEXT_MENU_EXCLUDED_QSS,
     MENU_FONT,
     SLAVE
+)
+
+from style import (
+    CONTEXT_MENU_DARWIN_QSS,
+    CONTEXT_MENU_HEADER_QSS,
+    CONTEXT_MENU_EXCLUDED_QSS
 )
 
 class ContextMenuHandler:

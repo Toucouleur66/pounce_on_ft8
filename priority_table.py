@@ -4,8 +4,7 @@ from PyQt6 import QtGui
 from PyQt6.QtWidgets import QTableWidgetItem, QTableWidget
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 
-from constants import (
-    # Colors
+from style import (
     BG_COLOR_BLACK_ON_PURPLE
 )
 

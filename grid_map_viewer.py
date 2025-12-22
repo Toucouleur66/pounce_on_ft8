@@ -24,20 +24,22 @@ from logger import get_logger
 
 from utils import darken_color
 
-from constants import (
-    CURRENT_VERSION_NUMBER,
-    CUSTOM_FONT,
-    CUSTOM_FONT_SMALL,
-    GUI_LABEL_VERSION,
+from style import (
     # Colors
     STATUS_MONITORING_COLOR,
     BG_COLOR_BLACK_ON_YELLOW,
-    FG_COLOR_REGULAR_FOCUS,
     FG_COLOR_REGULAR_FOCUS,
     BG_COLOR_REGULAR_FOCUS,
     # Stylesheets
     QSLIDER_QSS,
     SLIDER_VALUE_LABEL_QSS,
+)
+
+from constants import (
+    CURRENT_VERSION_NUMBER,
+    CUSTOM_FONT,
+    CUSTOM_FONT_SMALL,
+    GUI_LABEL_VERSION,
     # Symbols
     LOTW_SYMBOL,
     QSL_RCVD_SYMBOL

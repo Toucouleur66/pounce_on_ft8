@@ -7,7 +7,7 @@ import platform
 from datetime import datetime
 from utils import get_app_data_dir
 
-CURRENT_VERSION_NUMBER          = "2.15.1"
+CURRENT_VERSION_NUMBER          = "2.16"
 EXPIRATION_DATE                 = datetime(2026, 12, 15)
 UPDATE_JSON_INFO_URL            = "https://storage.de.cloud.ovh.net/v1/AUTH_31163bb499dc49eb819aacdfd32ae82c/wait.and.pounce/public/update_info.json"
 
@@ -17,54 +17,7 @@ EVEN                            = "EVEN"
 ODD                             = "ODD"
 
 MASTER                          = "Master"
-SLAVE                           = "Slave"      
-
-EVEN_COLOR                      = "#9DFFFE"
-ODD_COLOR                       = "#FFFE9F"
-FG_TIMER_COLOR                  = "#3D25FB"
-
-"""
-BG_COLOR_FOCUS_MY_CALL          = "#CCDEAA"
-"""
-BG_COLOR_FOCUS_MY_CALL          = ODD_COLOR
-FG_COLOR_FOCUS_MY_CALL          = "#FF0000"
-
-BG_COLOR_REGULAR_FOCUS          = "#000000"
-FG_COLOR_REGULAR_FOCUS          = "#01FFFF"
-
-BG_COLOR_BLACK_ON_YELLOW        = "#FFFF00"
-FG_COLOR_BLACK_ON_YELLOW        = "#000000"
-
-BG_COLOR_BLACK_ON_SAUMON        = "#FFDFBC"
-FG_COLOR_BLACK_ON_SAUMON        = "#000000"
-
-BG_COLOR_WHITE_ON_BLUE          = "#AEB4FF"
-FG_COLOR_WHITE_ON_BLUE          = "#000000"
-
-BG_COLOR_BLACK_ON_LIGHT_BLUE    = "#b8d7ff"
-FG_COLOR_BLACK_ON_LIGHT_BLUE    = "#000000"
-
-BG_COLOR_BLACK_ON_PURPLE        = "#FFBDFF"
-FG_COLOR_BLACK_ON_PURPLE        = "#000000"
-
-BG_COLOR_BLACK_ON_WHITE         = "#000000"
-FG_COLOR_BLACK_ON_WHITE         = "#FFFFFF"
-
-BG_COLOR_BLACK_ON_CYAN          = "#C8F0C9"
-FG_COLOR_BLACK_ON_CYAN          = "#000000"
-
-BG_COLOR_BLACK_ON_LIGHT_TEAL     = "#E5F7F7"
-FG_COLOR_BLACK_ON_LIGHT_TEAL     = "#000000"
-
-BG_COLOR_WHITE_ON_BLUE_VIOLET   = FG_TIMER_COLOR
-FG_COLOR_WHITE_ON_BLUE_VIOLET   = EVEN_COLOR
-
-STATUS_MONITORING_COLOR         = "#0D81FF"
-STATUS_DECODING_COLOR           = "#2BBE7E"
-STATUS_TRX_COLOR                = "#FF5600"
-
-STATUS_COLOR_LABEL_OFF          = "#E5E5E5"
-STATUS_COLOR_LABEL_SELECTED     = "#808080"
+SLAVE                           = "Slave"
 
 SAVED_VERSION_FILE              = os.path.join(get_app_data_dir(), "app_version.json")
 MARATHON_FILE                   = os.path.join(get_app_data_dir(), "marathon.json")
@@ -181,112 +134,6 @@ PRIORITY_LIST                   = {
     "New Grid"                  : "wanted_grid",        
     "Politeness reply"          : "polite_reply",
 }
-
-SETTING_QSS                     = f"""
-                background-color: {EVEN_COLOR}; 
-                color: #555BC2;
-                padding: 6px;
-                margin-bottom: 10px;
-                font-size: 12px;
-                border-radius: 6px;
-        """
-
-TABLE_SETTING_QSS               = f"""
-            QTableWidget {{
-                gridline-color: transparent;
-                selection-background-color: {BG_COLOR_BLACK_ON_PURPLE};
-                outline: none;
-            }}
-            QTableWidget::item:selected {{
-                background-color: {BG_COLOR_BLACK_ON_PURPLE}; 
-                color: {FG_COLOR_BLACK_ON_PURPLE};
-                padding: 0px;                
-                padding-left: 8px;
-                border: 0px solid transparent;
-                outline: none;
-            }}
-            QTableWidget::item {{
-                padding: 0px;
-                padding-left: 8px;
-                border: 0px solid transparent;
-                outline: none;
-            }}
-        """
-
-CONTEXT_MENU_DARWIN_QSS         = f"""
-            QMenu {{
-                background-color: rgba(255, 255, 255, 0.95);                
-                border-radius: 6px;
-                padding: 6px;
-            }}
-            QMenu::item {{
-                padding: 4px 12px;
-                font-size: 12px;
-                color: black;
-            }}
-            QMenu::item:selected {{
-                background-color: #499EFF;
-                border-radius: 4px;
-                color: white;
-            }}
-            QMenu::item:disabled {{
-                color: grey;
-            }}
-            QMenu::separator {{
-                height: 1px;
-                background: #CCCCCC;
-                margin: 4px 0;
-            }}
-        """
-
-QSLIDER_QSS                     = f"""            
-            QSlider::groove:horizontal {{
-                border: 1px solid #999999;
-                height: 10px;
-            }}
-            QSlider::handle:horizontal {{
-                background: ■#fff;
-                width: 10px;
-                margin: -1px -1px;
-                border: 1px solid #5555ff;
-            }}
-            QSlider::handle:horizontal:hover {{
-                background: #000;
-                border-color:#000;
-            }}
-            QSlider::add-page:horizontal {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #B1B1B1, stop:1 #c4c4c4);
-            }}                
-            QSlider::sub-page:horizontal {{
-                background: {STATUS_MONITORING_COLOR};
-            }}                
-        """
-
-SLIDER_VALUE_LABEL_QSS          = f"""
-            QLabel {{
-                background-color: {STATUS_MONITORING_COLOR};
-                color: white;
-                border-radius: 8px;
-                padding: 2px 5px;
-                height: 10px;
-            }}
-        """
-
-CONTEXT_MENU_HEADER_QSS         = f"""
-                background-color: {STATUS_TRX_COLOR};
-                color: white;
-                border-radius: 4px;
-                padding: 4px 12px;
-                font-size: 12px;
-        """
-
-CONTEXT_MENU_EXCLUDED_QSS         = f"""
-                background-color: {STATUS_MONITORING_COLOR};
-                color: white;
-                border-radius: 4px;
-                padding: 4px 12px;
-                font-size: 12px;
-        """
 
 DISCORD_SECTION                 = '<a href="https://discord.gg/fqCu24naCM">Support available on Discord</a>'
 DONATION_URL                    = "https://www.paypal.com/donate/?cmd=_s-xclick&hosted_button_id=R4HK9ZTUPYHSL&ssrt=1732865689562"

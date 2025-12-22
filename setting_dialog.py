@@ -22,11 +22,15 @@ from utils import get_local_ip_address, get_log_filename
 from utils import parse_adif
 from utils import AMATEUR_BANDS, ADIF_FIELD_RE
 
-from constants import (
+from style import get_setting_qss, get_table_setting_qss, get_odd_color, get_groupbox_qss
+from style import (
     # Colors
-    SETTING_QSS,
-    TABLE_SETTING_QSS,
     STATUS_TRX_COLOR,
+    EVEN_COLOR,
+    ODD_COLOR
+)
+
+from constants import (
     # Labels
     GUI_LABEL_NAME,
     # Modes
@@ -63,9 +67,6 @@ from constants import (
     # Fonts
     CUSTOM_FONT,
     CUSTOM_FONT_SMALL,
-    # Style,
-    SETTING_QSS,
-    ODD_COLOR,
     # ADIF
     ADIF_WORKED_CALLSIGNS_FILE,
     CLUB_LOG_CACHE_FILE,
@@ -73,12 +74,18 @@ from constants import (
 )
 
 class SettingsDialog(QtWidgets.QDialog):
-    def __init__(self, parent=None, params=None):
+    def __init__(self, parent=None, params=None, dark_mode=False):
         super().__init__(parent)
         self.setWindowTitle("Settings")
 
         self.params = params or {}
-        
+        self.dark_mode = dark_mode
+
+        # Collections for widgets that need theme updates
+        self.notice_labels = []
+        self.group_boxes = []
+        self.table_widgets = []
+
         self.marathon_preference     = self.params.get('marathon_preference', {})
         self.grid_tracker_preference = self.params.get('grid_tracker_preference', {})
 
@@ -98,7 +105,7 @@ class SettingsDialog(QtWidgets.QDialog):
             "General Settings",
             "Offset Updater",
             "Sound Alerts",
-            "Logbook of The World®",
+            "Logbook of The World",
             "DX Marathon",
             "Grid Tracker",
             "Priority Manager",
@@ -182,10 +189,18 @@ class SettingsDialog(QtWidgets.QDialog):
         jtdx_notice_label.setWordWrap(True)
         jtdx_notice_label.setFont(CUSTOM_FONT_SMALL)
         jtdx_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
-        jtdx_notice_label.setStyleSheet(SETTING_QSS)
+        jtdx_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
+
+        print(f"EVEN_COLOR value: {EVEN_COLOR}")                                     
+        stylesheet = get_setting_qss(EVEN_COLOR)                                     
+        print(f"Generated stylesheet: {stylesheet}")                                 
+        jtdx_notice_label.setStyleSheet(stylesheet)              
+        
+        self.notice_labels.append(jtdx_notice_label)
         jtdx_notice_label.setAutoFillBackground(True)
 
         primary_group = QtWidgets.QGroupBox("Main UDP instance (the one set as Primary UDP Server on JTDX)")
+        self.group_boxes.append(primary_group)
         primary_group.setFont(CUSTOM_FONT_SMALL)
         primary_layout = QtWidgets.QGridLayout()
 
@@ -213,6 +228,7 @@ class SettingsDialog(QtWidgets.QDialog):
         primary_group.setLayout(primary_layout)
 
         secondary_group = QtWidgets.QGroupBox("Secondary UDP Server (used to forward UDP packets)")
+        self.group_boxes.append(secondary_group)
         secondary_group.setFont(CUSTOM_FONT_SMALL)
         secondary_layout = QtWidgets.QGridLayout()
 
@@ -240,6 +256,7 @@ class SettingsDialog(QtWidgets.QDialog):
         secondary_group.setLayout(secondary_layout)
 
         logging_group = QtWidgets.QGroupBox("UDP instance for external logging program (e.g. Logger32, RUMlogNG)")
+        self.group_boxes.append(logging_group)
         logging_group.setFont(CUSTOM_FONT_SMALL)
         logging_layout = QtWidgets.QGridLayout()
 
@@ -282,7 +299,8 @@ class SettingsDialog(QtWidgets.QDialog):
         general_notice_label.setWordWrap(True)
         general_notice_label.setFont(CUSTOM_FONT_SMALL)
         general_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
-        general_notice_label.setStyleSheet(SETTING_QSS)
+        general_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
+        self.notice_labels.append(general_notice_label)
         general_notice_label.setAutoFillBackground(True)
 
         """
@@ -295,10 +313,12 @@ class SettingsDialog(QtWidgets.QDialog):
         offset_notice_label.setWordWrap(True)
         offset_notice_label.setFont(CUSTOM_FONT_SMALL)
         offset_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
-        offset_notice_label.setStyleSheet(SETTING_QSS)
+        offset_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
+        self.notice_labels.append(offset_notice_label)
         offset_notice_label.setAutoFillBackground(True)
 
         offset_settings_group = QtWidgets.QGroupBox("Frequency Offset Settings")
+        self.group_boxes.append(offset_settings_group)
         offset_settings_group.setFont(CUSTOM_FONT_SMALL)
         
         offset_settings_widget = QtWidgets.QWidget()
@@ -316,6 +336,7 @@ class SettingsDialog(QtWidgets.QDialog):
         offset_settings_group.layout().addWidget(offset_settings_widget)
 
         general_settings_group = QtWidgets.QGroupBox(f"General {GUI_LABEL_NAME} Settings")
+        self.group_boxes.append(general_settings_group)
         general_settings_group.setFont(CUSTOM_FONT_SMALL)
         
         general_settings_widget = QtWidgets.QWidget()
@@ -361,6 +382,7 @@ class SettingsDialog(QtWidgets.QDialog):
 
 
         self.freq_range_type_group = QtWidgets.QGroupBox("Select range of frequency being used for offset updater")
+        self.group_boxes.append(self.freq_range_type_group)
         self.freq_range_type_group.setFont(CUSTOM_FONT_SMALL)
 
         udp_freq_range_type_widget = QtWidgets.QWidget()
@@ -486,7 +508,8 @@ class SettingsDialog(QtWidgets.QDialog):
             }
         """)
 
-        self.mode_table_widget.setStyleSheet(TABLE_SETTING_QSS)
+        self.mode_table_widget.setStyleSheet(get_table_setting_qss())
+        self.table_widgets.append(self.mode_table_widget)
         self.mode_table_widget.verticalHeader().setVisible(False)
         self.mode_table_widget.cellClicked.connect(self.on_table_row_selected)
 
@@ -498,6 +521,7 @@ class SettingsDialog(QtWidgets.QDialog):
 
         # Custom range group
         self.custom_range_group = QtWidgets.QGroupBox("Custom frequency range")
+        self.group_boxes.append(self.custom_range_group)
         self.custom_range_group.setFont(CUSTOM_FONT_SMALL)
         
         custom_range_widget = QtWidgets.QWidget()
@@ -552,10 +576,12 @@ class SettingsDialog(QtWidgets.QDialog):
         minimum_report_notice.setWordWrap(True)
         minimum_report_notice.setFont(CUSTOM_FONT_SMALL)
         minimum_report_notice.setTextFormat(QtCore.Qt.TextFormat.RichText)
-        minimum_report_notice.setStyleSheet(SETTING_QSS)
+        minimum_report_notice.setStyleSheet(get_setting_qss(EVEN_COLOR))
+        self.notice_labels.append(minimum_report_notice)
         minimum_report_notice.setAutoFillBackground(True)
 
         minimum_report_group = QtWidgets.QGroupBox("Minimum dB signal for reply (FT8/FT4 Mode only)")
+        self.group_boxes.append(minimum_report_group)
         minimum_report_group.setFont(CUSTOM_FONT_SMALL)
         minimum_report_layout = QtWidgets.QHBoxLayout()
         
@@ -590,6 +616,7 @@ class SettingsDialog(QtWidgets.QDialog):
             Priority Manager Group
         """
         self.priority_manager_group = QtWidgets.QGroupBox("Priority Manager")
+        self.group_boxes.append(self.priority_manager_group)
         self.priority_manager_group.setFont(CUSTOM_FONT_SMALL)
         priority_group_layout = QtWidgets.QVBoxLayout()
         
@@ -600,7 +627,8 @@ class SettingsDialog(QtWidgets.QDialog):
         priority_notice_label.setWordWrap(True)
         priority_notice_label.setFont(CUSTOM_FONT_SMALL)
         priority_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
-        priority_notice_label.setStyleSheet(SETTING_QSS)
+        priority_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
+        self.notice_labels.append(priority_notice_label)
         
         max_reply_text = (
             "<p>When several Wanted callsigns are detected during the same sequence and if program starts to reply to one specific callsign, it has a limited <u>number of attempts</u> before moving on to the next detected callsign.</p><p>The maximum <u>waiting delay</u> is used to halt TX and stop calling a station that the program has started to call but is no longer decoded. However, if another Wanted callsign is detected, this setting has no effect.</p>"
@@ -609,10 +637,12 @@ class SettingsDialog(QtWidgets.QDialog):
         max_reply_notice_label.setWordWrap(True)
         max_reply_notice_label.setFont(CUSTOM_FONT_SMALL)
         max_reply_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
-        max_reply_notice_label.setStyleSheet(SETTING_QSS)
+        max_reply_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
+        self.notice_labels.append(max_reply_notice_label)
         max_reply_notice_label.setAutoFillBackground(True)
 
         self.max_reply_group = QtWidgets.QGroupBox(f"Sequencing")
+        self.group_boxes.append(self.max_reply_group)
         self.max_reply_group.setFont(CUSTOM_FONT_SMALL)
 
         max_reply_layout = QtWidgets.QVBoxLayout()
@@ -685,10 +715,11 @@ class SettingsDialog(QtWidgets.QDialog):
                 padding: 10 4px 4px 10px; 
             }
         """)
-        
-        self.priority_table.horizontalHeader().setFont(CUSTOM_FONT_SMALL)        
-        self.priority_table.setStyleSheet(TABLE_SETTING_QSS)
-        
+
+        self.priority_table.horizontalHeader().setFont(CUSTOM_FONT_SMALL)
+        self.priority_table.setStyleSheet(get_table_setting_qss())
+        self.table_widgets.append(self.priority_table)
+
         self.priority_table.rowsMoved.connect(self.update_priority_labels)
         
         priority_group_layout.addWidget(priority_notice_label)
@@ -715,17 +746,20 @@ class SettingsDialog(QtWidgets.QDialog):
         lotw_notice_label.setWordWrap(True)
         lotw_notice_label.setFont(CUSTOM_FONT_SMALL)
         lotw_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
-        lotw_notice_label.setStyleSheet(SETTING_QSS)
+        lotw_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
+        self.notice_labels.append(lotw_notice_label)
         lotw_notice_label.setAutoFillBackground(True)
 
         lotw_cache_info = QtWidgets.QLabel(lotw_cache_text)
         lotw_cache_info.setWordWrap(True)
         lotw_cache_info.setFont(CUSTOM_FONT_SMALL)
         lotw_cache_info.setTextFormat(QtCore.Qt.TextFormat.RichText)
-        lotw_cache_info.setStyleSheet(SETTING_QSS + f"background-color: {ODD_COLOR};")
+        lotw_cache_info.setStyleSheet(get_setting_qss(ODD_COLOR))
+        self.notice_labels.append(lotw_cache_info)
         lotw_cache_info.setAutoFillBackground(True)
-        
+
         lotw_settings_group = QtWidgets.QGroupBox("LoTW Settings")
+        self.group_boxes.append(lotw_settings_group)
         lotw_settings_group.setFont(CUSTOM_FONT_SMALL)
         
         lotw_settings_widget = QtWidgets.QWidget()
@@ -757,10 +791,12 @@ class SettingsDialog(QtWidgets.QDialog):
         sound_notice_label.setWordWrap(True)
         sound_notice_label.setFont(CUSTOM_FONT_SMALL)
         sound_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
-        sound_notice_label.setStyleSheet(SETTING_QSS)
+        sound_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
+        self.notice_labels.append(sound_notice_label)
         sound_notice_label.setAutoFillBackground(True)
 
         sound_settings_group = QtWidgets.QGroupBox("Sound Alert Settings")
+        self.group_boxes.append(sound_settings_group)
         sound_settings_group.setFont(CUSTOM_FONT_SMALL)
         sound_settings_layout = QtWidgets.QGridLayout()
 
@@ -817,12 +853,14 @@ class SettingsDialog(QtWidgets.QDialog):
         )
 
         log_analysis_notice_label = QtWidgets.QLabel(log_analysis_notice_text)
-        log_analysis_notice_label.setStyleSheet(SETTING_QSS)
+        log_analysis_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
+        self.notice_labels.append(log_analysis_notice_label)
         log_analysis_notice_label.setWordWrap(True)
         log_analysis_notice_label.setFont(CUSTOM_FONT_SMALL)
         log_analysis_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
         file_selection_group = QtWidgets.QGroupBox("ADIF Files for log analysis")
+        self.group_boxes.append(file_selection_group)
         file_selection_group.setFont(CUSTOM_FONT_SMALL)
         file_selection_group.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
@@ -881,8 +919,9 @@ class SettingsDialog(QtWidgets.QDialog):
             }
         """)
 
-        self.adif_files_table.setStyleSheet(TABLE_SETTING_QSS)        
-        
+        self.adif_files_table.setStyleSheet(get_table_setting_qss())
+        self.table_widgets.append(self.adif_files_table)
+
         # List to keep track of selected files
         self.selected_adif_files = []
         
@@ -926,12 +965,14 @@ class SettingsDialog(QtWidgets.QDialog):
         )
 
         worked_b4_notice_label = QtWidgets.QLabel(worked_b4_notice_text)
-        worked_b4_notice_label.setStyleSheet(SETTING_QSS)
+        worked_b4_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
+        self.notice_labels.append(worked_b4_notice_label)
         worked_b4_notice_label.setWordWrap(True)
         worked_b4_notice_label.setFont(CUSTOM_FONT_SMALL)
         worked_b4_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
         self.adif_wkb4_group = QtWidgets.QGroupBox("What should we do with Worked B4?")
+        self.group_boxes.append(self.adif_wkb4_group)
         self.adif_wkb4_group.setFont(CUSTOM_FONT_SMALL)
         adif_wkb4_layout = QtWidgets.QVBoxLayout()
         adif_wkb4_layout.setSpacing(10)
@@ -960,12 +1001,14 @@ class SettingsDialog(QtWidgets.QDialog):
             f"<p>Marathon feature has to be used with caution.</p><p>{GUI_LABEL_NAME} will analyze your log and check for any missing entities you haven't worked on selected band. If a missing entity is decoded, {GUI_LABEL_NAME} will reply to this callsign.</p><p>Note that rules set for <u>Worked Before</u> will remain in effect.</p>"
         )
         marathon_notice_label = QtWidgets.QLabel(marathon_notice_text)
-        marathon_notice_label.setStyleSheet(SETTING_QSS)
+        marathon_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
+        self.notice_labels.append(marathon_notice_label)
         marathon_notice_label.setWordWrap(True)
         marathon_notice_label.setFont(CUSTOM_FONT_SMALL)
         marathon_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
         self.marathon_group = QtWidgets.QGroupBox("Enable Marathon for selected bands")
+        self.group_boxes.append(self.marathon_group)
         self.marathon_group.setFont(CUSTOM_FONT_SMALL)
         marathon_select_layout = QtWidgets.QGridLayout()
 
@@ -1023,7 +1066,8 @@ class SettingsDialog(QtWidgets.QDialog):
         )
 
         club_log_notice_label = QtWidgets.QLabel(club_log_notice_text)
-        club_log_notice_label.setStyleSheet(SETTING_QSS)
+        club_log_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
+        self.notice_labels.append(club_log_notice_label)
         club_log_notice_label.setWordWrap(True)
         club_log_notice_label.setFont(CUSTOM_FONT_SMALL)
         club_log_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
@@ -1038,10 +1082,12 @@ class SettingsDialog(QtWidgets.QDialog):
         self.club_log_cache_info.setWordWrap(True)
         self.club_log_cache_info.setFont(CUSTOM_FONT_SMALL)
         self.club_log_cache_info.setTextFormat(QtCore.Qt.TextFormat.RichText)
-        self.club_log_cache_info.setStyleSheet(SETTING_QSS + f"background-color: {ODD_COLOR};")
+        self.club_log_cache_info.setStyleSheet(get_setting_qss(ODD_COLOR))
+        self.notice_labels.append(self.club_log_cache_info)
         self.club_log_cache_info.setAutoFillBackground(True)
 
         club_log_settings_group = QtWidgets.QGroupBox("Club Log Upload Settings")
+        self.group_boxes.append(club_log_settings_group)
         club_log_settings_group.setFont(CUSTOM_FONT_SMALL)
 
         club_log_settings_widget = QtWidgets.QWidget()
@@ -1094,7 +1140,8 @@ class SettingsDialog(QtWidgets.QDialog):
             f"<p>{GUI_LABEL_NAME} will analyze your log and check for any missing grids you haven't worked on selected band.</p><p>If a callsign with a missing grid is decoded, {GUI_LABEL_NAME} will reply to this callsign for this grid.</p>"
         )
         grid_tracker_notice_label = QtWidgets.QLabel(grid_tracker_notice_text)
-        grid_tracker_notice_label.setStyleSheet(SETTING_QSS)
+        grid_tracker_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
+        self.notice_labels.append(grid_tracker_notice_label)
         grid_tracker_notice_label.setWordWrap(True)
         grid_tracker_notice_label.setFont(CUSTOM_FONT_SMALL)
         grid_tracker_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
@@ -1114,12 +1161,14 @@ class SettingsDialog(QtWidgets.QDialog):
         )
 
         grid_tracker_per_band_notice_label = QtWidgets.QLabel(grid_tracker_per_band_notice_text)
-        grid_tracker_per_band_notice_label.setStyleSheet(SETTING_QSS)
+        grid_tracker_per_band_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
+        self.notice_labels.append(grid_tracker_per_band_notice_label)
         grid_tracker_per_band_notice_label.setWordWrap(True)
         grid_tracker_per_band_notice_label.setFont(CUSTOM_FONT_SMALL)
         grid_tracker_per_band_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
         self.grid_tracker_group = QtWidgets.QGroupBox("Select bands")
+        self.group_boxes.append(self.grid_tracker_group)
         self.grid_tracker_group.setFont(CUSTOM_FONT_SMALL)
         grid_tracker_select_layout = QtWidgets.QGridLayout()
 
@@ -1159,6 +1208,7 @@ class SettingsDialog(QtWidgets.QDialog):
             Backup Settings
         """
         adif_backup_selection_group = QtWidgets.QGroupBox(f"{GUI_LABEL_NAME} Backup File")
+        self.group_boxes.append(adif_backup_selection_group)
         adif_backup_selection_group.setFont(CUSTOM_FONT_SMALL)
         adif_backup_selection_group.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
@@ -1167,7 +1217,8 @@ class SettingsDialog(QtWidgets.QDialog):
         )
 
         working_log_notice_label = QtWidgets.QLabel(working_log_notice_text)
-        working_log_notice_label.setStyleSheet(SETTING_QSS)
+        working_log_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
+        self.notice_labels.append(working_log_notice_label)
         working_log_notice_label.setWordWrap(True)
         working_log_notice_label.setFont(CUSTOM_FONT_SMALL)
         working_log_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
@@ -1192,7 +1243,8 @@ class SettingsDialog(QtWidgets.QDialog):
         self.backup_file_status_info.setWordWrap(True)
         self.backup_file_status_info.setFont(CUSTOM_FONT_SMALL)
         self.backup_file_status_info.setTextFormat(QtCore.Qt.TextFormat.RichText)
-        self.backup_file_status_info.setStyleSheet(SETTING_QSS + f"background-color: {ODD_COLOR};")
+        self.backup_file_status_info.setStyleSheet(get_setting_qss(ODD_COLOR))
+        self.notice_labels.append(self.backup_file_status_info)
         self.backup_file_status_info.setAutoFillBackground(True)
 
         adif_backup_layout.addWidget(self.select_backup_file_button)
@@ -1224,10 +1276,12 @@ class SettingsDialog(QtWidgets.QDialog):
         debug_notice_label.setWordWrap(True)
         debug_notice_label.setFont(CUSTOM_FONT_SMALL)
         debug_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
-        debug_notice_label.setStyleSheet(SETTING_QSS)
+        debug_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
+        self.notice_labels.append(debug_notice_label)
         debug_notice_label.setAutoFillBackground(True)
 
         log_settings_group = QtWidgets.QGroupBox("Log Settings")
+        self.group_boxes.append(log_settings_group)
         log_settings_group.setFont(CUSTOM_FONT_SMALL)
         log_settings_layout = QtWidgets.QVBoxLayout()
         log_settings_layout.setSpacing(15) 
@@ -1973,7 +2027,23 @@ class SettingsDialog(QtWidgets.QDialog):
             btn.setChecked(checked)
             
         self.populate_priority_list()
-    
+
+        # Apply theme after UI is fully initialized
+        self.apply_palette(self.dark_mode)
+
+    def apply_palette(self, dark_mode):
+        self.dark_mode = dark_mode
+
+        # Update all QGroupBox widgets
+        groupbox_qss = get_groupbox_qss(dark_mode)
+        for groupbox in self.group_boxes:
+            groupbox.setStyleSheet(groupbox_qss)
+
+        # Update all table widgets
+        table_qss = get_table_setting_qss(dark_mode)
+        for table in self.table_widgets:
+            table.setStyleSheet(table_qss)
+
     def get_result(self):
         freq_range_mode = MODE_NORMAL 
         if self.radio_foxhound.isChecked():

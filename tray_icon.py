@@ -6,7 +6,7 @@ import threading
 
 from PIL import Image, ImageDraw
 
-from constants import (
+from style import (
     FG_COLOR_REGULAR_FOCUS,
     BG_COLOR_REGULAR_FOCUS,
     )

@@ -4,8 +4,11 @@ from PyQt6 import QtWidgets, QtCore
 from custom_button import CustomButton
 
 from constants import (
-    CUSTOM_FONT_SMALL,
-    SETTING_QSS,
+    CUSTOM_FONT_SMALL
+)
+
+from style import (
+    get_setting_qss,
     STATUS_TRX_COLOR
 )
 
@@ -30,7 +33,7 @@ class ExclusionDialog(QtWidgets.QDialog):
         notice_label.setWordWrap(True)
         notice_label.setFont(CUSTOM_FONT_SMALL)
         notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
-        notice_label.setStyleSheet(SETTING_QSS)
+        notice_label.setStyleSheet(get_setting_qss())
         notice_label.setAutoFillBackground(True)
 
         layout.addWidget(notice_label)

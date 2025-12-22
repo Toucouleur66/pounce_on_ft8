@@ -77,11 +77,7 @@ from utils import(
     AMATEUR_BANDS
 )
 
-from constants import (
-    CURRENT_VERSION_NUMBER,
-    MASTER,
-    SLAVE,
-    PRIORITY_LIST,
+from style import (
     # Colors
     EVEN_COLOR,
     ODD_COLOR,
@@ -98,13 +94,20 @@ from constants import (
     BG_COLOR_BLACK_ON_PURPLE,
     FG_COLOR_BLACK_ON_PURPLE,
     BG_COLOR_BLACK_ON_CYAN,
-    FG_COLOR_BLACK_ON_CYAN, 
-    BG_COLOR_WHITE_ON_BLUE_VIOLET,   
+    FG_COLOR_BLACK_ON_CYAN,
+    BG_COLOR_WHITE_ON_BLUE_VIOLET,
     FG_COLOR_WHITE_ON_BLUE_VIOLET,
     # Status buttons
     STATUS_MONITORING_COLOR,
     STATUS_DECODING_COLOR,
     STATUS_TRX_COLOR,
+)
+
+from constants import (
+    CURRENT_VERSION_NUMBER,
+    MASTER,
+    SLAVE,
+    PRIORITY_LIST,
     # Actions
     ACTION_RESTART,
     # Parameters
@@ -2670,7 +2673,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.last_targeted_call = None
         self.hide_focus_value_label(visible=False)
 
-        dialog = SettingsDialog(self, self.local_params)
+        dialog = SettingsDialog(self, self.local_params, self.dark_mode)
         if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
             new_params = dialog.get_result()
         
@@ -2743,7 +2746,7 @@ class MainApp(QtWidgets.QMainWindow):
         # Set global application palette
         app_palette = QtGui.QPalette()
         if dark_mode:
-            app_palette.setColor(QtGui.QPalette.ColorRole.Window, QtGui.QColor("#2B2B2B"))
+            app_palette.setColor(QtGui.QPalette.ColorRole.Window, QtGui.QColor("#323232"))
             app_palette.setColor(QtGui.QPalette.ColorRole.WindowText, QtGui.QColor("#FFFFFF"))
             app_palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor(qt_bg_color))
             app_palette.setColor(QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor("#353535"))

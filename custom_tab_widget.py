@@ -1,11 +1,14 @@
 from PyQt6 import QtWidgets, QtCore
 
 from constants import (    
+    CUSTOM_FONT
+)
+
+from style import (
     STATUS_TRX_COLOR,
     STATUS_DECODING_COLOR,
     STATUS_COLOR_LABEL_OFF,
-    STATUS_COLOR_LABEL_SELECTED,
-    CUSTOM_FONT
+    STATUS_COLOR_LABEL_SELECTED
 )
 
 class CustomTabWidget(QtWidgets.QWidget):

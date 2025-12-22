@@ -7,7 +7,9 @@ from datetime import datetime
 
 from constants import (
     CUSTOM_FONT,
-    CUSTOM_FONT_SMALL,
+    CUSTOM_FONT_SMALL)
+
+from style import (
     BG_COLOR_BLACK_ON_YELLOW,
     FG_COLOR_BLACK_ON_YELLOW,
     BG_COLOR_BLACK_ON_PURPLE,

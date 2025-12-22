@@ -9,6 +9,13 @@ from pympler import asizeof
 from utils import compute_time_ago
 
 from constants import (
+    CUSTOM_FONT,
+    CUSTOM_FONT_SMALL,
+    DATE_COLUMN_AGE,
+    LOTW_SYMBOL
+)
+
+from style import (
     FG_COLOR_FOCUS_MY_CALL,
     BG_COLOR_FOCUS_MY_CALL,
     BG_COLOR_BLACK_ON_YELLOW,
@@ -20,12 +27,9 @@ from constants import (
     BG_COLOR_BLACK_ON_PURPLE,
     FG_COLOR_BLACK_ON_PURPLE,
     BG_COLOR_BLACK_ON_CYAN,
-    FG_COLOR_BLACK_ON_CYAN,
-    CUSTOM_FONT,
-    CUSTOM_FONT_SMALL,
-    DATE_COLUMN_AGE,
-    LOTW_SYMBOL
+    FG_COLOR_BLACK_ON_CYAN
 )
+
 class RawDataModel(QtCore.QAbstractTableModel):
     def __init__(self, data=None, max_size_bytes=50**7, max_num_rows=40_000):
         super().__init__()
