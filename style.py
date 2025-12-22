@@ -1,5 +1,6 @@
 # style.py
 # All color constants, style functions, and QSS stylesheets
+import platform
 
 # Color constants
 EVEN_COLOR                      = "#9DFFFE"
@@ -197,3 +198,55 @@ CONTEXT_MENU_EXCLUDED_QSS         = f"""
                 padding: 4px 12px;
                 font-size: 12px;
         """
+
+def set_macos_window_appearance(window, dark_mode):  
+    if platform.system() != 'Darwin':
+        return
+
+    try:
+        from ctypes import c_void_p, c_char_p, cdll, util
+
+        # Load the Objective-C runtime
+        objc = cdll.LoadLibrary(util.find_library('objc'))
+        objc.objc_getClass.restype = c_void_p
+        objc.sel_registerName.restype = c_void_p
+        objc.objc_msgSend.restype = c_void_p
+
+        # Get the native window handle
+        win_id = int(window.winId())
+        ns_view = c_void_p(win_id)
+
+        # Get NSWindow from NSView
+        window_sel = objc.sel_registerName(b'window')
+        objc.objc_msgSend.argtypes = [c_void_p, c_void_p]
+        ns_window = objc.objc_msgSend(ns_view, window_sel)
+
+        if ns_window:
+            # Create NSString for appearance name
+            ns_string_class = objc.objc_getClass(b'NSString')
+            string_with_utf8_sel = objc.sel_registerName(b'stringWithUTF8String:')
+
+            # Set proper argtypes for string creation
+            objc.objc_msgSend.argtypes = [c_void_p, c_void_p, c_char_p]
+
+            # Choose appearance based on theme
+            if dark_mode:
+                appearance_name_str = b'NSAppearanceNameDarkAqua'
+            else:
+                appearance_name_str = b'NSAppearanceNameAqua'
+
+            appearance_name = objc.objc_msgSend(
+                ns_string_class,
+                string_with_utf8_sel,
+                appearance_name_str
+            )
+
+            appearance_class = objc.objc_getClass(b'NSAppearance')
+            appearance_sel = objc.sel_registerName(b'appearanceNamed:')
+            set_appearance_sel = objc.sel_registerName(b'setAppearance:')
+
+            objc.objc_msgSend.argtypes = [c_void_p, c_void_p, c_void_p]
+            appearance = objc.objc_msgSend(appearance_class, appearance_sel, appearance_name)
+            objc.objc_msgSend(ns_window, set_appearance_sel, appearance)
+    except Exception:
+        pass

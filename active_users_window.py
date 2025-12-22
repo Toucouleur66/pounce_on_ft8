@@ -12,6 +12,7 @@ from time_ago_delegate import TimeAgoDelegate
 
 from logger import get_logger
 from utils import band_sort_key
+from style import set_macos_window_appearance
 
 from constants import GUI_LABEL_VERSION
 
@@ -126,6 +127,9 @@ class ActiveUsersWindow(QDialog):
 
     def apply_palette(self, dark_mode):
         self.dark_mode = dark_mode
+
+        # Force macOS title bar appearance to match theme
+        set_macos_window_appearance(self, dark_mode)
 
         # Create palette for table
         table_palette = QPalette()

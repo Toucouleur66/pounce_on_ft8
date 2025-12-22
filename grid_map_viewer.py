@@ -33,6 +33,8 @@ from style import (
     # Stylesheets
     QSLIDER_QSS,
     SLIDER_VALUE_LABEL_QSS,
+    # Functions
+    set_macos_window_appearance,
 )
 
 from constants import (
@@ -2780,6 +2782,9 @@ class GridMapWindow(QMainWindow):
         from PyQt6.QtGui import QPalette, QColor
 
         self.dark_mode = dark_mode
+
+        # Force macOS title bar appearance to match theme
+        set_macos_window_appearance(self, dark_mode)
 
         if dark_mode:
             qt_bg_color = "#353535"

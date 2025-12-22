@@ -101,6 +101,8 @@ from style import (
     STATUS_MONITORING_COLOR,
     STATUS_DECODING_COLOR,
     STATUS_TRX_COLOR,
+    # Functions
+    set_macos_window_appearance,
 )
 
 from constants import (
@@ -2737,6 +2739,9 @@ class MainApp(QtWidgets.QMainWindow):
         
     def apply_palette(self, dark_mode):
         self.dark_mode = dark_mode
+
+        # Force macOS title bar appearance to match theme
+        set_macos_window_appearance(self, dark_mode)
 
         if dark_mode:
             qt_bg_color = "#181818"

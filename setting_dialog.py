@@ -22,7 +22,7 @@ from utils import get_local_ip_address, get_log_filename
 from utils import parse_adif
 from utils import AMATEUR_BANDS, ADIF_FIELD_RE
 
-from style import get_setting_qss, get_table_setting_qss, get_odd_color, get_groupbox_qss
+from style import get_setting_qss, get_table_setting_qss, get_odd_color, get_groupbox_qss, set_macos_window_appearance
 from style import (
     # Colors
     STATUS_TRX_COLOR,
@@ -2033,6 +2033,9 @@ class SettingsDialog(QtWidgets.QDialog):
 
     def apply_palette(self, dark_mode):
         self.dark_mode = dark_mode
+
+        # Force macOS title bar appearance to match theme
+        set_macos_window_appearance(self, dark_mode)
 
         # Update all QGroupBox widgets
         groupbox_qss = get_groupbox_qss(dark_mode)
