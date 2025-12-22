@@ -191,11 +191,13 @@ class ClubLogUploader:
                 timeout=10
             )
 
-            if response.status_code != 200:
+            if response.status_code == 200:
+                return True, response.text
+            else:
                 log.warning(f"Response status code: {response.status_code}")
                 log.warning(f"Response headers: {dict(response.headers)}")
                 log.warning(f"Response text: {response.text}")
-            
+
                 if response.status_code == 403:
                     log.error(f"Club Log authentication failed - stopping uploads")
                     return False, "Authentication failed"
@@ -203,7 +205,7 @@ class ClubLogUploader:
                     log.error(f"Club Log server error - will retry later")
                     return False, "Server error"
                 elif response.status_code == 400:
-                    log.error(f"Club Log invalid QSO data: {response.text}")                
+                    log.error(f"Club Log invalid QSO data: {response.text}")
                     return False, "Invalid QSO data"
                 else:
                     log.error(f"Club Log unexpected response: {response.status_code} - {response.text}")

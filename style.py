@@ -47,6 +47,10 @@ STATUS_TRX_COLOR                = "#FF5600"
 STATUS_COLOR_LABEL_OFF          = "#E5E5E5"
 STATUS_COLOR_LABEL_SELECTED     = "#808080"
 
+import constants
+CUSTOM_FONT                     = constants.CUSTOM_FONT
+CUSTOM_FONT_SMALL               = constants.CUSTOM_FONT
+
 # Theme-aware style functions
 def get_setting_qss(color):
     return f"""
@@ -57,6 +61,41 @@ def get_setting_qss(color):
         font-size: 12px;
         border-radius: 6px;
     """
+
+def get_main_table_qss(dark_mode=False):
+    if dark_mode:
+        table_bg = '#353535'
+        table_alt_bg = '#3f3f3f'
+        table_text = '#FFFFFF'
+    else:
+        table_bg = '#FFFFFF'
+        table_alt_bg = '#F4F5F5'
+        table_text = '#000000'
+
+    gridline_color = '#D3D3D3' if not dark_mode else '#171717'        
+
+    return f"""
+            QTableView {{
+                background-color: {table_bg};
+                alternate-background-color: {table_alt_bg};
+                color: {table_text};
+                gridline-color: {gridline_color};
+                border: 1px solid palette(Mid);
+            }}
+            QTableView::item {{
+                padding: 5px;
+            }}
+            QHeaderView::section {{
+                font-weight: normal;
+                border: none;
+                font: {CUSTOM_FONT_SMALL.pointSize()}pt '{CUSTOM_FONT_SMALL.family()}';
+                padding: 0 3px 0 3px;
+                border-right: 1px solid {gridline_color};
+            }}
+            QHeaderView::section:horizontal:last {{
+                border-right: none;
+            }}
+        """
 
 def get_table_setting_qss(dark_mode=False):
     _ = dark_mode  # Suppress unused warning

@@ -103,6 +103,7 @@ from style import (
     STATUS_TRX_COLOR,
     # Functions
     set_macos_window_appearance,
+    get_main_table_qss
 )
 
 from constants import (
@@ -2797,46 +2798,14 @@ class MainApp(QtWidgets.QMainWindow):
         """)
 
         # Set table colors directly in variables for easier control
-        if dark_mode:
-            table_bg = '#353535'
-            table_alt_bg = '#3f3f3f'
-            table_text = '#FFFFFF'
+        if dark_mode:        
             self.activity_bar.setColors("#3D3D3D", "#FFFFFF", "#101010")
-        else:
-            table_bg = '#FFFFFF'
-            table_alt_bg = '#F4F5F5'
-            table_text = '#000000'
+        else:            
             self.activity_bar.setColors("#FFFFFF", "#000000", "#C6C6C6")
 
-        gridline_color = '#D3D3D3' if not dark_mode else '#171717'
-
-        # Use stylesheet for complete control over table colors
-        table_qss = f"""
-            QTableView {{
-                background-color: {table_bg};
-                alternate-background-color: {table_alt_bg};
-                color: {table_text};
-                gridline-color: {gridline_color};
-                border: 1px solid palette(Mid);
-            }}
-            QTableView::item {{
-                padding: 5px;
-            }}
-            QHeaderView::section {{
-                font-weight: normal;
-                border: none;
-                font: {CUSTOM_FONT_SMALL.pointSize()}pt '{CUSTOM_FONT_SMALL.family()}';
-                padding: 0 3px 0 3px;
-                border-right: 1px solid {gridline_color};
-            }}
-            QHeaderView::section:horizontal:last {{
-                border-right: none;
-            }}
-        """
-
-        self.output_table.setStyleSheet(table_qss)
+        self.output_table.setStyleSheet(get_main_table_qss(dark_mode))
         self.output_table.setShowGrid(False)
-        self.wait_pounce_history_table.setStyleSheet(table_qss)
+        self.wait_pounce_history_table.setStyleSheet(get_main_table_qss(dark_mode))
         self.wait_pounce_history_table.setShowGrid(False)
 
         # Update active users window theme if it exists

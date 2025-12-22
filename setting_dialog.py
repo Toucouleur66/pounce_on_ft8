@@ -1691,7 +1691,7 @@ class SettingsDialog(QtWidgets.QDialog):
                     self.add_file_to_list(file_path)
                     self.adif_wkb4_group.setVisible(True)
 
-                    summary_dialog = AdifSummaryDialog(processing_time, parsed_data['wkb4'], self)
+                    summary_dialog = AdifSummaryDialog(processing_time, parsed_data['wkb4'], self.dark_mode, file_path, self)
                     summary_dialog.exec()
                 else:
                     QtWidgets.QMessageBox.warning(
@@ -1784,7 +1784,7 @@ class SettingsDialog(QtWidgets.QDialog):
                 try:
                     processing_time, parsed_data = parse_adif(file_path)
                     if parsed_data:
-                        summary_dialog = AdifSummaryDialog(processing_time, parsed_data['wkb4'], self)
+                        summary_dialog = AdifSummaryDialog(processing_time, parsed_data['wkb4'], self.dark_mode, file_path, self)
                         summary_dialog.exec()
                     else:
                         QtWidgets.QMessageBox.warning(
