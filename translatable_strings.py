@@ -90,14 +90,22 @@ class MainWindowStrings:
 
     # Table headers (output table)
     HEADER_DATETIME = lambda: tr("MainWindow", "DateTime")
+    HEADER_TIME = lambda: tr("MainWindow", "Time")
     HEADER_AGE = lambda: tr("MainWindow", "Age")
+
+    # Time display mode labels
+    SHOW_TIME_ACTION = lambda: tr("MainWindow", "Show Time")
+    SHOW_AGE_ACTION = lambda: tr("MainWindow", "Show Age")
+    FORMAT_TIME_MENU = lambda: tr("MainWindow", "Format Time")
     HEADER_SNR = lambda: tr("MainWindow", "SNR")
     HEADER_DT = lambda: tr("MainWindow", "DT")
     HEADER_DF = lambda: tr("MainWindow", "DF")
+    HEADER_FREQ = lambda: tr("MainWindow", "Freq")
+    HEADER_REPORT = lambda: tr("MainWindow", "Report")
     HEADER_MESSAGE = lambda: tr("MainWindow", "Message")
     HEADER_COUNTRY = lambda: tr("MainWindow", "Country")
     HEADER_LOTW = lambda: tr("MainWindow", "LoTW")
-    HEADER_CQ_ZONE = lambda: tr("MainWindow", "CQ")
+    HEADER_CQ_ZONE = lambda: tr("MainWindow", "CQ Zone")
     HEADER_CONT = lambda: tr("MainWindow", "Cont")
     HEADER_WKB4 = lambda: tr("MainWindow", "WkB4")
 

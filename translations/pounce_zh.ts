@@ -227,8 +227,28 @@
         <translation>日期时间</translation>
     </message>
     <message>
+        <source>Time</source>
+        <translation>时间</translation>
+    </message>
+    <message>
         <source>Age</source>
         <translation>时长</translation>
+    </message>
+    <message>
+        <source>Show Time</source>
+        <translation>显示时间</translation>
+    </message>
+    <message>
+        <source>Show Age</source>
+        <translation>显示时长</translation>
+    </message>
+    <message>
+        <source>Format Time</source>
+        <translation>时间格式</translation>
+    </message>
+    <message>
+        <source>Report</source>
+        <translation>信号</translation>
     </message>
     <message>
         <source>SNR</source>
@@ -243,6 +263,10 @@
         <translation>频差</translation>
     </message>
     <message>
+        <source>Freq</source>
+        <translation>频率</translation>
+    </message>
+    <message>
         <source>Message</source>
         <translation>消息</translation>
     </message>
@@ -255,8 +279,8 @@
         <translation>LoTW</translation>
     </message>
     <message>
-        <source>CQ</source>
-        <translation>CQ</translation>
+        <source>CQ Zone</source>
+        <translation>CQ区</translation>
     </message>
     <message>
         <source>Cont</source>

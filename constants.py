@@ -34,8 +34,7 @@ GUI_LABEL_VERSION               = f"{GUI_LABEL_NAME} build {CURRENT_VERSION_NUMB
 
 CLUB_LOG_API_KEY                = "efc2af7050308f03a22275cf51f3fd7749582d66"
 
-# Note: Button and status labels moved to translatable_strings.py
-
+# Remains here as identifier
 DATE_COLUMN_DATETIME            = "Time"
 DATE_COLUMN_AGE                 = "Age"
 

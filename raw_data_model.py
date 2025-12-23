@@ -15,6 +15,8 @@ from constants import (
     LOTW_SYMBOL
 )
 
+from translatable_strings import MainWindowStrings
+
 from style import (
     FG_COLOR_FOCUS_MY_CALL,
     BG_COLOR_FOCUS_MY_CALL,
@@ -35,17 +37,17 @@ class RawDataModel(QtCore.QAbstractTableModel):
         super().__init__()
         self._data = data or []
         self._headers = [
-            "Time",
-            "Band",
-            "Report",
-            "DT",
-            "Freq",
-            "Message",
-            "", # LoTW
-            "Country",
-            "CQ Zone",
-            "Continent",
-            "WKB4"
+            MainWindowStrings.HEADER_TIME(),
+            MainWindowStrings.BAND_LABEL(),
+            MainWindowStrings.HEADER_REPORT(),
+            MainWindowStrings.HEADER_DT(),
+            MainWindowStrings.HEADER_FREQ(),
+            MainWindowStrings.HEADER_MESSAGE(),
+            "", # LoTW (empty, just symbol)
+            MainWindowStrings.HEADER_COUNTRY(),
+            MainWindowStrings.HEADER_CQ_ZONE(),
+            MainWindowStrings.HEADER_CONT(),
+            MainWindowStrings.HEADER_WKB4()
         ]
         self.datetime_column_setting    = None
         # Useless we might need to remove max_size_bytes

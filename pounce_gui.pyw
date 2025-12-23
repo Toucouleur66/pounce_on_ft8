@@ -1454,7 +1454,12 @@ class MainApp(QtWidgets.QMainWindow):
 
     def set_time_mode_header(self, value):
         self.output_model.setTimeMode(value)
-        self.output_model.setHeaderData(0, QtCore.Qt.Orientation.Horizontal, value, QtCore.Qt.ItemDataRole.DisplayRole)
+        # Set translated header based on mode
+        if value == DATE_COLUMN_DATETIME:
+            header_text = MainWindowStrings.HEADER_TIME()
+        else:  # DATE_COLUMN_AGE
+            header_text = MainWindowStrings.HEADER_AGE()
+        self.output_model.setHeaderData(0, QtCore.Qt.Orientation.Horizontal, header_text, QtCore.Qt.ItemDataRole.DisplayRole)
 
     def update_date_mode_param(self):
         self.datetime_column_action.setChecked(self.datetime_column_setting == DATE_COLUMN_DATETIME)
@@ -3538,14 +3543,14 @@ class MainApp(QtWidgets.QMainWindow):
         clear_output_action.triggered.connect(self.clear_output_and_filters)  
         self.window_menu.addAction(clear_output_action)
         
-        format_time_menu = self.window_menu.addMenu("Format Time")
+        format_time_menu = self.window_menu.addMenu(MainWindowStrings.FORMAT_TIME_MENU())
 
-        self.age_column_action = QtGui.QAction("Show Age", self)
+        self.age_column_action = QtGui.QAction(MainWindowStrings.SHOW_AGE_ACTION(), self)
         self.age_column_action.setCheckable(True)
         self.age_column_action.setChecked(self.datetime_column_setting == DATE_COLUMN_AGE)
         self.age_column_action.triggered.connect(self.enable_age_column)
 
-        self.datetime_column_action = QtGui.QAction("Show Time", self)
+        self.datetime_column_action = QtGui.QAction(MainWindowStrings.SHOW_TIME_ACTION(), self)
         self.datetime_column_action.setCheckable(True)
         self.datetime_column_action.setChecked(self.datetime_column_setting == DATE_COLUMN_DATETIME)
         self.datetime_column_action.triggered.connect(self.enable_datetime_column)
