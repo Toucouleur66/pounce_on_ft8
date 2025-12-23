@@ -15,6 +15,7 @@ from utils import band_sort_key
 from style import set_macos_window_appearance
 
 from constants import GUI_LABEL_VERSION
+from translatable_strings import ActiveUsersStrings, CommonStrings
 
 log = get_logger(__name__)
 
@@ -47,7 +48,7 @@ class ActiveUsersWindow(QDialog):
         super().__init__(parent)
         self.telemetry_service = telemetry_service
         self.dark_mode = dark_mode
-        self.setWindowTitle(f"Active Users - {GUI_LABEL_VERSION}")
+        self.setWindowTitle(f"{ActiveUsersStrings.WINDOW_TITLE()} - {GUI_LABEL_VERSION}")
         self.setMinimumSize(600, 500)
         self.first_load = True
 
@@ -62,7 +63,7 @@ class ActiveUsersWindow(QDialog):
         layout = QVBoxLayout()
 
         # Info label
-        self.info_label = QLabel("Loading active users...")
+        self.info_label = QLabel(ActiveUsersStrings.INFO_LOADING())
         self.info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.info_label)
 
@@ -70,12 +71,12 @@ class ActiveUsersWindow(QDialog):
         self.table = QTableWidget()
         self.table.setColumnCount(6)
         self.table.setHorizontalHeaderLabels([
-            "Callsign",
-            "Last Heartbeat",
-            "Grid",
-            "Band",
-            "Version",
-            "OS"
+            ActiveUsersStrings.HEADER_CALLSIGN(),
+            ActiveUsersStrings.HEADER_LAST_HEARTBEAT(),
+            ActiveUsersStrings.HEADER_GRID(),
+            ActiveUsersStrings.HEADER_BAND(),
+            ActiveUsersStrings.HEADER_VERSION(),
+            ActiveUsersStrings.HEADER_OS()
         ])
 
         # Configure table
@@ -106,13 +107,13 @@ class ActiveUsersWindow(QDialog):
         # Buttons
         button_layout = QHBoxLayout()
 
-        self.refresh_button = CustomButton("Refresh Now")
+        self.refresh_button = CustomButton(CommonStrings.REFRESH_NOW())
         self.refresh_button.clicked.connect(self.refresh_users)
         button_layout.addWidget(self.refresh_button)
 
         button_layout.addStretch()
 
-        self.close_button = CustomButton("Close")
+        self.close_button = CustomButton(CommonStrings.CLOSE())
         self.close_button.clicked.connect(self.close)
         button_layout.addWidget(self.close_button)
 
@@ -189,14 +190,14 @@ class ActiveUsersWindow(QDialog):
                 users = result.get('users', [])
                 self.update_table(users)
                 count = result.get('count', 0)
-                self.info_label.setText(f"Active users: {count} (refreshing every 5 seconds)")
+                self.info_label.setText(ActiveUsersStrings.INFO_ACTIVE_USERS(count))
             else:
-                self.info_label.setText("Failed to fetch active users. Retrying...")
+                self.info_label.setText(ActiveUsersStrings.INFO_FAILED())
         except Exception as e:
             log.error(f"Error refreshing users: {e}")
             import traceback
             log.error(traceback.format_exc())
-            self.info_label.setText(f"Error: {str(e)}")
+            self.info_label.setText(ActiveUsersStrings.INFO_ERROR(str(e)))
 
     def update_table(self, users):
         try:

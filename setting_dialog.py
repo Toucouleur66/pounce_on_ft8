@@ -73,10 +73,13 @@ from constants import (
     CLUB_LOG_API_KEY
 )
 
+# Import translation strings
+from translatable_strings import SettingsStrings, CommonStrings
+
 class SettingsDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, params=None, dark_mode=False):
         super().__init__(parent)
-        self.setWindowTitle("Settings")
+        self.setWindowTitle(SettingsStrings.WINDOW_TITLE())
 
         self.params = params or {}
         self.dark_mode = dark_mode
@@ -99,37 +102,37 @@ class SettingsDialog(QtWidgets.QDialog):
         self.menu_list.setFixedWidth(180)
         self.menu_list.setAlternatingRowColors(True)
         self.menu_list.setUniformItemSizes(True)
-        
+
         menu_items = [
-            "Server",
-            "General Settings",
-            "Offset Updater",
-            "Sound Alerts",
-            "Logbook of The World",
-            "DX Marathon",
-            "Grid Tracker",
-            "Priority Manager",
-            "Logbook Analysis",
-            "Worked before",
-            "Club Log",
-            "Logbook Backup",
-            "Debugging"
+            SettingsStrings.MENU_SERVER(),
+            SettingsStrings.MENU_GENERAL_SETTINGS(),
+            SettingsStrings.MENU_OFFSET_UPDATER(),
+            SettingsStrings.MENU_SOUND_ALERTS(),
+            SettingsStrings.MENU_LOTW(),
+            SettingsStrings.MENU_DX_MARATHON(),
+            SettingsStrings.MENU_GRID_TRACKER(),
+            SettingsStrings.MENU_PRIORITY_MANAGER(),
+            SettingsStrings.MENU_LOGBOOK_ANALYSIS(),
+            SettingsStrings.MENU_WORKED_BEFORE(),
+            SettingsStrings.MENU_CLUB_LOG(),
+            SettingsStrings.MENU_LOGBOOK_BACKUP(),
+            SettingsStrings.MENU_DEBUGGING()
         ]
-        
+
         for i, item in enumerate(menu_items, 1):
             #self.menu_list.addItem(f"{i}. {item}")
             self.menu_list.addItem(f" {item}")  # Add spaces for Windows 11 spacing
-        
+
         # Set higher height for all items
         for i in range(self.menu_list.count()):
             item = self.menu_list.item(i)
             item.setSizeHint(QtCore.QSize(170, 32))
-        
+
         self.stacked_widget = QtWidgets.QStackedWidget()
-        
+
         main_horizontal_layout.addWidget(self.menu_list)
         main_horizontal_layout.addWidget(self.stacked_widget)
-        
+
         server_page       = QtWidgets.QWidget()
         general_page      = QtWidgets.QWidget()
         offset_page       = QtWidgets.QWidget()
@@ -158,7 +161,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.stacked_widget.addWidget(club_log_page)
         self.stacked_widget.addWidget(backup_page)
         self.stacked_widget.addWidget(debugging_page)
-        
+
         server_layout        = QtWidgets.QVBoxLayout(server_page)
         general_layout       = QtWidgets.QVBoxLayout(general_page)
         offset_layout        = QtWidgets.QVBoxLayout(offset_page)
@@ -172,29 +175,27 @@ class SettingsDialog(QtWidgets.QDialog):
         club_log_layout      = QtWidgets.QVBoxLayout(club_log_page)
         backup_layout        = QtWidgets.QVBoxLayout(backup_page)
         debugging_layout     = QtWidgets.QVBoxLayout(debugging_page)
-        
+
         self.menu_list.currentRowChanged.connect(self.stacked_widget.setCurrentIndex)
         self.menu_list.setCurrentRow(0)  # Select first item by default
-        
+
         self.setMinimumWidth(700)
         self.resize(700, 700)
-        
+
         """
             Server Settings
         """
-        jtdx_notice_text = (
-            "<p>For JTDX users, you have to disable automatic logging of QSO (Make sure <u>Settings > Reporting > Logging > Enable automatic logging of QSO</u> is unchecked).</p><p>You might also need to accept UDP Reply messages from any messages (<u>Misc Menu > Accept UDP Reply Messages > any messages</u>).</p>"
-        )
+        jtdx_notice_text = SettingsStrings.SERVER_NOTICE_JTDX()
         jtdx_notice_label = QtWidgets.QLabel(jtdx_notice_text)
         jtdx_notice_label.setWordWrap(True)
         jtdx_notice_label.setFont(CUSTOM_FONT_SMALL)
         jtdx_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
         jtdx_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
-        
+
         self.notice_labels.append(jtdx_notice_label)
         jtdx_notice_label.setAutoFillBackground(True)
 
-        primary_group = QtWidgets.QGroupBox("Main UDP instance (the one set as Primary UDP Server on JTDX)")
+        primary_group = QtWidgets.QGroupBox(SettingsStrings.GROUP_PRIMARY_UDP())
         self.group_boxes.append(primary_group)
         primary_group.setFont(CUSTOM_FONT_SMALL)
         primary_layout = QtWidgets.QGridLayout()
@@ -204,15 +205,15 @@ class SettingsDialog(QtWidgets.QDialog):
         self.primary_udp_server_port = QtWidgets.QLineEdit()
         self.primary_udp_server_port.setFont(CUSTOM_FONT)
 
-        self.enable_auto_start_monitoring = QtWidgets.QCheckBox("Enable auto start monitoring when program launched")
+        self.enable_auto_start_monitoring = QtWidgets.QCheckBox(SettingsStrings.CHECK_AUTO_START())
         self.enable_auto_start_monitoring.setFont(CUSTOM_FONT)
         self.enable_auto_start_monitoring.setChecked(DEFAULT_AUTO_START_MONITORING)
 
-        udp_server_label = QtWidgets.QLabel("UDP Server:")
+        udp_server_label = QtWidgets.QLabel(SettingsStrings.LABEL_UDP_SERVER())
         udp_server_label.setFont(CUSTOM_FONT)
         primary_layout.addWidget(udp_server_label, 0, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
         primary_layout.addWidget(self.primary_udp_server_address, 0, 1)
-        udp_server_port_label = QtWidgets.QLabel("UDP Server port number:")
+        udp_server_port_label = QtWidgets.QLabel(SettingsStrings.LABEL_UDP_PORT())
         udp_server_port_label.setFont(CUSTOM_FONT)
         primary_layout.addWidget(udp_server_port_label, 1, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
         primary_layout.addWidget(self.primary_udp_server_port, 1, 1)
@@ -222,7 +223,7 @@ class SettingsDialog(QtWidgets.QDialog):
 
         primary_group.setLayout(primary_layout)
 
-        secondary_group = QtWidgets.QGroupBox("Secondary UDP Server (used to forward UDP packets)")
+        secondary_group = QtWidgets.QGroupBox(SettingsStrings.GROUP_SECONDARY_UDP())
         self.group_boxes.append(secondary_group)
         secondary_group.setFont(CUSTOM_FONT_SMALL)
         secondary_layout = QtWidgets.QGridLayout()
@@ -232,15 +233,15 @@ class SettingsDialog(QtWidgets.QDialog):
         self.secondary_udp_server_port = QtWidgets.QLineEdit()
         self.secondary_udp_server_port.setFont(CUSTOM_FONT)
 
-        self.enable_secondary_udp_server = QtWidgets.QCheckBox("Enable forwarding to Secondary UDP Server")
+        self.enable_secondary_udp_server = QtWidgets.QCheckBox(SettingsStrings.CHECK_ENABLE_SECONDARY())
         self.enable_secondary_udp_server.setFont(CUSTOM_FONT)
         self.enable_secondary_udp_server.setChecked(DEFAULT_SECONDARY_UDP_SERVER)
 
-        secondary_udp_server_label = QtWidgets.QLabel("UDP Server:")
+        secondary_udp_server_label = QtWidgets.QLabel(SettingsStrings.LABEL_UDP_SERVER())
         secondary_udp_server_label.setFont(CUSTOM_FONT)
         secondary_layout.addWidget(secondary_udp_server_label, 0, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
         secondary_layout.addWidget(self.secondary_udp_server_address, 0, 1)
-        secondary_udp_server_port_label = QtWidgets.QLabel("UDP Server port number:")
+        secondary_udp_server_port_label = QtWidgets.QLabel(SettingsStrings.LABEL_UDP_PORT())
         secondary_udp_server_port_label.setFont(CUSTOM_FONT)
         secondary_layout.addWidget(secondary_udp_server_port_label, 1, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
         secondary_layout.addWidget(self.secondary_udp_server_port, 1, 1)
@@ -250,7 +251,7 @@ class SettingsDialog(QtWidgets.QDialog):
 
         secondary_group.setLayout(secondary_layout)
 
-        logging_group = QtWidgets.QGroupBox("UDP instance for external logging program (e.g. Logger32, RUMlogNG)")
+        logging_group = QtWidgets.QGroupBox(SettingsStrings.GROUP_LOGGING_UDP())
         self.group_boxes.append(logging_group)
         logging_group.setFont(CUSTOM_FONT_SMALL)
         logging_layout = QtWidgets.QGridLayout()
@@ -260,15 +261,15 @@ class SettingsDialog(QtWidgets.QDialog):
         self.logging_udp_server_port = QtWidgets.QLineEdit()
         self.logging_udp_server_port.setFont(CUSTOM_FONT)
 
-        self.enable_logging_udp_server = QtWidgets.QCheckBox("Enable sending QSO data for logging program")
+        self.enable_logging_udp_server = QtWidgets.QCheckBox(SettingsStrings.CHECK_ENABLE_LOGGING())
         self.enable_logging_udp_server.setFont(CUSTOM_FONT)
         self.enable_logging_udp_server.setChecked(DEFAULT_SECONDARY_UDP_SERVER)
 
-        logging_udp_server_label = QtWidgets.QLabel("UDP Server:")
+        logging_udp_server_label = QtWidgets.QLabel(SettingsStrings.LABEL_UDP_SERVER())
         logging_udp_server_label.setFont(CUSTOM_FONT)
         logging_layout.addWidget(logging_udp_server_label, 0, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
         logging_layout.addWidget(self.logging_udp_server_address, 0, 1)
-        logging_udp_server_port_label = QtWidgets.QLabel("UDP Server port number:")
+        logging_udp_server_port_label = QtWidgets.QLabel(SettingsStrings.LABEL_UDP_PORT())
         logging_udp_server_port_label.setFont(CUSTOM_FONT)
         logging_layout.addWidget(logging_udp_server_port_label, 1, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
         logging_layout.addWidget(self.logging_udp_server_port, 1, 1)
@@ -282,14 +283,12 @@ class SettingsDialog(QtWidgets.QDialog):
         server_layout.addWidget(primary_group)
         server_layout.addWidget(secondary_group)
         server_layout.addWidget(logging_group)
-        server_layout.addStretch() 
+        server_layout.addStretch()
 
         """
             Main Settings
         """
-        general_notice_text = (
-            f"<p>{GUI_LABEL_NAME} won't trigger a reply unless you enable <u>Enable reply</u> or <u>Enable polite reply</u>.</p><p>If you disable these settings, {GUI_LABEL_NAME} will still run as a monitoring tool with different visual or sound alerts depending on your preference.</p><p>If you enable them, this program will double-click on any of the lines of decoded text in the Band Activity window of your WSJT-X/JTDX instance which match with your preferences.</p>"
-        )
+        general_notice_text = SettingsStrings.GENERAL_NOTICE()
         general_notice_label = QtWidgets.QLabel(general_notice_text)
         general_notice_label.setWordWrap(True)
         general_notice_label.setFont(CUSTOM_FONT_SMALL)
@@ -301,9 +300,7 @@ class SettingsDialog(QtWidgets.QDialog):
         """
             Offset Settings
         """
-        offset_notice_text = (
-            f"<p>The frequency offset updater helps to find a free frequency offset from nominal (DF).</p><p>Select one of the pre-defined  operating modes from <u>Normal</u>, <u>Fox/Hound</u>, or <u>SuperFox</u>.</p><p>You can also set your own custom frequency range.</p>"
-        )
+        offset_notice_text = SettingsStrings.OFFSET_NOTICE()
         offset_notice_label = QtWidgets.QLabel(offset_notice_text)
         offset_notice_label.setWordWrap(True)
         offset_notice_label.setFont(CUSTOM_FONT_SMALL)
@@ -312,15 +309,15 @@ class SettingsDialog(QtWidgets.QDialog):
         self.notice_labels.append(offset_notice_label)
         offset_notice_label.setAutoFillBackground(True)
 
-        offset_settings_group = QtWidgets.QGroupBox("Frequency Offset Settings")
+        offset_settings_group = QtWidgets.QGroupBox(SettingsStrings.GROUP_OFFSET_SETTINGS())
         self.group_boxes.append(offset_settings_group)
         offset_settings_group.setFont(CUSTOM_FONT_SMALL)
-        
+
         offset_settings_widget = QtWidgets.QWidget()
         offset_settings_layout = QtWidgets.QGridLayout(offset_settings_widget)
         offset_settings_layout.setVerticalSpacing(15)
 
-        self.enable_gap_finder = QtWidgets.QCheckBox("Enable frequencies offset updater")
+        self.enable_gap_finder = QtWidgets.QCheckBox(SettingsStrings.CHECK_ENABLE_GAP_FINDER())
         self.enable_gap_finder.setFont(CUSTOM_FONT)
         self.enable_gap_finder.setChecked(DEFAULT_GAP_FINDER)
 
@@ -330,37 +327,37 @@ class SettingsDialog(QtWidgets.QDialog):
         offset_settings_group.layout().setContentsMargins(0, 0, 0, 0)
         offset_settings_group.layout().addWidget(offset_settings_widget)
 
-        general_settings_group = QtWidgets.QGroupBox(f"General {GUI_LABEL_NAME} Settings")
+        general_settings_group = QtWidgets.QGroupBox(SettingsStrings.GROUP_GENERAL_SETTINGS())
         self.group_boxes.append(general_settings_group)
         general_settings_group.setFont(CUSTOM_FONT_SMALL)
-        
+
         general_settings_widget = QtWidgets.QWidget()
         general_settings_layout = QtWidgets.QGridLayout(general_settings_widget)
         general_settings_layout.setVerticalSpacing(15)
-        
-        self.enable_sending_reply = QtWidgets.QCheckBox("Enable reply")
+
+        self.enable_sending_reply = QtWidgets.QCheckBox(SettingsStrings.CHECK_ENABLE_REPLY())
         self.enable_sending_reply.setFont(CUSTOM_FONT)
         self.enable_sending_reply.setChecked(DEFAULT_SENDING_REPLY)
-        
-        self.enable_polite_reply = QtWidgets.QCheckBox("Enable polite reply")
+
+        self.enable_polite_reply = QtWidgets.QCheckBox(SettingsStrings.CHECK_ENABLE_POLITE_REPLY())
         self.enable_polite_reply.setFont(CUSTOM_FONT)
         self.enable_polite_reply.setChecked(DEFAULT_POLITE_REPLY)
         self.enable_polite_reply.toggled.connect(self.populate_priority_list)
-        
 
-        self.enable_watchdog_bypass = QtWidgets.QCheckBox("Enable watchdog bypass")
+
+        self.enable_watchdog_bypass = QtWidgets.QCheckBox(SettingsStrings.CHECK_ENABLE_WATCHDOG_BYPASS())
         self.enable_watchdog_bypass.setFont(CUSTOM_FONT)
         self.enable_watchdog_bypass.setChecked(DEFAULT_WATCHDOG_BYPASS)
 
-        self.enable_log_all_valid_contact = QtWidgets.QCheckBox("Log all valid contacts (not only from Wanted)")
+        self.enable_log_all_valid_contact = QtWidgets.QCheckBox(SettingsStrings.CHECK_LOG_ALL_VALID())
         self.enable_log_all_valid_contact.setFont(CUSTOM_FONT)
         self.enable_log_all_valid_contact.setChecked(True)
 
-        self.enable_reply_to_valid_callsign = QtWidgets.QCheckBox("Ignore callsign if prefix is invalid")
+        self.enable_reply_to_valid_callsign = QtWidgets.QCheckBox(SettingsStrings.CHECK_IGNORE_INVALID_CALLSIGN())
         self.enable_reply_to_valid_callsign.setFont(CUSTOM_FONT)
         self.enable_reply_to_valid_callsign.setChecked(True)
 
-        self.enable_reply_to_valid_direction = QtWidgets.QCheckBox("Ignore callsign if it targets another continent")
+        self.enable_reply_to_valid_direction = QtWidgets.QCheckBox(SettingsStrings.CHECK_IGNORE_WRONG_CONTINENT())
         self.enable_reply_to_valid_direction.setFont(CUSTOM_FONT)
         self.enable_reply_to_valid_direction.setChecked(True)
 
@@ -376,7 +373,7 @@ class SettingsDialog(QtWidgets.QDialog):
         general_settings_group.layout().addWidget(general_settings_widget)
 
 
-        self.freq_range_type_group = QtWidgets.QGroupBox("Select range of frequency being used for offset updater")
+        self.freq_range_type_group = QtWidgets.QGroupBox(SettingsStrings.GROUP_FREQ_RANGE())
         self.group_boxes.append(self.freq_range_type_group)
         self.freq_range_type_group.setFont(CUSTOM_FONT_SMALL)
 
@@ -392,7 +389,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.freq_range_mode_var.addButton(self.radio_normal)
         self.freq_range_mode_var.addButton(self.radio_foxhound)
         self.freq_range_mode_var.addButton(self.radio_superfox)
-        self.freq_range_mode_var.addButton(self.radio_custom)        
+        self.freq_range_mode_var.addButton(self.radio_custom)
 
         # Define frequency ranges for each preset
         self.freq_range = {
@@ -443,14 +440,18 @@ class SettingsDialog(QtWidgets.QDialog):
         self.mode_table_widget.verticalHeader().setVisible(False)
         self.mode_table_widget.setAlternatingRowColors(True)
         self.mode_table_widget.setFont(CUSTOM_FONT_SMALL)
-        
+
         self.mode_table_widget.horizontalHeader().setHighlightSections(False)
         self.mode_table_widget.verticalHeader().setHighlightSections(False)
         self.mode_table_widget.setFrameStyle(QtWidgets.QFrame.Shape.NoFrame)
 
-        headers = ["Min Frequency", "Max Frequency", "Mode"]
+        headers = [
+            SettingsStrings.LABEL_MIN_FREQUENCY(),
+            SettingsStrings.LABEL_MAX_FREQUENCY(),
+            SettingsStrings.LABEL_MODE()
+        ]
         self.mode_table_widget.setHorizontalHeaderLabels(headers)
-        self.mode_table_widget.horizontalHeader().setFont(CUSTOM_FONT_SMALL)  
+        self.mode_table_widget.horizontalHeader().setFont(CUSTOM_FONT_SMALL)
         self.mode_table_widget.horizontalHeader().setVisible(True)
         self.mode_table_widget.horizontalHeader().setDefaultAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
 
@@ -458,16 +459,16 @@ class SettingsDialog(QtWidgets.QDialog):
             QtWidgets.QSizePolicy.Policy.Expanding,
             QtWidgets.QSizePolicy.Policy.Fixed
         )
-        
+
         self.mode_table_widget.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.mode_table_widget.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
-        row_height = 30 
+        row_height = 30
         self.row_to_radio = {}
-        
+
         for row, (button, label, freq_min, freq_max) in enumerate(modes):
             self.mode_table_widget.setRowHeight(row, row_height)
-            
+
             # Store the mapping between row and radio button
             self.row_to_radio[row] = button
 
@@ -492,14 +493,14 @@ class SettingsDialog(QtWidgets.QDialog):
         # Auto-size table to fit all rows without scrolling
         # self.mode_table_widget.resizeRowsToContents()
         header_height = self.mode_table_widget.horizontalHeader().sizeHint().height()
-        total_height = header_height + (row_height * len(modes)) + 15 
+        total_height = header_height + (row_height * len(modes)) + 15
         self.mode_table_widget.setFixedHeight(total_height)
 
         self.mode_table_widget.horizontalHeader().setStyleSheet("""
             QHeaderView::section {
-                font-weight: normal; 
-                border: none; 
-                padding: 10 4px 4px 4px; 
+                font-weight: normal;
+                border: none;
+                padding: 10 4px 4px 4px;
             }
         """)
 
@@ -515,45 +516,45 @@ class SettingsDialog(QtWidgets.QDialog):
         self.freq_range_type_group.layout().addWidget(udp_freq_range_type_widget)
 
         # Custom range group
-        self.custom_range_group = QtWidgets.QGroupBox("Custom frequency range")
+        self.custom_range_group = QtWidgets.QGroupBox(SettingsStrings.GROUP_CUSTOM_RANGE())
         self.group_boxes.append(self.custom_range_group)
         self.custom_range_group.setFont(CUSTOM_FONT_SMALL)
-        
+
         custom_range_widget = QtWidgets.QWidget()
         custom_range_layout = QtWidgets.QHBoxLayout(custom_range_widget)
         custom_range_layout.setContentsMargins(0, 5, 0, 0)
-        
+
         # Labels and input fields for frequency range
-        min_label = QtWidgets.QLabel("Min Freq (Hz):")
+        min_label = QtWidgets.QLabel(SettingsStrings.LABEL_MIN_FREQ())
         min_label.setFont(CUSTOM_FONT_SMALL)
         self.min_freq = QtWidgets.QSpinBox()
         self.min_freq.setRange(0, 10000)
         self.min_freq.setValue(FREQ_MINIMUM)
         self.min_freq.setSuffix("Hz")
         self.min_freq.setFont(CUSTOM_FONT_SMALL)
-        
-        max_label = QtWidgets.QLabel("Max Freq (Hz):")
+
+        max_label = QtWidgets.QLabel(SettingsStrings.LABEL_MAX_FREQ())
         max_label.setFont(CUSTOM_FONT_SMALL)
         self.max_freq = QtWidgets.QSpinBox()
         self.max_freq.setRange(0, 10000)
         self.max_freq.setValue(FREQ_MAXIMUM)
         self.max_freq.setSuffix("Hz")
         self.max_freq.setFont(CUSTOM_FONT_SMALL)
-        
+
         custom_range_layout.addWidget(min_label)
         custom_range_layout.addWidget(self.min_freq)
         custom_range_layout.addStretch()  # This pushes max fields to the right
         custom_range_layout.addWidget(max_label)
         custom_range_layout.addWidget(self.max_freq)
-        
+
         # Store custom frequency values
         self.custom_min_freq_value = FREQ_MINIMUM
         self.custom_max_freq_value = FREQ_MAXIMUM
-        
+
         # Connect frequency input changes to auto-select custom and update table
         self.min_freq.valueChanged.connect(self.on_frequency_changed)
         self.max_freq.valueChanged.connect(self.on_frequency_changed)
-        
+
         self.custom_range_group.setLayout(QtWidgets.QVBoxLayout())
         self.custom_range_group.layout().setContentsMargins(10, 10, 10, 10)
         self.custom_range_group.layout().addWidget(custom_range_widget)
@@ -564,9 +565,7 @@ class SettingsDialog(QtWidgets.QDialog):
         offset_layout.addWidget(self.custom_range_group)
         offset_layout.addStretch()
 
-        minimum_report_text = (
-            f"<p>{GUI_LABEL_NAME} won't trigger reply unless decoded message reach a minimal signal report.</p>"
-        )
+        minimum_report_text = SettingsStrings.MINIMUM_REPORT_NOTICE()
         minimum_report_notice = QtWidgets.QLabel(minimum_report_text)
         minimum_report_notice.setWordWrap(True)
         minimum_report_notice.setFont(CUSTOM_FONT_SMALL)
@@ -575,29 +574,29 @@ class SettingsDialog(QtWidgets.QDialog):
         self.notice_labels.append(minimum_report_notice)
         minimum_report_notice.setAutoFillBackground(True)
 
-        minimum_report_group = QtWidgets.QGroupBox("Minimum dB signal for reply (FT8/FT4 Mode only)")
+        minimum_report_group = QtWidgets.QGroupBox(SettingsStrings.GROUP_MINIMUM_REPORT())
         self.group_boxes.append(minimum_report_group)
         minimum_report_group.setFont(CUSTOM_FONT_SMALL)
         minimum_report_layout = QtWidgets.QHBoxLayout()
-        
-        minimum_report_label = QtWidgets.QLabel("Minimum report")
+
+        minimum_report_label = QtWidgets.QLabel(SettingsStrings.LABEL_MINIMUM_REPORT())
         minimum_report_label.setFont(CUSTOM_FONT)
-        minimum_report_label.setFixedWidth(400)        
-        
+        minimum_report_label.setFixedWidth(400)
+
         self.minimum_report_combo = QtWidgets.QComboBox()
         self.minimum_report_combo.setEditable(False)
         self.minimum_report_combo.setMinimumWidth(100)
-        
+
         report_values = [f"{i:+d}dB" for i in range(10, -27, -1)]
         self.minimum_report_combo.addItems(report_values)
-        
-        default_index = 10 - DEFAULT_MINIMUM_REPORT  
+
+        default_index = 10 - DEFAULT_MINIMUM_REPORT
         self.minimum_report_combo.setCurrentIndex(default_index)
-        
+
         minimum_report_layout.addWidget(minimum_report_label)
         minimum_report_layout.addWidget(self.minimum_report_combo)
         minimum_report_layout.addStretch()
-        
+
         minimum_report_group.setLayout(minimum_report_layout)
 
         general_layout.addWidget(general_notice_label)
@@ -605,29 +604,25 @@ class SettingsDialog(QtWidgets.QDialog):
         general_layout.addWidget(minimum_report_notice)
         general_layout.addWidget(minimum_report_group)
 
-        general_layout.addStretch() 
+        general_layout.addStretch()
 
         """
             Priority Manager Group
         """
-        self.priority_manager_group = QtWidgets.QGroupBox("Priority Manager")
+        self.priority_manager_group = QtWidgets.QGroupBox(SettingsStrings.GROUP_PRIORITY_MANAGER())
         self.group_boxes.append(self.priority_manager_group)
         self.priority_manager_group.setFont(CUSTOM_FONT_SMALL)
         priority_group_layout = QtWidgets.QVBoxLayout()
-        
-        priority_notice_text = (
-            "<p>Set the priority order for reply decisions when decoding several potential callsigns for a same period.</p><p>Drag and drop blocks to reorder them. The first row has the highest priority, and the last row refers to the lowest priority.</p>"
-        )
+
+        priority_notice_text = SettingsStrings.PRIORITY_NOTICE()
         priority_notice_label = QtWidgets.QLabel(priority_notice_text)
         priority_notice_label.setWordWrap(True)
         priority_notice_label.setFont(CUSTOM_FONT_SMALL)
         priority_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
         priority_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
         self.notice_labels.append(priority_notice_label)
-        
-        max_reply_text = (
-            "<p>When several Wanted callsigns are detected during the same sequence and if program starts to reply to one specific callsign, it has a limited <u>number of attempts</u> before moving on to the next detected callsign.</p><p>The maximum <u>waiting delay</u> is used to halt TX and stop calling a station that the program has started to call but is no longer decoded. However, if another Wanted callsign is detected, this setting has no effect.</p>"
-        )
+
+        max_reply_text = SettingsStrings.SEQUENCING_NOTICE()
         max_reply_notice_label = QtWidgets.QLabel(max_reply_text)
         max_reply_notice_label.setWordWrap(True)
         max_reply_notice_label.setFont(CUSTOM_FONT_SMALL)
@@ -636,18 +631,18 @@ class SettingsDialog(QtWidgets.QDialog):
         self.notice_labels.append(max_reply_notice_label)
         max_reply_notice_label.setAutoFillBackground(True)
 
-        self.max_reply_group = QtWidgets.QGroupBox(f"Sequencing")
+        self.max_reply_group = QtWidgets.QGroupBox(SettingsStrings.GROUP_SEQUENCING())
         self.group_boxes.append(self.max_reply_group)
         self.max_reply_group.setFont(CUSTOM_FONT_SMALL)
 
         max_reply_layout = QtWidgets.QVBoxLayout()
 
-        max_reply_label = QtWidgets.QLabel("Maximum number of attempts")
+        max_reply_label = QtWidgets.QLabel(SettingsStrings.LABEL_MAX_ATTEMPTS())
         max_reply_label.setFont(CUSTOM_FONT)
         max_reply_label.setFixedWidth(200)
 
         self.max_reply_attempts_combo = QtWidgets.QComboBox()
-        self.max_reply_attempts_combo.setEditable(False)  
+        self.max_reply_attempts_combo.setEditable(False)
         self.max_reply_attempts_combo.setMinimumWidth(100)
 
         self.max_reply_attempts_combo.addItems([str(i) for i in range(4, 31)])
@@ -656,33 +651,33 @@ class SettingsDialog(QtWidgets.QDialog):
         reply_attempts_layout = QtWidgets.QHBoxLayout()
         reply_attempts_layout.addWidget(max_reply_label)
         reply_attempts_layout.addWidget(self.max_reply_attempts_combo)
-        times_label = QtWidgets.QLabel("times")
+        times_label = QtWidgets.QLabel(SettingsStrings.LABEL_TIMES())
         times_label.setFont(CUSTOM_FONT)
         reply_attempts_layout.addWidget(times_label)
 
         max_reply_layout.addLayout(reply_attempts_layout)
 
-        max_waiting_delay_label = QtWidgets.QLabel("Maximum waiting delay")
+        max_waiting_delay_label = QtWidgets.QLabel(SettingsStrings.LABEL_MAX_WAITING_DELAY())
         max_waiting_delay_label.setFont(CUSTOM_FONT)
         max_waiting_delay_label.setFixedWidth(200)
-        
+
         self.max_waiting_delay_combo = QtWidgets.QComboBox()
-        self.max_waiting_delay_combo.setEditable(False)  
+        self.max_waiting_delay_combo.setEditable(False)
         self.max_waiting_delay_combo.setMinimumWidth(100)
 
-        waiting_delay_values = list(range(1, 11, 1)) 
+        waiting_delay_values = list(range(1, 11, 1))
         self.max_waiting_delay_combo.addItems([str(value) for value in waiting_delay_values])
 
         default_waiting_delay = str(DEFAULT_MAX_WAITING_DELAY)
         if default_waiting_delay in [str(v) for v in waiting_delay_values]:
             self.max_waiting_delay_combo.setCurrentText(default_waiting_delay)
         else:
-            self.max_waiting_delay_combo.setCurrentText(str(waiting_delay_values[0])) 
+            self.max_waiting_delay_combo.setCurrentText(str(waiting_delay_values[0]))
 
         waiting_delay_layout = QtWidgets.QHBoxLayout()
         waiting_delay_layout.addWidget(max_waiting_delay_label)
         waiting_delay_layout.addWidget(self.max_waiting_delay_combo)
-        minutes_label = QtWidgets.QLabel("minutes")
+        minutes_label = QtWidgets.QLabel(SettingsStrings.LABEL_MINUTES())
         minutes_label.setFont(CUSTOM_FONT)
         waiting_delay_layout.addWidget(minutes_label)
 
@@ -696,7 +691,10 @@ class SettingsDialog(QtWidgets.QDialog):
         self.priority_table = PriorityTableWidget()
         self.priority_table.setColumnCount(2)
         self.priority_table.setShowGrid(False)
-        self.priority_table.setHorizontalHeaderLabels(["Priority", "Reply to"])
+        self.priority_table.setHorizontalHeaderLabels([
+            SettingsStrings.HEADER_PRIORITY(),
+            SettingsStrings.HEADER_REPLY_TO()
+        ])
         self.priority_table.setMaximumHeight(190)
         self.priority_table.setAlternatingRowColors(True)
         self.priority_table.verticalHeader().setVisible(False)
@@ -705,9 +703,9 @@ class SettingsDialog(QtWidgets.QDialog):
         self.priority_table.setColumnWidth(0, 80)
         self.priority_table.horizontalHeader().setStyleSheet("""
             QHeaderView::section {
-                font-weight: normal; 
-                border: none; 
-                padding: 10 4px 4px 10px; 
+                font-weight: normal;
+                border: none;
+                padding: 10 4px 4px 10px;
             }
         """)
 
@@ -716,7 +714,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.table_widgets.append(self.priority_table)
 
         self.priority_table.rowsMoved.connect(self.update_priority_labels)
-        
+
         priority_group_layout.addWidget(priority_notice_label)
         priority_group_layout.addWidget(self.priority_table)
         self.priority_manager_group.setLayout(priority_group_layout)
@@ -726,17 +724,17 @@ class SettingsDialog(QtWidgets.QDialog):
         priority_layout.addWidget(self.max_reply_group)
         priority_layout.addWidget(self.priority_manager_group)
         priority_layout.addStretch()
-        
+
         """
             LoTW Settings
         """
         last_update, entry_count = LoTWManager.get_cache_info()
         if last_update:
-            lotw_cache_text = f"LoTW Cache Status: {entry_count: } callsigns<br />Last updated: {last_update}"
+            lotw_cache_text = SettingsStrings.LOTW_CACHE_STATUS(entry_count, last_update)
         else:
-            lotw_cache_text = "No LoTW data available yet"
-        
-        lotw_notice_text = f"<p>LoTW (Logbook of The World®) is ARRL's online QSO confirmation system.</p><p>Enable it to limit sound alerts and only respond to callsigns who use LoTW especially <u>if you use a Wildcard in your Wanted callsigns</u>.</p><p>{GUI_LABEL_NAME} will always respond to the callsign if it exactly matches a wanted callsign that is not LoTW.</p><p><u>This setting is ignored for Marathon</u> but is used for GridTracker and if you make use of Wildcard.</p>"
+            lotw_cache_text = SettingsStrings.LOTW_NO_DATA()
+
+        lotw_notice_text = SettingsStrings.LOTW_NOTICE()
         lotw_notice_label = QtWidgets.QLabel(lotw_notice_text)
         lotw_notice_label.setWordWrap(True)
         lotw_notice_label.setFont(CUSTOM_FONT_SMALL)
@@ -753,34 +751,32 @@ class SettingsDialog(QtWidgets.QDialog):
         self.notice_labels.append(lotw_cache_info)
         lotw_cache_info.setAutoFillBackground(True)
 
-        lotw_settings_group = QtWidgets.QGroupBox("LoTW Settings")
+        lotw_settings_group = QtWidgets.QGroupBox(SettingsStrings.GROUP_LOTW_SETTINGS())
         self.group_boxes.append(lotw_settings_group)
         lotw_settings_group.setFont(CUSTOM_FONT_SMALL)
-        
+
         lotw_settings_widget = QtWidgets.QWidget()
         lotw_settings_layout = QtWidgets.QGridLayout(lotw_settings_widget)
-        
-        self.enable_reply_to_lotw_only = QtWidgets.QCheckBox("Enable reply only for callsigns that use LoTW")
+
+        self.enable_reply_to_lotw_only = QtWidgets.QCheckBox(SettingsStrings.CHECK_LOTW_ONLY())
         self.enable_reply_to_lotw_only.setFont(CUSTOM_FONT)
         self.enable_reply_to_lotw_only.setChecked(False)
-        
+
         lotw_settings_layout.addWidget(self.enable_reply_to_lotw_only, 0, 0, 1, 2)
-        
+
         lotw_settings_group.setLayout(QtWidgets.QVBoxLayout())
         lotw_settings_group.layout().setContentsMargins(0, 0, 0, 0)
         lotw_settings_group.layout().addWidget(lotw_settings_widget)
-        
+
         lotw_layout.addWidget(lotw_notice_label)
-        lotw_layout.addWidget(lotw_cache_info)        
+        lotw_layout.addWidget(lotw_cache_info)
         lotw_layout.addWidget(lotw_settings_group)
         lotw_layout.addStretch()
-        
+
         """
             Sound Settings
         """
-        sound_notice_text = (
-            "<p>You can enable or disable the sounds as per your requirement. You can even set a delay between each sound triggered by a message where a monitored callsign has been found. This mainly helps you to be notified when the band opens or when you have a callsign on the air that you want to monitor.</p><p>Monitored callsigns will never get reply from this program. Only <u>Wanted callsigns will get a reply</u>.</p>"
-        )
+        sound_notice_text = SettingsStrings.SOUND_NOTICE()
 
         sound_notice_label = QtWidgets.QLabel(sound_notice_text)
         sound_notice_label.setWordWrap(True)
@@ -790,24 +786,24 @@ class SettingsDialog(QtWidgets.QDialog):
         self.notice_labels.append(sound_notice_label)
         sound_notice_label.setAutoFillBackground(True)
 
-        sound_settings_group = QtWidgets.QGroupBox("Sound Alert Settings")
+        sound_settings_group = QtWidgets.QGroupBox(SettingsStrings.GROUP_SOUND_SETTINGS())
         self.group_boxes.append(sound_settings_group)
         sound_settings_group.setFont(CUSTOM_FONT_SMALL)
         sound_settings_layout = QtWidgets.QGridLayout()
 
-        play_sound_notice_label = QtWidgets.QLabel("Play Sounds when:")
+        play_sound_notice_label = QtWidgets.QLabel(SettingsStrings.LABEL_PLAY_SOUND_WHEN())
         play_sound_notice_label.setFont(CUSTOM_FONT)
         play_sound_notice_label.setFont(CUSTOM_FONT_SMALL)
 
-        self.enable_sound_wanted_callsigns = QtWidgets.QCheckBox("Message from any Wanted Callsign")
+        self.enable_sound_wanted_callsigns = QtWidgets.QCheckBox(SettingsStrings.CHECK_SOUND_WANTED())
         self.enable_sound_wanted_callsigns.setFont(CUSTOM_FONT)
         self.enable_sound_wanted_callsigns.setChecked(True)
 
-        self.enable_sound_directed_my_callsign = QtWidgets.QCheckBox("Message directed to my Callsign")
+        self.enable_sound_directed_my_callsign = QtWidgets.QCheckBox(SettingsStrings.CHECK_SOUND_DIRECTED())
         self.enable_sound_directed_my_callsign.setFont(CUSTOM_FONT)
         self.enable_sound_directed_my_callsign.setChecked(True)
 
-        self.enable_sound_monitored_callsigns = QtWidgets.QCheckBox("Message from any Monitored Callsign")
+        self.enable_sound_monitored_callsigns = QtWidgets.QCheckBox(SettingsStrings.CHECK_SOUND_MONITORED())
         self.enable_sound_monitored_callsigns.setFont(CUSTOM_FONT)
         self.enable_sound_monitored_callsigns.setChecked(True)
 
@@ -817,7 +813,7 @@ class SettingsDialog(QtWidgets.QDialog):
 
         delay_layout = QtWidgets.QHBoxLayout()
         delay_layout.addWidget(self.delay_between_sound_for_monitored)
-        seconds_label = QtWidgets.QLabel("seconds")
+        seconds_label = QtWidgets.QLabel(SettingsStrings.LABEL_SECONDS())
         seconds_label.setFont(CUSTOM_FONT)
         delay_layout.addWidget(seconds_label)
         delay_layout.addStretch()
@@ -826,7 +822,7 @@ class SettingsDialog(QtWidgets.QDialog):
         sound_settings_layout.addWidget(self.enable_sound_wanted_callsigns, 1, 0, 1, 2)
         sound_settings_layout.addWidget(self.enable_sound_directed_my_callsign, 2, 0, 1, 2)
         sound_settings_layout.addWidget(self.enable_sound_monitored_callsigns, 3, 0, 1, 2)
-        delay_between_label = QtWidgets.QLabel("Delay between each monitored callsigns detected:")
+        delay_between_label = QtWidgets.QLabel(SettingsStrings.LABEL_DELAY_BETWEEN())
         delay_between_label.setFont(CUSTOM_FONT)
         sound_settings_layout.addWidget(delay_between_label, 4, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
         sound_settings_layout.addLayout(delay_layout, 4, 1, 1, 2)
@@ -838,14 +834,12 @@ class SettingsDialog(QtWidgets.QDialog):
 
         sound_layout.addWidget(sound_notice_label)
         sound_layout.addWidget(sound_settings_group)
-        sound_layout.addStretch()  
+        sound_layout.addStretch()
 
         """
             Log Analysis Settings
         """
-        log_analysis_notice_text = (
-            f"<p>While using {GUI_LABEL_NAME}, you can let this program analyze your working ADIF files from WSJT-x or JTDX.<p><p>{GUI_LABEL_NAME} won't update your ADIF files. Still, it can read, parse and analyse them. You can set several ADIF files, for exemple your main WSJT-X ADIF and a full export of your log.</p>"
-        )
+        log_analysis_notice_text = SettingsStrings.LOG_ANALYSIS_NOTICE()
 
         log_analysis_notice_label = QtWidgets.QLabel(log_analysis_notice_text)
         log_analysis_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
@@ -854,27 +848,27 @@ class SettingsDialog(QtWidgets.QDialog):
         log_analysis_notice_label.setFont(CUSTOM_FONT_SMALL)
         log_analysis_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
-        file_selection_group = QtWidgets.QGroupBox("ADIF Files for log analysis")
+        file_selection_group = QtWidgets.QGroupBox(SettingsStrings.GROUP_FILE_SELECTION())
         self.group_boxes.append(file_selection_group)
         file_selection_group.setFont(CUSTOM_FONT_SMALL)
         file_selection_group.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
         file_selection_widget = QtWidgets.QWidget()
         file_selection_layout = QtWidgets.QVBoxLayout(file_selection_widget)
-        
+
         # Buttons layout
         buttons_widget = QtWidgets.QWidget()
         buttons_layout = QtWidgets.QHBoxLayout(buttons_widget)
         buttons_layout.setContentsMargins(0, 0, 0, 0)
-        
+
         # Add ADIF File button
-        self.add_file_button = QtWidgets.QPushButton("Select new ADIF File for analysis")
+        self.add_file_button = QtWidgets.QPushButton(SettingsStrings.BUTTON_SELECT_ADIF())
         self.add_file_button.setFont(CUSTOM_FONT)
         self.add_file_button.clicked.connect(self.add_adif_file)
-        
+
         buttons_layout.addWidget(self.add_file_button)
         buttons_layout.addStretch()
-        
+
         # Table for file list
         self.adif_files_table = QtWidgets.QTableWidget()
         self.adif_files_table.setColumnCount(2)
@@ -883,7 +877,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.adif_files_table.setColumnWidth(0, 40)  # Fixed width for counter column
         self.adif_files_table.horizontalHeader().setStretchLastSection(True)  # Stretch second column
         self.adif_files_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
-                
+
         self.adif_files_table.setShowGrid(False)
         self.adif_files_table.horizontalHeader().setVisible(False)
         self.adif_files_table.verticalHeader().setVisible(False)
@@ -894,8 +888,8 @@ class SettingsDialog(QtWidgets.QDialog):
         self.adif_files_table.verticalHeader().setHighlightSections(False)
         self.adif_files_table.setFrameStyle(QtWidgets.QFrame.Shape.NoFrame)
 
-        self.adif_files_table.setHorizontalHeaderLabels(["", "ADIF Files for analysis"])                
-        self.adif_files_table.horizontalHeader().setFont(CUSTOM_FONT_SMALL)  
+        self.adif_files_table.setHorizontalHeaderLabels(["", SettingsStrings.HEADER_ADIF_FILES()])
+        self.adif_files_table.horizontalHeader().setFont(CUSTOM_FONT_SMALL)
         self.adif_files_table.horizontalHeader().setVisible(True)
         self.adif_files_table.horizontalHeader().setDefaultAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
 
@@ -903,14 +897,14 @@ class SettingsDialog(QtWidgets.QDialog):
             QtWidgets.QSizePolicy.Policy.Expanding,
             QtWidgets.QSizePolicy.Policy.Fixed
         )
-                
+
         self.adif_files_table.selectionModel().selectionChanged.connect(self.on_table_selection_changed)
 
         self.adif_files_table.horizontalHeader().setStyleSheet("""
             QHeaderView::section {
-                font-weight: normal; 
-                border: none; 
-                padding: 10 4px 4px 4px; 
+                font-weight: normal;
+                border: none;
+                padding: 10 4px 4px 4px;
             }
         """)
 
@@ -919,33 +913,33 @@ class SettingsDialog(QtWidgets.QDialog):
 
         # List to keep track of selected files
         self.selected_adif_files = []
-        
+
         file_selection_layout.addWidget(buttons_widget)
         file_selection_layout.addWidget(self.adif_files_table)
-        
+
         # Clear button layout (right-aligned, after table)
         clear_button_widget = QtWidgets.QWidget()
         clear_button_layout = QtWidgets.QHBoxLayout(clear_button_widget)
         clear_button_layout.setContentsMargins(0, 0, 0, 0)
-        
+
         # Summary button
-        self.summary_file_button = QtWidgets.QPushButton("Summary")
+        self.summary_file_button = QtWidgets.QPushButton(CommonStrings.SUMMARY())
         self.summary_file_button.setFont(CUSTOM_FONT)
         self.summary_file_button.setFixedWidth(80)
         self.summary_file_button.clicked.connect(self.show_selected_file_summary)
         self.summary_file_button.setEnabled(False)  # Initially disabled
-        
+
         # Clear button
-        self.clear_file_button = QtWidgets.QPushButton("Clear")
+        self.clear_file_button = QtWidgets.QPushButton(CommonStrings.CLEAR())
         self.clear_file_button.setFont(CUSTOM_FONT)
         self.clear_file_button.setFixedWidth(60)
         self.clear_file_button.clicked.connect(self.clear_selected_file)
         self.clear_file_button.setEnabled(False)  # Initially disabled
-        
+
         clear_button_layout.addStretch()
         clear_button_layout.addWidget(self.summary_file_button)
         clear_button_layout.addWidget(self.clear_file_button)
-        
+
         file_selection_layout.addWidget(clear_button_widget)
 
         file_selection_group.setLayout(QtWidgets.QVBoxLayout())
@@ -955,9 +949,7 @@ class SettingsDialog(QtWidgets.QDialog):
         """
             Worked Before Settings
         """
-        worked_b4_notice_text = (
-            f"<p>{GUI_LABEL_NAME}, will show the year of the Worked B4 stations you decode.<p><p>You can select from this panel, how the program will behave when it decodes some already worked callsign on the same band.</p>"
-        )
+        worked_b4_notice_text = SettingsStrings.WORKED_B4_NOTICE()
 
         worked_b4_notice_label = QtWidgets.QLabel(worked_b4_notice_text)
         worked_b4_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
@@ -966,25 +958,25 @@ class SettingsDialog(QtWidgets.QDialog):
         worked_b4_notice_label.setFont(CUSTOM_FONT_SMALL)
         worked_b4_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
-        self.adif_wkb4_group = QtWidgets.QGroupBox("What should we do with Worked B4?")
+        self.adif_wkb4_group = QtWidgets.QGroupBox(SettingsStrings.GROUP_WKB4_SETTINGS())
         self.group_boxes.append(self.adif_wkb4_group)
         self.adif_wkb4_group.setFont(CUSTOM_FONT_SMALL)
         adif_wkb4_layout = QtWidgets.QVBoxLayout()
         adif_wkb4_layout.setSpacing(10)
 
-        self.radio_reply_always = QtWidgets.QRadioButton("Reply to any Wanted Callsign even if Worked B4")        
-        self.radio_reply_current_year = QtWidgets.QRadioButton("Reply to Wanted Callsign if not Worked B4 in current year ({})".format(datetime.now().year))
-        self.radio_reply_never = QtWidgets.QRadioButton("Do not reply to any Callsign Worked B4")
+        self.radio_reply_always = QtWidgets.QRadioButton(SettingsStrings.RADIO_REPLY_ALWAYS())
+        self.radio_reply_current_year = QtWidgets.QRadioButton(SettingsStrings.RADIO_REPLY_CURRENT_YEAR(datetime.now().year))
+        self.radio_reply_never = QtWidgets.QRadioButton(SettingsStrings.RADIO_REPLY_NEVER())
         self.radio_reply_never.setChecked(True)
 
         self.radio_reply_always.setFont(CUSTOM_FONT)
         self.radio_reply_current_year.setFont(CUSTOM_FONT)
         self.radio_reply_never.setFont(CUSTOM_FONT)
-        
+
         adif_wkb4_layout.addWidget(self.radio_reply_always)
         adif_wkb4_layout.addWidget(self.radio_reply_current_year)
         adif_wkb4_layout.addWidget(self.radio_reply_never)
-        adif_wkb4_layout.setSpacing(15) 
+        adif_wkb4_layout.setSpacing(15)
 
         self.adif_wkb4_group.setLayout(adif_wkb4_layout)
         self.adif_wkb4_group.setVisible(False)
@@ -992,9 +984,7 @@ class SettingsDialog(QtWidgets.QDialog):
         """
             Marathon Settings
         """
-        marathon_notice_text = (
-            f"<p>Marathon feature has to be used with caution.</p><p>{GUI_LABEL_NAME} will analyze your log and check for any missing entities you haven't worked on selected band. If a missing entity is decoded, {GUI_LABEL_NAME} will reply to this callsign.</p><p>Note that rules set for <u>Worked Before</u> will remain in effect.</p>"
-        )
+        marathon_notice_text = SettingsStrings.MARATHON_NOTICE()
         marathon_notice_label = QtWidgets.QLabel(marathon_notice_text)
         marathon_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
         self.notice_labels.append(marathon_notice_label)
@@ -1002,7 +992,7 @@ class SettingsDialog(QtWidgets.QDialog):
         marathon_notice_label.setFont(CUSTOM_FONT_SMALL)
         marathon_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
-        self.marathon_group = QtWidgets.QGroupBox("Enable Marathon for selected bands")
+        self.marathon_group = QtWidgets.QGroupBox(SettingsStrings.GROUP_MARATHON_SETTINGS())
         self.group_boxes.append(self.marathon_group)
         self.marathon_group.setFont(CUSTOM_FONT_SMALL)
         marathon_select_layout = QtWidgets.QGridLayout()
@@ -1014,21 +1004,21 @@ class SettingsDialog(QtWidgets.QDialog):
 
         for amateur_band in list(AMATEUR_BANDS.keys())[:-3]:
             btn = CustomButton(amateur_band)
-            btn.setCheckable(True)         
+            btn.setCheckable(True)
             btn.toggled.connect(lambda checked, btn=btn, name=amateur_band: self.on_band_toggled(btn, name, checked))
             self.band_buttons[amateur_band] = btn
             marathon_select_layout.addWidget(btn, row, col)
-            
+
             col += 1
             if col >= max_cols:
                 col = 0
                 row += 1
-    
-        btn = CustomButton(MARATHON_UNLIMITED)        
-        btn.setCheckable(True)         
+
+        btn = CustomButton(MARATHON_UNLIMITED)
+        btn.setCheckable(True)
         btn.toggled.connect(lambda checked, btn=btn, name=MARATHON_UNLIMITED: self.on_band_toggled(btn, MARATHON_UNLIMITED, checked))
         self.band_buttons[MARATHON_UNLIMITED] = btn
-        marathon_select_layout.addWidget(btn, row, col)        
+        marathon_select_layout.addWidget(btn, row, col)
 
         self.marathon_group.setLayout(marathon_select_layout)
 
@@ -1037,7 +1027,7 @@ class SettingsDialog(QtWidgets.QDialog):
         """
         marathon_layout.addWidget(marathon_notice_label)
         marathon_layout.addWidget(self.marathon_group)
-        marathon_layout.addStretch()  
+        marathon_layout.addStretch()
 
         """
             Log Analysis Settings
@@ -1056,9 +1046,7 @@ class SettingsDialog(QtWidgets.QDialog):
         """
             Club Log Settings
         """
-        club_log_notice_text = (
-            "<p>Wait and Pounce can upload individual QSOs in real-time to Club Log.</p>"
-        )
+        club_log_notice_text = SettingsStrings.CLUB_LOG_NOTICE()
 
         club_log_notice_label = QtWidgets.QLabel(club_log_notice_text)
         club_log_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
@@ -1081,31 +1069,31 @@ class SettingsDialog(QtWidgets.QDialog):
         self.notice_labels.append(self.club_log_cache_info)
         self.club_log_cache_info.setAutoFillBackground(True)
 
-        club_log_settings_group = QtWidgets.QGroupBox("Club Log Upload Settings")
+        club_log_settings_group = QtWidgets.QGroupBox(SettingsStrings.GROUP_CLUB_LOG_SETTINGS())
         self.group_boxes.append(club_log_settings_group)
         club_log_settings_group.setFont(CUSTOM_FONT_SMALL)
 
         club_log_settings_widget = QtWidgets.QWidget()
         club_log_settings_layout = QtWidgets.QGridLayout(club_log_settings_widget)
 
-        self.enable_club_log_synch = QtWidgets.QCheckBox("Enable real-time QSO uploads to Club Log")
+        self.enable_club_log_synch = QtWidgets.QCheckBox(SettingsStrings.CHECK_ENABLE_CLUB_LOG())
         self.enable_club_log_synch.setFont(CUSTOM_FONT)
         self.enable_club_log_synch.setChecked(False)
 
-        club_log_email_label = QtWidgets.QLabel("Club Log Email:")
+        club_log_email_label = QtWidgets.QLabel(SettingsStrings.LABEL_CALLSIGN())
         club_log_email_label.setFont(CUSTOM_FONT)
         self.club_log_email = QtWidgets.QLineEdit()
         self.club_log_email.setFont(CUSTOM_FONT)
         self.club_log_email.setPlaceholderText("Registered email address in Club Log")
 
-        club_log_password_label = QtWidgets.QLabel("Password:")
+        club_log_password_label = QtWidgets.QLabel(SettingsStrings.LABEL_API_KEY())
         club_log_password_label.setFont(CUSTOM_FONT)
         self.club_log_password = QtWidgets.QLineEdit()
         self.club_log_password.setFont(CUSTOM_FONT)
         self.club_log_password.setEchoMode(QtWidgets.QLineEdit.EchoMode.Password)
         self.club_log_password.setPlaceholderText("Application password")
 
-        club_log_callsign_label = QtWidgets.QLabel("Callsign:")
+        club_log_callsign_label = QtWidgets.QLabel(SettingsStrings.LABEL_CALLSIGN())
         club_log_callsign_label.setFont(CUSTOM_FONT)
         self.club_log_callsign = QtWidgets.QLineEdit()
         self.club_log_callsign.setFont(CUSTOM_FONT)
@@ -1131,9 +1119,7 @@ class SettingsDialog(QtWidgets.QDialog):
         """
             Grid Tracker Settings
         """
-        grid_tracker_notice_text = (
-            f"<p>{GUI_LABEL_NAME} will analyze your log and check for any missing grids you haven't worked on selected band.</p><p>If a callsign with a missing grid is decoded, {GUI_LABEL_NAME} will reply to this callsign for this grid.</p>"
-        )
+        grid_tracker_notice_text = SettingsStrings.GRID_TRACKER_NOTICE()
         grid_tracker_notice_label = QtWidgets.QLabel(grid_tracker_notice_text)
         grid_tracker_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
         self.notice_labels.append(grid_tracker_notice_label)
@@ -1147,7 +1133,7 @@ class SettingsDialog(QtWidgets.QDialog):
         grid_tracker_separator.setFrameShadow(QtWidgets.QFrame.Shadow.Sunken)
 
         # Grid reply new grid on any band checkbox
-        self.enable_grid_reply_new_grid = QtWidgets.QCheckBox("Enable grid tracker to reply to callsign if new grid regardless of band")
+        self.enable_grid_reply_new_grid = QtWidgets.QCheckBox(SettingsStrings.CHECK_ENABLE_GRID_TRACKER())
         self.enable_grid_reply_new_grid.setFont(CUSTOM_FONT_SMALL)
         self.enable_grid_reply_new_grid.setChecked(False)
 
@@ -1162,7 +1148,7 @@ class SettingsDialog(QtWidgets.QDialog):
         grid_tracker_per_band_notice_label.setFont(CUSTOM_FONT_SMALL)
         grid_tracker_per_band_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
-        self.grid_tracker_group = QtWidgets.QGroupBox("Select bands")
+        self.grid_tracker_group = QtWidgets.QGroupBox(SettingsStrings.GROUP_GRID_TRACKER_SETTINGS())
         self.group_boxes.append(self.grid_tracker_group)
         self.grid_tracker_group.setFont(CUSTOM_FONT_SMALL)
         grid_tracker_select_layout = QtWidgets.QGridLayout()
@@ -1174,11 +1160,11 @@ class SettingsDialog(QtWidgets.QDialog):
 
         for amateur_band in list(AMATEUR_BANDS.keys()):
             btn = CustomButton(amateur_band)
-            btn.setCheckable(True)         
+            btn.setCheckable(True)
             btn.toggled.connect(lambda checked, btn=btn, name=amateur_band: self.on_grid_tracker_band_toggled(btn, name, checked))
             self.grid_tracker_band_buttons[amateur_band] = btn
             grid_tracker_select_layout.addWidget(btn, row, col)
-            
+
             col += 1
             if col >= max_cols:
                 col = 0
@@ -1187,14 +1173,14 @@ class SettingsDialog(QtWidgets.QDialog):
         self.grid_tracker_group.setLayout(grid_tracker_select_layout)
 
         # Grid reply unconfirmed checkbox
-        self.enable_grid_reply_unconfirmed = QtWidgets.QCheckBox("Reply to callsign if grid not yet confirmed and not worked before")
+        self.enable_grid_reply_unconfirmed = QtWidgets.QCheckBox(SettingsStrings.CHECK_ENABLE_GRID_TRACKER())
         self.enable_grid_reply_unconfirmed.setFont(CUSTOM_FONT_SMALL)
         self.enable_grid_reply_unconfirmed.setChecked(False)
 
         grid_tracker_layout.addWidget(grid_tracker_notice_label)
         grid_tracker_layout.addWidget(self.enable_grid_reply_new_grid)
-        grid_tracker_layout.addWidget(grid_tracker_separator)   
-        grid_tracker_layout.addWidget(grid_tracker_per_band_notice_label)     
+        grid_tracker_layout.addWidget(grid_tracker_separator)
+        grid_tracker_layout.addWidget(grid_tracker_per_band_notice_label)
         grid_tracker_layout.addWidget(self.grid_tracker_group)
         grid_tracker_layout.addWidget(self.enable_grid_reply_unconfirmed)
         grid_tracker_layout.addStretch()
@@ -1245,7 +1231,7 @@ class SettingsDialog(QtWidgets.QDialog):
         adif_backup_layout.addWidget(self.select_backup_file_button)
         adif_backup_layout.addWidget(self.show_backup_file_path)
         adif_backup_layout.addWidget(self.backup_file_status_info)
-        
+
         """
         adif_backup_layout.addWidget(self.open_backup_file_button, 0, 2)
         """
@@ -1259,14 +1245,12 @@ class SettingsDialog(QtWidgets.QDialog):
         backup_layout.addWidget(working_log_notice_label)
         backup_layout.addWidget(self.backup_file_status_info)
         backup_layout.addWidget(adif_backup_selection_group)
-        backup_layout.addStretch()  
-        
+        backup_layout.addStretch()
+
         """
             Debug Settings
         """
-        debug_notice_text = (
-            "<p>There is no need to enable <u>Save all received Packet</u> unless you want to study every packet data received from your WSJT-X/JTDX instance.</p><p>If issue encountered while using this program, please provide the <u>pounce.log</u> as reference.</p>"
-        )
+        debug_notice_text = SettingsStrings.DEBUG_NOTICE()
         debug_notice_label = QtWidgets.QLabel(debug_notice_text)
         debug_notice_label.setWordWrap(True)
         debug_notice_label.setFont(CUSTOM_FONT_SMALL)
@@ -1275,17 +1259,17 @@ class SettingsDialog(QtWidgets.QDialog):
         self.notice_labels.append(debug_notice_label)
         debug_notice_label.setAutoFillBackground(True)
 
-        log_settings_group = QtWidgets.QGroupBox("Log Settings")
+        log_settings_group = QtWidgets.QGroupBox(SettingsStrings.GROUP_DEBUG_SETTINGS())
         self.group_boxes.append(log_settings_group)
         log_settings_group.setFont(CUSTOM_FONT_SMALL)
         log_settings_layout = QtWidgets.QVBoxLayout()
-        log_settings_layout.setSpacing(15) 
+        log_settings_layout.setSpacing(15)
 
-        self.enable_debug_output = QtWidgets.QCheckBox("Show debug output")
+        self.enable_debug_output = QtWidgets.QCheckBox(SettingsStrings.CHECK_ENABLE_POUNCE_LOG())
         self.enable_debug_output.setFont(CUSTOM_FONT)
         self.enable_debug_output.setChecked(DEFAULT_DEBUG_OUTPUT)
 
-        self.enable_extra_gui_debug_output = QtWidgets.QCheckBox("Save GUI debug output (Not recommended)")
+        self.enable_extra_gui_debug_output = QtWidgets.QCheckBox(SettingsStrings.CHECK_ENABLE_GUI_DEBUG())
         self.enable_extra_gui_debug_output.setFont(CUSTOM_FONT)
         self.enable_extra_gui_debug_output.setChecked(False)
 
@@ -1293,7 +1277,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_pounce_log.setFont(CUSTOM_FONT)
         self.enable_pounce_log.setChecked(DEFAULT_POUNCE_LOG)
 
-        self.enable_log_packet_data = QtWidgets.QCheckBox("Save all received Packet Data to log")
+        self.enable_log_packet_data = QtWidgets.QCheckBox(SettingsStrings.CHECK_LOG_PACKET_DATA())
         self.enable_log_packet_data.setFont(CUSTOM_FONT)
         self.enable_log_packet_data.setChecked(DEFAULT_LOG_PACKET_DATA)
 
@@ -1301,30 +1285,30 @@ class SettingsDialog(QtWidgets.QDialog):
         log_settings_layout.addWidget(self.enable_log_packet_data)
         log_settings_layout.addWidget(self.enable_extra_gui_debug_output)
         log_settings_layout.addWidget(self.enable_debug_output)
-    
+
         log_settings_group.setLayout(log_settings_layout)
 
         # Add debug settings to debugging page
         debugging_layout.addWidget(debug_notice_label)
         debugging_layout.addWidget(log_settings_group)
         debugging_layout.addStretch()
-        
+
         self.load_params()
 
         self.button_box = QtWidgets.QDialogButtonBox()
-        self.ok_button = CustomButton("OK")
-        self.cancel_button = CustomButton("Cancel")
+        self.ok_button = CustomButton(CommonStrings.OK())
+        self.cancel_button = CustomButton(CommonStrings.CANCEL())
 
         self.button_box.addButton(self.ok_button, QtWidgets.QDialogButtonBox.ButtonRole.AcceptRole)
         self.button_box.addButton(self.cancel_button, QtWidgets.QDialogButtonBox.ButtonRole.RejectRole)
-        
+
         layout.addWidget(self.button_box)
 
         self.ok_button.clicked.connect(self.accept)
         self.cancel_button.clicked.connect(self.reject)
 
-        self.on_page_changed(0)  
-        self.menu_list.currentRowChanged.connect(self.on_page_changed)        
+        self.on_page_changed(0)
+        self.menu_list.currentRowChanged.connect(self.on_page_changed)
 
     def get_ordinal(self, number):
         if number == 0:
@@ -1335,42 +1319,42 @@ class SettingsDialog(QtWidgets.QDialog):
             return "3rd"
         else:
             return f"{number+1}th"
-    
+
     def update_priority_labels(self):
         row_height = 30
         for i in range(self.priority_table.rowCount()):
             self.priority_table.setRowHeight(i, row_height)
-            
+
             priority_item = QTableWidgetItem(self.get_ordinal(i))
             priority_item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
             priority_item.setFlags(priority_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             priority_item.setFont(CUSTOM_FONT_SMALL)
             self.priority_table.setItem(i, 0, priority_item)
-    
+
     def populate_priority_list(self):
         if not hasattr(self, 'priority_table'):
             return
-            
+
         # Get current order from table
         current_order = []
         for i in range(self.priority_table.rowCount()):
             feature_item = self.priority_table.item(i, 1)
             if feature_item:
                 current_order.append(feature_item.text())
-        
+
         # Load from saved settings
         if not current_order:
             saved_order = self.params.get('priority_order', list(PRIORITY_LIST.values()))
             reverse_mapping = {v: k for k, v in PRIORITY_LIST.items()}
             for item in saved_order:
                 try:
-                    if item in reverse_mapping: 
+                    if item in reverse_mapping:
                         current_order.append(reverse_mapping[item])
-                    elif item in PRIORITY_LIST: 
+                    elif item in PRIORITY_LIST:
                         current_order.append(item)
                 except KeyError:
                     pass
-        
+
         available_items = []
         if self.enable_sending_reply.isChecked():
             for display_name, key in PRIORITY_LIST.items():
@@ -1382,42 +1366,42 @@ class SettingsDialog(QtWidgets.QDialog):
                         continue
                 available_items.append(display_name)
             if not self.enable_polite_reply.isChecked():
-                 if available_items: 
+                 if available_items:
                     available_items.pop()
-        
+
         final_order = []
         for item in current_order:
             if item in available_items:
                 final_order.append(item)
                 available_items.remove(item)
-        final_order.extend(available_items)  
-        
+        final_order.extend(available_items)
+
         self.priority_table.setRowCount(len(final_order))
-        
+
         row_height = 30
         for i, item_name in enumerate(final_order):
             self.priority_table.setRowHeight(i, row_height)
-            
+
             priority_item = QTableWidgetItem(self.get_ordinal(i))
             priority_item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
             priority_item.setFlags(priority_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             priority_item.setFont(CUSTOM_FONT_SMALL)
             self.priority_table.setItem(i, 0, priority_item)
-            
+
             # Feature column
             feature_item = QTableWidgetItem(item_name)
             feature_item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
             feature_item.setFlags(feature_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             feature_item.setFont(CUSTOM_FONT_SMALL)
             self.priority_table.setItem(i, 1, feature_item)
-    
+
     def update_priority_manager_visibility(self):
         if self.enable_sending_reply.isChecked():
             self.priority_manager_group.setVisible(True)
             self.populate_priority_list()
         else:
             self.priority_manager_group.setVisible(False)
-    
+
     def on_band_toggled(self, button, band_name, checked):
         if not hasattr(self, "_previous_band_states"):
             self._previous_band_states = {}
@@ -1457,29 +1441,29 @@ class SettingsDialog(QtWidgets.QDialog):
         else:
             button.resetStyle()
 
-        self.grid_tracker_preference[band_name] = checked 
+        self.grid_tracker_preference[band_name] = checked
 
-        self.populate_priority_list()            
+        self.populate_priority_list()
 
     def on_table_row_selected(self, row, _column):
         # Get the radio button for this row
         button = self.row_to_radio.get(row)
-        
+
         if button:
             button.setChecked(True)
             # Ensure the row stays selected
             self.mode_table_widget.selectRow(row)
-            
+
             # If Custom row is selected, restore the custom frequency values
             if button == self.radio_custom:
                 # Temporarily disconnect signals to avoid triggering on_frequency_changed
                 self.min_freq.valueChanged.disconnect(self.on_frequency_changed)
                 self.max_freq.valueChanged.disconnect(self.on_frequency_changed)
-                
+
                 # Restore the stored custom values
                 self.min_freq.setValue(self.custom_min_freq_value)
                 self.max_freq.setValue(self.custom_max_freq_value)
-                
+
                 # Reconnect signals
                 self.min_freq.valueChanged.connect(self.on_frequency_changed)
                 self.max_freq.valueChanged.connect(self.on_frequency_changed)
@@ -1490,47 +1474,47 @@ class SettingsDialog(QtWidgets.QDialog):
                     # Temporarily disconnect signals to avoid triggering on_frequency_changed
                     self.min_freq.valueChanged.disconnect(self.on_frequency_changed)
                     self.max_freq.valueChanged.disconnect(self.on_frequency_changed)
-                    
+
                     self.min_freq.setValue(preset_min)
                     self.max_freq.setValue(preset_max)
-                    
+
                     # Reconnect signals
                     self.min_freq.valueChanged.connect(self.on_frequency_changed)
                     self.max_freq.valueChanged.connect(self.on_frequency_changed)
-    
+
     def on_frequency_changed(self):
         """Called when frequency spinbox values change - auto-select Custom and update table"""
         min_freq = self.min_freq.value()
         max_freq = self.max_freq.value()
-        
+
         # Check if current frequencies match any preset
         matches_preset = False
         for radio, (preset_min, preset_max) in self.freq_range.items():
             if min_freq == preset_min and max_freq == preset_max:
                 radio.setChecked(True)
                 matches_preset = True
-                
+
                 # Highlight the matching preset row in the table
                 for row, button in self.row_to_radio.items():
                     if button == radio:
                         self.mode_table_widget.selectRow(row)
                         break
                 break
-                
+
         # If no preset matches, select Custom and update its table row
         if not matches_preset:
             # Store the custom values
             self.custom_min_freq_value = min_freq
             self.custom_max_freq_value = max_freq
-            
+
             self.radio_custom.setChecked(True)
             # Update the table display for the Custom row only
             self.update_custom_table_display()
-            
+
             # Highlight the Custom row in the table
             custom_row = 3  # Custom is the 4th row (0-indexed)
             self.mode_table_widget.selectRow(custom_row)
-    
+
     def update_custom_table_display(self):
         custom_row = 3  # Custom is the 4th row (0-indexed)
         freq_min_item = self.mode_table_widget.item(custom_row, 0)  # Column 0 now
@@ -1538,7 +1522,7 @@ class SettingsDialog(QtWidgets.QDialog):
         if freq_min_item and freq_max_item:
             freq_min_item.setText(f"{self.custom_min_freq_value}Hz")
             freq_max_item.setText(f"{self.custom_max_freq_value}Hz")
-            
+
     def highlight_selected_mode_row(self):
         selected_radio = None
         if self.radio_normal.isChecked():
@@ -1549,7 +1533,7 @@ class SettingsDialog(QtWidgets.QDialog):
             selected_radio = self.radio_superfox
         elif self.radio_custom.isChecked():
             selected_radio = self.radio_custom
-            
+
         if selected_radio:
             for row, button in self.row_to_radio.items():
                 if button == selected_radio:
@@ -1560,7 +1544,7 @@ class SettingsDialog(QtWidgets.QDialog):
         # Clear focus from any widget to prevent unwanted field focus
         if self.focusWidget():
             self.focusWidget().clearFocus()
-        
+
         if sys.platform == 'darwin':
             current_page = self.stacked_widget.widget(index)
 
@@ -1575,28 +1559,28 @@ class SettingsDialog(QtWidgets.QDialog):
     def get_backup_file_status(self, file_path):
         if not os.path.exists(file_path):
             return "File not found", 0, 0, "N/A", "N/A"
-        
+
         try:
             if os.path.getsize(file_path) == 0:
                 return "Empty file", 0, 0, "N/A", "N/A"
             with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
                 content = f.read()
             total_entries = content.upper().count('<EOR>')
-            
+
             callsigns = set()
             first_entry_date = None
             records = re.split(r'<EOR>', content, flags=re.IGNORECASE)
-            
+
             for record in records:
                 if record.strip():  # Skip empty records
                     fields = {
-                        field.upper(): value.strip() 
+                        field.upper(): value.strip()
                         for field, value in ADIF_FIELD_RE.findall(record)
                     }
                     call = fields.get('CALL')
                     if call:
                         callsigns.add(call.upper())
-                    
+
                     # Extract date for first entry
                     if first_entry_date is None:
                         qso_date = fields.get('QSO_DATE')
@@ -1604,19 +1588,19 @@ class SettingsDialog(QtWidgets.QDialog):
                             try:
                                 # Parse ADIF date format (YYYYMMDD)
                                 year = qso_date[0:4]
-                                month = qso_date[4:6] 
+                                month = qso_date[4:6]
                                 day = qso_date[6:8]
                                 first_entry_date = f"{year}-{month}-{day}"
                             except:
                                 pass
-            
+
             unique_calls = len(callsigns)
-            
+
             mod_time = os.path.getmtime(file_path)
             last_update = datetime.fromtimestamp(mod_time).strftime("%Y-%m-%d %H:%M")
-            
+
             return "Ready", total_entries, unique_calls, last_update, first_entry_date or "N/A"
-            
+
         except Exception as e:
             print(f"Error parsing ADIF file {file_path}: {e}")
             return "Error reading file", 0, 0, "N/A", "N/A"
@@ -1656,7 +1640,7 @@ class SettingsDialog(QtWidgets.QDialog):
             selected_files = dialog.selectedFiles()
             if selected_files:
                 self.show_backup_file_path.setText(selected_files[0])
-                self.update_backup_file_status()            
+                self.update_backup_file_status()
 
     def add_adif_file(self):
         dialog = QFileDialog(self, "Select ADIF File")
@@ -1665,12 +1649,12 @@ class SettingsDialog(QtWidgets.QDialog):
         dialog.setOptions(
             QFileDialog.Option.DontUseCustomDirectoryIcons
         )
-        
+
         if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
             selected_files = dialog.selectedFiles()
             if selected_files:
                 file_path = selected_files[0]
-                
+
                 # Check if file is already added
                 if file_path in self.selected_adif_files:
                     QtWidgets.QMessageBox.information(
@@ -1679,7 +1663,7 @@ class SettingsDialog(QtWidgets.QDialog):
                         f"The file '{os.path.basename(file_path)}' is already in the list."
                     )
                     return
-                
+
                 processing_time, parsed_data = parse_adif(file_path)
                 if parsed_data:
                     self.selected_adif_files.append(file_path)
@@ -1701,24 +1685,24 @@ class SettingsDialog(QtWidgets.QDialog):
         """Add a file entry to the table"""
         row_position = self.adif_files_table.rowCount()
         self.adif_files_table.insertRow(row_position)
-        
+
         # Create counter item for first column
         counter_item = QtWidgets.QTableWidgetItem(str(row_position + 1))
         counter_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         counter_item.setFlags(counter_item.flags() & ~QtCore.Qt.ItemFlag.ItemIsEditable)  # Make read-only
         self.adif_files_table.setItem(row_position, 0, counter_item)
-        
+
         # Create item with full file path for second column
         file_item = QtWidgets.QTableWidgetItem(file_path)
         file_item.setToolTip(file_path)  # Show full path on hover
         file_item.setFlags(file_item.flags() & ~QtCore.Qt.ItemFlag.ItemIsEditable)  # Make read-only
         self.adif_files_table.setItem(row_position, 1, file_item)
-    
+
     def remove_adif_file(self, file_path, row=None):
         """Remove a file from the list and table"""
         if file_path in self.selected_adif_files:
             self.selected_adif_files.remove(file_path)
-        
+
         # Find and remove the row from table if row not provided
         if row is None:
             for i in range(self.adif_files_table.rowCount()):
@@ -1726,29 +1710,29 @@ class SettingsDialog(QtWidgets.QDialog):
                 if item and item.text() == file_path:
                     row = i
                     break
-        
+
         # Remove the row from table
         if row is not None:
             self.adif_files_table.removeRow(row)
             # Renumber the counter column after removing a row
             self.renumber_counter_column()
-        
+
         # Hide the WKB4 group if no files are selected
         if not self.selected_adif_files:
             self.adif_wkb4_group.setVisible(False)
-    
+
     def renumber_counter_column(self):
         for i in range(self.adif_files_table.rowCount()):
             counter_item = self.adif_files_table.item(i, 0)
             if counter_item:
                 counter_item.setText(str(i + 1))
-    
+
     def on_table_selection_changed(self):
         selected_rows = self.adif_files_table.selectionModel().selectedRows()
         has_selection = len(selected_rows) > 0
         self.summary_file_button.setEnabled(has_selection)
         self.clear_file_button.setEnabled(has_selection)
-    
+
     def clear_selected_file(self):
         selected_rows = self.adif_files_table.selectionModel().selectedRows()
         if selected_rows:
@@ -1757,7 +1741,7 @@ class SettingsDialog(QtWidgets.QDialog):
             if item:
                 file_path = item.text()
                 self.remove_adif_file(file_path, row)
-    
+
     def show_selected_file_summary(self):
         selected_rows = self.adif_files_table.selectionModel().selectedRows()
         if selected_rows:
@@ -1765,7 +1749,7 @@ class SettingsDialog(QtWidgets.QDialog):
             item = self.adif_files_table.item(row, 1)  # Get file path from column 1
             if item:
                 file_path = item.text()
-                
+
                 # Check if file exists
                 if not os.path.exists(file_path):
                     QtWidgets.QMessageBox.warning(
@@ -1774,7 +1758,7 @@ class SettingsDialog(QtWidgets.QDialog):
                         f"The file '{os.path.basename(file_path)}' no longer exists."
                     )
                     return
-                
+
                 # Parse the ADIF file
                 try:
                     processing_time, parsed_data = parse_adif(file_path)
@@ -1791,16 +1775,16 @@ class SettingsDialog(QtWidgets.QDialog):
                     QtWidgets.QMessageBox.critical(
                         self,
                         "Error Parsing File",
-                        f"Error parsing '{os.path.basename(file_path)}':\\n{str(e)}"
+                        f"Error parsing '{os.path.basename(file_path)}':\n{str(e)}"
                     )
 
     def open_backup_file_location(self):
         backup_file_path = os.path.abspath(ADIF_WORKED_CALLSIGNS_FILE)
-        
+
         if not os.path.exists(backup_file_path):
             QtWidgets.QMessageBox.warning(self, "File not found", f"File doesn't exist:\n{backup_file_path}")
             return
-        
+
         if platform.system() == 'Darwin':
             backup_dir = os.path.dirname(backup_file_path)
             subprocess.call(['open', backup_dir])
@@ -1825,29 +1809,29 @@ class SettingsDialog(QtWidgets.QDialog):
             self.radio_custom.setChecked(True)
         else:
             self.radio_normal.setChecked(True)
-            
-        # Load frequency values 
+
+        # Load frequency values
         min_freq = self.params.get("min_freq", FREQ_MINIMUM)
         max_freq = self.params.get("max_freq", FREQ_MAXIMUM)
-        
+
         # Load the saved custom frequency values (separate from current min/max)
         self.custom_min_freq_value = self.params.get("custom_min_freq", FREQ_MINIMUM)
         self.custom_max_freq_value = self.params.get("custom_max_freq", FREQ_MAXIMUM)
-        
+
         # Temporarily disconnect signals to avoid triggering on_frequency_changed during load
         self.min_freq.valueChanged.disconnect(self.on_frequency_changed)
         self.max_freq.valueChanged.disconnect(self.on_frequency_changed)
-        
+
         self.min_freq.setValue(min_freq)
         self.max_freq.setValue(max_freq)
-        
+
         # Reconnect signals
         self.min_freq.valueChanged.connect(self.on_frequency_changed)
         self.max_freq.valueChanged.connect(self.on_frequency_changed)
-        
+
         # Always update custom table display with loaded custom values
         self.update_custom_table_display()
-            
+
         # Highlight the currently selected row in the table
         self.highlight_selected_mode_row()
 
@@ -1904,7 +1888,7 @@ class SettingsDialog(QtWidgets.QDialog):
         )
         self.enable_log_all_valid_contact.setChecked(
             self.params.get('enable_log_all_valid_contact', True)
-        )  
+        )
         self.enable_reply_to_valid_callsign.setChecked(
             self.params.get('enable_reply_to_valid_callsign', True)
         )
@@ -1931,7 +1915,7 @@ class SettingsDialog(QtWidgets.QDialog):
         )
         self.enable_sound_monitored_callsigns.setChecked(
             self.params.get('enable_sound_monitored_callsigns', True)
-        )        
+        )
         self.show_backup_file_path.setText(
             self.params.get('adif_worked_backup_file_path', ADIF_WORKED_CALLSIGNS_FILE)
         )
@@ -1960,7 +1944,7 @@ class SettingsDialog(QtWidgets.QDialog):
             else:
                 selected_files = []
         # If selected_files is an empty list [], respect that choice (user cleared all files)
-        
+
         # Load the files into the UI
         self.selected_adif_files = []
         for file_path in selected_files:
@@ -1970,7 +1954,7 @@ class SettingsDialog(QtWidgets.QDialog):
 
         if self.selected_adif_files:
             self.adif_wkb4_group.setVisible(True)
-            reply_mode = self.params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS)  
+            reply_mode = self.params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS)
             if reply_mode == WKB4_REPLY_MODE_ALWAYS:
                 self.radio_reply_always.setChecked(True)
             elif reply_mode == WKB4_REPLY_MODE_CURRENT_YEAR:
@@ -1978,7 +1962,7 @@ class SettingsDialog(QtWidgets.QDialog):
             elif reply_mode == WKB4_REPLY_MODE_NEVER:
                 self.radio_reply_never.setChecked(True)
             else:
-                self.radio_reply_always.setChecked(True)  
+                self.radio_reply_always.setChecked(True)
         else:
             self.adif_wkb4_group.setVisible(False)
 
@@ -1988,7 +1972,7 @@ class SettingsDialog(QtWidgets.QDialog):
         if index != -1:
             self.max_reply_attempts_combo.setCurrentIndex(index)
         else:
-            self.max_reply_attempts_combo.setCurrentIndex(0)  
+            self.max_reply_attempts_combo.setCurrentIndex(0)
 
         max_waiting_delay = self.params.get('max_waiting_delay', DEFAULT_MAX_WAITING_DELAY)
         if isinstance(max_waiting_delay, int):
@@ -1996,7 +1980,7 @@ class SettingsDialog(QtWidgets.QDialog):
         if max_waiting_delay in [self.max_waiting_delay_combo.itemText(i) for i in range(self.max_waiting_delay_combo.count())]:
             self.max_waiting_delay_combo.setCurrentText(max_waiting_delay)
         else:
-            self.max_waiting_delay_combo.setCurrentText(str(DEFAULT_MAX_WAITING_DELAY))    
+            self.max_waiting_delay_combo.setCurrentText(str(DEFAULT_MAX_WAITING_DELAY))
 
         minimum_report = self.params.get('minimum_report_for_reply', DEFAULT_MINIMUM_REPORT)
         minimum_report_index = 10 - minimum_report
@@ -2020,7 +2004,7 @@ class SettingsDialog(QtWidgets.QDialog):
         for band_name, btn in self.grid_tracker_band_buttons.items():
             checked = self.grid_tracker_preference.get(band_name, False)
             btn.setChecked(checked)
-            
+
         self.populate_priority_list()
 
         # Apply theme after UI is fully initialized
@@ -2043,7 +2027,7 @@ class SettingsDialog(QtWidgets.QDialog):
             table.setStyleSheet(table_qss)
 
     def get_result(self):
-        freq_range_mode = MODE_NORMAL 
+        freq_range_mode = MODE_NORMAL
         if self.radio_foxhound.isChecked():
             freq_range_mode = MODE_FOX_HOUND
         elif self.radio_superfox.isChecked():
@@ -2058,11 +2042,11 @@ class SettingsDialog(QtWidgets.QDialog):
         elif self.radio_reply_never.isChecked():
             worked_before_preference = WKB4_REPLY_MODE_NEVER
         else:
-            worked_before_preference = WKB4_REPLY_MODE_ALWAYS            
+            worked_before_preference = WKB4_REPLY_MODE_ALWAYS
 
         max_reply_attempts = int(self.max_reply_attempts_combo.currentText())
         max_waiting_delay = int(self.max_waiting_delay_combo.currentText())
-        
+
         # Get minimum report for reply (convert combo index back to dB value)
         minimum_report_index = self.minimum_report_combo.currentIndex()
         minimum_report_for_reply = 10 - minimum_report_index  # +10dB is index 0, so +10 - 0 = +10
@@ -2074,7 +2058,7 @@ class SettingsDialog(QtWidgets.QDialog):
         grid_tracker_preference = {}
         for band_name, btn in self.grid_tracker_band_buttons.items():
             grid_tracker_preference[band_name] = btn.isChecked()
-            
+
         # Get priority order - convert display names to property keys
         priority_order = []
         for i in range(self.priority_table.rowCount()):
@@ -2113,7 +2097,7 @@ class SettingsDialog(QtWidgets.QDialog):
             'enable_sound_directed_my_callsign'          : self.enable_sound_directed_my_callsign.isChecked(),
             'enable_sound_monitored_callsigns'           : self.enable_sound_monitored_callsigns.isChecked(),
             'delay_between_sound_for_monitored'          : self.delay_between_sound_for_monitored.text(),
-            'adif_file_paths'                            : self.selected_adif_files,      
+            'adif_file_paths'                            : self.selected_adif_files,
             'adif_worked_backup_file_path'               : self.show_backup_file_path.text(),
             'freq_range_mode'                            : freq_range_mode,
             'min_freq'                                   : self.min_freq.value(),

@@ -47,6 +47,8 @@ from constants import (
     QSL_RCVD_SYMBOL
 )
 
+from translatable_strings import GridMapStrings, CommonStrings, ContextMenuStrings
+
 log     = get_logger(__name__)
 
 class GridMapWidget(QWidget):
@@ -2342,7 +2344,7 @@ class GridMapWindow(QMainWindow):
     def __init__(self, main_gui=None):
         super().__init__()
         self.main_gui = main_gui
-        self.base_title = GUI_LABEL_VERSION + " - Grid Monitoring"
+        self.base_title = GUI_LABEL_VERSION + " - " + GridMapStrings.WINDOW_TITLE_SUFFIX()
         self.setGeometry(100, 100, 1200, 800)
         
         # Set window icon for Windows taskbar
@@ -2537,19 +2539,19 @@ class GridMapWindow(QMainWindow):
         heatmap_layout.setSpacing(0)
         
         heatmap_layout.addStretch()
-        heatmap_layout.addWidget(CustomQLabel("Density"))
+        heatmap_layout.addWidget(CustomQLabel(GridMapStrings.LABEL_DENSITY()))
         heatmap_layout.addSpacing(10)
         heatmap_layout.addWidget(self.density_slider)
         heatmap_layout.addSpacing(10)
         heatmap_layout.addWidget(self.density_label)
         heatmap_layout.addSpacing(15)
-        heatmap_layout.addWidget(CustomQLabel("Radius"))
+        heatmap_layout.addWidget(CustomQLabel(GridMapStrings.LABEL_RADIUS()))
         heatmap_layout.addSpacing(10)
         heatmap_layout.addWidget(self.radius_slider)
         heatmap_layout.addSpacing(10)
         heatmap_layout.addWidget(self.radius_label)
         heatmap_layout.addSpacing(15)
-        heatmap_layout.addWidget(CustomQLabel("Weight"))
+        heatmap_layout.addWidget(CustomQLabel(GridMapStrings.LABEL_WEIGHT()))
         heatmap_layout.addSpacing(10)
         heatmap_layout.addWidget(self.weight_slider)
         heatmap_layout.addSpacing(10)
@@ -2564,22 +2566,22 @@ class GridMapWindow(QMainWindow):
         horizontal_layout.setSpacing(0) 
 
         # Left side: basic toggles
-        horizontal_layout.addWidget(CustomQLabel("Grid square"))        
-        horizontal_layout.addWidget(self.grid_toggle)        
-        horizontal_layout.addSpacing(20)                
-        horizontal_layout.addWidget(CustomQLabel("Grids"))
+        horizontal_layout.addWidget(CustomQLabel(GridMapStrings.TOGGLE_GRID_SQUARE()))
+        horizontal_layout.addWidget(self.grid_toggle)
+        horizontal_layout.addSpacing(20)
+        horizontal_layout.addWidget(CustomQLabel(GridMapStrings.TOGGLE_GRIDS()))
         horizontal_layout.addWidget(self.worked_toggle)
         horizontal_layout.addSpacing(20)
-        horizontal_layout.addWidget(CustomQLabel("All bands"))
+        horizontal_layout.addWidget(CustomQLabel(GridMapStrings.TOGGLE_ALL_BANDS()))
         horizontal_layout.addWidget(self.all_bands_toggle)
         horizontal_layout.addSpacing(20)
-        horizontal_layout.addWidget(CustomQLabel("Greyline"))                
+        horizontal_layout.addWidget(CustomQLabel(GridMapStrings.TOGGLE_GREYLINE()))
         horizontal_layout.addWidget(self.night_toggle)
         horizontal_layout.addSpacing(20)
-        horizontal_layout.addWidget(CustomQLabel("Heatmap"))
+        horizontal_layout.addWidget(CustomQLabel(GridMapStrings.TOGGLE_HEATMAP()))
         horizontal_layout.addWidget(self.heatmap_toggle)
         horizontal_layout.addSpacing(20)
-        horizontal_layout.addWidget(CustomQLabel("Excluded"))
+        horizontal_layout.addWidget(CustomQLabel(GridMapStrings.TOGGLE_EXCLUDED()))
         horizontal_layout.addWidget(self.excluded_toggle)
         horizontal_layout.addSpacing(20)
 
@@ -2634,7 +2636,7 @@ class GridMapWindow(QMainWindow):
             self.status_bar.setStyleSheet(style)
     
     def check_grid_monitoring_status(self):
-        self.status_bar_label_updated_grids.setText(f"Buffered: {sum(len(group) for group in self.map_widget.heatmap_buffer)}")        
+        self.status_bar_label_updated_grids.setText(GridMapStrings.STATUS_BUFFERED(sum(len(group) for group in self.map_widget.heatmap_buffer)))        
 
         if self.map_widget.operating_band:
             target_total_worked = len(self.map_widget.worked_grids) + len(self.map_widget.confirmed_grids) 
@@ -2662,13 +2664,13 @@ class GridMapWindow(QMainWindow):
     
     def update_grid_count_display(self, worked_count, confirmed_count=None):
         if self.map_widget.show_all_bands:
-            self.status_bar_label_band.setText("All bands")
+            self.status_bar_label_band.setText(GridMapStrings.STATUS_ALL_BANDS())
         elif self.map_widget.operating_band:
-            self.status_bar_label_band.setText(f"Band: <u>{self.map_widget.operating_band}</u>")
+            self.status_bar_label_band.setText(GridMapStrings.STATUS_BAND(self.map_widget.operating_band))
 
-        self.status_bar_label_total_worked_grids.setText(f"Worked: {worked_count}")
+        self.status_bar_label_total_worked_grids.setText(GridMapStrings.STATUS_WORKED(worked_count))
         if confirmed_count is not None:
-            self.status_bar_label_total_confirmed_grids.setText(f"Confirmed: {confirmed_count}")            
+            self.status_bar_label_total_confirmed_grids.setText(GridMapStrings.STATUS_CONFIRMED(confirmed_count))            
     
     def update_toggle_labels(self):
         if hasattr(self, 'grid_toggle'):

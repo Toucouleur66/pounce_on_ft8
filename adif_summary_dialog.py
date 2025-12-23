@@ -28,10 +28,12 @@ from style import (
     EVEN_COLOR
 )
 
+from translatable_strings import AdifSummaryStrings, CommonStrings
+
 class AdifSummaryDialog(QDialog):
     def __init__(self, processing_time, parsed_data, dark_mode=False, file_path=None, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("ADIF File Analyzer")
+        self.setWindowTitle(AdifSummaryStrings.WINDOW_TITLE())
         self.setModal(True)
         self.resize(850, 600)
         self.dark_mode = dark_mode
@@ -52,7 +54,7 @@ class AdifSummaryDialog(QDialog):
         # Layout principal
         main_layout = QVBoxLayout(self)
 
-        title_label = QLabel("<b>ADIF File Parsed Successfully</b>")
+        title_label = QLabel(f"<b>{AdifSummaryStrings.TITLE_SUCCESS()}</b>")
         title_font = QFont()
         title_font.setPointSize(14)
         title_label.setFont(title_font)
@@ -61,11 +63,11 @@ class AdifSummaryDialog(QDialog):
 
         # File path label
         if self.file_path:
-            file_path_label = QLabel(f"File: {self.file_path}")
+            file_path_label = QLabel(AdifSummaryStrings.LABEL_FILE_PATH(self.file_path))
             file_path_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             main_layout.addWidget(file_path_label)
 
-        processing_time_label = QLabel(f"Total processing time: {processing_time:.4f}s")
+        processing_time_label = QLabel(AdifSummaryStrings.LABEL_PROCESSING_TIME(processing_time))
         processing_time_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         main_layout.addWidget(processing_time_label)
 
@@ -74,13 +76,13 @@ class AdifSummaryDialog(QDialog):
         # Toggle and label layout
         toggle_layout = QHBoxLayout()
 
-        processing_label = QLabel(f"Unique callsigns per Year and per Band:")
+        processing_label = QLabel(AdifSummaryStrings.LABEL_UNIQUE_CALLSIGNS())
         processing_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
         toggle_layout.addWidget(processing_label)
 
         toggle_layout.addStretch()
 
-        self.show_all_bands_label = CustomQLabel("Show all bands")
+        self.show_all_bands_label = CustomQLabel(AdifSummaryStrings.TOGGLE_SHOW_ALL_BANDS())
         toggle_layout.addWidget(self.show_all_bands_label)
 
         self.show_all_bands_toggle = AnimatedToggle()
@@ -106,7 +108,7 @@ class AdifSummaryDialog(QDialog):
 
         main_layout.addSpacerItem(QSpacerItem(20, 10, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed))
 
-        button = CustomButton("Ok")
+        button = CustomButton(CommonStrings.OK())
         button.setFixedWidth(80)
         button.clicked.connect(self.accept)
         button_layout = QHBoxLayout()
@@ -152,7 +154,7 @@ class AdifSummaryDialog(QDialog):
         table = QTableWidget()
         table.setColumnCount(len(amateur_bands) + 2)
         table.setRowCount(len(self.parsed_data))
-        table.setHorizontalHeaderLabels(['Year'] + amateur_bands + ['Total'])
+        table.setHorizontalHeaderLabels([AdifSummaryStrings.HEADER_YEAR()] + amateur_bands + [AdifSummaryStrings.HEADER_TOTAL()])
         table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
 
         # Set fixed width for Total column
@@ -214,7 +216,7 @@ class AdifSummaryDialog(QDialog):
         totals_table.setFixedHeight(totals_table.verticalHeader().defaultSectionSize() + 2)
 
         # "Total" label in first column
-        total_label_item = QTableWidgetItem("Total")
+        total_label_item = QTableWidgetItem(AdifSummaryStrings.LABEL_TOTAL())
         total_label_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         total_label_item.setBackground(QColor(EVEN_COLOR))
         total_label_item.setForeground(QColor("#555BC2"))

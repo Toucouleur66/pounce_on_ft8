@@ -32,7 +32,7 @@ from collections import deque, defaultdict
 from queue import Queue
 from functools import partial
 
-# Custom classes 
+# Custom classes
 from animated_toggle import AnimatedToggle
 from custom_tab_widget import CustomTabWidget
 from custom_button import CustomButton
@@ -62,6 +62,9 @@ from active_users_window import ActiveUsersWindow
 
 if sys.platform == 'darwin':
     from status_menu import StatusMenuAgent
+
+# Translation strings
+from translatable_strings import MainWindowStrings, CommonStrings, ContextMenuStrings, ErrorStrings, TimeStrings
 
 from utils import get_local_ip_address, matches_any, get_app_data_dir
 from utils import get_mode_interval, get_amateur_band, display_frequency
@@ -228,6 +231,12 @@ class MainApp(QtWidgets.QMainWindow):
         self.status_menu_agent      = None
         self.local_params          = self.load_params()
 
+        # Initialize translation system
+        from translations import get_translation_manager
+        self.translation_manager = get_translation_manager()
+        current_language = self.local_params.get('language', 'en')
+        self.translation_manager.load_translation(current_language)
+
         """
             Status bar for MacOsx
         """
@@ -254,8 +263,7 @@ class MainApp(QtWidgets.QMainWindow):
         }
                 
         self.setGeometry(100, 100, 1_000, 700)
-        self.setMinimumSize(780, 600)
-        self.setWindowTitle(GUI_LABEL_VERSION)      
+        self.setMinimumSize(780, 600)   
 
         if platform.system() == 'Windows':
             if getattr(sys, 'frozen', False): 
@@ -482,11 +490,11 @@ class MainApp(QtWidgets.QMainWindow):
         """
             Toggle buttons
         """
-        self.clear_button = CustomButton("Erase")
+        self.clear_button = CustomButton(CommonStrings.ERASE())
         self.clear_button.setEnabled(False)
         self.clear_button.clicked.connect(self.clear_output_and_filters)
 
-        self.settings = CustomButton("Settings")
+        self.settings = CustomButton(CommonStrings.SETTINGS())
         self.settings.clicked.connect(self.open_settings)
 
         self.global_sound_toggle = AnimatedToggle(
@@ -549,27 +557,27 @@ class MainApp(QtWidgets.QMainWindow):
         # horizontal_layout.addWidget(self.sounds_label)
         # horizontal_layout.addWidget(self.global_sound_toggle)
 
-        self.reply_label = CustomQLabel("Reply")
+        self.reply_label = CustomQLabel(MainWindowStrings.REPLY_LABEL())
         horizontal_layout.addWidget(self.reply_label)
         horizontal_layout.addWidget(self.reply_toggle)
-        
+
         horizontal_layout_spacer = QtWidgets.QWidget()
         horizontal_layout_spacer.setFixedWidth(20)
         horizontal_layout.addWidget(horizontal_layout_spacer)
-        
-        self.all_label = CustomQLabel("All")
+
+        self.all_label = CustomQLabel(MainWindowStrings.ALL_LABEL())
         horizontal_layout.addWidget(self.all_label)
         horizontal_layout.addWidget(self.show_all_toggle)
-        
+
         horizontal_layout.addWidget(horizontal_layout_spacer)
-        
-        self.filters_label = CustomQLabel("Filters")
+
+        self.filters_label = CustomQLabel(MainWindowStrings.FILTERS_LABEL())
         horizontal_layout.addWidget(self.filters_label)
         horizontal_layout.addWidget(self.filter_gui_toggle)
-        
+
         horizontal_layout.addWidget(horizontal_layout_spacer)
-        
-        self.map_label = CustomQLabel("Grid Monitor")
+
+        self.map_label = CustomQLabel(MainWindowStrings.GRID_MONITOR_LABEL())
         horizontal_layout.addWidget(self.map_label)
         horizontal_layout.addWidget(self.grid_monitor_toggle)
 
@@ -584,20 +592,20 @@ class MainApp(QtWidgets.QMainWindow):
         horizontal_layout.setSpacing(0)
         horizontal_layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter)
         
-        self.alternate_compact_view_label = CustomQLabel("Alternate View")
+        self.alternate_compact_view_label = CustomQLabel(MainWindowStrings.ALTERNATE_VIEW_LABEL())
         horizontal_layout.addWidget(self.alternate_compact_view_label)
         horizontal_layout.addWidget(self.alternate_compact_view_toggle)
-        
+
         self.toggle_alternate_buttons_layout.setLayout(horizontal_layout)
         self.toggle_alternate_buttons_layout.setFixedHeight(44)
-        self.toggle_alternate_buttons_layout.setVisible(False) 
-        
+        self.toggle_alternate_buttons_layout.setVisible(False)
+
         """
             Bottom layout
         """
         bottom_layout = QtWidgets.QHBoxLayout()
 
-        self.quit_button = CustomButton("Close")
+        self.quit_button = CustomButton(CommonStrings.CLOSE())
         self.quit_button.clicked.connect(self.quit_application)
 
         self.inputs_enabled = True
@@ -889,44 +897,44 @@ class MainApp(QtWidgets.QMainWindow):
         sought_variables = [
             {
                 'name'             : 'wanted_callsigns',
-                'label'            : 'Wanted Callsign(s):',
+                'label'            : MainWindowStrings.WANTED_CALLSIGNS_LABEL(),
                 'function'         : partial(force_input, mode="uppercase"),
-                'placeholder'      : CALLSIGN_NOTICE_LABEL,
+                'placeholder'      : MainWindowStrings.CALLSIGN_PLACEHOLDER(),
                 'on_changed_method': self.on_wanted_callsigns_changed,
             },
             {
                 'name'             : 'monitored_callsigns',
-                'label'            : 'Monitored Callsign(s):',
+                'label'            : MainWindowStrings.MONITORED_CALLSIGNS_LABEL(),
                 'function'         : partial(force_input, mode="uppercase"),
-                'placeholder'      : CALLSIGN_NOTICE_LABEL,                
+                'placeholder'      : MainWindowStrings.CALLSIGN_PLACEHOLDER(),
                 'on_changed_method': self.on_monitored_callsigns_changed,
             },
             {
                 'name'             : 'wanted_cq_zones',
-                'label'            : 'Wanted CQ Zone(s):',
+                'label'            : MainWindowStrings.WANTED_CQ_ZONES_LABEL(),
                 'function'         : partial(force_input, mode="numbers"),
-                'placeholder'      : CQ_ZONE_NOTICE_LABEL,                
+                'placeholder'      : MainWindowStrings.CQ_ZONE_PLACEHOLDER(),
                 'on_changed_method': self.on_wanted_cq_zones_changed,
             },
             {
                 'name'             : 'monitored_cq_zones',
-                'label'            : 'Monitored CQ Zone(s):',
+                'label'            : MainWindowStrings.MONITORED_CQ_ZONES_LABEL(),
                 'function'         : partial(force_input, mode="numbers"),
-                'placeholder'      : CQ_ZONE_NOTICE_LABEL,                
+                'placeholder'      : MainWindowStrings.CQ_ZONE_PLACEHOLDER(),
                 'on_changed_method': self.on_monitored_cq_zones_changed,
             },
             {
                 'name'             : 'excluded_callsigns',
-                'label'            : 'Excluded Callsign(s):',
+                'label'            : MainWindowStrings.EXCLUDED_CALLSIGNS_LABEL(),
                 'function'         : partial(force_input, mode="uppercase"),
-                'placeholder'      : CQ_ZONE_NOTICE_LABEL,                
+                'placeholder'      : MainWindowStrings.CALLSIGN_PLACEHOLDER(),
                 'on_changed_method': self.on_excluded_callsigns_changed,
             },
             {
                 'name'             : 'excluded_cq_zones',
-                'label'            : 'Excluded CQ Zone(s):',
+                'label'            : MainWindowStrings.EXCLUDED_CQ_ZONES_LABEL(),
                 'function'         : partial(force_input, mode="numbers"),
-                'placeholder'      : CQ_ZONE_NOTICE_LABEL,                
+                'placeholder'      : MainWindowStrings.CQ_ZONE_PLACEHOLDER(),
                 'on_changed_method': self.on_excluded_cq_zones_changed,
             }
         ]
@@ -955,9 +963,9 @@ class MainApp(QtWidgets.QMainWindow):
                 # Use appropriate tooltip type based on field name
                 if variable_info['name'] == 'excluded_callsigns':
                     tooltip_wanted_dict[variable_info['name']][amateur_band] = ExcludedCallsignsToolTip(
-                        line_label, 
-                        source_widget=line_edit, 
-                        default_text=CALLSIGN_NOTICE_LABEL,
+                        line_label,
+                        source_widget=line_edit,
+                        default_text=MainWindowStrings.CALLSIGN_PLACEHOLDER(),
                         main_window=self,
                         band=amateur_band,
                         bg_color=BG_COLOR_REGULAR_FOCUS,
@@ -965,18 +973,18 @@ class MainApp(QtWidgets.QMainWindow):
                     )
                 elif variable_info['name'] == 'excluded_cq_zones':
                     tooltip_wanted_dict[variable_info['name']][amateur_band] = ToolTip(
-                        line_label, 
-                        source_widget=line_edit, 
-                        default_text=CALLSIGN_NOTICE_LABEL,
+                        line_label,
+                        source_widget=line_edit,
+                        default_text=MainWindowStrings.CQ_ZONE_PLACEHOLDER(),
                         bg_color=BG_COLOR_REGULAR_FOCUS,
                         fg_color=FG_COLOR_REGULAR_FOCUS
                     )
                 else:
                     tooltip_type = variable_info['name']
                     tooltip_wanted_dict[variable_info['name']][amateur_band] = ToolTip(
-                        line_label, 
-                        source_widget=line_edit, 
-                        default_text=CALLSIGN_NOTICE_LABEL,
+                        line_label,
+                        source_widget=line_edit,
+                        default_text=variable_info['placeholder'],
                         tooltip_type=tooltip_type
                     )
 
@@ -997,18 +1005,18 @@ class MainApp(QtWidgets.QMainWindow):
 
     def init_wait_pounce_history_table_ui(self):
         wait_pounce_history_table = QtWidgets.QTableWidget()
-        wait_pounce_history_table.setColumnCount(3)  
+        wait_pounce_history_table.setColumnCount(3)
 
-        header_item = QTableWidgetItem('Age')
-        header_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)     
-        wait_pounce_history_table.setHorizontalHeaderItem(0, header_item)            
+        header_item = QTableWidgetItem(MainWindowStrings.HEADER_AGE())
+        header_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        wait_pounce_history_table.setHorizontalHeaderItem(0, header_item)
 
-        header_item = QTableWidgetItem('Worked Callsigns')
-        header_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)   
-        wait_pounce_history_table.setHorizontalHeaderItem(1, header_item)            
+        header_item = QTableWidgetItem(MainWindowStrings.WORKED_CALLSIGNS_LABEL())
+        header_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        wait_pounce_history_table.setHorizontalHeaderItem(1, header_item)
 
-        header_item = QTableWidgetItem('Band')
-        header_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)     
+        header_item = QTableWidgetItem(MainWindowStrings.BAND_LABEL())
+        header_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
         wait_pounce_history_table.setHorizontalHeaderItem(2, header_item)            
 
         wait_pounce_history_table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
@@ -1302,6 +1310,7 @@ class MainApp(QtWidgets.QMainWindow):
                 self.grid_monitor = GridMapWindow(self)
                 self.grid_monitor.map_widget.set_parent_app(self)
                 self.grid_monitor.map_widget.grid_clicked.connect(self.scroll_to_message_uid)
+                self.update_window_title()
                 
             if self.operating_band:
                 self.grid_monitor.map_widget.update_operating_band(self.operating_band)
@@ -2227,7 +2236,7 @@ class MainApp(QtWidgets.QMainWindow):
             selected_minutes = dialog.get_selected_minutes()
             self.add_callsign_to_exclusion_list(callsign, selected_minutes)
 
-    def update_window_title(self):        
+    def update_window_title(self):     
             window_title = GUI_LABEL_VERSION
             if self.my_wsjtx_id:
                 window_title = f"{self.my_wsjtx_id} ➞ {GUI_LABEL_VERSION}"
@@ -2242,8 +2251,8 @@ class MainApp(QtWidgets.QMainWindow):
             if self._instance and self._instance == SLAVE:
                 window_title+= f" - Running as {self._instance}"
 
-            if self.window_title != window_title:
-                self.setWindowTitle(f"{GUI_LABEL_VERSION} {window_title}")
+            if self.window_title != window_title:                 
+                self.setWindowTitle(window_title)
                 self.window_title = window_title
 
             if hasattr(self, 'grid_monitor') and self.grid_monitor:
@@ -2251,7 +2260,7 @@ class MainApp(QtWidgets.QMainWindow):
 
     def reset_window_title(self):
         self.window_title = None
-        self.setWindowTitle(GUI_LABEL_NAME)  
+        self.update_window_title()
 
     def init_activity_bar(self):
         self.activity_bar.setValue(ACTIVITY_BAR_MAX_VALUE)
@@ -2511,7 +2520,7 @@ class MainApp(QtWidgets.QMainWindow):
                 current_mode = f"Mode: {self.mode}"
                 self.status_bar_label_mode.setText(current_mode)
             else:
-                self.status_bar_label_mode.setText(WAITING_DATA_PACKETS_LABEL)    
+                self.status_bar_label_mode.setText(MainWindowStrings.WAITING_DATA_PACKETS())    
 
         if self.last_heartbeat_time:
             time_since_last_heartbeat = (current_time - self.last_heartbeat_time).total_seconds()
@@ -2581,7 +2590,7 @@ class MainApp(QtWidgets.QMainWindow):
                 self.network_check_status_interval = network_check_status_interval
                 self.network_check_status.setInterval(self.network_check_status_interval)                               
         else:
-            self.status_bar_label_decode_packet.setText("No DecodePacket received.")
+            self.status_bar_label_decode_packet.setText(MainWindowStrings.WAITING_DATA_PACKETS())
         
         if connection_lost:            
             self.reset_window_title()
@@ -2738,18 +2747,29 @@ class MainApp(QtWidgets.QMainWindow):
         
         QtWidgets.QApplication.quit()
 
-    def restart_application(self):       
+    def change_language(self, language_code):
+        """Change application language"""
+        # Save language preference
+        self.save_unique_param('language', language_code)
+
+        # Load the new translation
+        self.translation_manager.load_translation(language_code)
+
+        # Show restart notification
+        self.show_language_changed_dialog()
+
+    def restart_application(self):
         if self._running:
                 self.stop_monitoring()
-        
+
         self.save_band_settings()
         self.save_worked_callsigns()
 
         log.debug(f"Restart {GUI_LABEL_NAME}")
-        
+
         # Set flag to indicate app is shutting down
         self.app_shutting_down = True
-        
+
         # Close grid monitor without triggering toggle
         if self.grid_monitor:
             self.grid_monitor.close()
@@ -3009,7 +3029,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.worked_callsigns_history = []          
 
     def update_worked_callsigns_history_counter(self):        
-        counter_text = WORKED_CALLSIGNS_HISTORY_LABEL
+        counter_text = MainWindowStrings.WORKED_CALLSIGNS_LABEL()
         counter_text+= f" ({len(self.worked_callsigns_history)}):"
         
         self.worked_callsign_label.setText(counter_text)
@@ -3391,19 +3411,19 @@ class MainApp(QtWidgets.QMainWindow):
 
         main_menu.addSeparator()
 
-        enable_sound_action = QtGui.QAction("Enable Sounds", self)
+        enable_sound_action = QtGui.QAction(MainWindowStrings.FILE_MENU(), self)  # Placeholder - needs proper string
         enable_sound_action.setShortcut(QtGui.QKeySequence("Ctrl+S"))
         enable_sound_action.triggered.connect(self.update_global_sound_preference)
-        enable_sound_action.setCheckable(True)  
-        enable_sound_action.setChecked(self.enable_global_sound)  
+        enable_sound_action.setCheckable(True)
+        enable_sound_action.setChecked(self.enable_global_sound)
         main_menu.addAction(enable_sound_action)
 
-        settings_action = QtGui.QAction("Settings...", self)
+        settings_action = QtGui.QAction(CommonStrings.SETTINGS() + "...", self)
         settings_action.setShortcut("Ctrl+,")  # Default shortcut for macOS
         settings_action.triggered.connect(self.open_settings)
         main_menu.addAction(settings_action)
 
-        check_update_action = QtGui.QAction("Check for Updates...", self)
+        check_update_action = QtGui.QAction("Check for Updates...", self)  # No translation needed - technical term
         check_update_action.setShortcut("Ctrl+I")  
         check_update_action.triggered.connect(lambda: self.updater.check_expiration_or_update(True))
         main_menu.addAction(check_update_action)
@@ -3414,15 +3434,15 @@ class MainApp(QtWidgets.QMainWindow):
         main_menu.addAction(donate_action)
 
         # Add Online menu
-        self.online_menu = self.menu_bar.addMenu("Online")
+        self.online_menu = self.menu_bar.addMenu(MainWindowStrings.TOOLS_MENU())
 
-        load_clublog_action = QtGui.QAction("Update DXCC Info", self)
+        load_clublog_action = QtGui.QAction("Update DXCC Info", self)  # Technical term - no translation
         load_clublog_action.triggered.connect(self.clublog_manager.load_clublog_info)
-        
-        load_lotw_action = QtGui.QAction("Update LoTW Info", self)
+
+        load_lotw_action = QtGui.QAction("Update LoTW Info", self)  # Technical term - no translation
         load_lotw_action.triggered.connect(self.lotw_manager.load_lotw_info)
 
-        load_country_file_action = QtGui.QAction("Update Country Files Info", self)
+        load_country_file_action = QtGui.QAction("Update Country Files Info", self)  # Technical term - no translation
         load_country_file_action.triggered.connect(self.country_files_manager.load_country_file)
         
         self.online_menu.addAction(load_clublog_action)
@@ -3435,10 +3455,36 @@ class MainApp(QtWidgets.QMainWindow):
         show_active_users_action.setShortcut(QtGui.QKeySequence("Ctrl+L"))
         self.addAction(show_active_users_action)  # Shortcut only, not in menu
 
-        # Add Window menu
-        self.window_menu = self.menu_bar.addMenu("Window")
+        # Add Language menu
+        self.language_menu = self.menu_bar.addMenu(MainWindowStrings.LANGUAGE_MENU())
 
-        self.compact_view_action = QtGui.QAction("Compact View", self)
+        # Create language action group for radio button behavior
+        self.language_action_group = QtGui.QActionGroup(self)
+        self.language_action_group.setExclusive(True)
+
+        # Get current language from params
+        current_language = self.local_params.get('language', 'en')
+
+        # English
+        english_action = QtGui.QAction(MainWindowStrings.LANGUAGE_ENGLISH(), self)
+        english_action.setCheckable(True)
+        english_action.setChecked(current_language == 'en')
+        english_action.triggered.connect(lambda: self.change_language('en'))
+        self.language_action_group.addAction(english_action)
+        self.language_menu.addAction(english_action)
+
+        # Chinese
+        chinese_action = QtGui.QAction(MainWindowStrings.LANGUAGE_CHINESE(), self)
+        chinese_action.setCheckable(True)
+        chinese_action.setChecked(current_language == 'zh')
+        chinese_action.triggered.connect(lambda: self.change_language('zh'))
+        self.language_action_group.addAction(chinese_action)
+        self.language_menu.addAction(chinese_action)
+
+        # Add Window menu
+        self.window_menu = self.menu_bar.addMenu(MainWindowStrings.VIEW_MENU())
+
+        self.compact_view_action = QtGui.QAction("Compact View", self)  # Keep as is for now
         self.compact_view_action.setShortcut(QtGui.QKeySequence("Ctrl+C"))
         self.compact_view_action.setCheckable(True)
         self.compact_view_action.setChecked(self.enable_compact_view)
@@ -3446,7 +3492,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.window_menu.addAction(self.compact_view_action)
 
-        self.alternate_compact_view_action = QtGui.QAction("Alternate View", self)        
+        self.alternate_compact_view_action = QtGui.QAction(MainWindowStrings.ALTERNATE_VIEW_LABEL(), self)        
         self.alternate_compact_view_action.setCheckable(self.enable_compact_view)
         self.alternate_compact_view_action.setChecked(self.enable_alternate_compact_view)
         self.alternate_compact_view_action.setEnabled(self.enable_compact_view)
@@ -3620,11 +3666,11 @@ class MainApp(QtWidgets.QMainWindow):
         copyright_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(copyright_label)
 
-        thanks_label = CustomQLabel("With special thanks to:")
+        thanks_label = CustomQLabel("With special thanks to:")  # Keep as English
         thanks_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(thanks_label)
 
-        thanks_names = CustomQLabel("Rick, DU6/PE1NSQ, Vincent F4BKV,<br />Juan TG9AJR, Neil G0JHC")
+        thanks_names = CustomQLabel("Rick, DU6/PE1NSQ, Vincent F4BKV,<br />Juan TG9AJR, Neil G0JHC")  # Names - no translation
         thanks_names.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(thanks_names)
 
@@ -3635,7 +3681,7 @@ class MainApp(QtWidgets.QMainWindow):
         second_separator.setFrameShadow(QtWidgets.QFrame.Shadow.Sunken)
         layout.addWidget(second_separator)
 
-        donation_link = CustomQLabel(DONATION_SECTION)
+        donation_link = CustomQLabel(DONATION_SECTION)  # HTML link - keep as is
         donation_link.setOpenExternalLinks(True)
         donation_link.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(donation_link)
@@ -3643,14 +3689,56 @@ class MainApp(QtWidgets.QMainWindow):
         button_layout = QtWidgets.QHBoxLayout()
         button_layout.addStretch()
 
-        ok_button = CustomButton("OK")
+        ok_button = CustomButton(CommonStrings.OK())
         ok_button.clicked.connect(dialog.accept)
         button_layout.addWidget(ok_button)
 
         button_layout.addStretch()
         layout.addLayout(button_layout)
 
-        dialog.exec()        
+        dialog.exec()
+
+    def show_language_changed_dialog(self):
+        dialog = QtWidgets.QDialog(self)
+        dialog.setWindowTitle(MainWindowStrings.LANGUAGE_CHANGED_TITLE())
+        dialog.setFixedWidth(400)
+
+        layout = QtWidgets.QVBoxLayout(dialog)
+
+        icon_path = os.path.join(CURRENT_DIR, "pounce.png")
+        icon_label = CustomQLabel()
+        icon_pixmap = QtGui.QPixmap(icon_path)
+        if not icon_pixmap.isNull():
+            icon_pixmap = icon_pixmap.scaled(
+                200,
+                icon_pixmap.height(),
+                QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                QtCore.Qt.TransformationMode.SmoothTransformation
+            )
+
+        icon_label.setPixmap(icon_pixmap)
+        icon_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(icon_label)
+
+        message_label = CustomQLabel(MainWindowStrings.LANGUAGE_CHANGED_MESSAGE())
+        message_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        message_label.setStyleSheet("font-size: 13px;")
+        message_label.setWordWrap(True)
+        layout.addWidget(message_label)
+
+        layout.addStretch()
+
+        button_layout = QtWidgets.QHBoxLayout()
+        button_layout.addStretch()
+
+        ok_button = CustomButton(CommonStrings.OK())
+        ok_button.clicked.connect(dialog.accept)
+        button_layout.addWidget(ok_button)
+
+        button_layout.addStretch()
+        layout.addLayout(button_layout)
+
+        dialog.exec()
 
     def save_band_settings(self):
         for amateur_band in AMATEUR_BANDS.keys():
@@ -3739,7 +3827,7 @@ class MainApp(QtWidgets.QMainWindow):
             tray_icon_thread = threading.Thread(target=self.tray_icon.start, daemon=True)
             tray_icon_thread.start()
 
-        self.status_bar_label_mode.setText(WAITING_DATA_PACKETS_LABEL)    
+        self.status_bar_label_mode.setText(MainWindowStrings.WAITING_DATA_PACKETS())    
         self.update_status_bar_style(STATUS_MONITORING_COLOR, "white")
 
     def stop_worker(self):
@@ -3939,6 +4027,7 @@ def main():
     cleanup_timer.start(60 * 60 * 1_000)
 
     window.show()
+    window.update_window_title()       
     window.update_status_menu_message((f'{GUI_LABEL_VERSION}').upper(), BG_COLOR_REGULAR_FOCUS, FG_COLOR_REGULAR_FOCUS)   
    
     if is_first_launch_or_new_version(CURRENT_VERSION_NUMBER):
