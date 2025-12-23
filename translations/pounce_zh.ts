@@ -247,6 +247,22 @@
         <translation>时间格式</translation>
     </message>
     <message>
+        <source>Callsign</source>
+        <translation>呼号</translation>
+    </message>
+    <message>
+        <source>Color</source>
+        <translation>颜色</translation>
+    </message>
+    <message>
+        <source>Zone</source>
+        <translation>区域</translation>
+    </message>
+    <message>
+        <source>Continent</source>
+        <translation>大洲</translation>
+    </message>
+    <message>
         <source>Report</source>
         <translation>信号</translation>
     </message>

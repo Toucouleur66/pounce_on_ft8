@@ -1114,8 +1114,8 @@ class MainApp(QtWidgets.QMainWindow):
 
         search_filter = SearchFilterInput()
 
-        self.callsign_input = search_filter.create_search_field("Callsign")
-        self.country_input = search_filter.create_search_field("Country")
+        self.callsign_input = search_filter.create_search_field(MainWindowStrings.FILTER_CALLSIGN())
+        self.country_input = search_filter.create_search_field(MainWindowStrings.FILTER_COUNTRY())
 
         self.callsign_input.textChanged.connect(self.apply_filters)
         self.country_input.textChanged.connect(self.apply_filters)
@@ -1131,12 +1131,12 @@ class MainApp(QtWidgets.QMainWindow):
         self.color_combo = self.create_color_combo_box("Color")
 
         fields = [
-            ("Callsign", self.callsign_input),
-            ("Band", self.band_combo),
-            ("Color", self.color_combo),
-            ("Zone", self.cq_combo),
-            ("Continent", self.continent_combo),
-            ("Country", self.country_input),
+            (MainWindowStrings.FILTER_CALLSIGN(), self.callsign_input),
+            (MainWindowStrings.FILTER_BAND(), self.band_combo),
+            (MainWindowStrings.FILTER_COLOR(), self.color_combo),
+            (MainWindowStrings.FILTER_ZONE(), self.cq_combo),
+            (MainWindowStrings.FILTER_CONTINENT(), self.continent_combo),
+            (MainWindowStrings.FILTER_COUNTRY(), self.country_input),
         ]
 
         for idx, (label_text, widget) in enumerate(fields):
