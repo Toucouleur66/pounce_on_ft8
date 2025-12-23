@@ -47,7 +47,7 @@ from constants import (
     QSL_RCVD_SYMBOL
 )
 
-from translatable_strings import GridMapStrings, CommonStrings, ContextMenuStrings
+from translatable_strings import GridMapStrings, MainWindowStrings, CommonStrings, ContextMenuStrings
 
 log     = get_logger(__name__)
 
@@ -2636,7 +2636,7 @@ class GridMapWindow(QMainWindow):
             self.status_bar.setStyleSheet(style)
     
     def check_grid_monitoring_status(self):
-        self.status_bar_label_updated_grids.setText(GridMapStrings.STATUS_BUFFERED(sum(len(group) for group in self.map_widget.heatmap_buffer)))        
+        self.status_bar_label_updated_grids.setText(MainWindowStrings.STATUS_BUFFERED(sum(len(group) for group in self.map_widget.heatmap_buffer)))        
 
         if self.map_widget.operating_band:
             target_total_worked = len(self.map_widget.worked_grids) + len(self.map_widget.confirmed_grids) 

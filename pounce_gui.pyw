@@ -113,8 +113,6 @@ from constants import (
     MASTER,
     SLAVE,
     PRIORITY_LIST,
-    # Actions
-    ACTION_RESTART,
     # Parameters
     PARAMS_FILE,
     PARAMS_FILE_LEGACY,
@@ -124,15 +122,7 @@ from constants import (
     # Labels
     GUI_LABEL_NAME,
     GUI_LABEL_VERSION,
-    STATUS_BUTTON_LABEL_MONITORING,
-    STATUS_BUTTON_LABEL_DECODING,
-    STATUS_BUTTON_LABEL_START,
-    STATUS_BUTTON_LABEL_TRX,
-    STOP_BUTTON_LABEL,
-    WAITING_DATA_PACKETS_LABEL,
-    WORKED_CALLSIGNS_HISTORY_LABEL,
-    CALLSIGN_NOTICE_LABEL,
-    CQ_ZONE_NOTICE_LABEL,
+    # Note: Button/status labels now in translatable_strings.py
     # Datetime column
     DATE_COLUMN_DATETIME,
     DATE_COLUMN_AGE,
@@ -611,16 +601,16 @@ class MainApp(QtWidgets.QMainWindow):
         self.inputs_enabled = True
 
         if sys.platform == 'darwin':
-            self.restart_button = CustomButton(ACTION_RESTART)
+            self.restart_button = CustomButton(MainWindowStrings.RESTART_ACTION())
             self.restart_button.clicked.connect(self.restart_application)
 
         # Timer and start/stop buttons
-        self.status_button = CustomButton(STATUS_BUTTON_LABEL_START)
+        self.status_button = CustomButton(MainWindowStrings.START_MONITORING_LABEL())
         self.status_button.clicked.connect(self.start_monitoring)
         self.status_button.setFixedWidth(140)
         self.status_button.setMinimumWidth(140)
         
-        self.stop_button = CustomButton(STOP_BUTTON_LABEL)
+        self.stop_button = CustomButton(MainWindowStrings.STOP_BUTTON_LABEL())
         self.stop_button.setEnabled(False)        
         self.stop_button.clicked.connect(self.stop_monitoring)   
         #self.status_button.setFixedWidth(100)     
@@ -2525,13 +2515,14 @@ class MainApp(QtWidgets.QMainWindow):
         if self.last_heartbeat_time:
             time_since_last_heartbeat = (current_time - self.last_heartbeat_time).total_seconds()
             if time_since_last_heartbeat > HEARTBEAT_TIMEOUT_THRESHOLD:
-                heartbeat_str = f"No HeartBeat for more than {HEARTBEAT_TIMEOUT_THRESHOLD} seconds."
+                heartbeat_str = MainWindowStrings.NO_HEARTBEAT_TIMEOUT(HEARTBEAT_TIMEOUT_THRESHOLD)
                 connection_lost = True
-            else:            
-                # heartbeat_str = f"HeartBeat: {self.last_heartbeat_time.strftime('%Y.%m.%d <u>%H:%M:%S</u>')}"
-                heartbeat_str = f"HeartBeat: {self.last_heartbeat_time.astimezone().strftime('<u>%H:%M:%S</u>')}"
+            else:
+                # Format with timezone-aware display
+                formatted_time = self.last_heartbeat_time.astimezone().strftime('<u>%H:%M:%S</u>')
+                heartbeat_str = MainWindowStrings.HEARTBEAT_TIME(formatted_time)
         else:
-            heartbeat_str = "No HeartBeat received."
+            heartbeat_str = MainWindowStrings.NO_HEARTBEAT_RECEIVED()
 
         self.status_bar_label_heartbeat.setText(heartbeat_str)
 
@@ -2550,7 +2541,10 @@ class MainApp(QtWidgets.QMainWindow):
             self.status_bar_label_connection.clear()
 
         if not self.processing_active:
-            self.status_bar_label_packet.setText(f"Buffered: {self.output_model.rowCount()} {self.get_size_of_output_model()}")
+            self.status_bar_label_packet.setText(MainWindowStrings.BUFFERED_PACKETS(
+                self.output_model.rowCount(),
+                self.get_size_of_output_model()
+            ))
 
         if self.last_frequency and not self.processing_active:
             self.status_bar_label_freq.setText(f"Freq: <u>{display_frequency(self.last_frequency)}</u>")
@@ -2576,12 +2570,12 @@ class MainApp(QtWidgets.QMainWindow):
                 if time_since_last_decode < 3:
                     network_check_status_interval = 500
                     time_since_last_decode_text = f"{time_since_last_decode:.1f}s" 
-                    self.update_status_button(STATUS_BUTTON_LABEL_DECODING, STATUS_DECODING_COLOR)                                  
+                    self.update_status_button(MainWindowStrings.STATUS_DECODING(), STATUS_DECODING_COLOR)                                  
                 else:
                     if time_since_last_decode < 15:
                         network_check_status_interval = 1_000
                     time_since_last_decode_text = f"{int(time_since_last_decode)}s"                  
-                    self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR) 
+                    self.update_status_button(MainWindowStrings.STATUS_MONITORING(), STATUS_MONITORING_COLOR) 
 
             self.status_bar_label_decode_packet.setText(f"Last decoded: {time_since_last_decode_text} ago")
 
@@ -2623,13 +2617,13 @@ class MainApp(QtWidgets.QMainWindow):
             Handle change for status_button when transmitting
         """
         if self.transmitting and not connection_lost:            
-            self.update_status_button(STATUS_BUTTON_LABEL_TRX, STATUS_TRX_COLOR)
+            self.update_status_button(MainWindowStrings.STATUS_TRX(), STATUS_TRX_COLOR)
             self.last_transmit_time = datetime.now(timezone.utc)
             self.start_blinking_status_button()
             network_check_status_interval = 100            
         elif self.last_transmit_time:
             if self._running:
-                self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR) 
+                self.update_status_button(MainWindowStrings.STATUS_MONITORING(), STATUS_MONITORING_COLOR) 
             self.last_transmit_time = None
             self.stop_blinking_status_button()   
 
@@ -3404,7 +3398,7 @@ class MainApp(QtWidgets.QMainWindow):
         main_menu.addAction(self.monitoring_action)
         
         if sys.platform == 'darwin':
-            restart_action = QtGui.QAction(ACTION_RESTART, self)
+            restart_action = QtGui.QAction(MainWindowStrings.RESTART_ACTION(), self)
             restart_action.setShortcut(QtGui.QKeySequence("Ctrl+R"))
             restart_action.triggered.connect(self.restart_application)
             main_menu.addAction(restart_action)
@@ -3522,7 +3516,7 @@ class MainApp(QtWidgets.QMainWindow):
         
         self.window_menu.addAction(filter_gui_action)
 
-        grid_monitor_action = QtGui.QAction("Grid Monitoring", self)
+        grid_monitor_action = QtGui.QAction(MainWindowStrings.GRID_MONITORING_ACTION(), self)
         grid_monitor_action.setShortcut(QtGui.QKeySequence("Ctrl+G"))
         grid_monitor_action.setCheckable(True)
         grid_monitor_action.setChecked(self.enable_grid_monitor)
@@ -3601,7 +3595,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.window_menu.addAction(self.clear_worked_history_action)
 
     def get_monitoring_action_text(self):
-        return STOP_BUTTON_LABEL if self._running else STATUS_BUTTON_LABEL_START
+        return MainWindowStrings.STOP_BUTTON_LABEL() if self._running else MainWindowStrings.START_MONITORING_LABEL()
 
     def update_monitoring_action(self):
         try:
@@ -3610,10 +3604,10 @@ class MainApp(QtWidgets.QMainWindow):
             pass
 
         if self._running:
-            self.monitoring_action.setText(STOP_BUTTON_LABEL)
+            self.monitoring_action.setText(MainWindowStrings.STOP_BUTTON_LABEL())
             self.monitoring_action.triggered.connect(self.stop_monitoring)
         else:
-            self.monitoring_action.setText(STATUS_BUTTON_LABEL_START)
+            self.monitoring_action.setText(MainWindowStrings.START_MONITORING_LABEL())
             self.monitoring_action.triggered.connect(self.start_monitoring)
         
     def show_about_dialog(self):
@@ -3777,7 +3771,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.is_status_button_label_visible = True
         self.is_status_button_label_blinking = False
 
-        self.update_status_button(STATUS_BUTTON_LABEL_MONITORING, STATUS_MONITORING_COLOR)
+        self.update_status_button(MainWindowStrings.STATUS_MONITORING(), STATUS_MONITORING_COLOR)
         self.stop_button.setEnabled(True)
         
         self.blink_timer = QtCore.QTimer()
@@ -3954,7 +3948,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.check_connection_status()
 
             self.update_status_bar_style("#E0E0E0", "#000000")
-            self.update_status_button(STATUS_BUTTON_LABEL_START, STATUS_TRX_COLOR)
+            self.update_status_button(MainWindowStrings.START_MONITORING_LABEL(), STATUS_TRX_COLOR)
 
             self.status_button.resetStyle()
             self.restore_settings()

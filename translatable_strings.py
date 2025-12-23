@@ -110,6 +110,28 @@ class MainWindowStrings:
     NO_CONNECTION = lambda: tr("MainWindow", "No connection")
     CONNECTED = lambda: tr("MainWindow", "Connected")
 
+    # Heartbeat messages
+    NO_HEARTBEAT_TIMEOUT = lambda seconds: tr("MainWindow", f"No HeartBeat for more than {seconds} seconds.")
+    HEARTBEAT_TIME = lambda time: tr("MainWindow", f"HeartBeat: {time}")
+    NO_HEARTBEAT_RECEIVED = lambda: tr("MainWindow", "No HeartBeat received.")
+
+    # Buffer status
+    LABEL_BUFFERED = lambda: tr("MainWindow", "Buffered:")
+    STATUS_BUFFERED = lambda count: tr("MainWindow", "Buffered:") + f" {count}"
+    BUFFERED_PACKETS = lambda count, size: tr("MainWindow", "Buffered:") + f" {count} {size}"
+
+    # Action labels
+    GRID_MONITORING_ACTION = lambda: tr("MainWindow", "Grid Monitoring")
+    STOP_BUTTON_LABEL = lambda: tr("MainWindow", "Stop all")
+    START_MONITORING_LABEL = lambda: tr("MainWindow", "Start Monitoring")
+    RESTART_ACTION = lambda: tr("MainWindow", "Restart")
+
+    # Status button labels
+    STATUS_MONITORING = lambda: tr("MainWindow", "Monitoring...")
+    STATUS_DECODING = lambda: tr("MainWindow", "Decoding...")
+    STATUS_TRX = lambda: tr("MainWindow", "Transmitting...")
+    STATUS_NOTHING_YET = lambda: tr("MainWindow", "Nothing yet")
+
 
 # =============================================================================
 # SETTINGS DIALOG
@@ -323,7 +345,6 @@ class GridMapStrings:
     LABEL_WEIGHT = lambda: tr("GridMapViewer", "Weight")
 
     # Status bar messages
-    STATUS_BUFFERED = lambda count: tr("GridMapViewer", f"Buffered: {count}")
     STATUS_BAND = lambda band: tr("GridMapViewer", f"Band: <u>{band}</u>")
     STATUS_ALL_BANDS = lambda: tr("GridMapViewer", "All bands")
     STATUS_WORKED = lambda count: tr("GridMapViewer", f"Worked: {count}")

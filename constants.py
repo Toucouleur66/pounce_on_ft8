@@ -34,15 +34,7 @@ GUI_LABEL_VERSION               = f"{GUI_LABEL_NAME} build {CURRENT_VERSION_NUMB
 
 CLUB_LOG_API_KEY                = "efc2af7050308f03a22275cf51f3fd7749582d66"
 
-STATUS_BUTTON_LABEL_MONITORING  = "Monitoring..."
-STATUS_BUTTON_LABEL_DECODING    = "Decoding..."
-STATUS_BUTTON_LABEL_TRX         = "Transmitting..."
-STATUS_BUTTON_LABEL_START       = "Start Monitoring"
-STATUS_BUTTON_LABEL_NOTHING_YET = "Nothing yet"
-
-ACTION_RESTART                  = "Restart"
-
-STOP_BUTTON_LABEL               = "Stop all"
+# Note: Button and status labels moved to translatable_strings.py
 
 DATE_COLUMN_DATETIME            = "Time"
 DATE_COLUMN_AGE                 = "Age"
@@ -54,11 +46,6 @@ THEME_MODE_SYSTEM               = "System"
 LOTW_SYMBOL                     = "•"
 QSL_RCVD_SYMBOL                 = "✓"
 WKB4_YEAR_SYMBOL                = "★"
-
-WAITING_DATA_PACKETS_LABEL      = "Waiting for UDP Packets"
-WORKED_CALLSIGNS_HISTORY_LABEL  = "Worked Callsigns"
-CALLSIGN_NOTICE_LABEL           = "Comma-separated list of callsigns (or prefixes). Allows wildcards with *"
-CQ_ZONE_NOTICE_LABEL            = "Comma separated list of CQ Zone"
 
 MODE_NORMAL                     = "Regular"
 MODE_FOX_HOUND                  = "Hound"

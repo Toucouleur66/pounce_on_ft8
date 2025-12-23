@@ -147,6 +147,50 @@
         <translation>重启</translation>
     </message>
     <message>
+        <source>No HeartBeat for more than 30 seconds.</source>
+        <translation>超过30秒未收到心跳。</translation>
+    </message>
+    <message>
+        <source>HeartBeat: </source>
+        <translation>心跳：</translation>
+    </message>
+    <message>
+        <source>No HeartBeat received.</source>
+        <translation>未收到心跳。</translation>
+    </message>
+    <message>
+        <source>Buffered:</source>
+        <translation>缓冲：</translation>
+    </message>
+    <message>
+        <source>Grid Monitoring</source>
+        <translation>网格监控</translation>
+    </message>
+    <message>
+        <source>Stop all</source>
+        <translation>全部停止</translation>
+    </message>
+    <message>
+        <source>Start Monitoring</source>
+        <translation>开始监控</translation>
+    </message>
+    <message>
+        <source>Monitoring...</source>
+        <translation>监控中...</translation>
+    </message>
+    <message>
+        <source>Decoding...</source>
+        <translation>解码中...</translation>
+    </message>
+    <message>
+        <source>Transmitting...</source>
+        <translation>发送中...</translation>
+    </message>
+    <message>
+        <source>Nothing yet</source>
+        <translation>暂无数据</translation>
+    </message>
+    <message>
         <source>Wanted Callsign(s):</source>
         <translation>想要的呼号：</translation>
     </message>
