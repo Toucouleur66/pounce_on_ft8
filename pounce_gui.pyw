@@ -1516,7 +1516,8 @@ class MainApp(QtWidgets.QMainWindow):
         
         if default_value is None:
             default_value = DEFAULT_FILTER_VALUE
-        combo_box.addItem(default_value)
+        # Add translated "All" but store the identifier
+        combo_box.addItem(MainWindowStrings.FILTER_ALL(), userData=DEFAULT_FILTER_VALUE)
 
         if values:
             combo_box.addItems(values)
@@ -1559,17 +1560,22 @@ class MainApp(QtWidgets.QMainWindow):
     def add_new_items_to_combo(self, combo, new_items, default_value=DEFAULT_FILTER_VALUE):
         combo.blockSignals(True)
 
-        existing_items = [combo.itemText(i) for i in range(combo.count()) if combo.itemText(i) != default_value]
+        # Get translated "All" text for comparison
+        translated_all = MainWindowStrings.FILTER_ALL()
+        existing_items = [combo.itemText(i) for i in range(combo.count()) if combo.itemText(i) != translated_all and combo.itemText(i) != default_value]
         combined_items = set(existing_items).union(new_items)
 
         if combo == self.band_combo:
-            sorted_items = [default_value] + sorted(combined_items, key=lambda x: int(x[:-1]) if x[:-1].isdigit() else float('inf'))
+            sorted_items = sorted(combined_items, key=lambda x: int(x[:-1]) if x[:-1].isdigit() else float('inf'))
         else:
             numeric_items = sorted((item for item in combined_items if item.isdigit()), key=int)
             non_numeric_items = sorted(item for item in combined_items if not item.isdigit())
-            sorted_items = [default_value] + numeric_items + non_numeric_items
+            sorted_items = numeric_items + non_numeric_items
 
         combo.clear()
+        # Add translated "All" first
+        combo.addItem(translated_all)
+        # Then add the rest
         combo.addItems(sorted_items)
         combo.blockSignals(False)
 
@@ -1579,7 +1585,7 @@ class MainApp(QtWidgets.QMainWindow):
         color_combo.setIconSize(QtCore.QSize(120, 10))  
         color_combo.setFont(CUSTOM_FONT_SMALL)
 
-        color_combo.addItem(DEFAULT_FILTER_VALUE, userData=None)
+        color_combo.addItem(MainWindowStrings.FILTER_ALL(), userData=None)
 
         for bg_color in [
             BG_COLOR_FOCUS_MY_CALL,
@@ -3184,19 +3190,28 @@ class MainApp(QtWidgets.QMainWindow):
         selected_band    = self.band_combo.currentText()
         cq_filter         = self.cq_combo.currentText()
 
+        # Get translated "All" for comparison
+        translated_all = MainWindowStrings.FILTER_ALL()
+
         filters_map = [
             ('callsign',   callsign_filter,  ""),
             ('country',    country_filter,   ""),
-            ('cq_zone',    cq_filter,        DEFAULT_FILTER_VALUE),
-            ('continent',  continent_filter, DEFAULT_FILTER_VALUE),
-            ('row_color',  selected_color,  None),
-            ('band',       selected_band,   DEFAULT_FILTER_VALUE),
+            ('cq_zone',    cq_filter,        DEFAULT_FILTER_VALUE, translated_all),
+            ('continent',  continent_filter, DEFAULT_FILTER_VALUE, translated_all),
+            ('row_color',  selected_color,  None, None),
+            ('band',       selected_band,   DEFAULT_FILTER_VALUE, translated_all),
         ]
 
         show_all_messages = False
 
-        for key, user_value, default_value in filters_map:
-            if user_value and user_value != default_value:
+        for filter_data in filters_map:
+            key = filter_data[0]
+            user_value = filter_data[1]
+            default_value = filter_data[2]
+            translated_default = filter_data[3] if len(filter_data) > 3 else None
+
+            # Check both the identifier value AND translated display text
+            if user_value and user_value != default_value and user_value != translated_default:
                 self.filter_proxy_model.setFilter(key, user_value)
                 show_all_messages = True
             else:

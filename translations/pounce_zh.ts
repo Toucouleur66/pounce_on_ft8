@@ -119,6 +119,10 @@
         <translation>全部</translation>
     </message>
     <message>
+        <source>Show Time</source>
+        <translation>显示时间</translation>
+    </message>
+    <message>
         <source>Filters</source>
         <translation>过滤器</translation>
     </message>

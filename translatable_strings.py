@@ -78,6 +78,7 @@ class MainWindowStrings:
     FILTER_ZONE = lambda: tr("MainWindow", "Zone")
     FILTER_CONTINENT = lambda: tr("MainWindow", "Continent")
     FILTER_COUNTRY = lambda: tr("MainWindow", "Country")
+    FILTER_ALL = lambda: tr("MainWindow", "All")
     # Table headers (raw data table)
     HEADER_SNR = lambda: tr("MainWindow", "SNR")
     HEADER_DT = lambda: tr("MainWindow", "DT")
