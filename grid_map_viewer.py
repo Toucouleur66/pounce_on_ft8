@@ -22,7 +22,7 @@ from context_menu_handler import ContextMenuHandler
 
 from logger import get_logger
 
-from utils import darken_color
+from utils import darken_color, calculate_sunrise_sunset
 
 from style import (
     # Colors
@@ -2341,9 +2341,9 @@ class GridMapWidget(QWidget):
 class GridMapWindow(QMainWindow):
     def __init__(self, main_gui=None):
         super().__init__()
-        self.setWindowTitle(GUI_LABEL_VERSION + " - Grid Monitoring")
-        self.setGeometry(100, 100, 1200, 800)
         self.main_gui = main_gui
+        self.base_title = GUI_LABEL_VERSION + " - Grid Monitoring"
+        self.setGeometry(100, 100, 1200, 800)
         
         # Set window icon for Windows taskbar
         if platform.system() == 'Windows':
@@ -2424,7 +2424,10 @@ class GridMapWindow(QMainWindow):
             self.apply_theme_to_all(self.theme_manager.dark_mode)
         
         self.map_widget.setFocus()
-        
+
+    def update_window_title(self, window_title=None):        
+        self.setWindowTitle(window_title)
+
     def setup_main_layout(self):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)

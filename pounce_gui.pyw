@@ -66,8 +66,7 @@ if sys.platform == 'darwin':
 from utils import get_local_ip_address, matches_any, get_app_data_dir
 from utils import get_mode_interval, get_amateur_band, display_frequency
 from utils import force_input, focus_out_event, text_to_array, has_significant_change
-from utils import parse_adif
-from utils import band_sort_key
+from utils import calculate_sunrise_sunset
 
 from version import is_first_launch_or_new_version, save_current_version
 
@@ -207,7 +206,6 @@ class MainApp(QtWidgets.QMainWindow):
     def __init__(self):
         super(MainApp, self).__init__()
 
-        self.base_title          = GUI_LABEL_VERSION
         self.window_title        = None
         self.window_size         = None
 
@@ -257,7 +255,7 @@ class MainApp(QtWidgets.QMainWindow):
                 
         self.setGeometry(100, 100, 1_000, 700)
         self.setMinimumSize(780, 600)
-        self.setWindowTitle(self.base_title)      
+        self.setWindowTitle(GUI_LABEL_VERSION)      
 
         if platform.system() == 'Windows':
             if getattr(sys, 'frozen', False): 
@@ -312,6 +310,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.last_sound_played_time             = datetime.min
         self.mode                               = None
         self.my_call                            = None
+        self.my_grid                            = None
         self.last_targeted_call                 = None
         self.my_wsjtx_id                        = None
         self.transmitting                       = False
@@ -1708,14 +1707,19 @@ class MainApp(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot(object)
     def handle_message_received(self, message):        
-        if isinstance(message, dict):
-            if (
-                self.window_title is None and 
-                self.my_call is None and                 
-                message.get('wsjtx_id')
-            ):
+        if isinstance(message, dict):            
+            window_title_changed = False
+            if message.get('my_call') and message.get('my_call') != self.my_call:
                 self.my_call = message.get('my_call')
+                window_title_changed = True
+            if message.get('my_grid') and message.get('my_grid') != self.my_grid:
+                self.my_grid = message.get('my_grid')
+                window_title_changed = True
+            if message.get('wsjtx_id') and message.get('wsjtx_id') != self.my_wsjtx_id:
                 self.my_wsjtx_id = message.get('wsjtx_id')
+                window_title_changed = True
+            
+            if window_title_changed:
                 self.update_window_title()
 
             message_type = message.get('type', None)
@@ -1742,6 +1746,7 @@ class MainApp(QtWidgets.QMainWindow):
                     if band != 'Invalid':
                         self.set_notice_to_focus_value_label(f"{band} {self.mode} {display_frequency(self.last_frequency)} {self.my_wsjtx_id or ''}")                     
                         self.tab_widget.set_selected_tab(band)   
+                        self.update_window_title()
             elif message_type == 'stop_monitoring':
                 log.warning("Received Stop monitoring request")
                 self.play_sound("error_occurred")
@@ -2222,17 +2227,31 @@ class MainApp(QtWidgets.QMainWindow):
             selected_minutes = dialog.get_selected_minutes()
             self.add_callsign_to_exclusion_list(callsign, selected_minutes)
 
-    def update_window_title(self):            
-            self.window_title = f"{self.base_title}"
+    def update_window_title(self):        
+            window_title = GUI_LABEL_VERSION
             if self.my_wsjtx_id:
-                self.window_title += f"- Connected to {self.my_wsjtx_id}"
+                window_title = f"{self.my_wsjtx_id} ➞ {GUI_LABEL_VERSION}"
+            if self.my_call and self.frequency:
+                window_title += f" ➞ {self.my_call} on {get_amateur_band(self.frequency)}"                
+            if self.my_grid:
+                sunrise, sunset = calculate_sunrise_sunset(self.my_grid)
+                if sunrise and sunset:
+                    window_title += f" [ {self.my_grid} - SR {sunrise}z SS {sunset}z ]"
+                else:
+                    window_title += f" [ {self.my_grid} ]"
             if self._instance and self._instance == SLAVE:
-                self.window_title+= f" - Running as {self._instance}"
-            self.setWindowTitle(self.window_title)
+                window_title+= f" - Running as {self._instance}"
+
+            if self.window_title != window_title:
+                self.setWindowTitle(f"{GUI_LABEL_VERSION} {window_title}")
+                self.window_title = window_title
+
+            if hasattr(self, 'grid_monitor') and self.grid_monitor:
+                self.grid_monitor.update_window_title(f"{window_title} ➞ Grid Monitoring")
 
     def reset_window_title(self):
         self.window_title = None
-        self.setWindowTitle(self.base_title)  
+        self.setWindowTitle(GUI_LABEL_NAME)  
 
     def init_activity_bar(self):
         self.activity_bar.setValue(ACTIVITY_BAR_MAX_VALUE)

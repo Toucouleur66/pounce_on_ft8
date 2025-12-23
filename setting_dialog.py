@@ -190,11 +190,6 @@ class SettingsDialog(QtWidgets.QDialog):
         jtdx_notice_label.setFont(CUSTOM_FONT_SMALL)
         jtdx_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
         jtdx_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
-
-        print(f"EVEN_COLOR value: {EVEN_COLOR}")                                     
-        stylesheet = get_setting_qss(EVEN_COLOR)                                     
-        print(f"Generated stylesheet: {stylesheet}")                                 
-        jtdx_notice_label.setStyleSheet(stylesheet)              
         
         self.notice_labels.append(jtdx_notice_label)
         jtdx_notice_label.setAutoFillBackground(True)

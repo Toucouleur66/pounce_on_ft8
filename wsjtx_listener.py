@@ -876,6 +876,8 @@ class Listener(QObject):
     def callback_status_update(self):
         self.message_callback({
             'type'                      : 'update_status',
+            'my_call'                   : self.my_call,
+            'my_grid'                   : self.my_grid,
             'frequency'                 : self.frequency,
             'decode_packet_count'       : self.decode_packet_count,
             'last_decode_packet_time'   : self.last_decode_packet_time,
@@ -1542,7 +1544,7 @@ class Listener(QObject):
 
                 self.message_callback({           
                 'wsjtx_id'          : self.the_packet.wsjtx_id,
-                'my_call'           : self.my_call,     
+                'my_call'           : self.my_call, 
                 'packet_id'         : packet_id,     
                 'decode_time'       : decode_time,              
                 'decode_time_str'   : decode_time_str,

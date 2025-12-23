@@ -10,6 +10,9 @@ import os
 import sys
 import fnmatch
 import locale
+import datetime as dt
+
+from math import sin, acos, tan, radians, degrees
 
 from PyQt6.QtCore import QCoreApplication, QStandardPaths
 from PyQt6.QtGui import QColor
@@ -912,6 +915,52 @@ def grid_to_latlon(grid):
         lat += 1.25 / 60
 
     return (lat, lon)
+
+def calculate_sunrise_sunset(grid):    
+    try:
+        lat, lon = grid_to_latlon(grid)
+        now = datetime.now(timezone.utc)
+        
+        day_of_year = now.timetuple().tm_yday
+
+        lat_rad = radians(lat)
+
+        declination = radians(23.45) * sin(radians((360 / 365.0) * (day_of_year + 284)))
+
+        cos_hour_angle = -tan(lat_rad) * tan(declination)
+
+        if cos_hour_angle > 1:
+            return None, None
+        elif cos_hour_angle < -1:
+            return None, None
+
+        hour_angle = degrees(acos(cos_hour_angle))
+
+        sunrise_local = 12 - (hour_angle / 15.0)
+        sunset_local = 12 + (hour_angle / 15.0)
+
+        utc_offset = lon / 15.0
+        sunrise_utc = sunrise_local - utc_offset
+        sunset_utc = sunset_local - utc_offset
+
+        sunrise_utc = sunrise_utc % 24
+        sunset_utc = sunset_utc % 24
+
+        sunrise_hours = int(sunrise_utc)
+        sunrise_minutes = int((sunrise_utc - sunrise_hours) * 60)
+        sunrise_seconds = int(((sunrise_utc - sunrise_hours) * 60 - sunrise_minutes) * 60)
+
+        sunset_hours = int(sunset_utc)
+        sunset_minutes = int((sunset_utc - sunset_hours) * 60)
+        sunset_seconds = int(((sunset_utc - sunset_hours) * 60 - sunset_minutes) * 60)
+
+        sunrise_time = dt.time(sunrise_hours, sunrise_minutes, sunrise_seconds)
+        sunset_time = dt.time(sunset_hours, sunset_minutes, sunset_seconds)
+
+        return sunrise_time, sunset_time
+
+    except Exception:
+        return None, None
 
 def latlon_to_grid(lat, lon, precision=4):    
     if not (-90 <= lat <= 90):
