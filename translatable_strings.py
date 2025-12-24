@@ -418,3 +418,13 @@ class TimeStrings:
     MINUTES_AGO = lambda n: tr("Time", f"{n}m ago")
     HOURS_AGO = lambda n: tr("Time", f"{n}h ago")
     DAYS_AGO = lambda n: tr("Time", f"{n}d ago")
+
+# ENTITIES
+def translate_entity(entity_name, language='en'):
+    if not entity_name:
+        return entity_name
+
+    translated = QCoreApplication.translate("Entities", entity_name.upper())
+    if translated == entity_name.upper():
+        return entity_name
+    return translated

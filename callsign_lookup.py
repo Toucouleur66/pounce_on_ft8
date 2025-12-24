@@ -18,6 +18,16 @@ from logger import get_logger
 
 log = get_logger(__name__)
 
+# Import translation function for entity names
+try:
+    from translatable_strings import translate_entity
+    TRANSLATION_AVAILABLE = True
+except ImportError:
+    TRANSLATION_AVAILABLE = False
+    def translate_entity(name, language='en'):
+        """Fallback if translation not available"""
+        return name
+
 class CallsignLookup:
     def __init__(
         self,
@@ -812,8 +822,13 @@ class CallsignLookup:
         return zone
 
     def lookup_callsign(
-        self, callsign, grid=None, date=None, enable_cache=True
-    ):
+        self,
+        callsign,
+        grid=None,
+        date=None,
+        enable_cache=True,
+        translate=True
+    ):       
         try:
             callsign = callsign.strip().upper()
             if date is None:
@@ -847,10 +862,18 @@ class CallsignLookup:
                             # Update cache with new entity_code info
                             self.cache[callsign] = cached_result
                             self.save_grid_update_to_cache()
-                    
+
                     if self.lookup_debug:
                         log.debug(f"Cache hit for {callsign}")
-                    return cached_result
+
+                    # Make a copy of cached result to avoid modifying the cache
+                    result_to_return = cached_result.copy()
+
+                    # Translate entity name if requested (for cached results)
+                    if translate and result_to_return and 'entity' in result_to_return and TRANSLATION_AVAILABLE:
+                        result_to_return['entity'] = translate_entity(result_to_return['entity'])
+
+                    return result_to_return
 
             if callsign in self.invalid_operations:
                 for inv_data in self.invalid_operations[callsign]:
@@ -876,19 +899,34 @@ class CallsignLookup:
                         # Add LoTW information if available
                         if callsign in self.lotw_cache:
                             result['lotw'] = self.lotw_cache[callsign]
-                        
+
                         self._update_cache(callsign, result, enable_cache)
-                        return result
+
+                        # Make a copy to avoid modifying cached data
+                        result_to_return = result.copy()
+
+                        # Translate entity name if requested (for exception data)
+                        if translate and result_to_return and 'entity' in result_to_return and TRANSLATION_AVAILABLE:
+                            result_to_return['entity'] = translate_entity(result_to_return['entity'])
+
+                        return result_to_return
 
             cty_result = self._lookup_cty_data(callsign, grid, date)
             if cty_result:
                 # log.debug(f"CTY data found for {callsign}: {cty_result}")
                 if callsign in self.lotw_cache:
                     cty_result['lotw'] = self.lotw_cache[callsign]
-                
+
                 self._update_cache(callsign, cty_result, enable_cache)
-                
-                return cty_result
+
+                # Make a copy to avoid modifying cached data
+                result_to_return = cty_result.copy()
+
+                # Translate entity name if requested (for CTY data)
+                if translate and result_to_return and 'entity' in result_to_return and TRANSLATION_AVAILABLE:
+                    result_to_return['entity'] = translate_entity(result_to_return['entity'])
+
+                return result_to_return
 
             result = None
             for prefix in self.sorted_prefixes:
@@ -944,7 +982,17 @@ class CallsignLookup:
                 result['lotw'] = self.lotw_cache[callsign]
 
             self._update_cache(callsign, result, enable_cache)
-            return result
+
+            # Make a copy to avoid modifying cached data
+            result_to_return = result.copy() if result else result
+
+            # Translate entity name if requested
+            # Note: Translation only works if Qt translator has been installed in QApplication
+            # This happens after pounce_gui initializes the translation_manager
+            if translate and result_to_return and 'entity' in result_to_return and TRANSLATION_AVAILABLE:
+                result_to_return['entity'] = translate_entity(result_to_return['entity'])
+
+            return result_to_return
 
         except Exception as e:
             log.error(f"Fail to extract '{callsign}': {e}")

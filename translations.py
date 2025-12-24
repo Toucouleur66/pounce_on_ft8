@@ -14,6 +14,7 @@ class TranslationManager:
 
     def __init__(self):
         self.translator = QTranslator()
+        self.entities_translator = QTranslator()  # Separate translator for entities
         self.current_language = 'en'  # Default language
         self.translations_dir = os.path.join(os.path.dirname(__file__), 'translations')
 
@@ -23,50 +24,53 @@ class TranslationManager:
 
     def load_translation(self, language_code='en'):
         """
-        Load translation file for specified language
+        Load translation files for specified language
+
+        Loads both main UI translations (pounce_*.qm) and entity translations (entities_*.qm)
 
         Args:
-            language_code: ISO 639-1 language code (en, fr, de, es, etc.)
+            language_code: ISO 639-1 language code (en, fr, de, es, zh, etc.)
         """
         app = QApplication.instance()
         if not app:
             return False
 
-        # Remove previous translator if exists
+        # Remove previous translators if they exist
         if self.translator:
             app.removeTranslator(self.translator)
+        if self.entities_translator:
+            app.removeTranslator(self.entities_translator)
 
         # For English, just return (built-in)
         if language_code == 'en':
             self.current_language = 'en'
             return True
 
-        # Load new translation
+        # Load main UI translation
         translation_file = os.path.join(self.translations_dir, f'pounce_{language_code}.qm')
+        entities_file = os.path.join(self.translations_dir, f'entities_{language_code}.qm')
 
+        main_loaded = False
+        entities_loaded = False
+
+        # Load main translation
         if os.path.exists(translation_file):
-            # Try to load with Qt's translator first
             if self.translator.load(translation_file):
                 app.installTranslator(self.translator)
-                self.current_language = language_code
-                return True
-            else:
-                # If Qt translator fails, try our simple format
-                try:
-                    import pickle
-                    with open(translation_file, 'rb') as f:
-                        header = f.read(10)
-                        if header == b'SIMPLE_QM\x00':
-                            # This is our simple format, load as custom translator
-                            translations = pickle.load(f)
-                            # Create a custom translator (would need implementation)
-                            # For now, just note it in current_language
-                            self.current_language = language_code
-                            return True
-                except Exception:
-                    pass
+                main_loaded = True
 
-        # If translation file doesn't exist or fails to load, use English (built-in)
+        # Load entities translation
+        if os.path.exists(entities_file):
+            if self.entities_translator.load(entities_file):
+                app.installTranslator(self.entities_translator)
+                entities_loaded = True
+
+        # Consider successful if at least one translation loaded
+        if main_loaded or entities_loaded:
+            self.current_language = language_code
+            return True
+
+        # If neither file exists or fails to load, use English (built-in)
         self.current_language = 'en'
         return False
 
