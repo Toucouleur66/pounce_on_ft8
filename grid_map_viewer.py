@@ -2018,17 +2018,17 @@ class GridMapWidget(QWidget):
 
             if highlighted_data:
                 tooltip_html.append(f"""
-                    <span style="font-size: 12px;">Decoded Grid: <b>{self.current_tooltip_grid}</b></span>
+                    <span style="font-size: 12px;">{GridMapStrings.TOOLTIP_DECODED_GRID(self.current_tooltip_grid)}</span>
                     """)
                 tooltip_html.append(f"""
                 <table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; font-size: 12px;">
                     <tr>
-                        <td>Callsign</td>                    
+                        <td>{GridMapStrings.TABLE_HEADER_CALLSIGN()}</td>
                         <td></td>
-                        <td>Time</td>
-                        <td>Report</td>
-                        <td>DT</td>
-                        <td>Freq</td>
+                        <td>{GridMapStrings.TABLE_HEADER_TIME()}</td>
+                        <td>{GridMapStrings.TABLE_HEADER_REPORT()}</td>
+                        <td>{GridMapStrings.TABLE_HEADER_DT()}</td>
+                        <td>{GridMapStrings.TABLE_HEADER_FREQ()}</td>
                     </tr>
                     <tr style="color: {FG_COLOR_REGULAR_FOCUS}; background-color: {BG_COLOR_REGULAR_FOCUS};">
                         <td><b>{highlighted_data['callsign']}</b></td>          
@@ -2051,25 +2051,25 @@ class GridMapWidget(QWidget):
                         """
 
                 tooltip_html.append(f"""
-                    <span style="font-size: 12px;">Worked Grid: <b>{self.current_tooltip_grid}</b></span>
+                    <span style="font-size: 12px;">{GridMapStrings.TOOLTIP_WORKED_GRID(self.current_tooltip_grid)}</span>
                 """)
 
                 # Add Band column header if showing all bands
-                band_header = "<td>Band</td>" if self.show_all_bands else ""
+                band_header = f"<td>{GridMapStrings.TABLE_HEADER_BAND()}</td>" if self.show_all_bands else ""
 
                 tooltip_html.append(f"""
                 <table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; font-size: 12px;">
                     <tr{style}>
-                        <td>Callsign</td>
+                        <td>{GridMapStrings.TABLE_HEADER_CALLSIGN()}</td>
                         {band_header}
-                        <td>Date</td>
-                        <td>Freq</td>
-                        <td>Mode</td>
-                        <td>Sent</td>
-                        <td>Rcvd</td>
-                        <td>QSL</td>
+                        <td>{GridMapStrings.TABLE_HEADER_DATE()}</td>
+                        <td>{GridMapStrings.TABLE_HEADER_FREQ()}</td>
+                        <td>{GridMapStrings.TABLE_HEADER_MODE()}</td>
+                        <td>{GridMapStrings.TABLE_HEADER_SENT()}</td>
+                        <td>{GridMapStrings.TABLE_HEADER_RCVD()}</td>
+                        <td>{GridMapStrings.TABLE_HEADER_QSL()}</td>
                     </tr>
-                """)                
+                """)
 
                 limit_qsos = 25
                 display_qsos = qso_datas[:limit_qsos] if len(qso_datas) > limit_qsos else qso_datas
@@ -2115,14 +2115,14 @@ class GridMapWidget(QWidget):
                 if len(qso_datas) > limit_qsos:
                     tooltip_html.append(f"""
                     <br style="font-size: 6px;">
-                    * The last <u>{limit_qsos}</u> are displayed out of a total of <b>{len(qso_datas)}</b> for <b>{self.current_tooltip_grid}</b>
+                    {GridMapStrings.TOOLTIP_QSO_LIMIT(limit_qsos, len(qso_datas), self.current_tooltip_grid)}
                     """)
 
             if highlighted_data:
                 tooltip_html.append(f"""
                 <br style="font-size: 6px;">
                 <i style="font-size: 10px;">
-                    * Right click on Grid for context-menu
+                    {GridMapStrings.TOOLTIP_RIGHT_CLICK()}
                 </i>
                 """)
 

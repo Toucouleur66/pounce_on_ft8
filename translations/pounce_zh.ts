@@ -211,6 +211,66 @@
         <translation>暂无数据</translation>
     </message>
     <message>
+        <source>Check for Updates...</source>
+        <translation>检查更新...</translation>
+    </message>
+    <message>
+        <source>⭐️ Support %1</source>
+        <translation>⭐️ 支持 %1</translation>
+    </message>
+    <message>
+        <source>Update DXCC Info</source>
+        <translation>更新 DXCC 信息</translation>
+    </message>
+    <message>
+        <source>Update LoTW Info</source>
+        <translation>更新 LoTW 信息</translation>
+    </message>
+    <message>
+        <source>Update Country Files Info</source>
+        <translation>更新国家文件信息</translation>
+    </message>
+    <message>
+        <source>Compact View</source>
+        <translation>紧凑视图</translation>
+    </message>
+    <message>
+        <source>Show All Messages</source>
+        <translation>显示所有消息</translation>
+    </message>
+    <message>
+        <source>Show Filters</source>
+        <translation>显示过滤器</translation>
+    </message>
+    <message>
+        <source>Clear Filters</source>
+        <translation>清除过滤器</translation>
+    </message>
+    <message>
+        <source>Clear rows from Table</source>
+        <translation>清除表格行</translation>
+    </message>
+    <message>
+        <source>Theme</source>
+        <translation>主题</translation>
+    </message>
+    <message>
+        <source>Light</source>
+        <translation>浅色</translation>
+    </message>
+    <message>
+        <source>Dark</source>
+        <translation>深色</translation>
+    </message>
+    <message>
+        <source>System</source>
+        <translation>系统</translation>
+    </message>
+    <message>
+        <source>Clear Worked Callsigns History</source>
+        <translation>清除已通联呼号历史</translation>
+    </message>
+    <message>
         <source>Wanted Callsign(s):</source>
         <translation>想要的呼号：</translation>
     </message>
@@ -911,6 +971,185 @@
     <message>
         <source>Confirmed:</source>
         <translation>已确认：</translation>
+    </message>
+    <message>
+        <source>Decoded Grid: &lt;b&gt;%1&lt;/b&gt;</source>
+        <translation>解码网格：&lt;b&gt;%1&lt;/b&gt;</translation>
+    </message>
+    <message>
+        <source>Worked Grid: &lt;b&gt;%1&lt;/b&gt;</source>
+        <translation>已通联网格：&lt;b&gt;%1&lt;/b&gt;</translation>
+    </message>
+    <message>
+        <source>Callsign</source>
+        <translation>呼号</translation>
+    </message>
+    <message>
+        <source>Time</source>
+        <translation>时间</translation>
+    </message>
+    <message>
+        <source>Date</source>
+        <translation>日期</translation>
+    </message>
+    <message>
+        <source>Report</source>
+        <translation>报告</translation>
+    </message>
+    <message>
+        <source>DT</source>
+        <translation>时差</translation>
+    </message>
+    <message>
+        <source>Freq</source>
+        <translation>频率</translation>
+    </message>
+    <message>
+        <source>Mode</source>
+        <translation>模式</translation>
+    </message>
+    <message>
+        <source>Sent</source>
+        <translation>发送</translation>
+    </message>
+    <message>
+        <source>Rcvd</source>
+        <translation>接收</translation>
+    </message>
+    <message>
+        <source>QSL</source>
+        <translation>QSL</translation>
+    </message>
+    <message>
+        <source>* The last &lt;u&gt;%1&lt;/u&gt; are displayed out of a total of &lt;b&gt;%2&lt;/b&gt; for &lt;b&gt;%3&lt;/b&gt;</source>
+        <translation>* 显示最后 &lt;u&gt;%1&lt;/u&gt; 个，总共 &lt;b&gt;%2&lt;/b&gt; 个，网格 &lt;b&gt;%3&lt;/b&gt;</translation>
+    </message>
+    <message>
+        <source>* Right click on Grid for context-menu</source>
+        <translation>* 右键点击网格打开上下文菜单</translation>
+    </message>
+</context>
+<context>
+    <name>ContextMenu</name>
+    <message>
+        <source>Copy</source>
+        <translation>复制</translation>
+    </message>
+    <message>
+        <source>Copy Callsign</source>
+        <translation>复制呼号</translation>
+    </message>
+    <message>
+        <source>Copy Grid</source>
+        <translation>复制网格</translation>
+    </message>
+    <message>
+        <source>Copy Message</source>
+        <translation>复制消息</translation>
+    </message>
+    <message>
+        <source>Copy message to Clipboard</source>
+        <translation>复制消息到剪贴板</translation>
+    </message>
+    <message>
+        <source>Add to Wanted</source>
+        <translation>添加到想要呼叫</translation>
+    </message>
+    <message>
+        <source>Add to Monitored</source>
+        <translation>添加到监控</translation>
+    </message>
+    <message>
+        <source>Add to Excluded</source>
+        <translation>添加到排除</translation>
+    </message>
+    <message>
+        <source>Remove from Wanted</source>
+        <translation>从想要呼叫中移除</translation>
+    </message>
+    <message>
+        <source>Remove from Monitored</source>
+        <translation>从监控中移除</translation>
+    </message>
+    <message>
+        <source>Remove from Excluded</source>
+        <translation>从排除中移除</translation>
+    </message>
+    <message>
+        <source>Lookup on QRZ.com</source>
+        <translation>在 QRZ.com 查询</translation>
+    </message>
+    <message>
+        <source>Lookup on QRZCQ.com</source>
+        <translation>在 QRZCQ.com 查询</translation>
+    </message>
+    <message>
+        <source>Lookup on HamQTH.com</source>
+        <translation>在 HamQTH.com 查询</translation>
+    </message>
+    <message>
+        <source>Remove %1 on %2 from Worked History</source>
+        <translation>从已通联历史中移除 %1 在 %2</translation>
+    </message>
+    <message>
+        <source>Remove %1 on all bands from Worked History (%2)</source>
+        <translation>从已通联历史中移除 %1 在所有波段 (%2)</translation>
+    </message>
+    <message>
+        <source>Exclusion for &lt;b&gt;%1&lt;/b&gt; and matches with &lt;b&gt;%2&lt;/b&gt;</source>
+        <translation>&lt;b&gt;%1&lt;/b&gt; 的排除与 &lt;b&gt;%2&lt;/b&gt; 匹配</translation>
+    </message>
+    <message>
+        <source>Apply to &lt;b&gt;%1&lt;/b&gt; band</source>
+        <translation>应用于 &lt;b&gt;%1&lt;/b&gt; 波段</translation>
+    </message>
+    <message>
+        <source>Add %1 to Wanted Callsigns</source>
+        <translation>添加 %1 到想要呼叫的呼号</translation>
+    </message>
+    <message>
+        <source>Remove %1 from Wanted Callsigns</source>
+        <translation>从想要呼叫的呼号中移除 %1</translation>
+    </message>
+    <message>
+        <source>Make %1 your only Wanted Callsign</source>
+        <translation>将 %1 设为唯一想要呼叫的呼号</translation>
+    </message>
+    <message>
+        <source>Temporarily add %1 to Excluded Callsigns</source>
+        <translation>暂时添加 %1 到排除呼号</translation>
+    </message>
+    <message>
+        <source>Add %1 to Excluded Callsigns</source>
+        <translation>添加 %1 到排除呼号</translation>
+    </message>
+    <message>
+        <source>Remove %1 from Excluded Callsigns</source>
+        <translation>从排除呼号中移除 %1</translation>
+    </message>
+    <message>
+        <source>Add %1 to Monitored Callsigns</source>
+        <translation>添加 %1 到监控呼号</translation>
+    </message>
+    <message>
+        <source>Remove %1 from Monitored Callsigns</source>
+        <translation>从监控呼号中移除 %1</translation>
+    </message>
+    <message>
+        <source>Make %1 your only Monitored Callsign</source>
+        <translation>将 %1 设为唯一监控呼号</translation>
+    </message>
+    <message>
+        <source>Add Zone %1 to Monitored CQ Zones</source>
+        <translation>添加区域 %1 到监控 CQ 区域</translation>
+    </message>
+    <message>
+        <source>Remove Zone %1 from Monitored CQ Zones</source>
+        <translation>从监控 CQ 区域中移除区域 %1</translation>
+    </message>
+    <message>
+        <source>Open QRZ.com for %1</source>
+        <translation>打开 QRZ.com 查询 %1</translation>
     </message>
 </context>
 </TS>

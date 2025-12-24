@@ -123,6 +123,23 @@ class MainWindowStrings:
     STATUS_TRX = lambda: tr("MainWindow", "Transmitting...")
     STATUS_NOTHING_YET = lambda: tr("MainWindow", "Nothing yet")
 
+    # Menu actions
+    CHECK_FOR_UPDATES = lambda: tr("MainWindow", "Check for Updates...")
+    SUPPORT_APP = lambda app_name: tr("MainWindow", "⭐️ Support %1").replace("%1", str(app_name))
+    UPDATE_DXCC_INFO = lambda: tr("MainWindow", "Update DXCC Info")
+    UPDATE_LOTW_INFO = lambda: tr("MainWindow", "Update LoTW Info")
+    UPDATE_COUNTRY_FILES = lambda: tr("MainWindow", "Update Country Files Info")
+    COMPACT_VIEW = lambda: tr("MainWindow", "Compact View")
+    SHOW_ALL_MESSAGES = lambda: tr("MainWindow", "Show All Messages")
+    SHOW_FILTERS = lambda: tr("MainWindow", "Show Filters")
+    CLEAR_FILTERS = lambda: tr("MainWindow", "Clear Filters")
+    CLEAR_ROWS_FROM_TABLE = lambda: tr("MainWindow", "Clear rows from Table")
+    THEME_MENU = lambda: tr("MainWindow", "Theme")
+    LIGHT_THEME = lambda: tr("MainWindow", "Light")
+    DARK_THEME = lambda: tr("MainWindow", "Dark")
+    SYSTEM_THEME = lambda: tr("MainWindow", "System")
+    CLEAR_WORKED_HISTORY = lambda: tr("MainWindow", "Clear Worked Callsigns History")
+
 
 # SETTINGS DIALOG
 class SettingsStrings:
@@ -348,6 +365,27 @@ class GridMapStrings:
         "Keyboard Shortcuts:\nG - Toggle Grid\nH - Toggle Heatmap\nW - Toggle Worked\nL - Toggle Night/Day"
     )
 
+    # Tooltip headers
+    TOOLTIP_DECODED_GRID = lambda grid: tr("GridMapViewer", "Decoded Grid: <b>%1</b>").replace("%1", str(grid))
+    TOOLTIP_WORKED_GRID = lambda grid: tr("GridMapViewer", "Worked Grid: <b>%1</b>").replace("%1", str(grid))
+
+    # Table headers
+    TABLE_HEADER_CALLSIGN = lambda: tr("GridMapViewer", "Callsign")
+    TABLE_HEADER_BAND = lambda: tr("GridMapViewer", "Band")
+    TABLE_HEADER_TIME = lambda: tr("GridMapViewer", "Time")
+    TABLE_HEADER_DATE = lambda: tr("GridMapViewer", "Date")
+    TABLE_HEADER_REPORT = lambda: tr("GridMapViewer", "Report")
+    TABLE_HEADER_DT = lambda: tr("GridMapViewer", "DT")
+    TABLE_HEADER_FREQ = lambda: tr("GridMapViewer", "Freq")
+    TABLE_HEADER_MODE = lambda: tr("GridMapViewer", "Mode")
+    TABLE_HEADER_SENT = lambda: tr("GridMapViewer", "Sent")
+    TABLE_HEADER_RCVD = lambda: tr("GridMapViewer", "Rcvd")
+    TABLE_HEADER_QSL = lambda: tr("GridMapViewer", "QSL")
+
+    # Tooltip messages
+    TOOLTIP_QSO_LIMIT = lambda limit, total, grid: tr("GridMapViewer", "* The last <u>%1</u> are displayed out of a total of <b>%2</b> for <b>%3</b>").replace("%1", str(limit)).replace("%2", str(total)).replace("%3", str(grid))
+    TOOLTIP_RIGHT_CLICK = lambda: tr("GridMapViewer", "* Right click on Grid for context-menu")
+
 
 # ADIF SUMMARY DIALOG
 class AdifSummaryStrings:
@@ -389,6 +427,7 @@ class ContextMenuStrings:
     COPY_CALLSIGN = lambda: tr("ContextMenu", "Copy Callsign")
     COPY_GRID = lambda: tr("ContextMenu", "Copy Grid")
     COPY_MESSAGE = lambda: tr("ContextMenu", "Copy Message")
+    COPY_MESSAGE_TO_CLIPBOARD = lambda: tr("ContextMenu", "Copy message to Clipboard")
     ADD_TO_WANTED = lambda: tr("ContextMenu", "Add to Wanted")
     ADD_TO_MONITORED = lambda: tr("ContextMenu", "Add to Monitored")
     ADD_TO_EXCLUDED = lambda: tr("ContextMenu", "Add to Excluded")
@@ -398,6 +437,40 @@ class ContextMenuStrings:
     LOOKUP_QRZ = lambda: tr("ContextMenu", "Lookup on QRZ.com")
     LOOKUP_QRZCQ = lambda: tr("ContextMenu", "Lookup on QRZCQ.com")
     LOOKUP_HAMQTH = lambda: tr("ContextMenu", "Lookup on HamQTH.com")
+
+    # Dynamic context menu items
+    REMOVE_ENTRY_FROM_WORKED_HISTORY = lambda callsign, band: tr("ContextMenu", "Remove %1 on %2 from Worked History").replace("%1", str(callsign)).replace("%2", str(band))
+    REMOVE_CALLSIGN_FROM_WORKED_HISTORY = lambda callsign, bands: tr("ContextMenu", "Remove %1 on all bands from Worked History (%2)").replace("%1", str(callsign)).replace("%2", str(bands))
+    EXCLUSION_FOR = lambda excluded, callsign: tr("ContextMenu", "Exclusion for <b>%1</b> and matches with <b>%2</b>").replace("%1", str(excluded)).replace("%2", str(callsign))
+    APPLY_TO_BAND = lambda band: tr("ContextMenu", "Apply to <b>%1</b> band").replace("%1", str(band))
+
+    # Wanted callsigns
+    ADD_CALLSIGN_TO_WANTED = lambda callsign: tr("ContextMenu", "Add %1 to Wanted Callsigns").replace("%1", str(callsign))
+    REMOVE_CALLSIGN_FROM_WANTED = lambda callsign: tr("ContextMenu", "Remove %1 from Wanted Callsigns").replace("%1", str(callsign))
+    MAKE_ONLY_WANTED_CALLSIGN = lambda callsign: tr("ContextMenu", "Make %1 your only Wanted Callsign").replace("%1", str(callsign))
+
+    # Excluded callsigns
+    TEMPORARILY_ADD_TO_EXCLUDED = lambda callsign: tr("ContextMenu", "Temporarily add %1 to Excluded Callsigns").replace("%1", str(callsign))
+    ADD_CALLSIGN_TO_EXCLUDED = lambda callsign: tr("ContextMenu", "Add %1 to Excluded Callsigns").replace("%1", str(callsign))
+    REMOVE_CALLSIGN_FROM_EXCLUDED = lambda callsign: tr("ContextMenu", "Remove %1 from Excluded Callsigns").replace("%1", str(callsign))
+
+    # Monitored callsigns
+    ADD_CALLSIGN_TO_MONITORED = lambda callsign: tr("ContextMenu", "Add %1 to Monitored Callsigns").replace("%1", str(callsign))
+    REMOVE_CALLSIGN_FROM_MONITORED = lambda callsign: tr("ContextMenu", "Remove %1 from Monitored Callsigns").replace("%1", str(callsign))
+
+    # Directed callsigns
+    ADD_DIRECTED_TO_WANTED = lambda directed: tr("ContextMenu", "Add %1 to Wanted Callsigns").replace("%1", str(directed))
+    REMOVE_DIRECTED_FROM_WANTED = lambda directed: tr("ContextMenu", "Remove %1 from Wanted Callsigns").replace("%1", str(directed))
+    MAKE_DIRECTED_ONLY_MONITORED = lambda directed: tr("ContextMenu", "Make %1 your only Monitored Callsign").replace("%1", str(directed))
+    ADD_DIRECTED_TO_MONITORED = lambda directed: tr("ContextMenu", "Add %1 to Monitored Callsigns").replace("%1", str(directed))
+    REMOVE_DIRECTED_FROM_MONITORED = lambda directed: tr("ContextMenu", "Remove %1 from Monitored Callsigns").replace("%1", str(directed))
+
+    # CQ Zones
+    ADD_ZONE_TO_MONITORED = lambda zone: tr("ContextMenu", "Add Zone %1 to Monitored CQ Zones").replace("%1", str(zone))
+    REMOVE_ZONE_FROM_MONITORED = lambda zone: tr("ContextMenu", "Remove Zone %1 from Monitored CQ Zones").replace("%1", str(zone))
+
+    # QRZ.com
+    OPEN_QRZ_COM = lambda callsign: tr("ContextMenu", "Open QRZ.com for %1").replace("%1", str(callsign))
 
 
 # ERROR MESSAGES

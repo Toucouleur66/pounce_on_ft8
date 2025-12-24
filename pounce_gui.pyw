@@ -3436,26 +3436,26 @@ class MainApp(QtWidgets.QMainWindow):
         settings_action.triggered.connect(self.open_settings)
         main_menu.addAction(settings_action)
 
-        check_update_action = QtGui.QAction("Check for Updates...", self)  # No translation needed - technical term
-        check_update_action.setShortcut("Ctrl+I")  
+        check_update_action = QtGui.QAction(MainWindowStrings.CHECK_FOR_UPDATES(), self)
+        check_update_action.setShortcut("Ctrl+I")
         check_update_action.triggered.connect(lambda: self.updater.check_expiration_or_update(True))
         main_menu.addAction(check_update_action)
-        
+
         main_menu.addSeparator()
-        donate_action = QtGui.QAction(f"⭐️ Support {GUI_LABEL_NAME}", self)
+        donate_action = QtGui.QAction(MainWindowStrings.SUPPORT_APP(GUI_LABEL_NAME), self)
         donate_action.triggered.connect(lambda: webbrowser.open(DONATION_URL))
         main_menu.addAction(donate_action)
 
-        # Add Online menu
+        # `Add `Online menu
         self.online_menu = self.menu_bar.addMenu(MainWindowStrings.TOOLS_MENU())
 
-        load_clublog_action = QtGui.QAction("Update DXCC Info", self)  # Technical term - no translation
+        load_clublog_action = QtGui.QAction(MainWindowStrings.UPDATE_DXCC_INFO(), self)
         load_clublog_action.triggered.connect(self.clublog_manager.load_clublog_info)
 
-        load_lotw_action = QtGui.QAction("Update LoTW Info", self)  # Technical term - no translation
+        load_lotw_action = QtGui.QAction(MainWindowStrings.UPDATE_LOTW_INFO(), self)
         load_lotw_action.triggered.connect(self.lotw_manager.load_lotw_info)
 
-        load_country_file_action = QtGui.QAction("Update Country Files Info", self)  # Technical term - no translation
+        load_country_file_action = QtGui.QAction(MainWindowStrings.UPDATE_COUNTRY_FILES(), self)
         load_country_file_action.triggered.connect(self.country_files_manager.load_country_file)
         
         self.online_menu.addAction(load_clublog_action)
@@ -3497,7 +3497,7 @@ class MainApp(QtWidgets.QMainWindow):
         # Add Window menu
         self.window_menu = self.menu_bar.addMenu(MainWindowStrings.VIEW_MENU())
 
-        self.compact_view_action = QtGui.QAction("Compact View", self)  # Keep as is for now
+        self.compact_view_action = QtGui.QAction(MainWindowStrings.COMPACT_VIEW(), self)
         self.compact_view_action.setShortcut(QtGui.QKeySequence("Ctrl+C"))
         self.compact_view_action.setCheckable(True)
         self.compact_view_action.setChecked(self.enable_compact_view)
@@ -3505,7 +3505,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.window_menu.addAction(self.compact_view_action)
 
-        self.alternate_compact_view_action = QtGui.QAction(MainWindowStrings.ALTERNATE_VIEW_LABEL(), self)        
+        self.alternate_compact_view_action = QtGui.QAction(MainWindowStrings.ALTERNATE_VIEW_LABEL(), self)
         self.alternate_compact_view_action.setCheckable(self.enable_compact_view)
         self.alternate_compact_view_action.setChecked(self.enable_alternate_compact_view)
         self.alternate_compact_view_action.setEnabled(self.enable_compact_view)
@@ -3515,24 +3515,24 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.window_menu.addSeparator()
 
-        show_all_action = QtGui.QAction("Show All Messages", self)
+        show_all_action = QtGui.QAction(MainWindowStrings.SHOW_ALL_MESSAGES(), self)
         show_all_action.setShortcut(QtGui.QKeySequence("Ctrl+A"))
-        show_all_action.setCheckable(True)  
-        show_all_action.setChecked(self.enable_show_all_decoded)  
+        show_all_action.setCheckable(True)
+        show_all_action.setChecked(self.enable_show_all_decoded)
         show_all_action.triggered.connect(self.update_show_all_preference)
 
         self.show_all_action = show_all_action
-        
+
         self.window_menu.addAction(show_all_action)
-        
-        filter_gui_action = QtGui.QAction("Show Filters", self)
+
+        filter_gui_action = QtGui.QAction(MainWindowStrings.SHOW_FILTERS(), self)
         filter_gui_action.setShortcut(QtGui.QKeySequence("Ctrl+F"))
-        filter_gui_action.setCheckable(True)  
-        filter_gui_action.setChecked(self.enable_filter_gui)  
+        filter_gui_action.setCheckable(True)
+        filter_gui_action.setChecked(self.enable_filter_gui)
         filter_gui_action.triggered.connect(self.update_filter_gui_preference)
 
         self.filter_gui_action = filter_gui_action
-        
+
         self.window_menu.addAction(filter_gui_action)
 
         grid_monitor_action = QtGui.QAction(MainWindowStrings.GRID_MONITORING_ACTION(), self)
@@ -3546,15 +3546,15 @@ class MainApp(QtWidgets.QMainWindow):
         self.window_menu.addAction(grid_monitor_action)
 
         self.window_menu.addSeparator()
-        
-        clear_filters_action = QtGui.QAction("Clear Filters", self)
-        clear_filters_action.setShortcut(QtGui.QKeySequence("Ctrl+W")) 
-        clear_filters_action.triggered.connect(self.clear_filters)  
+
+        clear_filters_action = QtGui.QAction(MainWindowStrings.CLEAR_FILTERS(), self)
+        clear_filters_action.setShortcut(QtGui.QKeySequence("Ctrl+W"))
+        clear_filters_action.triggered.connect(self.clear_filters)
         self.window_menu.addAction(clear_filters_action)
 
-        clear_output_action = QtGui.QAction("Clear rows from Table", self)
-        clear_output_action.setShortcut(QtGui.QKeySequence("Ctrl+K")) 
-        clear_output_action.triggered.connect(self.clear_output_and_filters)  
+        clear_output_action = QtGui.QAction(MainWindowStrings.CLEAR_ROWS_FROM_TABLE(), self)
+        clear_output_action.setShortcut(QtGui.QKeySequence("Ctrl+K"))
+        clear_output_action.triggered.connect(self.clear_output_and_filters)
         self.window_menu.addAction(clear_output_action)
         
         format_time_menu = self.window_menu.addMenu(MainWindowStrings.FORMAT_TIME_MENU())
@@ -3579,19 +3579,19 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.window_menu.addSeparator()
 
-        theme_menu = self.window_menu.addMenu("Theme")
+        theme_menu = self.window_menu.addMenu(MainWindowStrings.THEME_MENU())
 
-        self.light_theme_action = QtGui.QAction("Light", self)
+        self.light_theme_action = QtGui.QAction(MainWindowStrings.LIGHT_THEME(), self)
         self.light_theme_action.setCheckable(True)
         self.light_theme_action.setChecked(self.theme_mode_setting == THEME_MODE_LIGHT)
         self.light_theme_action.triggered.connect(self.enable_light_theme)
 
-        self.dark_theme_action = QtGui.QAction("Dark", self)
+        self.dark_theme_action = QtGui.QAction(MainWindowStrings.DARK_THEME(), self)
         self.dark_theme_action.setCheckable(True)
         self.dark_theme_action.setChecked(self.theme_mode_setting == THEME_MODE_DARK)
         self.dark_theme_action.triggered.connect(self.enable_dark_theme)
 
-        self.system_theme_action = QtGui.QAction("System", self)
+        self.system_theme_action = QtGui.QAction(MainWindowStrings.SYSTEM_THEME(), self)
         self.system_theme_action.setCheckable(True)
         self.system_theme_action.setChecked(self.theme_mode_setting == THEME_MODE_SYSTEM)
         self.system_theme_action.triggered.connect(self.enable_system_theme)
@@ -3607,7 +3607,7 @@ class MainApp(QtWidgets.QMainWindow):
         theme_action_group.setExclusive(True)
 
         self.window_menu.addSeparator()
-        self.clear_worked_history_action = QtGui.QAction("Clear Worked Callsigns History", self)
+        self.clear_worked_history_action = QtGui.QAction(MainWindowStrings.CLEAR_WORKED_HISTORY(), self)
         self.clear_worked_history_action.setEnabled(len(self.worked_callsigns_history) > 0)
         self.clear_worked_history_action.triggered.connect(self.clear_worked_callsigns)
 
