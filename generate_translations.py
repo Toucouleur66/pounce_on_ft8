@@ -144,7 +144,7 @@ def create_readme():
 
     content = """# Translations
 
-This directory contains translation files for DX Pounce on FT8.
+This directory contains translation files for Wait and Pounce.
 
 ## File Types
 
@@ -266,7 +266,7 @@ linguist translations/pounce_fr.ts
 
 def main():
     print("=" * 70)
-    print("DX Pounce on FT8 - Translation File Generator")
+    print("Wait and Pounce - Translation File Generator")
     print("=" * 70)
 
     # Check prerequisites

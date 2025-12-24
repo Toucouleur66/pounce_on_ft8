@@ -1,6 +1,6 @@
 # translations.py
 """
-Translation management for DX Pounce on FT8
+Translation management for Wait and Pounce
 Using Qt's QTranslator system for proper i18n support
 """
 

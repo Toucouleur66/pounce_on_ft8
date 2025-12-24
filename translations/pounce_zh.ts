@@ -458,12 +458,12 @@
         <translation>启用向日志程序发送QSO数据</translation>
     </message>
     <message>
-        <source>&lt;p&gt;DX Pounce on FT8 won't trigger a reply unless you enable &lt;u&gt;Enable reply&lt;/u&gt; or &lt;u&gt;Enable polite reply&lt;/u&gt;.&lt;/p&gt;&lt;p&gt;If you disable these settings, DX Pounce on FT8 will still run as a monitoring tool with different visual or sound alerts depending on your preference.&lt;/p&gt;&lt;p&gt;If you enable them, this program will double-click on any of the lines of decoded text in the Band Activity window of your WSJT-X/JTDX instance which match with your preferences.&lt;/p&gt;</source>
-        <translation>&lt;p&gt;除非您启用&lt;u&gt;启用回复&lt;/u&gt;或&lt;u&gt;启用礼貌回复&lt;/u&gt;，否则DX Pounce on FT8不会触发回复。&lt;/p&gt;&lt;p&gt;如果禁用这些设置，DX Pounce on FT8仍将作为监控工具运行，根据您的偏好提供不同的视觉或声音提醒。&lt;/p&gt;&lt;p&gt;如果启用它们，此程序将双击WSJT-X/JTDX实例的波段活动窗口中与您的偏好匹配的任何解码文本行。&lt;/p&gt;</translation>
+        <source>&lt;p&gt;Wait and Pounce won't trigger a reply unless you enable &lt;u&gt;Enable reply&lt;/u&gt; or &lt;u&gt;Enable polite reply&lt;/u&gt;.&lt;/p&gt;&lt;p&gt;If you disable these settings, Wait and Pounce will still run as a monitoring tool with different visual or sound alerts depending on your preference.&lt;/p&gt;&lt;p&gt;If you enable them, this program will double-click on any of the lines of decoded text in the Band Activity window of your WSJT-X/JTDX instance which match with your preferences.&lt;/p&gt;</source>
+        <translation>&lt;p&gt;除非您启用&lt;u&gt;启用回复&lt;/u&gt;或&lt;u&gt;启用礼貌回复&lt;/u&gt;，否则Wait and Pounce不会触发回复。&lt;/p&gt;&lt;p&gt;如果禁用这些设置，Wait and Pounce仍将作为监控工具运行，根据您的偏好提供不同的视觉或声音提醒。&lt;/p&gt;&lt;p&gt;如果启用它们，此程序将双击WSJT-X/JTDX实例的波段活动窗口中与您的偏好匹配的任何解码文本行。&lt;/p&gt;</translation>
     </message>
     <message>
-        <source>General DX Pounce on FT8 Settings</source>
-        <translation>DX Pounce on FT8常规设置</translation>
+        <source>General Wait and Pounce Settings</source>
+        <translation>Wait and Pounce常规设置</translation>
     </message>
     <message>
         <source>Log all valid contacts (not only from Wanted)</source>
@@ -534,8 +534,8 @@
         <translation>最大频率(Hz):</translation>
     </message>
     <message>
-        <source>&lt;p&gt;DX Pounce on FT8 won't trigger reply unless decoded message reach a minimal signal report.&lt;/p&gt;</source>
-        <translation>&lt;p&gt;除非解码的消息达到最小信号报告，否则DX Pounce on FT8不会触发回复。&lt;/p&gt;</translation>
+        <source>&lt;p&gt;Wait and Pounce won't trigger reply unless decoded message reach a minimal signal report.&lt;/p&gt;</source>
+        <translation>&lt;p&gt;除非解码的消息达到最小信号报告，否则Wait and Pounce不会触发回复。&lt;/p&gt;</translation>
     </message>
     <message>
         <source>Minimum dB signal for reply (FT8/FT4 Mode only)</source>
@@ -586,8 +586,8 @@
         <translation>回复</translation>
     </message>
     <message>
-        <source>&lt;p&gt;LoTW (Logbook of The World®) is ARRL's online QSO confirmation system.&lt;/p&gt;&lt;p&gt;Enable it to limit sound alerts and only respond to callsigns who use LoTW especially &lt;u&gt;if you use a Wildcard in your Wanted callsigns&lt;/u&gt;.&lt;/p&gt;&lt;p&gt;DX Pounce on FT8 will always respond to the callsign if it exactly matches a wanted callsign that is not LoTW.&lt;/p&gt;&lt;p&gt;&lt;u&gt;This setting is ignored for Marathon&lt;/u&gt; but is used for GridTracker and if you make use of Wildcard.&lt;/p&gt;</source>
-        <translation>&lt;p&gt;LoTW（世界日志簿®）是ARRL的在线QSO确认系统。&lt;/p&gt;&lt;p&gt;启用它可以限制声音提醒，仅响应使用LoTW的呼号，特别是&lt;u&gt;如果您在想要的呼号中使用通配符&lt;/u&gt;。&lt;/p&gt;&lt;p&gt;如果完全匹配不使用LoTW的想要呼号，DX Pounce on FT8将始终响应该呼号。&lt;/p&gt;&lt;p&gt;&lt;u&gt;此设置对马拉松忽略&lt;/u&gt;，但用于网格追踪器和如果您使用通配符。&lt;/p&gt;</translation>
+        <source>&lt;p&gt;LoTW (Logbook of The World®) is ARRL's online QSO confirmation system.&lt;/p&gt;&lt;p&gt;Enable it to limit sound alerts and only respond to callsigns who use LoTW especially &lt;u&gt;if you use a Wildcard in your Wanted callsigns&lt;/u&gt;.&lt;/p&gt;&lt;p&gt;Wait and Pounce will always respond to the callsign if it exactly matches a wanted callsign that is not LoTW.&lt;/p&gt;&lt;p&gt;&lt;u&gt;This setting is ignored for Marathon&lt;/u&gt; but is used for GridTracker and if you make use of Wildcard.&lt;/p&gt;</source>
+        <translation>&lt;p&gt;LoTW（世界日志簿®）是ARRL的在线QSO确认系统。&lt;/p&gt;&lt;p&gt;启用它可以限制声音提醒，仅响应使用LoTW的呼号，特别是&lt;u&gt;如果您在想要的呼号中使用通配符&lt;/u&gt;。&lt;/p&gt;&lt;p&gt;如果完全匹配不使用LoTW的想要呼号，Wait and Pounce将始终响应该呼号。&lt;/p&gt;&lt;p&gt;&lt;u&gt;此设置对马拉松忽略&lt;/u&gt;，但用于网格追踪器和如果您使用通配符。&lt;/p&gt;</translation>
     </message>
     <message>
         <source>No LoTW data available yet</source>
@@ -630,8 +630,8 @@
         <translation>秒</translation>
     </message>
     <message>
-        <source>&lt;p&gt;While using DX Pounce on FT8, you can let this program analyze your working ADIF files from WSJT-x or JTDX.&lt;p&gt;&lt;p&gt;DX Pounce on FT8 won't update your ADIF files. Still, it can read, parse and analyse them. You can set several ADIF files, for exemple your main WSJT-X ADIF and a full export of your log.&lt;/p&gt;</source>
-        <translation>&lt;p&gt;使用DX Pounce on FT8时，您可以让此程序分析您的WSJT-x或JTDX的工作ADIF文件。&lt;p&gt;&lt;p&gt;DX Pounce on FT8不会更新您的ADIF文件。但是，它可以读取、解析和分析它们。您可以设置多个ADIF文件，例如您的主WSJT-X ADIF和日志的完整导出。&lt;/p&gt;</translation>
+        <source>&lt;p&gt;While using Wait and Pounce, you can let this program analyze your working ADIF files from WSJT-x or JTDX.&lt;p&gt;&lt;p&gt;Wait and Pounce won't update your ADIF files. Still, it can read, parse and analyse them. You can set several ADIF files, for exemple your main WSJT-X ADIF and a full export of your log.&lt;/p&gt;</source>
+        <translation>&lt;p&gt;使用Wait and Pounce时，您可以让此程序分析您的WSJT-x或JTDX的工作ADIF文件。&lt;p&gt;&lt;p&gt;Wait and Pounce不会更新您的ADIF文件。但是，它可以读取、解析和分析它们。您可以设置多个ADIF文件，例如您的主WSJT-X ADIF和日志的完整导出。&lt;/p&gt;</translation>
     </message>
     <message>
         <source>ADIF Files for log analysis</source>
@@ -642,8 +642,8 @@
         <translation>选择新的ADIF文件进行分析</translation>
     </message>
     <message>
-        <source>&lt;p&gt;DX Pounce on FT8, will show the year of the Worked B4 stations you decode.&lt;p&gt;&lt;p&gt;You can select from this panel, how the program will behave when it decodes some already worked callsign on the same band.&lt;/p&gt;</source>
-        <translation>&lt;p&gt;DX Pounce on FT8将显示您解码的已通联电台的年份。&lt;p&gt;&lt;p&gt;您可以从此面板中选择，当程序在同一波段上解码某些已通联的呼号时，程序将如何运行。&lt;/p&gt;</translation>
+        <source>&lt;p&gt;Wait and Pounce, will show the year of the Worked B4 stations you decode.&lt;p&gt;&lt;p&gt;You can select from this panel, how the program will behave when it decodes some already worked callsign on the same band.&lt;/p&gt;</source>
+        <translation>&lt;p&gt;Wait and Pounce将显示您解码的已通联电台的年份。&lt;p&gt;&lt;p&gt;您可以从此面板中选择，当程序在同一波段上解码某些已通联的呼号时，程序将如何运行。&lt;/p&gt;</translation>
     </message>
     <message>
         <source>What should we do with Worked B4?</source>
@@ -662,11 +662,11 @@
         <translation>不回复任何已通联的呼号</translation>
     </message>
     <message>
-        <source>&lt;p&gt;Marathon feature has to be used with caution.&lt;/p&gt;&lt;p&gt;DX Pounce on FT8 will analyze your log and check for any missing entities you haven't worked on selected band. If a missing entity is decoded, DX Pounce on FT8 will reply to this callsign.&lt;/p&gt;&lt;p&gt;Note that rules set for &lt;u&gt;Worked Before&lt;/u&gt; will remain in effect.&lt;/p&gt;</source>
-        <translation>&lt;p&gt;马拉松功能必须谨慎使用。&lt;/p&gt;&lt;p&gt;DX Pounce on FT8将分析您的日志并检查您在所选波段上未通联的任何缺失实体。如果解码到缺失实体，DX Pounce on FT8将回复此呼号。&lt;/p&gt;&lt;p&gt;请注意，为&lt;u&gt;已通联记录&lt;/u&gt;设置的规则将保持有效。&lt;/p&gt;</translation>
+        <source>&lt;p&gt;Marathon feature has to be used with caution.&lt;/p&gt;&lt;p&gt;Wait and Pounce will analyze your log and check for any missing entities you haven't worked on selected band. If a missing entity is decoded, Wait and Pounce will reply to this callsign.&lt;/p&gt;&lt;p&gt;Note that rules set for &lt;u&gt;Worked Before&lt;/u&gt; will remain in effect.&lt;/p&gt;</source>
+        <translation>&lt;p&gt;马拉松功能必须谨慎使用。&lt;/p&gt;&lt;p&gt;Wait and Pounce将分析您的日志并检查您在所选波段上未通联的任何缺失实体。如果解码到缺失实体，Wait and Pounce将回复此呼号。&lt;/p&gt;&lt;p&gt;请注意，为&lt;u&gt;已通联记录&lt;/u&gt;设置的规则将保持有效。&lt;/p&gt;</translation>
     </message>
     <message>
-        <source>DX Marathon Settings</source>
+        <source>Enable Marathon for selected bands</source>
         <translation>DX马拉松设置</translation>
     </message>
     <message>
@@ -682,16 +682,16 @@
         <translation>&lt;p&gt;网格追踪功能监控尚未通联的新网格（4或6字符梅登海德）。&lt;/p&gt;&lt;p&gt;启用后，程序将回复您在所选波段上尚未通联的网格中的电台。&lt;/p&gt;</translation>
     </message>
     <message>
-        <source>Grid Tracker Settings</source>
+        <source>Select bands for Grid Tracker</source>
         <translation>网格追踪设置</translation>
     </message>
     <message>
-        <source>Enable Grid Tracker mode</source>
-        <translation>启用网格追踪模式</translation>
+        <source>Reply to callsign if grid not yet confirmed and not worked before</source>
+        <translation>如果网格尚未确认且之前未通联则回复呼号</translation>
     </message>
     <message>
-        <source>Select bands for Grid Tracker:</source>
-        <translation>选择网格追踪波段：</translation>
+        <source>Enable grid tracker to reply to callsign if new grid regardless of band</source>
+        <translation>启用网格追踪器以回复新网格的呼号（无论波段）</translation>
     </message>
     <message>
         <source>&lt;p&gt;Club Log is a web service for amateur radio logging and statistics.&lt;/p&gt;&lt;p&gt;You can enable automatic upload of your QSO data to Club Log.&lt;/p&gt;</source>
@@ -762,8 +762,8 @@
         <translation>记录UDP数据包数据</translation>
     </message>
     <message>
-        <source>&lt;p&gt;Select band for which DX Pounce on FT8 will reply to callsign, if callsign is a new grid for the selected band.&lt;/p&gt;</source>
-        <translation>&lt;p&gt;选择DX Pounce on FT8将回复呼号的波段，如果呼号是所选波段的新网格。&lt;/p&gt;</translation>
+        <source>&lt;p&gt;Select band for which Wait and Pounce will reply to callsign, if callsign is a new grid for the selected band.&lt;/p&gt;</source>
+        <translation>&lt;p&gt;选择Wait and Pounce将回复呼号的波段，如果呼号是所选波段的新网格。&lt;/p&gt;</translation>
     </message>
     <message>
         <source>Email:</source>
@@ -786,12 +786,12 @@
         <translation>您的呼号</translation>
     </message>
     <message>
-        <source>&lt;p&gt;DX Pounce on FT8 will write a new entry on a dedicated and specific ADIF File for each logged QSO.&lt;/p&gt;&lt;p&gt;This file can be used as a backup of your main logging sequence with JTDX or WSJT-x.&lt;/p&gt;&lt;p&gt;This log will always be analyzed even if you have an empty list of ADIF files for logbook analysis.&lt;/p&gt;</source>
-        <translation>&lt;p&gt;DX Pounce on FT8将为每个记录的QSO在专用和特定的ADIF文件上写入新条目。&lt;/p&gt;&lt;p&gt;此文件可用作您与JTDX或WSJT-x的主要日志记录序列的备份。&lt;/p&gt;&lt;p&gt;即使您的日志簿分析ADIF文件列表为空，此日志也将始终被分析。&lt;/p&gt;</translation>
+        <source>&lt;p&gt;Wait and Pounce will write a new entry on a dedicated and specific ADIF File for each logged QSO.&lt;/p&gt;&lt;p&gt;This file can be used as a backup of your main logging sequence with JTDX or WSJT-x.&lt;/p&gt;&lt;p&gt;This log will always be analyzed even if you have an empty list of ADIF files for logbook analysis.&lt;/p&gt;</source>
+        <translation>&lt;p&gt;Wait and Pounce将为每个记录的QSO在专用和特定的ADIF文件上写入新条目。&lt;/p&gt;&lt;p&gt;此文件可用作您与JTDX或WSJT-x的主要日志记录序列的备份。&lt;/p&gt;&lt;p&gt;即使您的日志簿分析ADIF文件列表为空，此日志也将始终被分析。&lt;/p&gt;</translation>
     </message>
     <message>
-        <source>DX Pounce on FT8 Backup File</source>
-        <translation>DX Pounce on FT8备份文件</translation>
+        <source>Wait and Pounce Backup File</source>
+        <translation>Wait and Pounce备份文件</translation>
     </message>
     <message>
         <source>Save log to</source>

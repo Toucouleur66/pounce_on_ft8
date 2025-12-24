@@ -156,9 +156,9 @@ class SettingsStrings:
     CHECK_ENABLE_LOGGING = lambda: tr("SettingsDialog", "Enable sending QSO data for logging program")
     # General Settings page
     GENERAL_NOTICE = lambda: tr("SettingsDialog",
-        "<p>DX Pounce on FT8 won't trigger a reply unless you enable <u>Enable reply</u> or <u>Enable polite reply</u>.</p><p>If you disable these settings, DX Pounce on FT8 will still run as a monitoring tool with different visual or sound alerts depending on your preference.</p><p>If you enable them, this program will double-click on any of the lines of decoded text in the Band Activity window of your WSJT-X/JTDX instance which match with your preferences.</p>"
+        "<p>Wait and Pounce won't trigger a reply unless you enable <u>Enable reply</u> or <u>Enable polite reply</u>.</p><p>If you disable these settings, Wait and Pounce will still run as a monitoring tool with different visual or sound alerts depending on your preference.</p><p>If you enable them, this program will double-click on any of the lines of decoded text in the Band Activity window of your WSJT-X/JTDX instance which match with your preferences.</p>"
     )
-    GROUP_GENERAL_SETTINGS = lambda: tr("SettingsDialog", "General DX Pounce on FT8 Settings")
+    GROUP_GENERAL_SETTINGS = lambda: tr("SettingsDialog", "General Wait and Pounce Settings")
     CHECK_ENABLE_REPLY = lambda: tr("SettingsDialog", "Enable reply")
     CHECK_ENABLE_POLITE_REPLY = lambda: tr("SettingsDialog", "Enable polite reply")
     CHECK_ENABLE_WATCHDOG_BYPASS = lambda: tr("SettingsDialog", "Enable watchdog bypass")
@@ -183,7 +183,7 @@ class SettingsStrings:
     LABEL_MIN_FREQ = lambda: tr("SettingsDialog", "Min Freq (Hz):")
     LABEL_MAX_FREQ = lambda: tr("SettingsDialog", "Max Freq (Hz):")
     MINIMUM_REPORT_NOTICE = lambda: tr("SettingsDialog",
-        "<p>DX Pounce on FT8 won't trigger reply unless decoded message reach a minimal signal report.</p>"
+        "<p>Wait and Pounce won't trigger reply unless decoded message reach a minimal signal report.</p>"
     )
     GROUP_MINIMUM_REPORT = lambda: tr("SettingsDialog", "Minimum dB signal for reply (FT8/FT4 Mode only)")
     LABEL_MINIMUM_REPORT = lambda: tr("SettingsDialog", "Minimum report")
@@ -204,7 +204,7 @@ class SettingsStrings:
     HEADER_REPLY_TO = lambda: tr("SettingsDialog", "Reply to")
     # LoTW Settings
     LOTW_NOTICE = lambda: tr("SettingsDialog",
-        "<p>LoTW (Logbook of The World®) is ARRL's online QSO confirmation system.</p><p>Enable it to limit sound alerts and only respond to callsigns who use LoTW especially <u>if you use a Wildcard in your Wanted callsigns</u>.</p><p>DX Pounce on FT8 will always respond to the callsign if it exactly matches a wanted callsign that is not LoTW.</p><p><u>This setting is ignored for Marathon</u> but is used for GridTracker and if you make use of Wildcard.</p>"
+        "<p>LoTW (Logbook of The World®) is ARRL's online QSO confirmation system.</p><p>Enable it to limit sound alerts and only respond to callsigns who use LoTW especially <u>if you use a Wildcard in your Wanted callsigns</u>.</p><p>Wait and Pounce will always respond to the callsign if it exactly matches a wanted callsign that is not LoTW.</p><p><u>This setting is ignored for Marathon</u> but is used for GridTracker and if you make use of Wildcard.</p>"
     )
     LOTW_CACHE_STATUS = lambda callsigns, last_update: tr("SettingsDialog",
         f"LoTW Cache Status: {callsigns} callsigns<br />Last updated: {last_update}"
@@ -225,14 +225,14 @@ class SettingsStrings:
     LABEL_SECONDS = lambda: tr("SettingsDialog", "seconds")
     # Logbook Analysis
     LOG_ANALYSIS_NOTICE = lambda: tr("SettingsDialog",
-        "<p>While using DX Pounce on FT8, you can let this program analyze your working ADIF files from WSJT-x or JTDX.<p><p>DX Pounce on FT8 won't update your ADIF files. Still, it can read, parse and analyse them. You can set several ADIF files, for exemple your main WSJT-X ADIF and a full export of your log.</p>"
+        "<p>While using Wait and Pounce, you can let this program analyze your working ADIF files from WSJT-x or JTDX.<p><p>Wait and Pounce won't update your ADIF files. Still, it can read, parse and analyse them. You can set several ADIF files, for exemple your main WSJT-X ADIF and a full export of your log.</p>"
     )
     GROUP_FILE_SELECTION = lambda: tr("SettingsDialog", "ADIF Files for log analysis")
     BUTTON_SELECT_ADIF = lambda: tr("SettingsDialog", "Select new ADIF File for analysis")
     HEADER_ADIF_FILES = lambda: tr("SettingsDialog", "ADIF Files for analysis")
     # Worked Before
     WORKED_B4_NOTICE = lambda: tr("SettingsDialog",
-        "<p>DX Pounce on FT8, will show the year of the Worked B4 stations you decode.<p><p>You can select from this panel, how the program will behave when it decodes some already worked callsign on the same band.</p>"
+        "<p>Wait and Pounce, will show the year of the Worked B4 stations you decode.<p><p>You can select from this panel, how the program will behave when it decodes some already worked callsign on the same band.</p>"
     )
     GROUP_WKB4_SETTINGS = lambda: tr("SettingsDialog", "What should we do with Worked B4?")
     RADIO_REPLY_ALWAYS = lambda: tr("SettingsDialog", "Reply to any Wanted Callsign even if Worked B4")
@@ -240,9 +240,9 @@ class SettingsStrings:
     RADIO_REPLY_NEVER = lambda: tr("SettingsDialog", "Do not reply to any Callsign Worked B4")
     # Marathon
     MARATHON_NOTICE = lambda: tr("SettingsDialog",
-        "<p>Marathon feature has to be used with caution.</p><p>DX Pounce on FT8 will analyze your log and check for any missing entities you haven't worked on selected band. If a missing entity is decoded, DX Pounce on FT8 will reply to this callsign.</p><p>Note that rules set for <u>Worked Before</u> will remain in effect.</p>"
+        "<p>Marathon feature has to be used with caution.</p><p>Wait and Pounce will analyze your log and check for any missing entities you haven't worked on selected band. If a missing entity is decoded, Wait and Pounce will reply to this callsign.</p><p>Note that rules set for <u>Worked Before</u> will remain in effect.</p>"
     )
-    GROUP_MARATHON_SETTINGS = lambda: tr("SettingsDialog", "DX Marathon Settings")
+    GROUP_MARATHON_SETTINGS = lambda: tr("SettingsDialog", "Enable Marathon for selected bands")
     CHECK_ENABLE_MARATHON = lambda: tr("SettingsDialog", "Enable Marathon mode")
     LABEL_SELECT_BANDS = lambda: tr("SettingsDialog", "Select bands for Marathon:")
     # Grid Tracker
@@ -250,10 +250,11 @@ class SettingsStrings:
         "<p>Grid Tracker feature monitors for new grids (4 or 6 character Maidenhead) that haven't been worked yet.</p><p>When enabled, the program will reply to stations in grids you haven't worked on the selected bands.</p>"
     )
     GRID_TRACKER_PER_BAND_NOTICE = lambda: tr("SettingsDialog",
-        "<p>Select band for which DX Pounce on FT8 will reply to callsign, if callsign is a new grid for the selected band.</p>"
+        "<p>Select band for which Wait and Pounce will reply to callsign, if callsign is a new grid for the selected band.</p>"
     )
-    GROUP_GRID_TRACKER_SETTINGS = lambda: tr("SettingsDialog", "Grid Tracker Settings")
-    CHECK_ENABLE_GRID_TRACKER = lambda: tr("SettingsDialog", "Enable Grid Tracker mode")
+    GROUP_GRID_TRACKER_SETTINGS = lambda: tr("SettingsDialog", "Select bands for Grid Tracker")
+    CHECK_ENABLE_GRID_TRACKER = lambda: tr("SettingsDialog", "Reply to callsign if grid not yet confirmed and not worked before")
+    CHECK_ENABLE_GRID_TRACKER_NEW_GRID = lambda: tr("SettingsDialog", "Enable grid tracker to reply to callsign if new grid regardless of band")
     LABEL_SELECT_BANDS_GRID = lambda: tr("SettingsDialog", "Select bands for Grid Tracker:")
     # Club Log
     CLUB_LOG_NOTICE = lambda: tr("SettingsDialog",
@@ -277,9 +278,9 @@ class SettingsStrings:
     CLUB_LOG_NO_UPLOADS = lambda: tr("SettingsDialog", "No Club Log uploads yet")
     # Logbook Backup
     BACKUP_NOTICE = lambda: tr("SettingsDialog",
-        "<p>DX Pounce on FT8 will write a new entry on a dedicated and specific ADIF File for each logged QSO.</p><p>This file can be used as a backup of your main logging sequence with JTDX or WSJT-x.</p><p>This log will always be analyzed even if you have an empty list of ADIF files for logbook analysis.</p>"
+        "<p>Wait and Pounce will write a new entry on a dedicated and specific ADIF File for each logged QSO.</p><p>This file can be used as a backup of your main logging sequence with JTDX or WSJT-x.</p><p>This log will always be analyzed even if you have an empty list of ADIF files for logbook analysis.</p>"
     )
-    GROUP_BACKUP_FILE = lambda: tr("SettingsDialog", "DX Pounce on FT8 Backup File")
+    GROUP_BACKUP_FILE = lambda: tr("SettingsDialog", "Wait and Pounce Backup File")
     CHECK_SAVE_LOG = lambda filename: tr("SettingsDialog", "Save log to") + f" {filename}"
     BUTTON_SELECT_BACKUP = lambda: tr("SettingsDialog", "Select Backup File")
     BACKUP_STATUS_NO_FILE = lambda: tr("SettingsDialog", "<p>Backup File Status: No file selected</p>")

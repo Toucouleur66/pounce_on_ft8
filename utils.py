@@ -803,27 +803,32 @@ def is_grid_needed(
         check_qsl_status=True,
         check_new_grid=False
     ):
+    grid_needed = False
+
     if check_new_grid:
         for band_grids in data.get('grid', {}).values():
             if grid in band_grids:
                 if check_qsl_status:
                     for qso in band_grids[grid]:
                         if bool(qso.get('qsl_status')):
-                            return False
+                            grid_needed = False
                 else:
-                    return False
+                    grid_needed = False
+        grid_needed = True
+
+    if grid_needed:
+        return True
+    
+    grids = data.get('grid', {}).get(band, {})
+    if grid not in grids:
+        return True
+    elif check_qsl_status:
+        for qso in grids[grid]:
+            if bool(qso.get('qsl_status')):
+                return False
         return True
     else:
-        grids = data.get('grid', {}).get(band, {})
-        if grid not in grids:
-            return True
-        elif check_qsl_status:
-            for qso in grids[grid]:
-                if bool(qso.get('qsl_status')):
-                    return False
-            return True
-        else:
-            return False
+        return False
 
 def get_wkb4_year(data, callsign, band):
     worked_years = []    

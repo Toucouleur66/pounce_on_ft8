@@ -1117,7 +1117,7 @@ class SettingsDialog(QtWidgets.QDialog):
         club_log_layout.addStretch()
 
         """
-            Grid Tracker Settings
+            Select bands for Grid Tracker
         """
         grid_tracker_notice_text = SettingsStrings.GRID_TRACKER_NOTICE()
         grid_tracker_notice_label = QtWidgets.QLabel(grid_tracker_notice_text)
@@ -1133,7 +1133,7 @@ class SettingsDialog(QtWidgets.QDialog):
         grid_tracker_separator.setFrameShadow(QtWidgets.QFrame.Shadow.Sunken)
 
         # Grid reply new grid on any band checkbox
-        self.enable_grid_reply_new_grid = QtWidgets.QCheckBox(SettingsStrings.CHECK_ENABLE_GRID_TRACKER())
+        self.enable_grid_reply_new_grid = QtWidgets.QCheckBox(SettingsStrings.CHECK_ENABLE_GRID_TRACKER_NEW_GRID())
         self.enable_grid_reply_new_grid.setFont(CUSTOM_FONT_SMALL)
         self.enable_grid_reply_new_grid.setChecked(False)
 
