@@ -236,7 +236,7 @@ class SettingsStrings:
     )
     GROUP_WKB4_SETTINGS = lambda: tr("SettingsDialog", "What should we do with Worked B4?")
     RADIO_REPLY_ALWAYS = lambda: tr("SettingsDialog", "Reply to any Wanted Callsign even if Worked B4")
-    RADIO_REPLY_CURRENT_YEAR = lambda year: tr("SettingsDialog", f"Reply to Wanted Callsign if not Worked B4 in current year ({year})")
+    RADIO_REPLY_CURRENT_YEAR = lambda year: tr("SettingsDialog", "Reply to Wanted Callsign if not Worked B4 in current year") + f" ({year})"
     RADIO_REPLY_NEVER = lambda: tr("SettingsDialog", "Do not reply to any Callsign Worked B4")
     # Marathon
     MARATHON_NOTICE = lambda: tr("SettingsDialog",
@@ -249,6 +249,9 @@ class SettingsStrings:
     GRID_TRACKER_NOTICE = lambda: tr("SettingsDialog",
         "<p>Grid Tracker feature monitors for new grids (4 or 6 character Maidenhead) that haven't been worked yet.</p><p>When enabled, the program will reply to stations in grids you haven't worked on the selected bands.</p>"
     )
+    GRID_TRACKER_PER_BAND_NOTICE = lambda: tr("SettingsDialog",
+        "<p>Select band for which DX Pounce on FT8 will reply to callsign, if callsign is a new grid for the selected band.</p>"
+    )
     GROUP_GRID_TRACKER_SETTINGS = lambda: tr("SettingsDialog", "Grid Tracker Settings")
     CHECK_ENABLE_GRID_TRACKER = lambda: tr("SettingsDialog", "Enable Grid Tracker mode")
     LABEL_SELECT_BANDS_GRID = lambda: tr("SettingsDialog", "Select bands for Grid Tracker:")
@@ -259,8 +262,36 @@ class SettingsStrings:
     GROUP_CLUB_LOG_SETTINGS = lambda: tr("SettingsDialog", "Club Log Settings")
     CHECK_ENABLE_CLUB_LOG = lambda: tr("SettingsDialog", "Enable automatic upload to Club Log")
     LABEL_CALLSIGN = lambda: tr("SettingsDialog", "Callsign:")
+    LABEL_EMAIL = lambda: tr("SettingsDialog", "Email:")
+    LABEL_PASSWORD = lambda: tr("SettingsDialog", "Password:")
     LABEL_API_KEY = lambda: tr("SettingsDialog", "API Key:")
     BUTTON_TEST_CONNECTION = lambda: tr("SettingsDialog", "Test Connection")
+    PLACEHOLDER_EMAIL = lambda: tr("SettingsDialog", "Registered email address in Club Log")
+    PLACEHOLDER_PASSWORD = lambda: tr("SettingsDialog", "Application password")
+    PLACEHOLDER_CALLSIGN = lambda: tr("SettingsDialog", "Your callsign")
+    CLUB_LOG_STATUS = lambda total, last_sync, callsign, band: (
+        tr("SettingsDialog", "Club Log Status:") + f" {total} " + tr("SettingsDialog", "QSOs uploaded") + f"<br />" +
+        tr("SettingsDialog", "Last upload:") + f" {last_sync}<br />" +
+        tr("SettingsDialog", "Last QSO:") + f" {callsign} " + tr("SettingsDialog", "on") + f" {band}"
+    )
+    CLUB_LOG_NO_UPLOADS = lambda: tr("SettingsDialog", "No Club Log uploads yet")
+    # Logbook Backup
+    BACKUP_NOTICE = lambda: tr("SettingsDialog",
+        "<p>DX Pounce on FT8 will write a new entry on a dedicated and specific ADIF File for each logged QSO.</p><p>This file can be used as a backup of your main logging sequence with JTDX or WSJT-x.</p><p>This log will always be analyzed even if you have an empty list of ADIF files for logbook analysis.</p>"
+    )
+    GROUP_BACKUP_FILE = lambda: tr("SettingsDialog", "DX Pounce on FT8 Backup File")
+    CHECK_SAVE_LOG = lambda filename: tr("SettingsDialog", "Save log to") + f" {filename}"
+    BUTTON_SELECT_BACKUP = lambda: tr("SettingsDialog", "Select Backup File")
+    BACKUP_STATUS_NO_FILE = lambda: tr("SettingsDialog", "<p>Backup File Status: No file selected</p>")
+    BACKUP_STATUS_READY = lambda status, total, unique, first, last: (
+        tr("SettingsDialog", "Backup File Status:") + f" {status}<br />" +
+        tr("SettingsDialog", "Total Entries:") + f" {total:,}<br />" +
+        tr("SettingsDialog", "Unique Callsigns:") + f" {unique:,}<br />" +
+        tr("SettingsDialog", "First Entry:") + f" {first}<br />" +
+        tr("SettingsDialog", "Last Updated:") + f" {last}"
+    )
+    BACKUP_STATUS_OTHER = lambda status: tr("SettingsDialog", "<p>Backup File Status:") + f" {status}</p>"
+
     # Debugging
     DEBUG_NOTICE = lambda: tr("SettingsDialog",
         "<p>Enable debugging options to help troubleshoot issues.</p><p>Warning: These options may generate large log files and affect performance.</p>"
@@ -269,6 +300,17 @@ class SettingsStrings:
     CHECK_ENABLE_POUNCE_LOG = lambda: tr("SettingsDialog", "Enable pounce log")
     CHECK_ENABLE_GUI_DEBUG = lambda: tr("SettingsDialog", "Enable extra GUI debug output")
     CHECK_LOG_PACKET_DATA = lambda: tr("SettingsDialog", "Log UDP packet data")
+
+    # File dialogs
+    DIALOG_SELECT_ADIF = lambda: tr("SettingsDialog", "Select ADIF File")
+    DIALOG_SELECT_BACKUP = lambda: tr("SettingsDialog", "Select ADIF Backup File")
+    FILE_FILTER_ADIF = lambda: tr("SettingsDialog", "ADIF Files (*.adif *.adi);;All Files (*)")
+
+    # Messages
+    MESSAGE_FILE_ALREADY_ADDED = lambda: tr("SettingsDialog", "File Already Added")
+    MESSAGE_FILE_ALREADY_IN_LIST = lambda filename: tr("SettingsDialog", f"The file '{filename}' is already in the list.")
+    MESSAGE_NO_DATA_FOUND = lambda: tr("SettingsDialog", "No Data found")
+    MESSAGE_FILE_EMPTY_OR_CORRUPTED = lambda: tr("SettingsDialog", "Seems your file is either empty or corrupted")
 
 
 # GRID MAP VIEWER

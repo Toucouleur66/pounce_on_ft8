@@ -1057,9 +1057,9 @@ class SettingsDialog(QtWidgets.QDialog):
 
         last_sync, total_qsos, last_callsign, last_band = ClubLogUploader.get_cache_info()
         if last_sync:
-            club_log_cache_text = f"Club Log Status: {total_qsos} QSOs uploaded<br />Last upload: {last_sync}<br />Last QSO: {last_callsign} on {last_band}"
+            club_log_cache_text = SettingsStrings.CLUB_LOG_STATUS(total_qsos, last_sync, last_callsign, last_band)
         else:
-            club_log_cache_text = "No Club Log uploads yet"
+            club_log_cache_text = SettingsStrings.CLUB_LOG_NO_UPLOADS()
 
         self.club_log_cache_info = QtWidgets.QLabel(club_log_cache_text)
         self.club_log_cache_info.setWordWrap(True)
@@ -1084,20 +1084,20 @@ class SettingsDialog(QtWidgets.QDialog):
         club_log_email_label.setFont(CUSTOM_FONT)
         self.club_log_email = QtWidgets.QLineEdit()
         self.club_log_email.setFont(CUSTOM_FONT)
-        self.club_log_email.setPlaceholderText("Registered email address in Club Log")
+        self.club_log_email.setPlaceholderText(SettingsStrings.PLACEHOLDER_EMAIL())
 
         club_log_password_label = QtWidgets.QLabel(SettingsStrings.LABEL_API_KEY())
         club_log_password_label.setFont(CUSTOM_FONT)
         self.club_log_password = QtWidgets.QLineEdit()
         self.club_log_password.setFont(CUSTOM_FONT)
         self.club_log_password.setEchoMode(QtWidgets.QLineEdit.EchoMode.Password)
-        self.club_log_password.setPlaceholderText("Application password")
+        self.club_log_password.setPlaceholderText(SettingsStrings.PLACEHOLDER_PASSWORD())
 
         club_log_callsign_label = QtWidgets.QLabel(SettingsStrings.LABEL_CALLSIGN())
         club_log_callsign_label.setFont(CUSTOM_FONT)
         self.club_log_callsign = QtWidgets.QLineEdit()
         self.club_log_callsign.setFont(CUSTOM_FONT)
-        self.club_log_callsign.setPlaceholderText("Your callsign")
+        self.club_log_callsign.setPlaceholderText(SettingsStrings.PLACEHOLDER_CALLSIGN())
 
         club_log_settings_layout.addWidget(self.enable_club_log_synch, 0, 0, 1, 2)
         club_log_settings_layout.addWidget(club_log_email_label, 1, 0, QtCore.Qt.AlignmentFlag.AlignRight)
@@ -1137,9 +1137,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_grid_reply_new_grid.setFont(CUSTOM_FONT_SMALL)
         self.enable_grid_reply_new_grid.setChecked(False)
 
-        grid_tracker_per_band_notice_text = (
-            f"<p>Select band for which {GUI_LABEL_NAME} will reply to callsign, if callsign is a new grid for the selected band.</p>"
-        )
+        grid_tracker_per_band_notice_text = SettingsStrings.GRID_TRACKER_PER_BAND_NOTICE()
 
         grid_tracker_per_band_notice_label = QtWidgets.QLabel(grid_tracker_per_band_notice_text)
         grid_tracker_per_band_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
@@ -1188,14 +1186,12 @@ class SettingsDialog(QtWidgets.QDialog):
         """
             Backup Settings
         """
-        adif_backup_selection_group = QtWidgets.QGroupBox(f"{GUI_LABEL_NAME} Backup File")
+        adif_backup_selection_group = QtWidgets.QGroupBox(SettingsStrings.GROUP_BACKUP_FILE())
         self.group_boxes.append(adif_backup_selection_group)
         adif_backup_selection_group.setFont(CUSTOM_FONT_SMALL)
         adif_backup_selection_group.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
 
-        working_log_notice_text = (
-            f"<p>{GUI_LABEL_NAME} will write a new entry on a dedicated and specific ADIF File for each logged QSO.</p><p>This file can be used as a backup of your main logging sequence with JTDX or WSJT-x.</p><p>This log will always be analyzed even if you have an empty list of ADIF files for logbook analysis.</p>"
-        )
+        working_log_notice_text = SettingsStrings.BACKUP_NOTICE()
 
         working_log_notice_label = QtWidgets.QLabel(working_log_notice_text)
         working_log_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
@@ -1273,7 +1269,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_extra_gui_debug_output.setFont(CUSTOM_FONT)
         self.enable_extra_gui_debug_output.setChecked(False)
 
-        self.enable_pounce_log = QtWidgets.QCheckBox(f"Save log to {get_log_filename()}")
+        self.enable_pounce_log = QtWidgets.QCheckBox(SettingsStrings.CHECK_SAVE_LOG(get_log_filename()))
         self.enable_pounce_log.setFont(CUSTOM_FONT)
         self.enable_pounce_log.setChecked(DEFAULT_POUNCE_LOG)
 
@@ -1608,29 +1604,21 @@ class SettingsDialog(QtWidgets.QDialog):
     def update_backup_file_status(self):
         file_path = self.show_backup_file_path.text().strip()
         if not file_path:
-            status_text = "<p>Backup File Status: No file selected</p>"
+            status_text = SettingsStrings.BACKUP_STATUS_NO_FILE()
         else:
             status, total_entries, unique_calls, last_update, first_entry = self.get_backup_file_status(file_path)
             if status == "Ready":
-                status_text = f"""
-                Backup File Status: {status}
-                <br />
-                Total Entries: {total_entries:,}
-                <br />
-                Unique Callsigns: {unique_calls:,}
-                <br />
-                First Entry: {first_entry}
-                <br />
-                Last Updated: {last_update}
-                """
+                status_text = SettingsStrings.BACKUP_STATUS_READY(
+                    status, total_entries, unique_calls, first_entry, last_update
+                )
             else:
-                status_text = f"<p>Backup File Status: {status}</p>"
+                status_text = SettingsStrings.BACKUP_STATUS_OTHER(status)
 
         self.backup_file_status_info.setText(status_text)
 
     def open_backup_file_dialog(self):
-        dialog = QFileDialog(self, "Select ADIF Backup File")
-        dialog.setNameFilter("ADIF Files (*.adif *.adi);;All Files (*)")
+        dialog = QFileDialog(self, SettingsStrings.DIALOG_SELECT_BACKUP())
+        dialog.setNameFilter(SettingsStrings.FILE_FILTER_ADIF())
         dialog.setFileMode(QFileDialog.FileMode.AnyFile)
         dialog.setOptions(
             QFileDialog.Option.DontUseCustomDirectoryIcons
@@ -1643,8 +1631,8 @@ class SettingsDialog(QtWidgets.QDialog):
                 self.update_backup_file_status()
 
     def add_adif_file(self):
-        dialog = QFileDialog(self, "Select ADIF File")
-        dialog.setNameFilter("ADIF Files (*.adif *.adi);;All Files (*)")
+        dialog = QFileDialog(self, SettingsStrings.DIALOG_SELECT_ADIF())
+        dialog.setNameFilter(SettingsStrings.FILE_FILTER_ADIF())
         dialog.setFileMode(QFileDialog.FileMode.AnyFile)
         dialog.setOptions(
             QFileDialog.Option.DontUseCustomDirectoryIcons
@@ -1659,8 +1647,8 @@ class SettingsDialog(QtWidgets.QDialog):
                 if file_path in self.selected_adif_files:
                     QtWidgets.QMessageBox.information(
                         self,
-                        "File Already Added",
-                        f"The file '{os.path.basename(file_path)}' is already in the list."
+                        SettingsStrings.MESSAGE_FILE_ALREADY_ADDED(),
+                        SettingsStrings.MESSAGE_FILE_ALREADY_IN_LIST(os.path.basename(file_path))
                     )
                     return
 
@@ -1675,8 +1663,8 @@ class SettingsDialog(QtWidgets.QDialog):
                 else:
                     QtWidgets.QMessageBox.warning(
                         self,
-                        "No Data found",
-                        "Seems your file is either empty or corrupted"
+                        SettingsStrings.MESSAGE_NO_DATA_FOUND(),
+                        SettingsStrings.MESSAGE_FILE_EMPTY_OR_CORRUPTED()
                     )
         else:
             print("No file selected.")
