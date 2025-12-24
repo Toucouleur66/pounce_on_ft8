@@ -155,7 +155,7 @@
         <translation>超过30秒未收到心跳。</translation>
     </message>
     <message>
-        <source>HeartBeat: </source>
+        <source>HeartBeat:</source>
         <translation>心跳：</translation>
     </message>
     <message>
@@ -165,6 +165,22 @@
     <message>
         <source>Buffered:</source>
         <translation>缓冲：</translation>
+    </message>
+    <message>
+        <source>Mode:</source>
+        <translation>模式：</translation>
+    </message>
+    <message>
+        <source>Freq:</source>
+        <translation>频率：</translation>
+    </message>
+    <message>
+        <source>Last decoded:</source>
+        <translation>最后解码：</translation>
+    </message>
+    <message>
+        <source>ago</source>
+        <translation>前</translation>
     </message>
     <message>
         <source>Grid Monitoring</source>
@@ -463,6 +479,18 @@
     <message>
         <source>Weight</source>
         <translation>权重</translation>
+    </message>
+    <message>
+        <source>Band:</source>
+        <translation>波段：</translation>
+    </message>
+    <message>
+        <source>Worked:</source>
+        <translation>已通联：</translation>
+    </message>
+    <message>
+        <source>Confirmed:</source>
+        <translation>已确认：</translation>
     </message>
 </context>
 <context>

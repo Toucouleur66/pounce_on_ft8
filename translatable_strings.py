@@ -99,13 +99,19 @@ class MainWindowStrings:
     NO_CONNECTION = lambda: tr("MainWindow", "No connection")
     CONNECTED = lambda: tr("MainWindow", "Connected")
     # Heartbeat messages
+    LABEL_HEARTBEAT = lambda: tr("MainWindow", "HeartBeat:")
     NO_HEARTBEAT_TIMEOUT = lambda seconds: tr("MainWindow", f"No HeartBeat for more than {seconds} seconds.")
-    HEARTBEAT_TIME = lambda time: tr("MainWindow", f"HeartBeat: {time}")
+    HEARTBEAT_TIME = lambda time: tr("MainWindow", "HeartBeat:") + f" {time}"
     NO_HEARTBEAT_RECEIVED = lambda: tr("MainWindow", "No HeartBeat received.")
     # Buffer status
     LABEL_BUFFERED = lambda: tr("MainWindow", "Buffered:")
     STATUS_BUFFERED = lambda count: tr("MainWindow", "Buffered:") + f" {count}"
     BUFFERED_PACKETS = lambda count, size: tr("MainWindow", "Buffered:") + f" {count} {size}"
+
+    # Status bar labels
+    STATUS_MODE = lambda mode: tr("MainWindow", "Mode:") + f" {mode}"
+    STATUS_FREQ = lambda freq: tr("MainWindow", "Freq:") + f" <u>{freq}</u>"
+    STATUS_LAST_DECODED = lambda time: tr("MainWindow", "Last decoded:") + f" {time} " + tr("MainWindow", "ago")
     # Action labels
     GRID_MONITORING_ACTION = lambda: tr("MainWindow", "Grid Monitoring")
     STOP_BUTTON_LABEL = lambda: tr("MainWindow", "Stop all")
@@ -283,10 +289,13 @@ class GridMapStrings:
     LABEL_RADIUS = lambda: tr("GridMapViewer", "Radius")
     LABEL_WEIGHT = lambda: tr("GridMapViewer", "Weight")
     # Status bar messages
-    STATUS_BAND = lambda band: tr("GridMapViewer", f"Band: <u>{band}</u>")
+    LABEL_BAND = lambda: tr("GridMapViewer", "Band:")
+    LABEL_WORKED = lambda: tr("GridMapViewer", "Worked:")
+    LABEL_CONFIRMED = lambda: tr("GridMapViewer", "Confirmed:")
+    STATUS_BAND = lambda band: tr("GridMapViewer", "Band:") + f" <u>{band}</u>"
     STATUS_ALL_BANDS = lambda: tr("GridMapViewer", "All bands")
-    STATUS_WORKED = lambda count: tr("GridMapViewer", f"Worked: {count}")
-    STATUS_CONFIRMED = lambda count: tr("GridMapViewer", f"Confirmed: {count}")
+    STATUS_WORKED = lambda count: tr("GridMapViewer", "Worked:") + f" {count}"
+    STATUS_CONFIRMED = lambda count: tr("GridMapViewer", "Confirmed:") + f" {count}"
     # Zoom controls
     ZOOM_IN = lambda: tr("GridMapViewer", "Zoom In")
     ZOOM_OUT = lambda: tr("GridMapViewer", "Zoom Out")

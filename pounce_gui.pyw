@@ -2518,8 +2518,7 @@ class MainApp(QtWidgets.QMainWindow):
                     self.apply_band_change(operating_band)
             
             if self.mode is not None:
-                current_mode = f"Mode: {self.mode}"
-                self.status_bar_label_mode.setText(current_mode)
+                self.status_bar_label_mode.setText(MainWindowStrings.STATUS_MODE(self.mode))
             else:
                 self.status_bar_label_mode.setText(MainWindowStrings.WAITING_DATA_PACKETS())    
 
@@ -2558,7 +2557,7 @@ class MainApp(QtWidgets.QMainWindow):
             ))
 
         if self.last_frequency and not self.processing_active:
-            self.status_bar_label_freq.setText(f"Freq: <u>{display_frequency(self.last_frequency)}</u>")
+            self.status_bar_label_freq.setText(MainWindowStrings.STATUS_FREQ(display_frequency(self.last_frequency)))
 
         if self.last_targeted_call:
             # self.status_bar_label_reply.setText(f"Last reply: {self.last_targeted_call}")
@@ -2588,7 +2587,7 @@ class MainApp(QtWidgets.QMainWindow):
                     time_since_last_decode_text = f"{int(time_since_last_decode)}s"                  
                     self.update_status_button(MainWindowStrings.STATUS_MONITORING(), STATUS_MONITORING_COLOR) 
 
-            self.status_bar_label_decode_packet.setText(f"Last decoded: {time_since_last_decode_text} ago")
+            self.status_bar_label_decode_packet.setText(MainWindowStrings.STATUS_LAST_DECODED(time_since_last_decode_text))
 
             # Update new interval if necessary
             if network_check_status_interval != self.network_check_status_interval:
