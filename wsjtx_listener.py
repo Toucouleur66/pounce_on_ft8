@@ -31,7 +31,6 @@ from telemetry_service import TelemetryService
 from clublog import ClubLogUploader
 
 log     = get_logger(__name__)
-lookup  = CallsignLookup()
 
 from constants import (
     CURRENT_VERSION_NUMBER,
@@ -244,13 +243,17 @@ class Listener(QObject):
         self.receiver_thread.started.connect(self.receiver_worker.run)
         self.processor_thread.started.connect(self.processor_worker.run)
 
+        self.lookup  = CallsignLookup()
+
+        log.warning("Initialized CallsignLookup instance in listener process")
+
         """
             Check ADIF file to handle Worked B4 
         """          
         self.adif_monitor = AdifMonitor(adif_file_paths, ADIF_WORKED_CALLSIGNS_FILE)
         self.wanted_callsigns_per_entity = load_marathon_wanted_data(MARATHON_FILE)
     
-        self.adif_monitor.register_lookup(lookup)
+        self.adif_monitor.register_lookup(self.lookup)
         self.adif_monitor.start()
         self.adif_monitor.register_callback(self.update_adif_data)
         self.adif_monitor.register_processing_callback(self.update_adif_processing_status)
@@ -696,7 +699,7 @@ class Listener(QObject):
             error_found                 = False
             telemetry_update_needed     = False
 
-            self.my_cont                = lookup.lookup_callsign(self.my_call).get('cont', None)
+            self.my_cont                = self.lookup.lookup_callsign(self.my_call).get('cont', None)
 
             # Updating mode
             if self.last_mode != self.mode:
@@ -1078,7 +1081,7 @@ class Listener(QObject):
             """
             parsed_messages = parse_wsjtx_message(
                 message,
-                lookup, # need lookup to parse message
+                self.lookup, # need lookup to parse message
                 self.wanted_callsigns,
                 self.worked_callsigns.get(self.band, {}),
                 self.excluded_callsigns,
@@ -1892,7 +1895,7 @@ class Listener(QObject):
             self.wanted_callsigns_direction[callsign] = directed
             if is_valid_continent(directed) and directed != self.my_cont:                
                 return False
-            elif directed == "DX" and lookup.lookup_callsign(callsign).get('cont', None) == self.my_cont:
+            elif directed == "DX" and self.lookup.lookup_callsign(callsign).get('cont', None) == self.my_cont:
                 return False
             else:
                 return True
@@ -1902,7 +1905,7 @@ class Listener(QObject):
         ):
             if is_valid_continent(directed) and directed != self.my_cont: 
                 return False
-            elif lookup.lookup_callsign(directed).get('cont', None) != self.wanted_callsigns_direction.get(callsign):
+            elif self.lookup.lookup_callsign(directed).get('cont', None) != self.wanted_callsigns_direction.get(callsign):
                 log.warning(f"Reset direction for [ {callsign} ]")
                 self.wanted_callsigns_direction.pop(callsign)
                 return True

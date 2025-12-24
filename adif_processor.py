@@ -106,9 +106,9 @@ class AdifProcessor:
             try:
                 from callsign_lookup import CallsignLookup
                 AdifProcessor._worker_lookup_instance = CallsignLookup()
-                log.warning("Initialized shared lookup instance in worker process")
+                log.warning("Initialized shared lookup instance in adif processor")
             except ImportError:
-                log.error("CallsignLookup not available in worker process")
+                log.error("CallsignLookup not available in adif processor")
                 return None
         
         return AdifProcessor._worker_lookup_instance
