@@ -38,6 +38,7 @@ class MainWindowStrings:
     LANGUAGE_ENGLISH = lambda: tr("MainWindow", "English")
     LANGUAGE_FRENCH = lambda: tr("MainWindow", "Français")
     LANGUAGE_CHINESE = lambda: tr("MainWindow", "中文")
+    LANGUAGE_JAPANESE = lambda: tr("MainWindow", "日本語")
     # Language change notification
     LANGUAGE_CHANGED_TITLE = lambda: tr("MainWindow", "Language Changed")
     LANGUAGE_CHANGED_MESSAGE = lambda: tr("MainWindow", "Please restart the application for the language change to take effect.")

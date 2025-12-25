@@ -3494,6 +3494,14 @@ class MainApp(QtWidgets.QMainWindow):
         self.language_action_group.addAction(chinese_action)
         self.language_menu.addAction(chinese_action)
 
+        # Japanese
+        japanese_action = QtGui.QAction(MainWindowStrings.LANGUAGE_JAPANESE(), self)
+        japanese_action.setCheckable(True)
+        japanese_action.setChecked(current_language == 'ja')
+        japanese_action.triggered.connect(lambda: self.change_language('ja'))
+        self.language_action_group.addAction(japanese_action)
+        self.language_menu.addAction(japanese_action)
+
         # Add Window menu
         self.window_menu = self.menu_bar.addMenu(MainWindowStrings.VIEW_MENU())
 

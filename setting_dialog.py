@@ -180,6 +180,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.menu_list.setCurrentRow(0)  # Select first item by default
 
         self.setMinimumWidth(700)
+        self.setMinimumHeight(700)
         self.resize(700, 700)
 
         """
@@ -1549,7 +1550,8 @@ class SettingsDialog(QtWidgets.QDialog):
             margins             = self.layout().contentsMargins()
             total_height        = page_size.height() + button_box_height + margins.top() + margins.bottom()
 
-            self.setFixedHeight(total_height)
+            final_height = max(total_height, 700)
+            self.setFixedHeight(final_height)
 
 
     def get_backup_file_status(self, file_path):
