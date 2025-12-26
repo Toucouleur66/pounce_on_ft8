@@ -2780,7 +2780,17 @@ class MainApp(QtWidgets.QMainWindow):
         if self.grid_monitor:
             self.grid_monitor.close()
 
-        QtCore.QProcess.startDetached(sys.executable, sys.argv)
+        # Determine the executable path for restart
+        if getattr(sys, 'frozen', False):
+            # Running as PyInstaller bundle
+            executable = sys.executable
+            args = []
+        else:
+            # Running as Python script
+            executable = sys.executable
+            args = sys.argv
+
+        QtCore.QProcess.startDetached(executable, args)
         QtWidgets.QApplication.quit()
         
     def apply_palette(self, dark_mode):

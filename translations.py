@@ -16,10 +16,20 @@ class TranslationManager:
         self.translator = QTranslator()
         self.entities_translator = QTranslator()  # Separate translator for entities
         self.current_language = 'en'  # Default language
-        self.translations_dir = os.path.join(os.path.dirname(__file__), 'translations')
 
-        # Ensure translations directory exists
-        if not os.path.exists(self.translations_dir):
+        # Determine translations directory path
+        # When frozen (PyInstaller), use sys._MEIPASS, otherwise use __file__
+        if getattr(sys, 'frozen', False):
+            # Running as PyInstaller bundle
+            base_path = sys._MEIPASS
+        else:
+            # Running as Python script
+            base_path = os.path.dirname(__file__)
+
+        self.translations_dir = os.path.join(base_path, 'translations')
+
+        # Ensure translations directory exists (only when not frozen)
+        if not getattr(sys, 'frozen', False) and not os.path.exists(self.translations_dir):
             os.makedirs(self.translations_dir)
 
     def load_translation(self, language_code='en'):
