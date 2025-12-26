@@ -1,4 +1,3 @@
-translations/*.qm
 __pycache__/
 /dist/
 /vector_cache/
