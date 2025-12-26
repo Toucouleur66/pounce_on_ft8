@@ -105,7 +105,9 @@ from style import (
     STATUS_TRX_COLOR,
     # Functions
     set_macos_window_appearance,
-    get_main_table_qss
+    set_windows_titlebar_theme,
+    get_main_table_qss,
+    get_menubar_qss
 )
 
 from constants import (
@@ -2787,6 +2789,9 @@ class MainApp(QtWidgets.QMainWindow):
         # Force macOS title bar appearance to match theme
         set_macos_window_appearance(self, dark_mode)
 
+        # Force Windows title bar appearance to match theme
+        set_windows_titlebar_theme(self, dark_mode)
+
         if dark_mode:
             qt_bg_color = "#181818"
         else:
@@ -2826,6 +2831,10 @@ class MainApp(QtWidgets.QMainWindow):
             app_palette.setColor(QtGui.QPalette.ColorRole.Mid, QtGui.QColor("#B0B0B0"))
 
         QtWidgets.QApplication.instance().setPalette(app_palette)
+
+        # Apply menu bar styling for Windows (menus don't inherit palette automatically)
+        if platform.system() == 'Windows':
+            self.menuBar().setStyleSheet(get_menubar_qss(dark_mode))
 
         self.worked_history_widget.setStyleSheet(f"""
             #worked_history_widget {{

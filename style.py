@@ -238,7 +238,7 @@ CONTEXT_MENU_EXCLUDED_QSS         = f"""
                 font-size: 12px;
         """
 
-def set_macos_window_appearance(window, dark_mode):  
+def set_macos_window_appearance(window, dark_mode):
     if platform.system() != 'Darwin':
         return
 
@@ -289,3 +289,106 @@ def set_macos_window_appearance(window, dark_mode):
             objc.objc_msgSend(ns_window, set_appearance_sel, appearance)
     except Exception:
         pass
+
+def set_windows_titlebar_theme(window, dark_mode):
+    """Set Windows title bar to match dark/light theme"""
+    if platform.system() != 'Windows':
+        return
+
+    try:
+        from ctypes import windll, byref, sizeof, c_int
+
+        # Get the window handle
+        hwnd = int(window.winId())
+
+        # DWMWA_USE_IMMERSIVE_DARK_MODE attribute
+        DWMWA_USE_IMMERSIVE_DARK_MODE = 20
+
+        # Set the attribute (1 for dark mode, 0 for light mode)
+        use_dark_mode = c_int(1 if dark_mode else 0)
+        windll.dwmapi.DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_USE_IMMERSIVE_DARK_MODE,
+            byref(use_dark_mode),
+            sizeof(use_dark_mode)
+        )
+    except Exception:
+        pass
+
+def get_menubar_qss(dark_mode=False):
+    """Get menu bar stylesheet for Windows"""
+    if dark_mode:
+        return """
+            QMenuBar {
+                background-color: #323232;
+                color: #FFFFFF;
+            }
+            QMenuBar::item {
+                background-color: transparent;
+                padding: 4px 8px;
+            }
+            QMenuBar::item:selected {
+                background-color: #42A5F5;
+            }
+            QMenuBar::item:pressed {
+                background-color: #1E88E5;
+            }
+            QMenu {
+                background-color: #323232;
+                color: #FFFFFF;
+                border: 1px solid #555555;
+            }
+            QMenu::item {
+                padding: 6px 20px;
+            }
+            QMenu::item:selected {
+                background-color: #42A5F5;
+            }
+            QMenu::item:disabled {
+                color: #808080;
+            }
+            QMenu::separator {
+                height: 1px;
+                background: #555555;
+                margin: 4px 0;
+            }
+        """
+    else:
+        return """
+            QMenuBar {
+                background-color: #F0F0F0;
+                color: #000000;
+            }
+            QMenuBar::item {
+                background-color: transparent;
+                padding: 4px 8px;
+            }
+            QMenuBar::item:selected {
+                background-color: #308CC6;
+                color: #FFFFFF;
+            }
+            QMenuBar::item:pressed {
+                background-color: #1976D2;
+                color: #FFFFFF;
+            }
+            QMenu {
+                background-color: #FFFFFF;
+                color: #000000;
+                border: 1px solid #D0D0D0;
+            }
+            QMenu::item {
+                padding: 6px 20px;
+            }
+            QMenu::item:selected {
+                background-color: #308CC6;
+                color: #FFFFFF;
+            }
+            QMenu::item:disabled {
+                color: #808080;
+            }
+            QMenu::separator {
+                height: 1px;
+                background: #D0D0D0;
+                margin: 4px 0;
+            }
+        """
