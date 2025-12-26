@@ -3486,6 +3486,14 @@ class MainApp(QtWidgets.QMainWindow):
         self.language_action_group.addAction(english_action)
         self.language_menu.addAction(english_action)
 
+        # French
+        french_action = QtGui.QAction(MainWindowStrings.LANGUAGE_FRENCH(), self)
+        french_action.setCheckable(True)
+        french_action.setChecked(current_language == 'fr')
+        french_action.triggered.connect(lambda: self.change_language('fr'))
+        self.language_action_group.addAction(french_action)
+        self.language_menu.addAction(french_action)
+
         # Chinese
         chinese_action = QtGui.QAction(MainWindowStrings.LANGUAGE_CHINESE(), self)
         chinese_action.setCheckable(True)
@@ -3501,6 +3509,14 @@ class MainApp(QtWidgets.QMainWindow):
         japanese_action.triggered.connect(lambda: self.change_language('ja'))
         self.language_action_group.addAction(japanese_action)
         self.language_menu.addAction(japanese_action)
+
+        # Ukrainian
+        ukrainian_action = QtGui.QAction(MainWindowStrings.LANGUAGE_UKRAINIAN(), self)
+        ukrainian_action.setCheckable(True)
+        ukrainian_action.setChecked(current_language == 'uk')
+        ukrainian_action.triggered.connect(lambda: self.change_language('uk'))
+        self.language_action_group.addAction(ukrainian_action)
+        self.language_menu.addAction(ukrainian_action)
 
         # Add Window menu
         self.window_menu = self.menu_bar.addMenu(MainWindowStrings.VIEW_MENU())
@@ -3752,6 +3768,10 @@ class MainApp(QtWidgets.QMainWindow):
         button_layout = QtWidgets.QHBoxLayout()
         button_layout.addStretch()
 
+        cancel_button = CustomButton(CommonStrings.CANCEL())
+        cancel_button.clicked.connect(dialog.reject)
+        button_layout.addWidget(cancel_button)
+
         ok_button = CustomButton(CommonStrings.OK())
         ok_button.clicked.connect(dialog.accept)
         button_layout.addWidget(ok_button)
@@ -3759,7 +3779,11 @@ class MainApp(QtWidgets.QMainWindow):
         button_layout.addStretch()
         layout.addLayout(button_layout)
 
-        dialog.exec()
+        result = dialog.exec()
+
+        # If user clicked OK, restart the application
+        if result == QtWidgets.QDialog.DialogCode.Accepted:
+            self.restart_application()
 
     def save_band_settings(self):
         for amateur_band in AMATEUR_BANDS.keys():

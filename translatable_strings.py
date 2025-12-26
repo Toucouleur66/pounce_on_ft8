@@ -39,9 +39,10 @@ class MainWindowStrings:
     LANGUAGE_FRENCH = lambda: tr("MainWindow", "Français")
     LANGUAGE_CHINESE = lambda: tr("MainWindow", "中文")
     LANGUAGE_JAPANESE = lambda: tr("MainWindow", "日本語")
+    LANGUAGE_UKRAINIAN = lambda: tr("MainWindow", "Українська")
     # Language change notification
     LANGUAGE_CHANGED_TITLE = lambda: tr("MainWindow", "Language Changed")
-    LANGUAGE_CHANGED_MESSAGE = lambda: tr("MainWindow", "Please restart the application for the language change to take effect.")
+    LANGUAGE_CHANGED_MESSAGE = lambda: tr("MainWindow", "You are about to change the language, application will restart to take effect.")
     # Toggle labels
     REPLY_LABEL = lambda: tr("MainWindow", "Reply")
     ALL_LABEL = lambda: tr("MainWindow", "All")
@@ -112,7 +113,7 @@ class MainWindowStrings:
     # Status bar labels
     STATUS_MODE = lambda mode: tr("MainWindow", "Mode:") + f" {mode}"
     STATUS_FREQ = lambda freq: tr("MainWindow", "Freq:") + f" <u>{freq}</u>"
-    STATUS_LAST_DECODED = lambda time: tr("MainWindow", "Last decoded:") + f" {time} " + tr("MainWindow", "ago")
+    STATUS_LAST_DECODED = lambda time: tr("MainWindow", "Last decoded: %s ago").replace("%s", str(time))
     # Action labels
     GRID_MONITORING_ACTION = lambda: tr("MainWindow", "Grid Monitoring")
     STOP_BUTTON_LABEL = lambda: tr("MainWindow", "Stop all")

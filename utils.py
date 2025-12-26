@@ -800,6 +800,7 @@ def is_grid_needed(
         data,
         grid,
         band,
+        check_band=False,
         check_qsl_status=True,
         check_new_grid=False
     ):
@@ -819,14 +820,17 @@ def is_grid_needed(
     if grid_needed:
         return True
     
-    grids = data.get('grid', {}).get(band, {})
-    if grid not in grids:
-        return True
-    elif check_qsl_status:
-        for qso in grids[grid]:
-            if bool(qso.get('qsl_status')):
-                return False
-        return True
+    if check_band:
+        grids = data.get('grid', {}).get(band, {})
+        if grid not in grids:
+            return True
+        elif check_qsl_status:
+            for qso in grids[grid]:
+                if bool(qso.get('qsl_status')):
+                    return False
+            return True
+        else:
+            return False
     else:
         return False
 

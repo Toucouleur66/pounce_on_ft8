@@ -9,6 +9,7 @@ from constants import (
 
 from style import (
     get_setting_qss,
+    EVEN_COLOR,
     STATUS_TRX_COLOR
 )
 
@@ -33,7 +34,7 @@ class ExclusionDialog(QtWidgets.QDialog):
         notice_label.setWordWrap(True)
         notice_label.setFont(CUSTOM_FONT_SMALL)
         notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
-        notice_label.setStyleSheet(get_setting_qss())
+        notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
         notice_label.setAutoFillBackground(True)
 
         layout.addWidget(notice_label)

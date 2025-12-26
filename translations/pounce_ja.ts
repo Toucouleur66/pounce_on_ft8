@@ -107,12 +107,16 @@
         <translation>日本語</translation>
     </message>
     <message>
+        <source>Українська</source>
+        <translation>Українська</translation>
+    </message>
+    <message>
         <source>Language Changed</source>
         <translation>言語が変更されました</translation>
     </message>
     <message>
-        <source>Please restart the application for the language change to take effect.</source>
-        <translation>言語変更を反映するため、アプリケーションを再起動してください。</translation>
+        <source>You are about to change the language, application will restart to take effect.</source>
+        <translation>言語を変更しようとしています。変更を反映するためアプリケーションを再起動します。</translation>
     </message>
     <message>
         <source>Reply</source>
@@ -185,6 +189,10 @@
     <message>
         <source>ago</source>
         <translation>前</translation>
+    </message>
+    <message>
+        <source>Last decoded: %s ago</source>
+        <translation>最終デコード: %s 前</translation>
     </message>
     <message>
         <source>Grid Monitoring</source>
