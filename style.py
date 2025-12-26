@@ -392,3 +392,42 @@ def get_menubar_qss(dark_mode=False):
                 margin: 4px 0;
             }
         """
+
+def get_lineedit_qss(dark_mode=False):
+    """Get QLineEdit stylesheet for Windows to fix background color in dark mode"""
+    if dark_mode:
+        return """
+            QLineEdit {
+                background-color: #181818;
+                color: #FFFFFF;
+                border: 1px solid #555555;
+                padding: 4px;
+                selection-background-color: #42A5F5;
+                selection-color: #000000;
+            }
+            QLineEdit:focus {
+                border: 1px solid #42A5F5;
+            }
+            QLineEdit:disabled {
+                background-color: #2A2A2A;
+                color: #808080;
+            }
+        """
+    else:
+        return """
+            QLineEdit {
+                background-color: #FFFFFF;
+                color: #000000;
+                border: 1px solid #D0D0D0;
+                padding: 4px;
+                selection-background-color: #308CC6;
+                selection-color: #FFFFFF;
+            }
+            QLineEdit:focus {
+                border: 1px solid #308CC6;
+            }
+            QLineEdit:disabled {
+                background-color: #F0F0F0;
+                color: #808080;
+            }
+        """

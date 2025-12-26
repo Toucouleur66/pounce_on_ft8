@@ -107,7 +107,8 @@ from style import (
     set_macos_window_appearance,
     set_windows_titlebar_theme,
     get_main_table_qss,
-    get_menubar_qss
+    get_menubar_qss,
+    get_lineedit_qss
 )
 
 from constants import (
@@ -2835,6 +2836,9 @@ class MainApp(QtWidgets.QMainWindow):
         # Apply menu bar styling for Windows (menus don't inherit palette automatically)
         if platform.system() == 'Windows':
             self.menuBar().setStyleSheet(get_menubar_qss(dark_mode))
+            # Apply QLineEdit styling for Windows (especially Windows 10) to fix white background in dark mode
+            for line_edit in self.findChildren(QtWidgets.QLineEdit):
+                line_edit.setStyleSheet(get_lineedit_qss(dark_mode))
 
         self.worked_history_widget.setStyleSheet(f"""
             #worked_history_widget {{
