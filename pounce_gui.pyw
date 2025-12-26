@@ -107,8 +107,7 @@ from style import (
     set_macos_window_appearance,
     set_windows_titlebar_theme,
     get_main_table_qss,
-    get_menubar_qss,
-    get_lineedit_qss
+    get_menubar_qss
 )
 
 from constants import (
@@ -2836,9 +2835,6 @@ class MainApp(QtWidgets.QMainWindow):
         # Apply menu bar styling for Windows (menus don't inherit palette automatically)
         if platform.system() == 'Windows':
             self.menuBar().setStyleSheet(get_menubar_qss(dark_mode))
-            # Apply QLineEdit styling for Windows (especially Windows 10) to fix white background in dark mode
-            for line_edit in self.findChildren(QtWidgets.QLineEdit):
-                line_edit.setStyleSheet(get_lineedit_qss(dark_mode))
 
         self.worked_history_widget.setStyleSheet(f"""
             #worked_history_widget {{
@@ -2846,12 +2842,31 @@ class MainApp(QtWidgets.QMainWindow):
             }}
         """)
 
-        self.filter_widget.setStyleSheet(f"""
+        # Build filter widget stylesheet
+        filter_widget_qss = f"""
             QWidget#FilterWidget {{
                 background-color: {qt_bg_color};
                 border-radius: 8px;
             }}
-        """)
+        """
+
+        # On Windows, add QLineEdit styling to fix white background issue in dark mode
+        if platform.system() == 'Windows' and dark_mode:
+            filter_widget_qss += """
+            QLineEdit {
+                background-color: #181818;
+                color: #FFFFFF;
+                border: 1px solid #555555;
+                padding: 4px;
+                selection-background-color: #42A5F5;
+                selection-color: #000000;
+            }
+            QLineEdit:focus {
+                border: 1px solid #42A5F5;
+            }
+            """
+
+        self.filter_widget.setStyleSheet(filter_widget_qss)
 
         # Set table colors directly in variables for easier control
         if dark_mode:        
