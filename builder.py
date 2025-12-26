@@ -49,7 +49,6 @@ if platform.system() == 'Windows':
         f'--add-binary={qt_plugins_path};PyQt6/Qt6/plugins/multimedia',
         '--hidden-import=Foundation',
         '--hidden-import=objc',
-        '--runtime-tmpdir=dist/tmp',
         '--noconfirm',
     ]
 elif platform.system() == 'Darwin':
