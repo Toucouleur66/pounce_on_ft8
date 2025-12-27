@@ -10,6 +10,7 @@ class CommonStrings:
     OK = lambda: tr("Common", "Ok")
     CANCEL = lambda: tr("Common", "Cancel")
     CLOSE = lambda: tr("Common", "Close")
+    QUIT = lambda: tr("Common", "Quit")
     SAVE = lambda: tr("Common", "Save")
     APPLY = lambda: tr("Common", "Apply")
     CLEAR = lambda: tr("Common", "Clear")

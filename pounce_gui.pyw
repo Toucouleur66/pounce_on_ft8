@@ -3795,13 +3795,15 @@ class MainApp(QtWidgets.QMainWindow):
         icon_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(icon_label)
 
+        layout.addSpacing(10)
+
         message_label = CustomQLabel(MainWindowStrings.LANGUAGE_CHANGED_MESSAGE())
         message_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         message_label.setStyleSheet("font-size: 13px;")
         message_label.setWordWrap(True)
         layout.addWidget(message_label)
 
-        layout.addStretch()
+        layout.addSpacing(10)
 
         button_layout = QtWidgets.QHBoxLayout()
         button_layout.addStretch()
@@ -3810,18 +3812,29 @@ class MainApp(QtWidgets.QMainWindow):
         cancel_button.clicked.connect(dialog.reject)
         button_layout.addWidget(cancel_button)
 
-        ok_button = CustomButton(CommonStrings.OK())
-        ok_button.clicked.connect(dialog.accept)
-        button_layout.addWidget(ok_button)
+        # On Windows, use Quit button instead of OK/Restart
+        if platform.system() == 'Windows':
+            quit_button = CustomButton(CommonStrings.QUIT())
+            quit_button.clicked.connect(dialog.accept)
+            button_layout.addWidget(quit_button)
+        else:
+            ok_button = CustomButton(CommonStrings.OK())
+            ok_button.clicked.connect(dialog.accept)
+            button_layout.addWidget(ok_button)
 
         button_layout.addStretch()
         layout.addLayout(button_layout)
 
         result = dialog.exec()
 
-        # If user clicked OK, restart the application
+        # If user clicked OK/Quit
         if result == QtWidgets.QDialog.DialogCode.Accepted:
-            self.restart_application()
+            if platform.system() == 'Windows':
+                # On Windows, just quit - user must restart manually
+                QtWidgets.QApplication.quit()
+            else:
+                # On other platforms, restart automatically
+                self.restart_application()
 
     def save_band_settings(self):
         for amateur_band in AMATEUR_BANDS.keys():
