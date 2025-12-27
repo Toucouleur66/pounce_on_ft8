@@ -16,6 +16,10 @@
         <translation>关闭</translation>
     </message>
     <message>
+        <source>Quit</source>
+        <translation>退出</translation>
+    </message>
+    <message>
         <source>Save</source>
         <translation>保存</translation>
     </message>
@@ -239,8 +243,8 @@
         <translation>更新 LoTW 信息</translation>
     </message>
     <message>
-        <source>Update Country Files Info</source>
-        <translation>更新国家文件信息</translation>
+        <source>Update country and region files</source>
+        <translation>更新国家和地区文件</translation>
     </message>
     <message>
         <source>Compact View</source>

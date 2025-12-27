@@ -2627,7 +2627,7 @@ class GridMapWindow(QMainWindow):
         self.status_bar.addWidget(self.status_bar_label_total_worked_grids)
         self.status_bar_label_total_worked_grids.setFixedWidth(100)
         self.status_bar.addWidget(self.status_bar_label_total_confirmed_grids)
-        self.status_bar_label_total_confirmed_grids.setFixedWidth(100)     
+        self.status_bar_label_total_confirmed_grids.setFixedWidth(105)     
 
         self.status_bar.setContentsMargins(10, 3, 10, 3)
 

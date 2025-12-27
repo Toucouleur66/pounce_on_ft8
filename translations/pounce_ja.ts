@@ -16,6 +16,10 @@
         <translation>閉じる</translation>
     </message>
     <message>
+        <source>Quit</source>
+        <translation>終了</translation>
+    </message>
+    <message>
         <source>Save</source>
         <translation>保存</translation>
     </message>
@@ -239,8 +243,8 @@
         <translation>LoTW情報を更新</translation>
     </message>
     <message>
-        <source>Update Country Files Info</source>
-        <translation>国別ファイル情報を更新</translation>
+        <source>Update country and region files</source>
+        <translation>国と地域ファイルを更新</translation>
     </message>
     <message>
         <source>Compact View</source>

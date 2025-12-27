@@ -16,6 +16,10 @@
         <translation>Закрити</translation>
     </message>
     <message>
+        <source>Quit</source>
+        <translation>Вийти</translation>
+    </message>
+    <message>
         <source>Save</source>
         <translation>Зберегти</translation>
     </message>
@@ -239,8 +243,8 @@
         <translation>Оновити LoTW інформацію</translation>
     </message>
     <message>
-        <source>Update Country Files Info</source>
-        <translation>Оновити файли країн</translation>
+        <source>Update country and region files</source>
+        <translation>Оновити файли країн та регіонів</translation>
     </message>
     <message>
         <source>Compact View</source>

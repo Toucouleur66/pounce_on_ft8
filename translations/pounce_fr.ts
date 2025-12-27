@@ -16,6 +16,10 @@
         <translation>Fermer</translation>
     </message>
     <message>
+        <source>Quit</source>
+        <translation>Quitter</translation>
+    </message>
+    <message>
         <source>Save</source>
         <translation>Enregistrer</translation>
     </message>
@@ -239,8 +243,8 @@
         <translation>Mettre à jour les infos LoTW</translation>
     </message>
     <message>
-        <source>Update Country Files Info</source>
-        <translation>Mettre à jour les fichiers pays</translation>
+        <source>Update country and region files</source>
+        <translation>Mettre à jour les fichiers pays et régions</translation>
     </message>
     <message>
         <source>Compact View</source>
