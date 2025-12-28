@@ -1213,6 +1213,7 @@ class Listener(QObject):
                             self.adif_data,
                             grid,
                             self.band,
+                            self.grid_tracker_preference.get(self.band),
                             self.enable_grid_reply_unconfirmed,
                             self.enable_grid_reply_new_grid
                         ) 

@@ -49,7 +49,7 @@ class ActiveUsersWindow(QDialog):
         self.telemetry_service = telemetry_service
         self.dark_mode = dark_mode
         self.setWindowTitle(f"{ActiveUsersStrings.WINDOW_TITLE()} - {GUI_LABEL_VERSION}")
-        self.setMinimumSize(600, 500)
+        self.setMinimumSize(650, 500)
         self.first_load = True
 
         self.setup_ui()

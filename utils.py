@@ -803,10 +803,8 @@ def is_grid_needed(
         check_band=False,
         check_qsl_status=True,
         check_new_grid=False
-    ):
-    grid_needed = False
-
-    if check_new_grid:
+    ):    
+    if check_new_grid:        
         grid_needed = True
         for band_grids in data.get('grid', {}).values():
             if grid in band_grids:
@@ -817,8 +815,8 @@ def is_grid_needed(
                 else:
                     grid_needed = False
 
-    if grid_needed:
-        return True
+        if grid_needed:
+            return True
     
     if check_band:
         grids = data.get('grid', {}).get(band, {})
