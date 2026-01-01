@@ -35,7 +35,7 @@ class AdifSummaryDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle(AdifSummaryStrings.WINDOW_TITLE())
         self.setModal(True)
-        self.resize(850, 600)
+        self.resize(900, 600)
         self.dark_mode = dark_mode
         self.parsed_data = parsed_data
         self.processing_time = processing_time
@@ -155,11 +155,19 @@ class AdifSummaryDialog(QDialog):
         table.setColumnCount(len(amateur_bands) + 2)
         table.setRowCount(len(self.parsed_data))
         table.setHorizontalHeaderLabels([AdifSummaryStrings.HEADER_YEAR()] + amateur_bands + [AdifSummaryStrings.HEADER_TOTAL()])
-        table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
 
-        # Set fixed width for Total column
-        table.horizontalHeader().setSectionResizeMode(len(amateur_bands) + 1, QHeaderView.ResizeMode.Fixed)
-        table.setColumnWidth(len(amateur_bands) + 1, 100)
+        # Calculate column widths
+        year_column_width = 80
+        total_column_width = 100
+        available_width = 850 - year_column_width - total_column_width - 20  # 20 for margins
+        band_column_width = available_width // len(amateur_bands) if len(amateur_bands) > 0 else 80
+
+        # Set all columns to Fixed mode with specific widths
+        table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
+        table.setColumnWidth(0, year_column_width)
+        for col in range(1, len(amateur_bands) + 1):
+            table.setColumnWidth(col, band_column_width)
+        table.setColumnWidth(len(amateur_bands) + 1, total_column_width)
 
         table.verticalHeader().setVisible(False)
         table.setAlternatingRowColors(True)
@@ -199,11 +207,13 @@ class AdifSummaryDialog(QDialog):
         totals_table.setColumnCount(len(amateur_bands) + 2)
         totals_table.setRowCount(1)
         totals_table.horizontalHeader().setVisible(False)
-        totals_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
 
-        # Set fixed width for Total column to match main table
-        totals_table.horizontalHeader().setSectionResizeMode(len(amateur_bands) + 1, QHeaderView.ResizeMode.Fixed)
-        totals_table.setColumnWidth(len(amateur_bands) + 1, 100)
+        # Set all columns to Fixed mode with same widths as main table
+        totals_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
+        totals_table.setColumnWidth(0, year_column_width)
+        for col in range(1, len(amateur_bands) + 1):
+            totals_table.setColumnWidth(col, band_column_width)
+        totals_table.setColumnWidth(len(amateur_bands) + 1, total_column_width)
 
         totals_table.verticalHeader().setVisible(False)
         totals_table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.NoSelection)
@@ -214,6 +224,12 @@ class AdifSummaryDialog(QDialog):
 
         # Set fixed height for totals table (one row)
         totals_table.setFixedHeight(totals_table.verticalHeader().defaultSectionSize() + 2)
+
+        # Add right margin to totals table to account for main table's scrollbar
+        totals_table.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        totals_table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        # Set right margin to match scrollbar width
+        totals_table.setStyleSheet(get_main_table_qss(self.dark_mode) + "\nQTableWidget { margin-right: " + str(table.verticalScrollBar().sizeHint().width()) + "px; }")
 
         # "Total" label in first column
         total_label_item = QTableWidgetItem(AdifSummaryStrings.LABEL_TOTAL())
