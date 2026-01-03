@@ -499,6 +499,8 @@ class Listener(QObject):
 
         if self.marathon_preference.get(self.band):
             self.enable_marathon    = True
+        elif self.marathon_preference.get(MARATHON_UNLIMITED):
+            self.enable_marathon    = True
         else:
             self.enable_marathon    = False
         
