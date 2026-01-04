@@ -25,6 +25,7 @@ from constants import (
     DEFAULT_POUNCE_LOG,
     DEFAULT_LOG_PACKET_DATA,
     DEFAULT_MINIMUM_REPORT,
+    DEFAULT_JTDX_CLICK_PROMPT_LOG_QSO,
     WKB4_REPLY_MODE_ALWAYS,
     FREQ_MINIMUM,
     FREQ_MAXIMUM
@@ -42,33 +43,34 @@ class Worker(QObject):
 
     def __init__(
             self,
-            monitoring_settings, 
+            monitoring_settings,
             stop_event,
             min_freq                           = FREQ_MINIMUM,
             max_freq                           = FREQ_MAXIMUM,
-            primary_udp_server_address         = None, 
+            primary_udp_server_address         = None,
             primary_udp_server_port            = None,
-            secondary_udp_server_address       = None, 
-            secondary_udp_server_port          = None, 
+            secondary_udp_server_address       = None,
+            secondary_udp_server_port          = None,
             enable_secondary_udp_server        = DEFAULT_SECONDARY_UDP_SERVER,
-            logging_udp_server_address         = None, 
+            logging_udp_server_address         = None,
             logging_udp_server_port            = None,
-            enable_logging_udp_server          = DEFAULT_SECONDARY_UDP_SERVER, 
+            enable_logging_udp_server          = DEFAULT_SECONDARY_UDP_SERVER,
             enable_sending_reply               = DEFAULT_SENDING_REPLY,
-            enable_polite_reply                = DEFAULT_POLITE_REPLY, 
-            max_reply_attempts_to_callsign     = DEFAULT_REPLY_ATTEMPTS, 
+            enable_polite_reply                = DEFAULT_POLITE_REPLY,
+            max_reply_attempts_to_callsign     = DEFAULT_REPLY_ATTEMPTS,
             max_working_delay                  = DEFAULT_MAX_WAITING_DELAY,
-            enable_log_all_valid_contact       = DEFAULT_LOG_ALL_VALID_CONTACT, 
+            enable_log_all_valid_contact       = DEFAULT_LOG_ALL_VALID_CONTACT,
             enable_reply_to_valid_callsign     = DEFAULT_LOG_ALL_VALID_CONTACT,
             enable_reply_to_valid_direction    = DEFAULT_LOG_ALL_VALID_CONTACT,
             enable_reply_to_lotw_only          = False,
-            enable_gap_finder                  = DEFAULT_GAP_FINDER, 
+            enable_gap_finder                  = DEFAULT_GAP_FINDER,
             enable_watchdog_bypass             = DEFAULT_WATCHDOG_BYPASS,
-            enable_debug_output                = DEFAULT_DEBUG_OUTPUT, 
-            enable_pounce_log                  = DEFAULT_POUNCE_LOG, 
+            enable_jtdx_click_log_qso          = DEFAULT_JTDX_CLICK_PROMPT_LOG_QSO,
+            enable_debug_output                = DEFAULT_DEBUG_OUTPUT,
+            enable_pounce_log                  = DEFAULT_POUNCE_LOG,
             enable_log_packet_data             = DEFAULT_LOG_PACKET_DATA,
-            adif_file_paths                    = None, 
-            adif_worked_backup_file_path       = None, 
+            adif_file_paths                    = None,
+            adif_worked_backup_file_path       = None,
             worked_before_preference           = WKB4_REPLY_MODE_ALWAYS,
             marathon_preference                = None,
             grid_tracker_preference            = None,
@@ -119,6 +121,7 @@ class Worker(QObject):
         self.enable_reply_to_lotw_only          = enable_reply_to_lotw_only
         self.enable_gap_finder                  = enable_gap_finder
         self.enable_watchdog_bypass             = enable_watchdog_bypass
+        self.enable_jtdx_click_log_qso          = enable_jtdx_click_log_qso
         self.enable_debug_output                = enable_debug_output
         self.enable_pounce_log                  = enable_pounce_log
         self.enable_log_packet_data             = enable_log_packet_data

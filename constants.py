@@ -27,7 +27,7 @@ POSITION_FILE                   = os.path.join(get_app_data_dir(), "window_posit
 WORKED_CALLSIGNS_FILE           = os.path.join(get_app_data_dir(), "worked_callsigns.pkl")
 TEMP_EXCLUDED_CALLSIGNS_FILE    = os.path.join(get_app_data_dir(), "temp_excluded_callsigns.pkl")
 ADIF_WORKED_CALLSIGNS_FILE      = os.path.join(get_app_data_dir(), "wait_pounce_log.adif")
-CLUB_LOG_CACHE_FILE                    = os.path.join(get_app_data_dir(), "club_log_cache.json")
+CLUB_LOG_CACHE_FILE             = os.path.join(get_app_data_dir(), "club_log_cache.json")
 
 GUI_LABEL_NAME                  = "Wait and Pounce"
 GUI_LABEL_VERSION               = f"{GUI_LABEL_NAME} build {CURRENT_VERSION_NUMBER}"
@@ -93,22 +93,23 @@ CTY_XML                         = 'cty.xml'
 CTY_XML_URL                     = f'https://cdn.clublog.org/cty.php?api={CLUB_LOG_API_KEY}'
 CTY_WT_MOD_URL                  = 'https://www.country-files.com/cty/cty_wt_mod.dat'     
 
-DEFAULT_SECONDARY_UDP_SERVER    = False
-DEFAULT_AUTO_START_MONITORING   = False
-DEFAULT_SENDING_REPLY           = True
-DEFAULT_POLITE_REPLY            = False
-DEFAULT_GAP_FINDER              = True
-DEFAULT_WATCHDOG_BYPASS         = False
-DEFAULT_DEBUG_OUTPUT            = False
-DEFAULT_POUNCE_LOG              = True
-DEFAULT_LOG_PACKET_DATA         = False
-DEFAULT_SHOW_ALL_DECODED        = False
-DEFAULT_LOG_ALL_VALID_CONTACT   = True
-DEFAULT_DELAY_BETWEEN_SOUND     = 120
-DEFAULT_MAX_WAITING_DELAY       = 2 # minutes
-DEFAULT_REPLY_ATTEMPTS          = 10
-DEFAULT_MINIMUM_REPORT          = -25
-BAND_CHANGE_WAITING_DELAY       = 10
+DEFAULT_SECONDARY_UDP_SERVER        = False
+DEFAULT_AUTO_START_MONITORING       = False
+DEFAULT_SENDING_REPLY               = True
+DEFAULT_POLITE_REPLY                = False
+DEFAULT_GAP_FINDER                  = True
+DEFAULT_WATCHDOG_BYPASS             = False
+DEFAULT_DEBUG_OUTPUT                = False
+DEFAULT_POUNCE_LOG                  = True
+DEFAULT_LOG_PACKET_DATA             = False
+DEFAULT_SHOW_ALL_DECODED            = False
+DEFAULT_LOG_ALL_VALID_CONTACT       = True
+DEFAULT_DELAY_BETWEEN_SOUND         = 120
+DEFAULT_MAX_WAITING_DELAY           = 2 # minutes
+DEFAULT_REPLY_ATTEMPTS              = 10
+DEFAULT_MINIMUM_REPORT              = -25
+DEFAULT_JTDX_CLICK_PROMPT_LOG_QSO   = False
+BAND_CHANGE_WAITING_DELAY           = 10
 
 DEFAULT_SELECTED_BAND           = "6m"
 DEFAULT_FILTER_VALUE            = "All"
@@ -121,7 +122,8 @@ PRIORITY_LIST                   = {
     "Politeness reply"          : "polite_reply",
 }
 
-DISCORD_SECTION                 = '<a href="https://discord.gg/fqCu24naCM">Support available on Discord</a>'
+DISCORD_URL                     = "https://discord.gg/fqCu24naCM"
+DISCORD_SECTION                 = f'<a href="{DISCORD_URL}">Support available on Discord</a>'
 DONATION_URL                    = "https://www.paypal.com/donate/?cmd=_s-xclick&hosted_button_id=R4HK9ZTUPYHSL&ssrt=1732865689562"
 DONATION_SECTION                = f'<a href="{DONATION_URL}">Donations are welcome</a>'
 

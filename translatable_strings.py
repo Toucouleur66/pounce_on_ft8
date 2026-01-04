@@ -128,7 +128,8 @@ class MainWindowStrings:
 
     # Menu actions
     CHECK_FOR_UPDATES = lambda: tr("MainWindow", "Check for Updates...")
-    SUPPORT_APP = lambda app_name: tr("MainWindow", "⭐️ Support %1").replace("%1", str(app_name))
+    SUPPORT_APP = lambda: tr("MainWindow", "⭐️ Donate and support us")
+    DISCORD_SERVER = lambda app_name: tr("MainWindow", "Discord Server for %1").replace("%1", str(app_name))
     UPDATE_DXCC_INFO = lambda: tr("MainWindow", "Update DXCC Info")
     UPDATE_LOTW_INFO = lambda: tr("MainWindow", "Update LoTW Info")
     UPDATE_COUNTRY_FILES = lambda: tr("MainWindow", "Update country and region files")
@@ -161,6 +162,7 @@ class SettingsStrings:
     MENU_WORKED_BEFORE = lambda: tr("SettingsDialog", "Worked before")
     MENU_CLUB_LOG = lambda: tr("SettingsDialog", "Club Log")
     MENU_LOGBOOK_BACKUP = lambda: tr("SettingsDialog", "Logbook Backup")
+    MENU_AUTOMATE_TASKS = lambda: tr("SettingsDialog", "Automate tasks")
     MENU_DEBUGGING = lambda: tr("SettingsDialog", "Debugging")
     # Server page
     SERVER_NOTICE_JTDX = lambda: tr("SettingsDialog",
@@ -312,6 +314,34 @@ class SettingsStrings:
         tr("SettingsDialog", "Last Updated:") + f" {last}"
     )
     BACKUP_STATUS_OTHER = lambda status: tr("SettingsDialog", "<p>Backup File Status:") + f" {status}</p>"
+
+    # Automate tasks
+    def AUTOMATE_TASKS_NOTICE():
+        import platform
+        os_name = platform.system()
+        if os_name == "Darwin":
+            os_display = "macOS"
+        elif os_name == "Windows":
+            os_display = "Windows"
+        elif os_name == "Linux":
+            os_display = "Linux"
+        else:
+            os_display = os_name
+        return tr("SettingsDialog",
+            f"<p>Wait and Pounce may automatically take actions for certain windows in your {os_display} environment.<p><p>For example, it can automatically close the JTDX Log QSO window after each new QSO.</p><p>Automate tasks can be done if Wait and Pounce is running on the same computer as the targeted window.</p><p>It won't work when running Wait and Pounce as slave or on another computer.</p>"
+        )
+    GROUP_AUTOMATE_TASKS_SETTINGS = lambda: tr("SettingsDialog", "Automation Options")
+    CLOSE_JTDX_LOG_QSO_PROMPT = lambda: tr("SettingsDialog", "Close JTDX Log QSO window prompt")
+    BUTTON_AUTOMATE_TASKS_TEST = lambda: tr("SettingsDialog", "Test it")
+    BUTTON_TEST_WINDOWS_MONITORING = lambda: tr("SettingsDialog", "Test Windows Monitoring Permissions")
+
+    # Window Monitoring Dialog
+    WINDOW_MONITORING_TITLE = lambda: tr("WindowMonitoringDialog", "Test Windows Monitoring")
+    WINDOW_MONITORING_HEADER = lambda: tr("WindowMonitoringDialog", "Window Title Monitoring Test")
+    WINDOW_MONITORING_COUNT = lambda count: tr("WindowMonitoringDialog", f"Windows found: {count}")
+    WINDOW_MONITORING_REFRESH = lambda: tr("WindowMonitoringDialog", "Refresh Now")
+    WINDOW_MONITORING_PAUSE = lambda: tr("WindowMonitoringDialog", "Pause Auto-Refresh")
+    WINDOW_MONITORING_RESUME = lambda: tr("WindowMonitoringDialog", "Resume Auto-Refresh")
 
     # Debugging
     DEBUG_NOTICE = lambda: tr("SettingsDialog",

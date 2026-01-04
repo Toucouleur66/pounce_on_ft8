@@ -15,14 +15,19 @@ from priority_table import PriorityTableWidget
 from adif_summary_dialog import AdifSummaryDialog
 from lotw_manager import LoTWManager
 from clublog import ClubLogUploader
+from window_monitoring_dialog import WindowMonitoringDialog
+from window_controller import WindowController
 
 from datetime import datetime
+
+from translatable_strings import SettingsStrings, CommonStrings
 
 from utils import get_local_ip_address, get_log_filename
 from utils import parse_adif
 from utils import AMATEUR_BANDS, ADIF_FIELD_RE
 
 from style import get_setting_qss, get_table_setting_qss, get_odd_color, get_groupbox_qss, set_macos_window_appearance
+
 from style import (
     # Colors
     STATUS_TRX_COLOR,
@@ -64,17 +69,14 @@ from constants import (
     DEFAULT_DELAY_BETWEEN_SOUND,
     DEFAULT_MAX_WAITING_DELAY,
     DEFAULT_MINIMUM_REPORT,
+    DEFAULT_JTDX_CLICK_PROMPT_LOG_QSO,
     # Fonts
     CUSTOM_FONT,
     CUSTOM_FONT_SMALL,
     # ADIF
-    ADIF_WORKED_CALLSIGNS_FILE,
-    CLUB_LOG_CACHE_FILE,
-    CLUB_LOG_API_KEY
+    ADIF_WORKED_CALLSIGNS_FILE
 )
 
-# Import translation strings
-from translatable_strings import SettingsStrings, CommonStrings
 
 class SettingsDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, params=None, dark_mode=False):
@@ -116,6 +118,7 @@ class SettingsDialog(QtWidgets.QDialog):
             SettingsStrings.MENU_WORKED_BEFORE(),
             SettingsStrings.MENU_CLUB_LOG(),
             SettingsStrings.MENU_LOGBOOK_BACKUP(),
+            SettingsStrings.MENU_AUTOMATE_TASKS(),
             SettingsStrings.MENU_DEBUGGING()
         ]
 
@@ -145,6 +148,8 @@ class SettingsDialog(QtWidgets.QDialog):
         worked_b4_page    = QtWidgets.QWidget()
         club_log_page     = QtWidgets.QWidget()
         backup_page       = QtWidgets.QWidget()
+        automate_tasks_page = QtWidgets.QWidget()
+        automate_tasks_page.setMinimumHeight(250)
         debugging_page    = QtWidgets.QWidget()
         debugging_page.setMinimumHeight(250)
 
@@ -160,6 +165,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.stacked_widget.addWidget(worked_b4_page)
         self.stacked_widget.addWidget(club_log_page)
         self.stacked_widget.addWidget(backup_page)
+        self.stacked_widget.addWidget(automate_tasks_page)
         self.stacked_widget.addWidget(debugging_page)
 
         server_layout        = QtWidgets.QVBoxLayout(server_page)
@@ -174,6 +180,7 @@ class SettingsDialog(QtWidgets.QDialog):
         worked_b4_layout     = QtWidgets.QVBoxLayout(worked_b4_page)
         club_log_layout      = QtWidgets.QVBoxLayout(club_log_page)
         backup_layout        = QtWidgets.QVBoxLayout(backup_page)
+        automate_tasks_layout = QtWidgets.QVBoxLayout(automate_tasks_page)
         debugging_layout     = QtWidgets.QVBoxLayout(debugging_page)
 
         self.menu_list.currentRowChanged.connect(self.stacked_widget.setCurrentIndex)
@@ -1245,6 +1252,53 @@ class SettingsDialog(QtWidgets.QDialog):
         backup_layout.addStretch()
 
         """
+            Automate Tasks Settings
+        """
+        automate_tasks_notice_text = SettingsStrings.AUTOMATE_TASKS_NOTICE()
+        automate_tasks_notice_label = QtWidgets.QLabel(automate_tasks_notice_text)
+        automate_tasks_notice_label.setWordWrap(True)
+        automate_tasks_notice_label.setFont(CUSTOM_FONT_SMALL)
+        automate_tasks_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
+        automate_tasks_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
+        self.notice_labels.append(automate_tasks_notice_label)
+        automate_tasks_notice_label.setAutoFillBackground(True)
+
+        automate_tasks_settings_group = QtWidgets.QGroupBox(SettingsStrings.GROUP_AUTOMATE_TASKS_SETTINGS())
+        self.group_boxes.append(automate_tasks_settings_group)
+        automate_tasks_settings_group.setFont(CUSTOM_FONT_SMALL)
+        automate_tasks_settings_layout = QtWidgets.QVBoxLayout()
+        automate_tasks_settings_layout.setSpacing(15)
+
+        self.enable_jtdx_click_log_qso = QtWidgets.QCheckBox(SettingsStrings.CLOSE_JTDX_LOG_QSO_PROMPT())
+        self.enable_jtdx_click_log_qso.setFont(CUSTOM_FONT)
+        self.enable_jtdx_click_log_qso.setChecked(DEFAULT_JTDX_CLICK_PROMPT_LOG_QSO)
+
+        # Create horizontal layout for checkbox and test button
+        jtdx_log_qso_layout = QtWidgets.QHBoxLayout()
+        jtdx_log_qso_layout.addWidget(self.enable_jtdx_click_log_qso)
+        jtdx_log_qso_layout.addStretch()
+
+        # Add Test button aligned to the right
+        self.test_jtdx_log_qso_button = CustomButton(SettingsStrings.BUTTON_AUTOMATE_TASKS_TEST())
+        self.test_jtdx_log_qso_button.setMaximumWidth(100)
+        self.test_jtdx_log_qso_button.clicked.connect(self.test_jtdx_log_qso_window)
+        jtdx_log_qso_layout.addWidget(self.test_jtdx_log_qso_button)
+
+        automate_tasks_settings_layout.addLayout(jtdx_log_qso_layout)
+
+        automate_tasks_settings_group.setLayout(automate_tasks_settings_layout)
+
+        # Test button outside the group
+        self.test_windows_monitoring_button = CustomButton(SettingsStrings.BUTTON_TEST_WINDOWS_MONITORING())
+        self.test_windows_monitoring_button.clicked.connect(self.open_windows_monitoring_test)
+
+        # Add automate tasks settings to automate tasks page
+        automate_tasks_layout.addWidget(automate_tasks_notice_label)
+        automate_tasks_layout.addWidget(automate_tasks_settings_group)
+        automate_tasks_layout.addWidget(self.test_windows_monitoring_button)
+        automate_tasks_layout.addStretch()
+
+        """
             Debug Settings
         """
         debug_notice_text = SettingsStrings.DEBUG_NOTICE()
@@ -1784,6 +1838,15 @@ class SettingsDialog(QtWidgets.QDialog):
             backup_dir = os.path.dirname(backup_file_path)
             subprocess.call(['xdg-open', backup_dir])
 
+    def open_windows_monitoring_test(self):
+        dialog = WindowMonitoringDialog(self, self.dark_mode)
+        dialog.exec()
+
+    def test_jtdx_log_qso_window(self):        
+        controller = WindowController()
+        result = controller.find_and_click_jtdx_log_qso()
+        WindowController.show_test_result_dialog(self, result)
+
     def load_params(self):
         local_ip_address = get_local_ip_address()
 
@@ -1863,6 +1926,9 @@ class SettingsDialog(QtWidgets.QDialog):
         )
         self.enable_watchdog_bypass.setChecked(
             self.params.get('enable_watchdog_bypass', DEFAULT_WATCHDOG_BYPASS)
+        )
+        self.enable_jtdx_click_log_qso.setChecked(
+            self.params.get('enable_jtdx_click_log_qso', DEFAULT_JTDX_CLICK_PROMPT_LOG_QSO)
         )
         self.enable_debug_output.setChecked(
             self.params.get('enable_debug_output', DEFAULT_DEBUG_OUTPUT)
@@ -2077,8 +2143,9 @@ class SettingsDialog(QtWidgets.QDialog):
             'max_reply_attempts_to_callsign'             : max_reply_attempts,
             'max_waiting_delay'                          : max_waiting_delay,
             'minimum_report_for_reply'                   : minimum_report_for_reply,
-            'enable_gap_finder'                           : self.enable_gap_finder.isChecked(),
+            'enable_gap_finder'                          : self.enable_gap_finder.isChecked(),
             'enable_watchdog_bypass'                     : self.enable_watchdog_bypass.isChecked(),
+            'enable_jtdx_click_log_qso'                  : self.enable_jtdx_click_log_qso.isChecked(),
             'enable_debug_output'                        : self.enable_debug_output.isChecked(),
             'enable_extra_gui_debug_output'              : self.enable_extra_gui_debug_output.isChecked(),
             'enable_pounce_log'                          : self.enable_pounce_log.isChecked(),

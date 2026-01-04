@@ -150,6 +150,7 @@ from constants import (
     DEFAULT_AUTO_START_MONITORING,
     DEFAULT_GAP_FINDER,
     DEFAULT_WATCHDOG_BYPASS,
+    DEFAULT_JTDX_CLICK_PROMPT_LOG_QSO,
     DEFAULT_DEBUG_OUTPUT,
     DEFAULT_POUNCE_LOG,
     DEFAULT_LOG_PACKET_DATA,
@@ -169,6 +170,7 @@ from constants import (
     DISCORD_SECTION,
     DONATION_SECTION,
     DONATION_URL,
+    DISCORD_URL,
     # Threshold
     HEARTBEAT_TIMEOUT_THRESHOLD,
     DECODE_PACKET_TIMEOUT_THRESHOLD,
@@ -3480,11 +3482,16 @@ class MainApp(QtWidgets.QMainWindow):
         main_menu.addAction(check_update_action)
 
         main_menu.addSeparator()
-        donate_action = QtGui.QAction(MainWindowStrings.SUPPORT_APP(GUI_LABEL_NAME), self)
+        discord_action = QtGui.QAction(MainWindowStrings.DISCORD_SERVER(GUI_LABEL_NAME), self)
+        discord_action.triggered.connect(lambda: webbrowser.open(DISCORD_URL))
+        main_menu.addAction(discord_action)
+
+        main_menu.addSeparator()
+        donate_action = QtGui.QAction(MainWindowStrings.SUPPORT_APP(), self)
         donate_action.triggered.connect(lambda: webbrowser.open(DONATION_URL))
         main_menu.addAction(donate_action)
 
-        # `Add `Online menu
+        # Add Online menu
         self.online_menu = self.menu_bar.addMenu(MainWindowStrings.TOOLS_MENU())
 
         load_clublog_action = QtGui.QAction(MainWindowStrings.UPDATE_DXCC_INFO(), self)
@@ -3975,6 +3982,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.worker.enable_reply_to_lotw_only       = self.local_params.get('enable_reply_to_lotw_only', False)
         self.worker.enable_gap_finder               = self.local_params.get('enable_gap_finder', DEFAULT_GAP_FINDER)
         self.worker.enable_watchdog_bypass          = self.local_params.get('enable_watchdog_bypass', DEFAULT_WATCHDOG_BYPASS)
+        self.worker.enable_jtdx_click_log_qso       = self.local_params.get('enable_jtdx_click_log_qso', DEFAULT_JTDX_CLICK_PROMPT_LOG_QSO)
         self.worker.enable_debug_output             = self.local_params.get('enable_debug_output', DEFAULT_DEBUG_OUTPUT)
         self.worker.enable_pounce_log               = self.local_params.get('enable_pounce_log', DEFAULT_POUNCE_LOG)
         self.worker.enable_log_packet_data          = self.local_params.get('enable_log_packet_data', DEFAULT_LOG_PACKET_DATA)

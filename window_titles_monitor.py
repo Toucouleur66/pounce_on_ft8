@@ -1,30 +1,18 @@
 import sys
-import platform
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
-                             QListWidget, QLabel, QPushButton, QHBoxLayout)
-from PyQt6.QtCore import QTimer, Qt
+from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QListWidget, QLabel, QPushButton, QHBoxLayout
+from PyQt6.QtCore import QTimer
 
-# Platform-specific imports
-if platform.system() == "Darwin":  # macOS
-    try:
-        from Quartz import (CGWindowListCopyWindowInfo, kCGWindowListOptionOnScreenOnly,
-                           kCGNullWindowID)
-    except ImportError:
-        print("Please install pyobjc-framework-Quartz: pip install pyobjc-framework-Quartz")
-        sys.exit(1)
-elif platform.system() == "Windows":
-    try:
-        import win32gui
-    except ImportError:
-        print("Please install pywin32: pip install pywin32")
-        sys.exit(1)
-
+from custom_button import CustomButton
+from window_controller import WindowController
 
 class WindowTitlesMonitor(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Window Titles Monitor")
         self.setGeometry(100, 100, 600, 500)
+
+        # Create window controller
+        self.controller = WindowController()
 
         # Create main widget and layout
         main_widget = QWidget()
@@ -70,58 +58,12 @@ class WindowTitlesMonitor(QMainWindow):
         # Initial update
         self.update_window_list()
 
-    def get_window_titles_mac(self):
-        """Get window titles on macOS"""
-        windows = []
-        try:
-            window_list = CGWindowListCopyWindowInfo(
-                kCGWindowListOptionOnScreenOnly,
-                kCGNullWindowID
-            )
-
-            for window in window_list:
-                # Get window name and owner name
-                window_name = window.get('kCGWindowName', '')
-                owner_name = window.get('kCGWindowOwnerName', '')
-
-                # Only add windows that have a name
-                if window_name:
-                    windows.append(f"{owner_name}: {window_name}")
-                elif owner_name:
-                    # Some windows only have owner name (like system windows)
-                    windows.append(f"{owner_name}")
-        except Exception as e:
-            windows.append(f"Error: {str(e)}")
-
-        return windows
-
-    def get_window_titles_windows(self):
-        """Get window titles on Windows"""
-        windows = []
-
-        def callback(hwnd, windows_list):
-            if win32gui.IsWindowVisible(hwnd):
-                title = win32gui.GetWindowText(hwnd)
-                if title:  # Only add windows with non-empty titles
-                    windows_list.append(title)
-            return True
-
-        try:
-            win32gui.EnumWindows(callback, windows)
-        except Exception as e:
-            windows.append(f"Error: {str(e)}")
-
-        return windows
-
     def update_window_list(self):
-        """Update the list of window titles"""
-        # Get window titles based on platform
-        if platform.system() == "Darwin":
-            windows = self.get_window_titles_mac()
-        elif platform.system() == "Windows":
-            windows = self.get_window_titles_windows()
-        else:
-            windows = ["Unsupported platform"]
+        # Get window titles using WindowController
+        windows_list = self.controller.get_windows_list()
+
+        # Extract display strings
+        windows = [window['display'] for window in windows_list]
 
         # Clear and update list
         self.list_widget.clear()
@@ -137,7 +79,6 @@ class WindowTitlesMonitor(QMainWindow):
         self.count_label.setText(f"Windows found: {len(windows)}")
 
     def toggle_auto_refresh(self):
-        """Toggle auto-refresh on/off"""
         if self.auto_refresh_enabled:
             self.timer.stop()
             self.auto_refresh_button.setText("Resume Auto-Refresh")
