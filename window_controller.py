@@ -31,6 +31,7 @@ elif platform.system() == "Windows":
     try:
         import win32gui
         import win32con
+        from pynput.keyboard import Key, Controller
 
         # Try to import pywinauto for Qt automation
         try:
@@ -40,7 +41,7 @@ elif platform.system() == "Windows":
             PYWINAUTO_AVAILABLE = False
             log.warning("pywinauto not available. Install with: pip install pywinauto")
     except ImportError:
-        log.error("Please install pywin32: pip install pywin32")
+        log.error("Please install pywin32 and pynput: pip install pywin32 pynput")
         sys.exit(1)
 
 class WindowController:
