@@ -328,7 +328,7 @@ class SettingsStrings:
         else:
             os_display = os_name
         return tr("SettingsDialog",
-            f"<p>Wait and Pounce may automatically take actions for certain windows in your {os_display} environment.<p><p>For example, it can automatically close the JTDX Log QSO window after each new QSO.</p><p>Automate tasks can be done if Wait and Pounce is running on the same computer as the targeted window.</p><p>It won't work when running Wait and Pounce as slave or on another computer.</p>"
+            f"<p>Wait and Pounce can automatically take actions for certain windows in your {os_display} environment.<p><p>For example, it can automatically close the JTDX Log QSO window after each new QSO.</p><p>Automate tasks can be done if Wait and Pounce is running on the same computer as the targeted window.</p><p>It won't work when running Wait and Pounce as slave or on another computer.</p>"
         )
     GROUP_AUTOMATE_TASKS_SETTINGS = lambda: tr("SettingsDialog", "Automation Options")
     CLOSE_JTDX_LOG_QSO_PROMPT = lambda: tr("SettingsDialog", "Close JTDX Log QSO window prompt")

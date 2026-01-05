@@ -215,6 +215,185 @@ class WindowController:
 
         return True
 
+    def click_ok_button_jtdx(self, window_info):        
+        if not self.focus_window(window_info):
+            log.error("Failed to focus on JTDX window")
+            return False
+
+        time.sleep(0.3)
+
+        if platform.system() == "Darwin":
+            return self._click_ok_button_mac(window_info)
+        elif platform.system() == "Windows":
+            return self._click_ok_button_windows(window_info)
+
+        return False
+
+    def _click_ok_button_mac(self, window_info):
+        try:
+            window_element = window_info.get('window_element')
+            if not window_element:
+                log.error("No window_element in window_info")
+                return False
+
+            err, children = AXUIElementCopyAttributeValue(
+                window_element,
+                'AXChildren',
+                None
+            )
+
+            if err != 0 or not children:
+                log.warning("Could not get window children, trying tab fallback")
+                return self._click_ok_button_tab_fallback()
+
+            buttons = []
+            self._find_buttons_recursive(children, buttons)
+
+            valid_buttons = []
+            for idx, btn in enumerate(buttons):
+                err_title, title = AXUIElementCopyAttributeValue(btn, 'AXTitle', None)
+                err_enabled, enabled = AXUIElementCopyAttributeValue(btn, 'AXEnabled', None)
+
+                # Check if button has a title (skip disclosure triangles, etc.)
+                if err_title == 0 and title:
+                    # Check if enabled
+                    is_enabled = (err_enabled != 0) or (enabled == True)
+                    log.debug(f"Button {idx}: '{title}' (enabled: {is_enabled})")
+
+                    if is_enabled:
+                        valid_buttons.append(btn)
+                else:
+                    log.debug(f"Button {idx}: (no title, skipping)")
+
+            log.debug(f"Found {len(valid_buttons)} valid buttons with titles")
+
+            # Click the second-to-last button (OK is before Cancel)
+            if len(valid_buttons) >= 2:
+                # Second to last
+                ok_button = valid_buttons[-2]  
+
+                # Get title for confirmation
+                err_title, title = AXUIElementCopyAttributeValue(ok_button, 'AXTitle', None)
+                if err_title == 0 and title:
+                    log.warning(f"Clicking button: '{title}' (second-to-last valid button)")
+
+                # Focus the button first, then press Enter (more reliable than AXPress)
+                from ApplicationServices import kAXFocusedAttribute
+                AXUIElementSetAttributeValue(ok_button, kAXFocusedAttribute, True)
+                time.sleep(0.1)
+                self.send_enter()
+                log.debug("Pressed Enter on focused button")
+                return True
+
+            elif len(valid_buttons) == 1:
+                # Only one button, probably just OK
+                from ApplicationServices import kAXFocusedAttribute
+                AXUIElementSetAttributeValue(valid_buttons[0], kAXFocusedAttribute, True)
+                time.sleep(0.1)
+                self.send_enter()
+                return True
+            else:
+                log.warning("No valid buttons found, trying tab fallback")
+                return self._click_ok_button_tab_fallback()
+
+        except Exception as e:
+            log.error(f"Error in _click_ok_button_mac: {e}")
+            import traceback
+            traceback.print_exc()
+            return self._click_ok_button_tab_fallback()
+
+    def _find_buttons_recursive(self, elements, buttons):
+        if not elements:
+            return
+
+        for element in elements:
+            try:
+                # Check if this is a button
+                err_role, role = AXUIElementCopyAttributeValue(element, 'AXRole', None)
+                if err_role == 0 and role == 'AXButton':
+                    buttons.append(element)
+
+                # Check children
+                err_children, children = AXUIElementCopyAttributeValue(element, 'AXChildren', None)
+                if err_children == 0 and children:
+                    self._find_buttons_recursive(children, buttons)
+            except:
+                pass
+
+    def _click_ok_button_tab_fallback(self):
+        log.debug("Using Shift+Tab fallback method")
+
+        for i in range(3):
+            self.send_shift_tab()
+            time.sleep(0.1)
+
+        self.send_enter()
+        return True
+
+    def _click_ok_button_windows(self, window_info):
+        try:
+            hwnd = window_info.get('hwnd')
+            if not hwnd:
+                log.error("No hwnd in window_info")
+                return False
+
+            # Find all button controls in the window
+            buttons = []
+
+            def enum_child_callback(child_hwnd, _):
+                try:
+                    class_name = win32gui.GetClassName(child_hwnd)
+                    if 'button' in class_name.lower():
+                        control_text = win32gui.GetWindowText(child_hwnd)
+                        buttons.append({
+                            'hwnd': child_hwnd,
+                            'text': control_text,
+                            'class': class_name
+                        })
+                        log.debug(f"Found button: '{control_text}' (class: {class_name})")
+                except:
+                    pass
+                return True
+
+            # Enumerate all child windows (controls)
+            win32gui.EnumChildWindows(hwnd, enum_child_callback, None)
+
+            log.debug(f"Found {len(buttons)} buttons in window")
+
+            # Click the second-to-last button (OK is before Cancel)
+            if len(buttons) >= 2:
+                ok_button = buttons[-2]  # Second to last
+                log.debug(f"Clicking button: '{ok_button['text']}' (second-to-last button)")
+
+                # Set focus and click
+                try:
+                    win32gui.SetFocus(ok_button['hwnd'])
+                    time.sleep(0.1)
+                    self.send_enter()
+                    log.debug("Successfully clicked OK button")
+                    return True
+                except Exception as e:
+                    log.warning(f"Failed to focus button: {e}, trying tab fallback")
+                    return self._click_ok_button_tab_fallback()
+
+            elif len(buttons) == 1:
+                # Only one button, probably just OK
+                log.debug("Only one button found, clicking it")
+                try:
+                    win32gui.SetFocus(buttons[0]['hwnd'])
+                    time.sleep(0.1)
+                    self.send_enter()
+                    return True
+                except:
+                    return self._click_ok_button_tab_fallback()
+            else:
+                log.warning("No buttons found, trying tab fallback")
+                return self._click_ok_button_tab_fallback()
+
+        except Exception as e:
+            log.error(f"Error in _click_ok_button_windows: {e}")
+            return self._click_ok_button_tab_fallback()
+
     def find_and_click_jtdx_log_qso(self):
         """
             Find JTDX Log QSO window and simulate clicking OK button
@@ -229,10 +408,8 @@ class WindowController:
                 }
         """
         try:
-            # Get all windows
             windows = self.get_windows_list()
 
-            # Search for JTDX Log QSO window
             target_window = None
             for window in windows:
                 window_display = window.get('display', '')
@@ -241,7 +418,8 @@ class WindowController:
                     break
 
             if target_window:
-                success = self.send_keys_to_window(target_window, ['shift+tab', 'enter'])
+                # Use specialized method to click OK button
+                success = self.click_ok_button_jtdx(target_window)
 
                 if success:
                     return {
