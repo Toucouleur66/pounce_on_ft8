@@ -44,6 +44,14 @@ elif platform.system() == "Windows":
         log.error("Please install pywin32 and pynput: pip install pywin32 pynput")
         sys.exit(1)
 
+def is_admin_windows():
+    try:
+        import ctypes
+        return ctypes.windll.shell32.IsUserAnAdmin() != 0
+    except:
+        return False
+
+
 class WindowController:
     def __init__(self):
         self.keyboard = Controller()
@@ -365,19 +373,17 @@ class WindowController:
             return self._click_ok_button_tab_fallback()
 
     def find_and_click_jtdx_log_qso(self):
-        """
-            Find JTDX Log QSO window and simulate clicking OK button
-
-            Returns:
-                dict: {
-                    'success': bool,
-                    'message_type': str ('success', 'window_not_found', 'failed_to_send_keys', 'exception'),
-                    'title': str,
-                    'message': str,
-                    'window_title': str or None
-                }
-        """
         try:
+            if platform.system() == "Windows" and not is_admin_windows():
+                return {
+                    'success': False,
+                    'message_type': 'admin_required',
+                    'title': 'Administrator Rights Required',
+                    'message': "<p>On Windows, this automation feature requires administrator privileges.</p>"
+                              "<p>Please restart the application as Administrator to use this feature.</p>",
+                    'window_title': None
+                }
+
             windows = self.get_windows_list()
 
             target_window = None
