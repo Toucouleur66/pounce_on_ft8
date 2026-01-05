@@ -318,13 +318,23 @@ class WindowController:
                         log.error(f"Subprocess script not found: {subprocess_script}")
                         raise Exception("jtdx_clicker_subprocess.py not found")
 
-                    # Run the subprocess
+                    # Run the subprocess with clean environment
                     log.debug(f"Running subprocess with hwnd {hwnd}...")
+
+                    # Create clean environment without Qt variables
+                    env = os.environ.copy()
+                    # Remove Qt-related environment variables that might interfere
+                    for key in list(env.keys()):
+                        if 'QT' in key.upper() or 'PYQT' in key.upper():
+                            del env[key]
+
                     result = subprocess.run(
                         [sys.executable, subprocess_script, str(hwnd)],
                         capture_output=True,
                         text=True,
-                        timeout=10
+                        timeout=10,
+                        env=env,
+                        creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
                     )
 
                     # Check result
