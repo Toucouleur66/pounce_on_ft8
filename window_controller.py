@@ -31,9 +31,16 @@ elif platform.system() == "Windows":
     try:
         import win32gui
         import win32con
-        from pynput.keyboard import Key, Controller
+
+        # Try to import pywinauto for Qt automation
+        try:
+            from pywinauto import Application
+            PYWINAUTO_AVAILABLE = True
+        except ImportError:
+            PYWINAUTO_AVAILABLE = False
+            log.warning("pywinauto not available. Install with: pip install pywinauto")
     except ImportError:
-        log.error("Please install pywin32 and pynput: pip install pywin32 pynput")
+        log.error("Please install pywin32: pip install pywin32")
         sys.exit(1)
 
 class WindowController:
@@ -135,8 +142,8 @@ class WindowController:
             # First, activate the application
             app = NSRunningApplication.runningApplicationWithProcessIdentifier_(pid)
             if app:
-                app.activateWithOptions_(1)  # NSApplicationActivateIgnoringOtherApps
-                time.sleep(0.2)  # Give time for activation
+                app.activateWithOptions_(1)  
+                time.sleep(0.2)  
 
             # Then raise the specific window
             window_element = window_info['window_element']
@@ -155,65 +162,33 @@ class WindowController:
             return False
 
     def _focus_window_windows(self, window_info):
+        """Focus window on Windows - simplified version"""
         try:
             hwnd = window_info['hwnd']
 
-            # Restore window if minimized
+            # Restore if minimized
             if win32gui.IsIconic(hwnd):
                 win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+                time.sleep(0.2)
 
             # Bring to foreground
-            win32gui.SetForegroundWindow(hwnd)
-            time.sleep(0.1)
+            try:
+                win32gui.SetForegroundWindow(hwnd)
+            except Exception as e:
+                log.debug(f"SetForegroundWindow: {e}")
 
+            time.sleep(0.3)
             return True
+
         except Exception as e:
             log.error(f"Error focusing window on Windows: {e}")
             return False
 
-    def send_shift_tab(self):
-        with self.keyboard.pressed(Key.shift):
-            self.keyboard.press(Key.tab)
-            self.keyboard.release(Key.tab)
-        time.sleep(0.05)
-
-    def send_alt_shift_tab(self):
-        with self.keyboard.pressed(Key.alt):
-            with self.keyboard.pressed(Key.shift):
-                self.keyboard.press(Key.tab)
-                self.keyboard.release(Key.tab)
-        time.sleep(0.05)
-
     def send_enter(self):
+        """Send Enter key using pynput (used by macOS)"""
         self.keyboard.press(Key.enter)
         self.keyboard.release(Key.enter)
         time.sleep(0.05)
-
-    def send_keys_to_window(self, window_info, keys_sequence):
-        if not self.focus_window(window_info):
-            log.error("Failed to focus window")
-            return False
-
-        time.sleep(0.3)
-
-        # Send each key sequence
-        for key_action in keys_sequence:
-            key_action = key_action.lower().strip()
-
-            if key_action == 'shift+tab':
-                self.send_shift_tab()
-            elif key_action == 'alt+shift+tab':
-                self.send_alt_shift_tab()
-            elif key_action == 'enter':
-                self.send_enter()
-            elif key_action == 'tab':
-                self.keyboard.press(Key.tab)
-                self.keyboard.release(Key.tab)
-                time.sleep(0.05)
-            else:
-                log.error(f"Unknown key action: {key_action}")
-
-        return True
 
     def click_ok_button_jtdx(self, window_info):        
         if not self.focus_window(window_info):
@@ -243,8 +218,8 @@ class WindowController:
             )
 
             if err != 0 or not children:
-                log.warning("Could not get window children, trying tab fallback")
-                return self._click_ok_button_tab_fallback()
+                log.error("Could not get window children")
+                return False
 
             buttons = []
             self._find_buttons_recursive(children, buttons)
@@ -293,14 +268,14 @@ class WindowController:
                 self.send_enter()
                 return True
             else:
-                log.warning("No valid buttons found, trying tab fallback")
-                return self._click_ok_button_tab_fallback()
+                log.error("No valid buttons found")
+                return False
 
         except Exception as e:
             log.error(f"Error in _click_ok_button_mac: {e}")
             import traceback
             traceback.print_exc()
-            return self._click_ok_button_tab_fallback()
+            return False
 
     def _find_buttons_recursive(self, elements, buttons):
         if not elements:
@@ -320,15 +295,6 @@ class WindowController:
             except:
                 pass
 
-    def _click_ok_button_tab_fallback(self):
-        log.debug("Using Shift+Tab fallback method")
-
-        for i in range(3):
-            self.send_shift_tab()
-            time.sleep(0.1)
-
-        self.send_enter()
-        return True
 
     def _click_ok_button_windows(self, window_info):
         try:
@@ -337,61 +303,54 @@ class WindowController:
                 log.error("No hwnd in window_info")
                 return False
 
-            # Find all button controls in the window
-            buttons = []
-
-            def enum_child_callback(child_hwnd, _):
+            if PYWINAUTO_AVAILABLE:
+                log.warning("Using PyWinAuto subprocess to click OK button...")
                 try:
-                    class_name = win32gui.GetClassName(child_hwnd)
-                    if 'button' in class_name.lower():
-                        control_text = win32gui.GetWindowText(child_hwnd)
-                        buttons.append({
-                            'hwnd': child_hwnd,
-                            'text': control_text,
-                            'class': class_name
-                        })
-                        log.debug(f"Found button: '{control_text}' (class: {class_name})")
-                except:
-                    pass
-                return True
+                    import subprocess
+                    import os
 
-            # Enumerate all child windows (controls)
-            win32gui.EnumChildWindows(hwnd, enum_child_callback, None)
+                    # Get path to subprocess helper script
+                    current_dir = os.path.dirname(os.path.abspath(__file__))
+                    subprocess_script = os.path.join(current_dir, 'jtdx_clicker_subprocess.py')
 
-            log.debug(f"Found {len(buttons)} buttons in window")
+                    if not os.path.exists(subprocess_script):
+                        log.error(f"Subprocess script not found: {subprocess_script}")
+                        raise Exception("jtdx_clicker_subprocess.py not found")
 
-            # Click the second-to-last button (OK is before Cancel)
-            if len(buttons) >= 2:
-                ok_button = buttons[-2]  # Second to last
-                log.debug(f"Clicking button: '{ok_button['text']}' (second-to-last button)")
+                    # Run the subprocess
+                    log.debug(f"Running subprocess with hwnd {hwnd}...")
+                    result = subprocess.run(
+                        [sys.executable, subprocess_script, str(hwnd)],
+                        capture_output=True,
+                        text=True,
+                        timeout=10
+                    )
 
-                # Set focus and click
-                try:
-                    win32gui.SetFocus(ok_button['hwnd'])
-                    time.sleep(0.1)
-                    self.send_enter()
-                    log.debug("Successfully clicked OK button")
-                    return True
+                    # Check result
+                    output = result.stdout.strip()
+                    log.warning(f"Subprocess output: {output}")
+                    if result.stderr:
+                        log.debug(f"Subprocess stderr: {result.stderr}")
+
+                    if output == "SUCCESS":
+                        log.warning("✓ Subprocess successfully clicked OK button!")
+                        return True
+                    else:
+                        log.warning(f"Subprocess failed: {output}")
+
+                except subprocess.TimeoutExpired:
+                    log.error("Subprocess timed out")
                 except Exception as e:
-                    log.warning(f"Failed to focus button: {e}, trying tab fallback")
-                    return self._click_ok_button_tab_fallback()
+                    log.warning(f"Subprocess approach failed: {e}")
 
-            elif len(buttons) == 1:
-                # Only one button, probably just OK
-                log.debug("Only one button found, clicking it")
-                try:
-                    win32gui.SetFocus(buttons[0]['hwnd'])
-                    time.sleep(0.1)
-                    self.send_enter()
-                    return True
-                except:
-                    return self._click_ok_button_tab_fallback()
-            else:
-                log.warning("No buttons found, trying tab fallback")
-                return self._click_ok_button_tab_fallback()
+            # If pywinauto not available or failed, return False
+            log.error("Failed to click OK button - pywinauto subprocess did not succeed")
+            return False
 
         except Exception as e:
             log.error(f"Error in _click_ok_button_windows: {e}")
+            import traceback
+            traceback.print_exc()
             return self._click_ok_button_tab_fallback()
 
     def find_and_click_jtdx_log_qso(self):
