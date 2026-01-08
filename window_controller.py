@@ -174,7 +174,6 @@ class WindowController:
             return False
 
     def _focus_window_windows(self, window_info):
-        """Focus window on Windows - simplified version"""
         try:
             hwnd = window_info['hwnd']
 
@@ -197,7 +196,6 @@ class WindowController:
             return False
 
     def send_enter(self):
-        """Send Enter key using pynput (used by macOS)"""
         self.keyboard.press(Key.enter)
         self.keyboard.release(Key.enter)
         time.sleep(0.05)
@@ -241,30 +239,19 @@ class WindowController:
                 err_title, title = AXUIElementCopyAttributeValue(btn, 'AXTitle', None)
                 err_enabled, enabled = AXUIElementCopyAttributeValue(btn, 'AXEnabled', None)
 
-                # Check if button has a title (skip disclosure triangles, etc.)
                 if err_title == 0 and title:
-                    # Check if enabled
                     is_enabled = (err_enabled != 0) or (enabled == True)
-                    log.debug(f"Button {idx}: '{title}' (enabled: {is_enabled})")
 
                     if is_enabled:
                         valid_buttons.append(btn)
-                else:
-                    log.debug(f"Button {idx}: (no title, skipping)")
 
-            log.debug(f"Found {len(valid_buttons)} valid buttons with titles")
-
-            # Click the second-to-last button (OK is before Cancel)
             if len(valid_buttons) >= 2:
-                # Second to last
                 ok_button = valid_buttons[-2]  
 
-                # Get title for confirmation
                 err_title, title = AXUIElementCopyAttributeValue(ok_button, 'AXTitle', None)
                 if err_title == 0 and title:
-                    log.warning(f"Clicking button: '{title}' (second-to-last valid button)")
+                    log.warning(f"Clicking button: [ {title} ] (second-to-last valid button)")
 
-                # Focus the button first, then press Enter (more reliable than AXPress)
                 from ApplicationServices import kAXFocusedAttribute
                 AXUIElementSetAttributeValue(ok_button, kAXFocusedAttribute, True)
                 time.sleep(0.1)
@@ -273,7 +260,6 @@ class WindowController:
                 return True
 
             elif len(valid_buttons) == 1:
-                # Only one button, probably just OK
                 from ApplicationServices import kAXFocusedAttribute
                 AXUIElementSetAttributeValue(valid_buttons[0], kAXFocusedAttribute, True)
                 time.sleep(0.1)
@@ -335,12 +321,8 @@ class WindowController:
                 app = Application(backend='uia').connect(handle=hwnd, timeout=10)
                 dialog = app.window(handle=hwnd)
 
-                # Wait for Qt accessibility
-                log.debug("Waiting for Qt accessibility...")
                 time.sleep(2.0)
 
-                # Try multiple times to get buttons
-                log.debug("Getting button descendants...")
                 buttons = []
                 for attempt in range(3):
                     try:
@@ -362,7 +344,7 @@ class WindowController:
                 for btn in buttons:
                     try:
                         text = btn.window_text()
-                        log.debug(f"Button: '{text}'")
+                        log.debug(f"Button: [ {text} ]")
                         if text not in ['Réduire', 'Agrandir', 'Fermer', 'Minimize', 'Maximize', 'Close']:
                             dialog_buttons.append({'control': btn, 'text': text})
                     except:
@@ -373,9 +355,9 @@ class WindowController:
                 # Click OK button
                 if len(dialog_buttons) >= 1:
                     ok_button = dialog_buttons[0]
-                    log.warning(f"Clicking button: '{ok_button['text']}'")
+                    log.warning(f"Clicking button: [ {ok_button['text']} ]")
                     ok_button['control'].click()
-                    log.warning("✓ Button clicked!")
+                    log.warning("Button clicked!")
                     return True
                 else:
                     log.error("No dialog buttons found")
@@ -391,6 +373,33 @@ class WindowController:
             log.error(f"Error in _click_ok_button_windows: {e}")
             import traceback
             traceback.print_exc()
+            return False
+
+    def auto_click_jtdx_log_qso_if_present(self):        
+        try:
+            if platform.system() == "Windows" and not is_admin_windows():
+                return False
+
+            windows = self.get_windows_list()
+
+            target_window = None
+            for window in windows:
+                window_display = window.get('display', '')
+                if "JTDX" in window_display and "Log QSO" in window_display:
+                    target_window = window
+                    break
+
+            if target_window:
+                # Found the window, try to click OK
+                success = self.click_ok_button_jtdx(target_window)
+                if success:
+                    log.warning(f"Auto-clicked OK on: {target_window['display']}")
+                return success
+
+            return False
+
+        except Exception as e:
+            log.error(f"Error in auto_click_jtdx_log_qso_if_present: {e}")
             return False
 
     def find_and_click_jtdx_log_qso(self):

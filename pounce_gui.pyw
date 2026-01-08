@@ -291,6 +291,11 @@ class MainApp(QtWidgets.QMainWindow):
         self.network_check_status = QtCore.QTimer()
         self.network_check_status.timeout.connect(self.check_connection_status)
 
+        # Timer for JTDX Log QSO window auto-clicking
+        self.jtdx_auto_click_timer = QtCore.QTimer(self)
+        self.jtdx_auto_click_timer.timeout.connect(self.auto_click_jtdx_window)
+        self.jtdx_window_controller = None
+
         self._running                           = False
         self._instance                          = None
         self._connected                         = True
@@ -4005,9 +4010,37 @@ class MainApp(QtWidgets.QMainWindow):
         self.worker.min_freq                        = self.local_params.get('min_freq', FREQ_MINIMUM)
         self.worker.max_freq                        = self.local_params.get('max_freq', FREQ_MAXIMUM)
 
+        # Start/stop JTDX auto-click timer based on setting
+        enable_auto_click = self.local_params.get('enable_jtdx_click_log_qso', DEFAULT_JTDX_CLICK_PROMPT_LOG_QSO)
+        if enable_auto_click:
+            self.start_jtdx_auto_click()
+        else:
+            self.stop_jtdx_auto_click()
+
+    def auto_click_jtdx_window(self):
+        try:
+            if self.jtdx_window_controller is None:
+                from window_controller import WindowController
+                self.jtdx_window_controller = WindowController()
+
+            self.jtdx_window_controller.auto_click_jtdx_log_qso_if_present()
+        except Exception as e:
+            log.error(f"Error in auto_click_jtdx_window: {e}")
+
+    def start_jtdx_auto_click(self):
+        if not self.jtdx_auto_click_timer.isActive():
+            self.jtdx_auto_click_timer.start(1000) 
+            log.info("Started JTDX Log QSO monitoring")
+
+    def stop_jtdx_auto_click(self):
+        if self.jtdx_auto_click_timer.isActive():
+            self.jtdx_auto_click_timer.stop()
+            log.info("Stopped JTDX Log QSO monitoring")
+
     def stop_monitoring(self):
-        self.network_check_status.stop()        
-        self.activity_bar.setValue(0) 
+        self.network_check_status.stop()
+        self.stop_jtdx_auto_click()
+        self.activity_bar.setValue(0)
         self.hide_status_menu()
 
         if self.worker:
