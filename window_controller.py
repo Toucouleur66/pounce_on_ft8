@@ -34,14 +34,17 @@ elif platform.system() == "Windows":
         from pynput.keyboard import Key, Controller
 
         # Try to import pywinauto for Qt automation
+        PYWINAUTO_AVAILABLE = False
+        PYWINAUTO_IMPORT_ERROR = None
         try:
             from pywinauto import Application
             PYWINAUTO_AVAILABLE = True
-        except ImportError:
-            PYWINAUTO_AVAILABLE = False
-            log.warning("pywinauto not available. Install with: pip install pywinauto")
-    except ImportError:
-        log.error("Please install pywin32 and pynput: pip install pywin32 pynput")
+        except ImportError as e:
+            PYWINAUTO_IMPORT_ERROR = f"ImportError: {e}"
+        except Exception as e:
+            PYWINAUTO_IMPORT_ERROR = f"Exception: {e}"
+    except ImportError as e:
+        log.error(f"Windows libraries import error: {e}")
         sys.exit(1)
 
 def is_admin_windows():
@@ -313,7 +316,10 @@ class WindowController:
                 return False
 
             if not PYWINAUTO_AVAILABLE:
-                log.error("PyWinAuto not available")
+                if platform.system() == "Windows" and PYWINAUTO_IMPORT_ERROR:
+                    log.error(f"PyWinAuto not available: {PYWINAUTO_IMPORT_ERROR}")
+                else:
+                    log.error("PyWinAuto not available")
                 return False
 
             log.warning("Using PyWinAuto UIA backend")

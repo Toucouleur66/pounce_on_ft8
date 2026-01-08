@@ -35,11 +35,12 @@ qt_plugins_path = os.path.join(
 if platform.system() == 'Windows':
     pyinstaller_cmd = common_options + [
         "--onefile",
+        "--additional-hooks-dir=.",
         "--collect-submodules", "PIL",
         "--collect-submodules", "win32com",
-        "--collect-submodules", "pywinauto",
-        "--collect-submodules", "comtypes",
-        "--collect-submodules", "pynput",
+        "--collect-all", "pywinauto",
+        "--collect-all", "comtypes",
+        "--collect-all", "pynput",
         "--icon=pounce.ico",
         "--add-data=pounce.ico;.",
         "--add-data=pounce.png:.",
@@ -57,16 +58,8 @@ if platform.system() == 'Windows':
         '--hidden-import=win32gui',
         '--hidden-import=win32con',
         '--hidden-import=win32api',
-        '--hidden-import=pynput',
-        '--hidden-import=pynput.keyboard',
-        '--hidden-import=pynput._util.win32',
-        '--hidden-import=pywinauto',
-        '--hidden-import=pywinauto.application',
-        '--hidden-import=pywinauto.timings',
         '--hidden-import=pythoncom',
         '--hidden-import=pywintypes',
-        '--hidden-import=comtypes',
-        '--hidden-import=comtypes.client',
         '--noconfirm',
     ]
 elif platform.system() == 'Darwin':
