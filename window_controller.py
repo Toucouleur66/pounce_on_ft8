@@ -370,7 +370,7 @@ class WindowController:
             log.error(f"Error in _click_ok_button_windows: {e}")
             import traceback
             traceback.print_exc()
-            return self._click_ok_button_tab_fallback()
+            return False
 
     def find_and_click_jtdx_log_qso(self):
         try:

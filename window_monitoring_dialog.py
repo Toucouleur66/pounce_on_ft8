@@ -122,17 +122,8 @@ class WindowMonitoringDialog(QtWidgets.QDialog):
                 )
                 self.permission_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
         elif platform.system() == "Windows":
-            if not WINDOWS_WIN32GUI_AVAILABLE:
-                self.permission_label.setText(
-                    "<p>Error: Required Windows libraries not installed.</p>"
-                    "<p>Please install: pip install pywin32</p>"
-                )
-                self.permission_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
-            else:
-                self.permission_label.setText(
-                    "<p>✓ Windows: No special permissions required for window monitoring.</p>"
-                )
-                self.permission_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
+            # No message needed for Windows
+            self.permission_label.hide()
         else:
             self.permission_label.setText(
                 "<p>Unsupported platform: Window monitoring is only available on macOS and Windows.</p>"
