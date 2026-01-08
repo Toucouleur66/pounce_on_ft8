@@ -312,59 +312,74 @@ class WindowController:
                 log.error("No hwnd in window_info")
                 return False
 
-            if PYWINAUTO_AVAILABLE:
-                log.warning("Using PyWinAuto subprocess to click OK button...")
-                try:
-                    import subprocess
-                    import os
+            if not PYWINAUTO_AVAILABLE:
+                log.error("PyWinAuto not available")
+                return False
 
-                    # Get path to subprocess helper script
-                    current_dir = os.path.dirname(os.path.abspath(__file__))
-                    subprocess_script = os.path.join(current_dir, 'jtdx_clicker_subprocess.py')
+            log.warning("Using PyWinAuto UIA backend")
+            try:
+                from pywinauto import Application
+                from pywinauto import timings
 
-                    if not os.path.exists(subprocess_script):
-                        log.error(f"Subprocess script not found: {subprocess_script}")
-                        raise Exception("jtdx_clicker_subprocess.py not found")
+                # Set timeout
+                timings.Timings.window_find_timeout = 10
 
-                    # Run the subprocess with clean environment
-                    log.debug(f"Running subprocess with hwnd {hwnd}...")
+                # Connect with UIA backend (COM warning is normal, can be ignored)
+                log.debug("Connecting to window...")
+                app = Application(backend='uia').connect(handle=hwnd, timeout=10)
+                dialog = app.window(handle=hwnd)
 
-                    # Create clean environment without Qt variables
-                    env = os.environ.copy()
-                    # Remove Qt-related environment variables that might interfere
-                    for key in list(env.keys()):
-                        if 'QT' in key.upper() or 'PYQT' in key.upper():
-                            del env[key]
+                # Wait for Qt accessibility
+                log.debug("Waiting for Qt accessibility...")
+                time.sleep(2.0)
 
-                    result = subprocess.run(
-                        [sys.executable, subprocess_script, str(hwnd)],
-                        capture_output=True,
-                        text=True,
-                        timeout=10,
-                        env=env,
-                        creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
-                    )
+                # Try multiple times to get buttons
+                log.debug("Getting button descendants...")
+                buttons = []
+                for attempt in range(3):
+                    try:
+                        buttons = dialog.descendants(control_type="Button")
+                        log.warning(f"Attempt {attempt + 1}: Found {len(buttons)} buttons")
+                        if len(buttons) > 0:
+                            break
+                        time.sleep(1.0)
+                    except Exception as e:
+                        log.warning(f"Attempt {attempt + 1} failed: {e}")
+                        time.sleep(1.0)
 
-                    # Check result
-                    output = result.stdout.strip()
-                    log.warning(f"Subprocess output: {output}")
-                    if result.stderr:
-                        log.debug(f"Subprocess stderr: {result.stderr}")
+                if len(buttons) == 0:
+                    log.error("No buttons found")
+                    return False
 
-                    if output == "SUCCESS":
-                        log.warning("✓ Subprocess successfully clicked OK button!")
-                        return True
-                    else:
-                        log.warning(f"Subprocess failed: {output}")
+                # Filter dialog buttons
+                dialog_buttons = []
+                for btn in buttons:
+                    try:
+                        text = btn.window_text()
+                        log.debug(f"Button: '{text}'")
+                        if text not in ['Réduire', 'Agrandir', 'Fermer', 'Minimize', 'Maximize', 'Close']:
+                            dialog_buttons.append({'control': btn, 'text': text})
+                    except:
+                        pass
 
-                except subprocess.TimeoutExpired:
-                    log.error("Subprocess timed out")
-                except Exception as e:
-                    log.warning(f"Subprocess approach failed: {e}")
+                log.warning(f"Found {len(dialog_buttons)} dialog buttons")
 
-            # If pywinauto not available or failed, return False
-            log.error("Failed to click OK button - pywinauto subprocess did not succeed")
-            return False
+                # Click OK button
+                if len(dialog_buttons) >= 1:
+                    ok_button = dialog_buttons[0]
+                    log.warning(f"Clicking button: '{ok_button['text']}'")
+                    ok_button['control'].click()
+                    log.warning("✓ Button clicked!")
+                    return True
+                else:
+                    log.error("No dialog buttons found")
+                    return False
+
+            except Exception as e:
+                log.error(f"PyWinAuto failed: {e}")
+                import traceback
+                traceback.print_exc()
+                return False
 
         except Exception as e:
             log.error(f"Error in _click_ok_button_windows: {e}")

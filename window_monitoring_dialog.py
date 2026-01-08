@@ -49,12 +49,6 @@ class WindowMonitoringDialog(QtWidgets.QDialog):
         # Create main layout
         layout = QtWidgets.QVBoxLayout(self)
 
-        # Title label
-        title_label = QtWidgets.QLabel(SettingsStrings.WINDOW_MONITORING_HEADER())
-        title_label.setFont(CUSTOM_FONT)
-        title_label.setStyleSheet("font-weight: bold; padding: 10px;")
-        layout.addWidget(title_label)
-
         # Permission status label
         self.permission_label = QtWidgets.QLabel()
         self.permission_label.setFont(CUSTOM_FONT_SMALL)
@@ -117,8 +111,7 @@ class WindowMonitoringDialog(QtWidgets.QDialog):
             else:
                 self.permission_label.setText(
                     "<p>macOS Accessibility Permission Required: To monitor window titles, Wait and Pounce needs Accessibility permissions.</p>"
-                    "<p>Go to: System Settings > Privacy & Security > Accessibility</p>"
-                    "<p>If this application is not listed or not checked, please add it.</p>"
+                    "<p>Go to: System Settings > Privacy & Security > Accessibility and make sure this application is listed and checked.</p>"
                 )
                 self.permission_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
         elif platform.system() == "Windows":
