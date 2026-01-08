@@ -36,6 +36,8 @@ if platform.system() == 'Windows':
     pyinstaller_cmd = common_options + [
         "--onefile",
         "--collect-submodules", "PIL",
+        "--collect-submodules", "win32com",
+        "--collect-submodules", "pywinauto",
         "--icon=pounce.ico",
         "--add-data=pounce.ico;.",
         "--add-data=pounce.png:.",
@@ -46,9 +48,16 @@ if platform.system() == 'Windows':
         "--add-data=GRD_WP.txt;.",
         "--add-data=lotw_cache.json;.",
         "--add-data=cq-zones.go:.",
+        "--add-data=jtdx_clicker_subprocess.py;.",
         f'--add-binary={qt_plugins_path};PyQt6/Qt6/plugins/multimedia',
         '--hidden-import=Foundation',
         '--hidden-import=objc',
+        '--hidden-import=win32gui',
+        '--hidden-import=win32con',
+        '--hidden-import=win32api',
+        '--hidden-import=pynput.keyboard',
+        '--hidden-import=pywinauto',
+        '--hidden-import=pythoncom',
         '--noconfirm',
     ]
 elif platform.system() == 'Darwin':
@@ -63,11 +72,32 @@ elif platform.system() == 'Darwin':
         "--add-data=GRD_WP.txt:.",
         "--add-data=cq-zones.go:.",
         "--add-data=lotw_cache.json:.",
+        "--add-data=jtdx_clicker_subprocess.py:.",
         f'--add-binary={qt_plugins_path}:PyQt6/Qt6/plugins/multimedia',
         '--hidden-import=Foundation',
         '--hidden-import=objc',
+        '--hidden-import=AppKit',
+        '--hidden-import=ApplicationServices',
+        '--hidden-import=Cocoa',
+        '--hidden-import=Quartz',
+        '--hidden-import=pynput.keyboard',
         '--noconfirm',
     ]    
+elif platform.system() == 'Linux':
+    pyinstaller_cmd = common_options + [
+        "--onefile",
+        "--noconfirm",
+        "--windowed",
+        "--add-data=pounce.png:.",
+        "--add-data=sounds:sounds",
+        "--add-data=translations:translations",
+        "--add-data=cty.xml:.",
+        "--add-data=CTY_WT_MOD.DAT:.",
+        "--add-data=GRD_WP.txt:.",
+        "--add-data=cq-zones.go:.",
+        "--add-data=lotw_cache.json:.",
+        f'--add-binary={qt_plugins_path}:PyQt6/Qt6/plugins/multimedia',
+    ]
 
 # Run the PyInstaller command
 subprocess.run(pyinstaller_cmd)
