@@ -921,6 +921,70 @@
         <source>Seems your file is either empty or corrupted</source>
         <translation>Схоже, ваш файл порожній або пошкоджений</translation>
     </message>
+    <message>
+        <source>An error occurred while testing: %1</source>
+        <translation>Сталася помилка під час тестування: %1</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>Помилка</translation>
+    </message>
+    <message>
+        <source>Could not find a window containing both JTDX and Log QSO. Please make sure the JTDX Log QSO window is open and try again.</source>
+        <translation>Не вдалося знайти вікно, що містить JTDX і Log QSO. Будь ласка, переконайтеся, що вікно JTDX Log QSO відкрите, і спробуйте ще раз.</translation>
+    </message>
+    <message>
+        <source>Window Not Found</source>
+        <translation>Вікно не знайдено</translation>
+    </message>
+    <message>
+        <source>Found window but failed to send keys: %1</source>
+        <translation>Вікно знайдено, але не вдалося надіслати клавіші: %1</translation>
+    </message>
+    <message>
+        <source>Test Failed</source>
+        <translation>Тест не вдався</translation>
+    </message>
+    <message>
+        <source>Found and sent keys to: %1</source>
+        <translation>Знайдено вікно та надіслано клавіші до: %1</translation>
+    </message>
+    <message>
+        <source>Test Successful</source>
+        <translation>Тест успішний</translation>
+    </message>
+    <message>
+        <source>On Windows, this automation feature requires administrator privileges. Please restart the application as Administrator to use this feature.</source>
+        <translation>У Windows ця функція автоматизації потребує прав адміністратора. Будь ласка, перезапустіть програму від імені адміністратора, щоб використовувати цю функцію.</translation>
+    </message>
+    <message>
+        <source>Administrator Rights Required</source>
+        <translation>Потрібні права адміністратора</translation>
+    </message>
+    <message>
+        <source>Test Windows Monitoring Permissions</source>
+        <translation>Тестувати дозволи моніторингу вікон</translation>
+    </message>
+    <message>
+        <source>Test it</source>
+        <translation>Тест</translation>
+    </message>
+    <message>
+        <source>Close JTDX Log QSO window prompt</source>
+        <translation>Автоматично закривати вікно JTDX Log QSO</translation>
+    </message>
+    <message>
+        <source>Automation Options</source>
+        <translation>Параметри автоматизації</translation>
+    </message>
+    <message>
+        <source>Automate tasks</source>
+        <translation>Автоматизувати завдання</translation>
+    </message>
+    <message>
+        <source>&lt;p&gt;Wait and Pounce can automatically take actions for certain windows in your %1 environment.&lt;/p&gt;&lt;p&gt;For example, it can automatically close the JTDX Log QSO window after each new QSO.&lt;/p&gt;&lt;p&gt;Automate tasks can be done if Wait and Pounce is running on the same computer as the targeted window.&lt;/p&gt;&lt;p&gt;It won't work when running Wait and Pounce as slave or on another computer.&lt;/p&gt;</source>
+        <translation>&lt;p&gt;Wait and Pounce може автоматично виконувати дії для певних вікон у вашому середовищі %1.&lt;/p&gt;&lt;p&gt;Наприклад, він може автоматично закривати вікно JTDX Log QSO після кожного нового QSO.&lt;/p&gt;&lt;p&gt;Автоматизацію завдань можна виконувати, якщо Wait and Pounce працює на тому ж комп'ютері, що й цільове вікно.&lt;/p&gt;&lt;p&gt;Це не працюватиме, якщо Wait and Pounce працює як підлеглий або на іншому комп'ютері.&lt;/p&gt;</translation>
+    </message>
 </context>
 <context>
     <name>GridMapViewer</name>
@@ -1162,6 +1226,41 @@
     <message>
         <source>Open QRZ.com for %1</source>
         <translation>Відкрити QRZ.com для %1</translation>
+    </message>
+</context>
+<context>
+    <name>WindowMonitoringDialog</name>
+    <message>
+        <source>Test Windows Monitoring</source>
+        <translation>Тест моніторингу вікон</translation>
+    </message>
+    <message>
+        <source>Window Title Monitoring Test</source>
+        <translation>Тест моніторингу назв вікон</translation>
+    </message>
+    <message>
+        <source>Refresh Now</source>
+        <translation>Оновити зараз</translation>
+    </message>
+    <message>
+        <source>Pause Auto-Refresh</source>
+        <translation>Призупинити автооновлення</translation>
+    </message>
+    <message>
+        <source>Resume Auto-Refresh</source>
+        <translation>Відновити автооновлення</translation>
+    </message>
+    <message>
+        <source>Required macOS accessibility libraries not installed.</source>
+        <translation>Необхідні бібліотеки доступності macOS не встановлено.</translation>
+    </message>
+    <message>
+        <source>&lt;p&gt;macOS Accessibility Permission Required: To monitor window titles, Wait and Pounce needs Accessibility permissions.&lt;/p&gt;&lt;p&gt;Go to: System Settings &gt; Privacy &amp; Security &gt; Accessibility and make sure this application is listed and checked.&lt;/p&gt;</source>
+        <translation>&lt;p&gt;Потрібен дозвіл доступності macOS: Для моніторингу назв вікон Wait and Pounce потрібні дозволи доступності.&lt;/p&gt;&lt;p&gt;Перейдіть до: Системні налаштування &gt; Конфіденційність і безпека &gt; Доступність і переконайтеся, що ця програма є в списку та позначена.&lt;/p&gt;</translation>
+    </message>
+    <message>
+        <source>&lt;p&gt;Unsupported platform: Window monitoring is only available on macOS and Windows.&lt;/p&gt;</source>
+        <translation>&lt;p&gt;Непідтримувана платформа: Моніторинг вікон доступний лише на macOS і Windows.&lt;/p&gt;</translation>
     </message>
 </context>
 </TS>

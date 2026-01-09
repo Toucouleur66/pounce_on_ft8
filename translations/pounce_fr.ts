@@ -917,6 +917,70 @@
         <source>Seems your file is either empty or corrupted</source>
         <translation>Il semble que votre fichier soit vide ou corrompu</translation>
     </message>
+    <message>
+        <source>An error occurred while testing: %1</source>
+        <translation>Une erreur s'est produite lors du test : %1</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>Erreur</translation>
+    </message>
+    <message>
+        <source>Could not find a window containing both JTDX and Log QSO. Please make sure the JTDX Log QSO window is open and try again.</source>
+        <translation>Impossible de trouver une fenêtre contenant à la fois JTDX et Log QSO. Veuillez vous assurer que la fenêtre JTDX Log QSO est ouverte et réessayer.</translation>
+    </message>
+    <message>
+        <source>Window Not Found</source>
+        <translation>Fenêtre non trouvée</translation>
+    </message>
+    <message>
+        <source>Found window but failed to send keys: %1</source>
+        <translation>Fenêtre trouvée mais échec de l'envoi des touches : %1</translation>
+    </message>
+    <message>
+        <source>Test Failed</source>
+        <translation>Test échoué</translation>
+    </message>
+    <message>
+        <source>Found and sent keys to: %1</source>
+        <translation>Fenêtre trouvée et touches envoyées à : %1</translation>
+    </message>
+    <message>
+        <source>Test Successful</source>
+        <translation>Test réussi</translation>
+    </message>
+    <message>
+        <source>On Windows, this automation feature requires administrator privileges. Please restart the application as Administrator to use this feature.</source>
+        <translation>Sur Windows, cette fonctionnalité d'automatisation nécessite des privilèges administrateur. Veuillez redémarrer l'application en tant qu'administrateur pour utiliser cette fonctionnalité.</translation>
+    </message>
+    <message>
+        <source>Administrator Rights Required</source>
+        <translation>Droits administrateur requis</translation>
+    </message>
+    <message>
+        <source>Test Windows Monitoring Permissions</source>
+        <translation>Tester les permissions de surveillance Windows</translation>
+    </message>
+    <message>
+        <source>Test it</source>
+        <translation>Tester</translation>
+    </message>
+    <message>
+        <source>Close JTDX Log QSO window prompt</source>
+        <translation>Fermer automatiquement la fenêtre JTDX Log QSO</translation>
+    </message>
+    <message>
+        <source>Automation Options</source>
+        <translation>Options d'automatisation</translation>
+    </message>
+    <message>
+        <source>Automate tasks</source>
+        <translation>Automatiser les tâches</translation>
+    </message>
+    <message>
+        <source>&lt;p&gt;Wait and Pounce can automatically take actions for certain windows in your %1 environment.&lt;/p&gt;&lt;p&gt;For example, it can automatically close the JTDX Log QSO window after each new QSO.&lt;/p&gt;&lt;p&gt;Automate tasks can be done if Wait and Pounce is running on the same computer as the targeted window.&lt;/p&gt;&lt;p&gt;It won't work when running Wait and Pounce as slave or on another computer.&lt;/p&gt;</source>
+        <translation>&lt;p&gt;Wait and Pounce peut automatiquement effectuer des actions pour certaines fenêtres dans votre environnement %1.&lt;/p&gt;&lt;p&gt;Par exemple, il peut fermer automatiquement la fenêtre JTDX Log QSO après chaque nouveau QSO.&lt;/p&gt;&lt;p&gt;L'automatisation des tâches peut être effectuée si Wait and Pounce s'exécute sur le même ordinateur que la fenêtre ciblée.&lt;/p&gt;&lt;p&gt;Cela ne fonctionnera pas lorsque Wait and Pounce est exécuté en mode esclave ou sur un autre ordinateur.&lt;/p&gt;</translation>
+    </message>
 </context>
 <context>
     <name>GridMapViewer</name>
@@ -1158,6 +1222,41 @@
     <message>
         <source>Open QRZ.com for %1</source>
         <translation>Ouvrir QRZ.com pour %1</translation>
+    </message>
+</context>
+<context>
+    <name>WindowMonitoringDialog</name>
+    <message>
+        <source>Test Windows Monitoring</source>
+        <translation>Test de surveillance des fenêtres</translation>
+    </message>
+    <message>
+        <source>Window Title Monitoring Test</source>
+        <translation>Test de surveillance des titres de fenêtre</translation>
+    </message>
+    <message>
+        <source>Refresh Now</source>
+        <translation>Actualiser maintenant</translation>
+    </message>
+    <message>
+        <source>Pause Auto-Refresh</source>
+        <translation>Suspendre l'actualisation automatique</translation>
+    </message>
+    <message>
+        <source>Resume Auto-Refresh</source>
+        <translation>Reprendre l'actualisation automatique</translation>
+    </message>
+    <message>
+        <source>Required macOS accessibility libraries not installed.</source>
+        <translation>Les bibliothèques d'accessibilité macOS requises ne sont pas installées.</translation>
+    </message>
+    <message>
+        <source>&lt;p&gt;macOS Accessibility Permission Required: To monitor window titles, Wait and Pounce needs Accessibility permissions.&lt;/p&gt;&lt;p&gt;Go to: System Settings &gt; Privacy &amp; Security &gt; Accessibility and make sure this application is listed and checked.&lt;/p&gt;</source>
+        <translation>&lt;p&gt;Permission d'accessibilité macOS requise : Pour surveiller les titres de fenêtre, Wait and Pounce a besoin des permissions d'accessibilité.&lt;/p&gt;&lt;p&gt;Accédez à : Réglages Système &gt; Confidentialité et sécurité &gt; Accessibilité et assurez-vous que cette application est répertoriée et cochée.&lt;/p&gt;</translation>
+    </message>
+    <message>
+        <source>&lt;p&gt;Unsupported platform: Window monitoring is only available on macOS and Windows.&lt;/p&gt;</source>
+        <translation>&lt;p&gt;Plateforme non prise en charge : La surveillance des fenêtres n'est disponible que sur macOS et Windows.&lt;/p&gt;</translation>
     </message>
 </context>
 </TS>

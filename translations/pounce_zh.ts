@@ -925,6 +925,70 @@
         <source>Seems your file is either empty or corrupted</source>
         <translation>您的文件似乎为空或已损坏</translation>
     </message>
+    <message>
+        <source>&lt;p&gt;Wait and Pounce can automatically take actions for certain windows in your %1 environment.&lt;/p&gt;&lt;p&gt;For example, it can automatically close the JTDX Log QSO window after each new QSO.&lt;/p&gt;&lt;p&gt;Automate tasks can be done if Wait and Pounce is running on the same computer as the targeted window.&lt;/p&gt;&lt;p&gt;It won't work when running Wait and Pounce as slave or on another computer.&lt;/p&gt;</source>
+        <translation>&lt;p&gt;Wait and Pounce 可以自动对您的 %1 环境中的某些窗口执行操作。&lt;/p&gt;&lt;p&gt;例如，它可以在每次新 QSO 后自动关闭 JTDX Log QSO 窗口。&lt;/p&gt;&lt;p&gt;如果 Wait and Pounce 与目标窗口在同一台计算机上运行，则可以执行自动化任务。&lt;/p&gt;&lt;p&gt;在以从属模式运行或在另一台计算机上运行时无法工作。&lt;/p&gt;</translation>
+    </message>
+    <message>
+        <source>Automate tasks</source>
+        <translation>自动化任务</translation>
+    </message>
+    <message>
+        <source>Automation Options</source>
+        <translation>自动化选项</translation>
+    </message>
+    <message>
+        <source>Close JTDX Log QSO window prompt</source>
+        <translation>自动关闭 JTDX Log QSO 窗口</translation>
+    </message>
+    <message>
+        <source>Test it</source>
+        <translation>测试</translation>
+    </message>
+    <message>
+        <source>Test Windows Monitoring Permissions</source>
+        <translation>测试窗口监控权限</translation>
+    </message>
+    <message>
+        <source>Administrator Rights Required</source>
+        <translation>需要管理员权限</translation>
+    </message>
+    <message>
+        <source>On Windows, this automation feature requires administrator privileges. Please restart the application as Administrator to use this feature.</source>
+        <translation>在 Windows 上，此自动化功能需要管理员权限。请以管理员身份重新启动应用程序以使用此功能。</translation>
+    </message>
+    <message>
+        <source>Test Successful</source>
+        <translation>测试成功</translation>
+    </message>
+    <message>
+        <source>Found and sent keys to: %1</source>
+        <translation>找到窗口并发送按键到：%1</translation>
+    </message>
+    <message>
+        <source>Test Failed</source>
+        <translation>测试失败</translation>
+    </message>
+    <message>
+        <source>Found window but failed to send keys: %1</source>
+        <translation>找到窗口但发送按键失败：%1</translation>
+    </message>
+    <message>
+        <source>Window Not Found</source>
+        <translation>未找到窗口</translation>
+    </message>
+    <message>
+        <source>Could not find a window containing both JTDX and Log QSO. Please make sure the JTDX Log QSO window is open and try again.</source>
+        <translation>找不到包含 JTDX 和 Log QSO 的窗口。请确保 JTDX Log QSO 窗口已打开，然后重试。</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>错误</translation>
+    </message>
+    <message>
+        <source>An error occurred while testing: %1</source>
+        <translation>测试时发生错误：%1</translation>
+    </message>
 </context>
 <context>
     <name>GridMapViewer</name>
@@ -1166,6 +1230,101 @@
     <message>
         <source>Open QRZ.com for %1</source>
         <translation>打开 QRZ.com 查询 %1</translation>
+    </message>
+    <message>
+        <source>Automate tasks</source>
+        <translation>自动化任务</translation>
+    </message>
+    <message>
+        <source>Automation Options</source>
+        <translation>自动化选项</translation>
+    </message>
+    <message>
+        <source>Close JTDX Log QSO window prompt</source>
+        <translation>自动关闭 JTDX Log QSO 窗口</translation>
+    </message>
+    <message>
+        <source>Test it</source>
+        <translation>测试</translation>
+    </message>
+    <message>
+        <source>Test Windows Monitoring Permissions</source>
+        <translation>测试窗口监控权限</translation>
+    </message>
+    <message>
+        <source>Administrator Rights Required</source>
+        <translation>需要管理员权限</translation>
+    </message>
+    <message>
+        <source>On Windows, this automation feature requires administrator privileges. Please restart the application as Administrator to use this feature.</source>
+        <translation>在 Windows 上，此自动化功能需要管理员权限。请以管理员身份重新启动应用程序以使用此功能。</translation>
+    </message>
+    <message>
+        <source>Test Successful</source>
+        <translation>测试成功</translation>
+    </message>
+    <message>
+        <source>Found and sent keys to: %1</source>
+        <translation>找到窗口并发送按键到：%1</translation>
+    </message>
+    <message>
+        <source>Test Failed</source>
+        <translation>测试失败</translation>
+    </message>
+    <message>
+        <source>Found window but failed to send keys: %1</source>
+        <translation>找到窗口但发送按键失败：%1</translation>
+    </message>
+    <message>
+        <source>Window Not Found</source>
+        <translation>未找到窗口</translation>
+    </message>
+    <message>
+        <source>Could not find a window containing both JTDX and Log QSO. Please make sure the JTDX Log QSO window is open and try again.</source>
+        <translation>找不到包含 JTDX 和 Log QSO 的窗口。请确保 JTDX Log QSO 窗口已打开，然后重试。</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>错误</translation>
+    </message>
+    <message>
+        <source>An error occurred while testing: %1</source>
+        <translation>测试时发生错误：%1</translation>
+    </message>
+</context>
+<context>
+    <name>WindowMonitoringDialog</name>
+    <message>
+        <source>Test Windows Monitoring</source>
+        <translation>测试窗口监控</translation>
+    </message>
+    <message>
+        <source>Window Title Monitoring Test</source>
+        <translation>窗口标题监控测试</translation>
+    </message>
+    <message>
+        <source>Refresh Now</source>
+        <translation>立即刷新</translation>
+    </message>
+    <message>
+        <source>Pause Auto-Refresh</source>
+        <translation>暂停自动刷新</translation>
+    </message>
+    <message>
+        <source>Resume Auto-Refresh</source>
+        <translation>恢复自动刷新</translation>
+    </message>
+    <message>
+        <source>Required macOS accessibility libraries not installed.</source>
+        <translation>未安装所需的 macOS 辅助功能库。</translation>
+    </message>
+    <message>
+        <source>&lt;p&gt;macOS Accessibility Permission Required: To monitor window titles, Wait and Pounce needs Accessibility permissions.&lt;/p&gt;&lt;p&gt;Go to: System Settings &gt; Privacy &amp; Security &gt; Accessibility and make sure this application is listed and checked.&lt;/p&gt;</source>
+        <translation>&lt;p&gt;需要 macOS 辅助功能权限：为了监控窗口标题，Wait and Pounce 需要辅助功能权限。&lt;/p&gt;&lt;p&gt;前往：系统设置 &gt; 隐私与安全性 &gt; 辅助功能，确保此应用程序已列出并选中。&lt;/p&gt;</translation>
+    </message>
+    <message>
+        <source>&lt;p&gt;Unsupported platform: Window monitoring is only available on macOS and Windows.&lt;/p&gt;</source>
+        <translation>&lt;p&gt;不支持的平台：窗口监控仅适用于 macOS 和 Windows。&lt;/p&gt;</translation>
     </message>
 </context>
 </TS>

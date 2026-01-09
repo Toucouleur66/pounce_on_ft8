@@ -105,13 +105,12 @@ class WindowMonitoringDialog(QtWidgets.QDialog):
         if platform.system() == "Darwin":
             if not MACOS_ACCESSIBILITY_AVAILABLE:
                 self.permission_label.setText(
-                    "Required macOS accessibility libraries not installed."
+                    SettingsStrings.WINDOW_MONITORING_MACOS_LIBS_MISSING()
                 )
                 self.permission_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
             else:
                 self.permission_label.setText(
-                    "<p>macOS Accessibility Permission Required: To monitor window titles, Wait and Pounce needs Accessibility permissions.</p>"
-                    "<p>Go to: System Settings > Privacy & Security > Accessibility and make sure this application is listed and checked.</p>"
+                    SettingsStrings.WINDOW_MONITORING_MACOS_PERMISSION_REQUIRED()
                 )
                 self.permission_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
         elif platform.system() == "Windows":
@@ -119,7 +118,7 @@ class WindowMonitoringDialog(QtWidgets.QDialog):
             self.permission_label.hide()
         else:
             self.permission_label.setText(
-                "<p>Unsupported platform: Window monitoring is only available on macOS and Windows.</p>"
+                SettingsStrings.WINDOW_MONITORING_UNSUPPORTED_PLATFORM()
             )
             self.permission_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
 

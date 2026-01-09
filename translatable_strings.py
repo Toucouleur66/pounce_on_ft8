@@ -327,13 +327,27 @@ class SettingsStrings:
             os_display = "Linux"
         else:
             os_display = os_name
-        return tr("SettingsDialog",
-            f"<p>Wait and Pounce can automatically take actions for certain windows in your {os_display} environment.<p><p>For example, it can automatically close the JTDX Log QSO window after each new QSO.</p><p>Automate tasks can be done if Wait and Pounce is running on the same computer as the targeted window.</p><p>It won't work when running Wait and Pounce as slave or on another computer.</p>"
-        )
+        translated = QCoreApplication.translate("SettingsDialog", "<p>Wait and Pounce can automatically take actions for certain windows in your %1 environment.</p><p>For example, it can automatically close the JTDX Log QSO window after each new QSO.</p><p>Automate tasks can be done if Wait and Pounce is running on the same computer as the targeted window.</p><p>It won't work when running Wait and Pounce as slave or on another computer.</p>")
+        return translated.replace("%1", os_display)
+
     GROUP_AUTOMATE_TASKS_SETTINGS = lambda: tr("SettingsDialog", "Automation Options")
     CLOSE_JTDX_LOG_QSO_PROMPT = lambda: tr("SettingsDialog", "Close JTDX Log QSO window prompt")
     BUTTON_AUTOMATE_TASKS_TEST = lambda: tr("SettingsDialog", "Test it")
     BUTTON_TEST_WINDOWS_MONITORING = lambda: tr("SettingsDialog", "Test Windows Monitoring Permissions")
+
+    # Automation test results
+    AUTOMATION_ADMIN_REQUIRED_TITLE = lambda: tr("SettingsDialog", "Administrator Rights Required")
+    AUTOMATION_ADMIN_REQUIRED_MESSAGE = lambda: tr("SettingsDialog",
+        "On Windows, this automation feature requires administrator privileges. Please restart the application as Administrator to use this feature.")
+    AUTOMATION_TEST_SUCCESS_TITLE = lambda: tr("SettingsDialog", "Test Successful")
+    AUTOMATION_TEST_SUCCESS_MESSAGE = lambda window: tr("SettingsDialog", "Found and sent keys to: %1").replace("%1", str(window))
+    AUTOMATION_TEST_FAILED_TITLE = lambda: tr("SettingsDialog", "Test Failed")
+    AUTOMATION_TEST_FAILED_MESSAGE = lambda window: tr("SettingsDialog", "Found window but failed to send keys: %1").replace("%1", str(window))
+    AUTOMATION_WINDOW_NOT_FOUND_TITLE = lambda: tr("SettingsDialog", "Window Not Found")
+    AUTOMATION_WINDOW_NOT_FOUND_MESSAGE = lambda: tr("SettingsDialog",
+        "Could not find a window containing both JTDX and Log QSO. Please make sure the JTDX Log QSO window is open and try again.")
+    AUTOMATION_ERROR_TITLE = lambda: tr("SettingsDialog", "Error")
+    AUTOMATION_ERROR_MESSAGE = lambda error: tr("SettingsDialog", "An error occurred while testing: %1").replace("%1", str(error))
 
     # Window Monitoring Dialog
     WINDOW_MONITORING_TITLE = lambda: tr("WindowMonitoringDialog", "Test Windows Monitoring")
@@ -342,6 +356,11 @@ class SettingsStrings:
     WINDOW_MONITORING_REFRESH = lambda: tr("WindowMonitoringDialog", "Refresh Now")
     WINDOW_MONITORING_PAUSE = lambda: tr("WindowMonitoringDialog", "Pause Auto-Refresh")
     WINDOW_MONITORING_RESUME = lambda: tr("WindowMonitoringDialog", "Resume Auto-Refresh")
+    WINDOW_MONITORING_MACOS_LIBS_MISSING = lambda: tr("WindowMonitoringDialog", "Required macOS accessibility libraries not installed.")
+    WINDOW_MONITORING_MACOS_PERMISSION_REQUIRED = lambda: tr("WindowMonitoringDialog",
+        "<p>macOS Accessibility Permission Required: To monitor window titles, Wait and Pounce needs Accessibility permissions.</p><p>Go to: System Settings > Privacy & Security > Accessibility and make sure this application is listed and checked.</p>")
+    WINDOW_MONITORING_UNSUPPORTED_PLATFORM = lambda: tr("WindowMonitoringDialog",
+        "<p>Unsupported platform: Window monitoring is only available on macOS and Windows.</p>")
 
     # Debugging
     DEBUG_NOTICE = lambda: tr("SettingsDialog",

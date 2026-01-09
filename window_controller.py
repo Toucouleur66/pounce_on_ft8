@@ -8,7 +8,7 @@ from constants import CUSTOM_FONT
 
 from custom_button import CustomButton
 from custom_qlabel import CustomQLabel
-from translatable_strings import CommonStrings
+from translatable_strings import CommonStrings, SettingsStrings
 
 from logger import get_logger
 
@@ -408,9 +408,8 @@ class WindowController:
                 return {
                     'success': False,
                     'message_type': 'admin_required',
-                    'title': 'Administrator Rights Required',
-                    'message': "<p>On Windows, this automation feature requires administrator privileges.</p>"
-                              "<p>Please restart the application as Administrator to use this feature.</p>",
+                    'title': SettingsStrings.AUTOMATION_ADMIN_REQUIRED_TITLE(),
+                    'message': f"<p>{SettingsStrings.AUTOMATION_ADMIN_REQUIRED_MESSAGE()}</p>",
                     'window_title': None
                 }
 
@@ -431,24 +430,24 @@ class WindowController:
                     return {
                         'success': True,
                         'message_type': 'success',
-                        'title': 'Test Successful',
-                        'message': f"<p>Found and sent keys to:</p><p>{target_window['display']}</p>",
+                        'title': SettingsStrings.AUTOMATION_TEST_SUCCESS_TITLE(),
+                        'message': f"<p>{SettingsStrings.AUTOMATION_TEST_SUCCESS_MESSAGE(target_window['display'])}</p>",
                         'window_title': target_window['display']
                     }
                 else:
                     return {
                         'success': False,
                         'message_type': 'failed_to_send_keys',
-                        'title': 'Test Failed',
-                        'message': f"<p>Found window but failed to send keys:</p><p>{target_window['display']}</p>",
+                        'title': SettingsStrings.AUTOMATION_TEST_FAILED_TITLE(),
+                        'message': f"<p>{SettingsStrings.AUTOMATION_TEST_FAILED_MESSAGE(target_window['display'])}</p>",
                         'window_title': target_window['display']
                     }
             else:
                 return {
                     'success': False,
                     'message_type': 'window_not_found',
-                    'title': 'Window Not Found',
-                    'message': "<p>Could not find a window containing both JTDX and Log QSO.</p><p>Please make sure the JTDX Log QSO window is open and try again.</p>",
+                    'title': SettingsStrings.AUTOMATION_WINDOW_NOT_FOUND_TITLE(),
+                    'message': f"<p>{SettingsStrings.AUTOMATION_WINDOW_NOT_FOUND_MESSAGE()}</p>",
                     'window_title': None
                 }
 
@@ -457,8 +456,8 @@ class WindowController:
             return {
                 'success': False,
                 'message_type': 'exception',
-                'title': 'Error',
-                'message': f"<p>An error occurred while testing:</p><p>{str(e)}</p>",
+                'title': SettingsStrings.AUTOMATION_ERROR_TITLE(),
+                'message': f"<p>{SettingsStrings.AUTOMATION_ERROR_MESSAGE(str(e))}</p>",
                 'window_title': None
             }
 

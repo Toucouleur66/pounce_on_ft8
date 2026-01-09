@@ -921,6 +921,70 @@
         <source>Seems your file is either empty or corrupted</source>
         <translation>ファイルが空であるか破損しているようです</translation>
     </message>
+    <message>
+        <source>An error occurred while testing: %1</source>
+        <translation>テスト中にエラーが発生しました: %1</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>エラー</translation>
+    </message>
+    <message>
+        <source>Could not find a window containing both JTDX and Log QSO. Please make sure the JTDX Log QSO window is open and try again.</source>
+        <translation>JTDXとLog QSOの両方を含むウィンドウが見つかりませんでした。JTDX Log QSOウィンドウが開いていることを確認して、もう一度お試しください。</translation>
+    </message>
+    <message>
+        <source>Window Not Found</source>
+        <translation>ウィンドウが見つかりません</translation>
+    </message>
+    <message>
+        <source>Found window but failed to send keys: %1</source>
+        <translation>ウィンドウは見つかりましたが、キーの送信に失敗しました: %1</translation>
+    </message>
+    <message>
+        <source>Test Failed</source>
+        <translation>テスト失敗</translation>
+    </message>
+    <message>
+        <source>Found and sent keys to: %1</source>
+        <translation>ウィンドウが見つかり、キーを送信しました: %1</translation>
+    </message>
+    <message>
+        <source>Test Successful</source>
+        <translation>テスト成功</translation>
+    </message>
+    <message>
+        <source>On Windows, this automation feature requires administrator privileges. Please restart the application as Administrator to use this feature.</source>
+        <translation>Windowsでは、この自動化機能には管理者権限が必要です。この機能を使用するには、管理者としてアプリケーションを再起動してください。</translation>
+    </message>
+    <message>
+        <source>Administrator Rights Required</source>
+        <translation>管理者権限が必要です</translation>
+    </message>
+    <message>
+        <source>Test Windows Monitoring Permissions</source>
+        <translation>ウィンドウ監視権限をテスト</translation>
+    </message>
+    <message>
+        <source>Test it</source>
+        <translation>テスト</translation>
+    </message>
+    <message>
+        <source>Close JTDX Log QSO window prompt</source>
+        <translation>JTDX Log QSOウィンドウを自動的に閉じる</translation>
+    </message>
+    <message>
+        <source>Automation Options</source>
+        <translation>自動化オプション</translation>
+    </message>
+    <message>
+        <source>Automate tasks</source>
+        <translation>タスクの自動化</translation>
+    </message>
+    <message>
+        <source>&lt;p&gt;Wait and Pounce can automatically take actions for certain windows in your %1 environment.&lt;/p&gt;&lt;p&gt;For example, it can automatically close the JTDX Log QSO window after each new QSO.&lt;/p&gt;&lt;p&gt;Automate tasks can be done if Wait and Pounce is running on the same computer as the targeted window.&lt;/p&gt;&lt;p&gt;It won't work when running Wait and Pounce as slave or on another computer.&lt;/p&gt;</source>
+        <translation>&lt;p&gt;Wait and Pounceは、お使いの%1環境の特定のウィンドウに対して自動的にアクションを実行できます。&lt;/p&gt;&lt;p&gt;例えば、新しいQSOごとにJTDX Log QSOウィンドウを自動的に閉じることができます。&lt;/p&gt;&lt;p&gt;Wait and Pounceが対象のウィンドウと同じコンピューターで実行されている場合、タスクの自動化が可能です。&lt;/p&gt;&lt;p&gt;Wait and Pounceをスレーブとして実行している場合や別のコンピューターで実行している場合は機能しません。&lt;/p&gt;</translation>
+    </message>
 </context>
 <context>
     <name>GridMapViewer</name>
@@ -1162,6 +1226,41 @@
     <message>
         <source>Open QRZ.com for %1</source>
         <translation>%1のQRZ.comを開く</translation>
+    </message>
+</context>
+<context>
+    <name>WindowMonitoringDialog</name>
+    <message>
+        <source>Test Windows Monitoring</source>
+        <translation>ウィンドウ監視のテスト</translation>
+    </message>
+    <message>
+        <source>Window Title Monitoring Test</source>
+        <translation>ウィンドウタイトル監視テスト</translation>
+    </message>
+    <message>
+        <source>Refresh Now</source>
+        <translation>今すぐ更新</translation>
+    </message>
+    <message>
+        <source>Pause Auto-Refresh</source>
+        <translation>自動更新を一時停止</translation>
+    </message>
+    <message>
+        <source>Resume Auto-Refresh</source>
+        <translation>自動更新を再開</translation>
+    </message>
+    <message>
+        <source>Required macOS accessibility libraries not installed.</source>
+        <translation>必要なmacOSアクセシビリティライブラリがインストールされていません。</translation>
+    </message>
+    <message>
+        <source>&lt;p&gt;macOS Accessibility Permission Required: To monitor window titles, Wait and Pounce needs Accessibility permissions.&lt;/p&gt;&lt;p&gt;Go to: System Settings &gt; Privacy &amp; Security &gt; Accessibility and make sure this application is listed and checked.&lt;/p&gt;</source>
+        <translation>&lt;p&gt;macOSアクセシビリティ権限が必要です: ウィンドウタイトルを監視するには、Wait and Pounceにアクセシビリティ権限が必要です。&lt;/p&gt;&lt;p&gt;システム設定 &gt; プライバシーとセキュリティ &gt; アクセシビリティに移動し、このアプリケーションがリストされ、チェックされていることを確認してください。&lt;/p&gt;</translation>
+    </message>
+    <message>
+        <source>&lt;p&gt;Unsupported platform: Window monitoring is only available on macOS and Windows.&lt;/p&gt;</source>
+        <translation>&lt;p&gt;サポートされていないプラットフォーム: ウィンドウ監視はmacOSとWindowsでのみ利用可能です。&lt;/p&gt;</translation>
     </message>
 </context>
 </TS>
