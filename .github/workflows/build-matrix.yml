@@ -1,0 +1,128 @@
+name: Build Matrix (Windows/macOS/Linux)
+
+on:
+  push:
+    branches: [ handle_slave, main ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: [ '3.13' ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install system libs (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libglib2.0-0 \
+            libgl1 \
+            libxkbcommon-x11-0 \
+            libpulse0 \
+            libasound2 \
+            libfontconfig1 \
+            libdbus-1-3 \
+            libxcb1 \
+            libx11-6 \
+            libxext6 \
+            libxrender1
+
+      - name: Install system libs (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew update || true
+          brew install jq || true
+          # Add any missing Qt runtime deps if needed
+
+      - name: Upgrade pip & install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build with PyInstaller
+        shell: bash
+        run: |
+          python builder.py
+
+      - name: Package artifacts (zip)
+        shell: bash
+        run: |
+          mkdir -p release
+          if [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            # zip .app bundle
+            APP_NAME=WaitAndPounce.app
+            (cd dist && zip -r ../release/WaitAndPounce-macos.zip "$APP_NAME")
+          elif [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+            BIN=WaitAndPounce
+            (cd dist && tar -czf ../release/WaitAndPounce-linux.tar.gz "$BIN")
+          else
+            # windows
+            EXE=WaitAndPounce.exe
+            (cd dist && powershell -Command "Compress-Archive -Path $EXE -DestinationPath ../release/WaitAndPounce-windows.zip")
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: WaitAndPounce-${{ matrix.os }}
+          path: |
+            dist/**
+            release/**
+          if-no-files-found: warn
+
+      # Optional signing: macOS codesign with Developer ID (requires secrets)
+      - name: macOS code signing
+        if: matrix.os == 'macos-latest' && startsWith(github.ref, 'refs/tags/') && secrets.MACOS_P12_BASE64 && secrets.MACOS_P12_PASSWORD && secrets.MACOS_SIGN_IDENTITY
+        run: |
+          # Import certificate
+          echo "${{ secrets.MACOS_P12_BASE64 }}" | base64 --decode > signing.p12
+          security create-keychain -p temp build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p temp build.keychain
+          security import signing.p12 -k build.keychain -P "${{ secrets.MACOS_P12_PASSWORD }}" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k temp build.keychain
+          # Sign app bundle
+          codesign --force --deep --options runtime --sign "${{ secrets.MACOS_SIGN_IDENTITY }}" dist/WaitAndPounce.app
+          # Repackage signed app
+          (cd dist && zip -r ../release/WaitAndPounce-macos-signed.zip WaitAndPounce.app)
+
+      # Optional signing: Windows using osslsigncode with PFX (requires secrets)
+      - name: Install osslsigncode (Windows)
+        if: matrix.os == 'windows-latest' && startsWith(github.ref, 'refs/tags/') && secrets.WIN_PFX_BASE64 && secrets.WIN_PFX_PASSWORD && (env.SIGN_WINDOWS == 'true')
+        shell: powershell
+        run: |
+          choco install osslsigncode -y
+
+      - name: Windows code signing
+        if: matrix.os == 'windows-latest' && startsWith(github.ref, 'refs/tags/') && secrets.WIN_PFX_BASE64 && secrets.WIN_PFX_PASSWORD && (env.SIGN_WINDOWS == 'true')
+        shell: powershell
+        run: |
+          $pfxPath = "signing.pfx"
+          [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String("${{ secrets.WIN_PFX_BASE64 }}"))
+          $exePath = "dist/WaitAndPounce.exe"
+          osslsigncode sign -pkcs12 $pfxPath -pass "${{ secrets.WIN_PFX_PASSWORD }}" -n "WaitAndPounce" -in $exePath -out dist/WaitAndPounce-signed.exe
+          Compress-Archive -Path dist/WaitAndPounce-signed.exe -DestinationPath release/WaitAndPounce-windows-signed.zip
+
+      # Publish release assets on tags
+      - name: Publish GitHub Release (tagged builds)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/WaitAndPounce-*.zip
+            release/WaitAndPounce-*.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

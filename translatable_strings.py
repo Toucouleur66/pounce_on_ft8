@@ -134,6 +134,7 @@ class MainWindowStrings:
     UPDATE_LOTW_INFO = lambda: tr("MainWindow", "Update LoTW Info")
     UPDATE_COUNTRY_FILES = lambda: tr("MainWindow", "Update country and region files")
     COMPACT_VIEW = lambda: tr("MainWindow", "Compact View")
+    ALWAYS_ON_TOP = lambda: tr("MainWindow", "Always on Top")
     SHOW_ALL_MESSAGES = lambda: tr("MainWindow", "Show All Messages")
     SHOW_FILTERS = lambda: tr("MainWindow", "Show Filters")
     CLEAR_FILTERS = lambda: tr("MainWindow", "Clear Filters")

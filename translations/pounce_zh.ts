@@ -251,6 +251,10 @@
         <translation>紧凑视图</translation>
     </message>
     <message>
+        <source>Always on Top</source>
+        <translation>总在最前</translation>
+    </message>
+    <message>
         <source>Show All Messages</source>
         <translation>显示所有消息</translation>
     </message>

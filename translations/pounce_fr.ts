@@ -251,6 +251,10 @@
         <translation>Vue compacte</translation>
     </message>
     <message>
+        <source>Always on Top</source>
+        <translation>Toujours au premier plan</translation>
+    </message>
+    <message>
         <source>Show All Messages</source>
         <translation>Afficher tous les messages</translation>
     </message>

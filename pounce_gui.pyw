@@ -361,10 +361,11 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.enable_pounce_log                  = self.local_params.get('enable_pounce_log', True)
         self.enable_extra_gui_debug_output      = self.local_params.get('enable_extra_gui_debug_output', False)
-        self.enable_filter_gui                  = self.local_params.get('enable_filter_gui', False)        
+        self.enable_filter_gui                  = self.local_params.get('enable_filter_gui', False)
         self.enable_grid_monitor                = self.local_params.get('enable_grid_monitor', False)
         self.enable_compact_view                = self.local_params.get('enable_compact_view', False)
         self.enable_alternate_compact_view      = self.local_params.get('enable_alternate_compact_view', False)
+        self.enable_always_on_top               = self.local_params.get('enable_always_on_top', False)
         self.enable_global_sound                = self.local_params.get('enable_global_sound', True)
         self.enable_sending_reply               = self.local_params.get('enable_sending_reply', DEFAULT_SENDING_REPLY)
         self.enable_show_all_decoded            = self.local_params.get('enable_show_all_decoded', DEFAULT_SHOW_ALL_DECODED)
@@ -778,6 +779,11 @@ class MainApp(QtWidgets.QMainWindow):
 
         if self.enable_compact_view:
             self.toggle_compact_view(True)
+
+        if self.enable_always_on_top:
+            flags = self.windowFlags()
+            flags |= QtCore.Qt.WindowType.WindowStaysOnTopHint
+            self.setWindowFlags(flags)
 
         if self.enable_auto_start_monitoring:
             self.start_monitoring()
@@ -1300,8 +1306,37 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.alternate_compact_view_toggle.setChecked(checked)
         self.alternate_compact_view_action.setChecked(checked)
-        
+
         self.save_unique_param('enable_alternate_compact_view', self.enable_alternate_compact_view)
+
+    def toggle_always_on_top(self, checked = False):
+        self.enable_always_on_top = checked
+
+        # Get current window flags
+        flags = self.windowFlags()
+
+        if checked:
+            # Add the WindowStaysOnTopHint flag
+            flags |= QtCore.Qt.WindowType.WindowStaysOnTopHint
+        else:
+            # Remove the WindowStaysOnTopHint flag
+            flags &= ~QtCore.Qt.WindowType.WindowStaysOnTopHint
+
+        # Store current geometry before changing flags
+        current_geometry = self.geometry()
+
+        # Apply the new flags
+        self.setWindowFlags(flags)
+
+        # Restore geometry and show the window
+        self.setGeometry(current_geometry)
+        self.show()
+
+        # Update the action state
+        self.always_on_top_action.setChecked(checked)
+
+        # Save preference
+        self.save_unique_param('enable_always_on_top', self.enable_always_on_top)
 
     def toggle_grid_monitor(self, checked):    
         if checked:
@@ -3586,6 +3621,15 @@ class MainApp(QtWidgets.QMainWindow):
         self.alternate_compact_view_action.triggered.connect(self.toggle_alternate_compact_view)
 
         self.window_menu.addAction(self.alternate_compact_view_action)
+
+        self.window_menu.addSeparator()
+
+        self.always_on_top_action = QtGui.QAction(MainWindowStrings.ALWAYS_ON_TOP(), self)
+        self.always_on_top_action.setCheckable(True)
+        self.always_on_top_action.setChecked(self.enable_always_on_top)
+        self.always_on_top_action.triggered.connect(self.toggle_always_on_top)
+
+        self.window_menu.addAction(self.always_on_top_action)
 
         self.window_menu.addSeparator()
 

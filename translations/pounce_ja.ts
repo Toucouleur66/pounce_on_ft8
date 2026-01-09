@@ -251,6 +251,10 @@
         <translation>コンパクト表示</translation>
     </message>
     <message>
+        <source>Always on Top</source>
+        <translation>常に最前面に表示</translation>
+    </message>
+    <message>
         <source>Show All Messages</source>
         <translation>すべてのメッセージを表示</translation>
     </message>

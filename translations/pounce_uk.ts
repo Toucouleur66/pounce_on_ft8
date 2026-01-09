@@ -251,6 +251,10 @@
         <translation>Компактний вигляд</translation>
     </message>
     <message>
+        <source>Always on Top</source>
+        <translation>Завжди поверх інших</translation>
+    </message>
+    <message>
         <source>Show All Messages</source>
         <translation>Показати всі повідомлення</translation>
     </message>
