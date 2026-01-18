@@ -21,7 +21,7 @@ from PyQt6.QtCore import QObject, QThread, QTimer
 from logger import get_logger
 
 from utils import get_local_ip_address, get_mode_interval, get_amateur_band, parse_wsjtx_message
-from utils import get_wkb4_year, is_entity_worked_b4, get_clean_rst
+from utils import get_wkb4_year, get_clean_rst
 from utils import is_valid_continent, is_valid_grid, is_grid_needed
 from utils import load_marathon_wanted_data, save_marathon_wanted_data
 
@@ -1920,17 +1920,24 @@ class Listener(QObject):
             entity_code,
             current_year
         ):
-        if (
-            (
-                self.marathon_preference.get(self.band) or
-                self.marathon_preference.get(MARATHON_UNLIMITED)
-            ) and
-            entity_code in self.adif_data.get('entity', {}).get(current_year, {}).get(self.band, {})
-        ):
-            return True       
+        if entity_code in self.adif_data.get('entity', {}).get(current_year, {}).get(self.band, {}):
+            return True
         else:
             return False
-            
+
+    def is_entity_worked_unlimited_marathon(
+            self,
+            entity_code,
+            current_year
+        ):
+        year_data = self.adif_data.get('entity', {}).get(current_year, {})
+
+        for band, entities in year_data.items():
+            if entity_code in entities:
+                return True
+
+        return False
+
     def is_callsign_needed_for_marathon(
             self,
             callsign,
@@ -1941,34 +1948,33 @@ class Listener(QObject):
         ):        
         marathon = False
 
-        if (
-            self.marathon_preference.get(self.band) or
-            self.marathon_preference.get(MARATHON_UNLIMITED)
-        ):            
-            if callsign_wkb4 and self.worked_before_preference == WKB4_REPLY_MODE_NEVER:
-                log.warning(f"Skipping [ {callsign} ] as it is wkb4 [ {wkb4_year}]")
-            else:                        
-                if callsign in self.wanted_callsigns_per_entity.get(self.band, {}).get(entity_code, {}):
-                    marathon = True
-                elif (
-                        entity_code not in self.adif_data.get('entity', {}).get(current_year, {}).get(self.band, {}) 
-                    or (
-                        self.marathon_preference.get(MARATHON_UNLIMITED) and 
-                        not is_entity_worked_b4(self.adif_data, entity_code, current_year)
-                    )):
-                    marathon = True
-
-                    if not self.wanted_callsigns_per_entity.get(self.band):
-                        self.wanted_callsigns_per_entity[self.band] = {}
-
-                    if not self.wanted_callsigns_per_entity[self.band].get(entity_code):
-                        self.wanted_callsigns_per_entity[self.band][entity_code] = []
-
-                    if callsign not in self.wanted_callsigns_per_entity[self.band][entity_code]:
-                        self.wanted_callsigns_per_entity[self.band][entity_code].append(callsign)
-                        # save_marathon_wanted_data(MARATHON_FILE, self.wanted_callsigns_per_entity)
-
+        # entity_wkb4 not worked before
+        if callsign_wkb4 and self.worked_before_preference == WKB4_REPLY_MODE_NEVER:
+            log.warning(f"Skipping [ {callsign} ] as it is wkb4 [ {wkb4_year}]")
+        elif callsign in self.wanted_callsigns_per_entity.get(self.band, {}).get(entity_code, {}):
+            marathon = True
+        elif self.marathon_preference.get(MARATHON_UNLIMITED):
+            if self.is_entity_worked_unlimited_marathon(
+                entity_code,
+                current_year
+            ):
+                log.debug(f"Skipping [ {callsign} ] as entity [ {entity_code} ] already worked in unlimited marathon")
+            else:
+                marathon = True
+        elif entity_code not in self.adif_data.get('entity', {}).get(current_year, {}).get(self.band, {}):
+            marathon = True
+            
         if marathon:         
+            if not self.wanted_callsigns_per_entity.get(self.band):
+                self.wanted_callsigns_per_entity[self.band] = {}
+
+            if not self.wanted_callsigns_per_entity[self.band].get(entity_code):
+                self.wanted_callsigns_per_entity[self.band][entity_code] = []
+
+            if callsign not in self.wanted_callsigns_per_entity[self.band][entity_code]:
+                self.wanted_callsigns_per_entity[self.band][entity_code].append(callsign)
+                # save_marathon_wanted_data(MARATHON_FILE, self.wanted_callsigns_per_entity)
+
             log.warning(f"Found [ {callsign} ] for marathon [ {entity_code} ]")                           
 
         return marathon

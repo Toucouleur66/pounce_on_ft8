@@ -788,13 +788,6 @@ def is_worked_b4_year_band(data, callsign, year, band):
         return True
     else:
         return False
-    
-def is_entity_worked_b4(data, entity_code, year):
-    bands = data.get('entity', {}).get(year, {})
-    for band, entities in bands.items():
-        if entity_code in entities:
-            return True
-    return False
 
 def is_grid_needed(
         data,
