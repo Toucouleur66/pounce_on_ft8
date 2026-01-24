@@ -3361,11 +3361,12 @@ class MainApp(QtWidgets.QMainWindow):
 
     def load_window_position(self):
         if os.path.exists(POSITION_FILE):
-            with open(POSITION_FILE, "rb") as f:
-                position_data = pickle.load(f)
+            try:
+                with open(POSITION_FILE, "rb") as f:
+                    position_data = pickle.load(f)
 
                 if (
-                    'width' in position_data and 
+                    'width' in position_data and
                     'height' in position_data
                 ):
                     self.setGeometry(
@@ -3373,9 +3374,9 @@ class MainApp(QtWidgets.QMainWindow):
                         position_data['y'],
                         position_data['width'],
                         position_data['height']
-                    )                                      
+                    )
                 else:
-                    self.setGeometry(100, 100, 900, 700) 
+                    self.setGeometry(100, 100, 900, 700)
                     os.remove(POSITION_FILE)
 
                 self.grid_monitor_geometry = position_data.get('grid_map_window')
@@ -3386,6 +3387,14 @@ class MainApp(QtWidgets.QMainWindow):
                     self.output_table.setColumnWidth(7, country_column_width)
 
                 QtCore.QTimer.singleShot(100, lambda: self.toggle_grid_monitor(self.enable_grid_monitor))
+            except (pickle.UnpicklingError, EOFError, ValueError) as e:
+                self.log.error(f"Failed to load window position (corrupted file): {e}")
+                try:
+                    os.remove(POSITION_FILE)
+                    self.log.info(f"Deleted corrupted position file: {POSITION_FILE}")
+                except Exception as del_error:
+                    self.log.error(f"Failed to delete corrupted file: {del_error}")
+                self.setGeometry(100, 100, 900, 700)
         else:
             self.setGeometry(100, 100, 900, 700) 
 

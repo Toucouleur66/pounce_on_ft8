@@ -339,28 +339,29 @@ class WindowController:
                     log.error("No buttons found")
                     return False
 
-                # Filter dialog buttons
-                dialog_buttons = []
-                for btn in buttons:
+                # Log all buttons found
+                for idx, btn in enumerate(buttons):
                     try:
                         text = btn.window_text()
-                        log.debug(f"Button: [ {text} ]")
-                        if text not in ['Réduire', 'Agrandir', 'Fermer', 'Minimize', 'Maximize', 'Close']:
-                            dialog_buttons.append({'control': btn, 'text': text})
+                        log.debug(f"Button {idx}: [ {text} ]")
                     except:
                         pass
 
-                log.warning(f"Found {len(dialog_buttons)} dialog buttons")
+                # The OK button is always the 4th button (index 3) in the JTDX Log QSO dialog
+                # Order: Minimize, Maximize, Close, OK, Cancel
+                if len(buttons) >= 4:
+                    ok_button = buttons[3]
+                    try:
+                        button_text = ok_button.window_text()
+                        log.warning(f"Clicking button at index 3: [ {button_text} ]")
+                    except:
+                        log.warning("Clicking button at index 3")
 
-                # Click OK button
-                if len(dialog_buttons) >= 1:
-                    ok_button = dialog_buttons[0]
-                    log.warning(f"Clicking button: [ {ok_button['text']} ]")
-                    ok_button['control'].click()
+                    ok_button.click()
                     log.warning("Button clicked!")
                     return True
                 else:
-                    log.error("No dialog buttons found")
+                    log.error(f"Expected at least 4 buttons, found {len(buttons)}")
                     return False
 
             except Exception as e:
