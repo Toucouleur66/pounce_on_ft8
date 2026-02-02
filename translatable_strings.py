@@ -235,6 +235,28 @@ class SettingsStrings:
     LOTW_NO_DATA = lambda: tr("SettingsDialog", "No LoTW data available yet")
     GROUP_LOTW_SETTINGS = lambda: tr("SettingsDialog", "LoTW Settings")
     CHECK_LOTW_ONLY = lambda: tr("SettingsDialog", "Enable reply only for callsigns that use LoTW")
+    # LoTW Upload/Download
+    GROUP_LOTW_UPLOAD_SETTINGS = lambda: tr("SettingsDialog", "LoTW Upload/Download Settings")
+    CHECK_ENABLE_LOTW_UPLOAD = lambda: tr("SettingsDialog", "Enable automatic upload to LoTW")
+    LABEL_LOTW_USERNAME = lambda: tr("SettingsDialog", "Username:")
+    LABEL_LOTW_PASSWORD = lambda: tr("SettingsDialog", "Password:")
+    LABEL_LOTW_LOCATION = lambda: tr("SettingsDialog", "Station Location:")
+    LABEL_LOTW_SIGNING_PASSWORD = lambda: tr("SettingsDialog", "Signing Password:")
+    LABEL_TQSL_PATH = lambda: tr("SettingsDialog", "TQSL Path:")
+    LABEL_TQSL_DIR = lambda: tr("SettingsDialog", ".tqsl Folder:")
+    BUTTON_BROWSE_TQSL = lambda: tr("SettingsDialog", "Browse...")
+    BUTTON_BROWSE_TQSL_DIR = lambda: tr("SettingsDialog", "Browse...")
+    BUTTON_TEST_LOTW_UPLOAD = lambda: tr("SettingsDialog", "Test Upload Last QSO")
+    PLACEHOLDER_LOTW_USERNAME = lambda: tr("SettingsDialog", "Your LoTW username (usually callsign)")
+    PLACEHOLDER_LOTW_PASSWORD = lambda: tr("SettingsDialog", "Your LoTW account password")
+    PLACEHOLDER_LOTW_LOCATION = lambda: tr("SettingsDialog", "Station location name in TQSL")
+    PLACEHOLDER_LOTW_SIGNING_PASSWORD = lambda: tr("SettingsDialog", "Certificate signing password (if set)")
+    LOTW_UPLOAD_STATUS = lambda total, last_upload, callsign, band: (
+        tr("SettingsDialog", "LoTW Upload Status:") + f" {total} " + tr("SettingsDialog", "QSOs uploaded") + f"<br />" +
+        tr("SettingsDialog", "Last upload:") + f" {last_upload}<br />" +
+        tr("SettingsDialog", "Last QSO:") + f" {callsign} " + tr("SettingsDialog", "on") + f" {band}"
+    )
+    LOTW_NO_UPLOADS = lambda: tr("SettingsDialog", "No uploads yet")
     # Sound Alerts
     SOUND_NOTICE = lambda: tr("SettingsDialog",
         "<p>You can enable or disable the sounds as per your requirement. You can even set a delay between each sound triggered by a message where a monitored callsign has been found. This mainly helps you to be notified when the band opens or when you have a callsign on the air that you want to monitor.</p><p>Monitored callsigns will never get reply from this program. Only <u>Wanted callsigns will get a reply</u>.</p>"

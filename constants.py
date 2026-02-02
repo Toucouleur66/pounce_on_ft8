@@ -7,10 +7,11 @@ import platform
 from datetime import datetime
 from utils import get_app_data_dir
 
-CURRENT_VERSION_NUMBER          = "2.18.2"
+CURRENT_VERSION_NUMBER          = "2.19"
 EXPIRATION_DATE                 = datetime(2027, 4, 15)
 UPDATE_JSON_INFO_URL            = "https://f5ukw.com/public/update_info.json"
 README_URL                      = "https://f5ukw.com/public/readme.txt"
+TELEMETRY_API_BASE_URL          = "https://f5ukw.com/api"
 
 EVEN                            = "EVEN"
 ODD                             = "ODD"
@@ -27,6 +28,7 @@ WORKED_CALLSIGNS_FILE           = os.path.join(get_app_data_dir(), "worked_calls
 TEMP_EXCLUDED_CALLSIGNS_FILE    = os.path.join(get_app_data_dir(), "temp_excluded_callsigns.pkl")
 ADIF_WORKED_CALLSIGNS_FILE      = os.path.join(get_app_data_dir(), "wait_pounce_log.adif")
 CLUB_LOG_CACHE_FILE             = os.path.join(get_app_data_dir(), "club_log_cache.json")
+LOTW_UPLOAD_CACHE_FILE          = os.path.join(get_app_data_dir(), "lotw_upload_cache.json")
 
 GUI_LABEL_NAME                  = "Wait and Pounce"
 GUI_LABEL_VERSION               = f"{GUI_LABEL_NAME} build {CURRENT_VERSION_NUMBER}"

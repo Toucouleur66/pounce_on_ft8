@@ -13,7 +13,7 @@ import platform
 import logging
 from pathlib import Path
 from logger import get_logger
-from constants import CURRENT_VERSION_NUMBER
+from constants import CURRENT_VERSION_NUMBER, TELEMETRY_API_BASE_URL
 
 log = get_logger(__name__)
 
@@ -32,7 +32,11 @@ class TelemetryService:
         - Silent operation - continues retrying if API is unreachable
     """
 
-    def __init__(self, api_base_url="https://f5ukw.com/api", config_dir=None):
+    def __init__(
+            self,
+            api_base_url=TELEMETRY_API_BASE_URL,
+            config_dir=None
+        ):
         self.api_base_url = api_base_url.rstrip('/')
 
         # Config directory setup

@@ -14,6 +14,7 @@ from custom_button import CustomButton
 from priority_table import PriorityTableWidget
 from adif_summary_dialog import AdifSummaryDialog
 from lotw_manager import LoTWManager
+from lotw_uploader import LoTWUploader
 from clublog import ClubLogUploader
 from window_monitoring_dialog import WindowMonitoringDialog
 from window_controller import WindowController
@@ -77,6 +78,9 @@ from constants import (
     ADIF_WORKED_CALLSIGNS_FILE
 )
 
+from logger import get_logger
+
+log = get_logger(__name__)
 
 class SettingsDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, params=None, dark_mode=False):
@@ -776,9 +780,115 @@ class SettingsDialog(QtWidgets.QDialog):
         lotw_settings_group.layout().setContentsMargins(0, 0, 0, 0)
         lotw_settings_group.layout().addWidget(lotw_settings_widget)
 
+        # LoTW Upload/Download Settings
+        last_upload, total_uploaded, last_callsign_uploaded, last_band_uploaded = LoTWUploader.get_cache_info()
+        if last_upload:
+            lotw_upload_cache_text = SettingsStrings.LOTW_UPLOAD_STATUS(total_uploaded, last_upload, last_callsign_uploaded, last_band_uploaded)
+        else:
+            lotw_upload_cache_text = SettingsStrings.LOTW_NO_UPLOADS()
+
+        self.lotw_upload_cache_info = QtWidgets.QLabel(lotw_upload_cache_text)
+        self.lotw_upload_cache_info.setWordWrap(True)
+        self.lotw_upload_cache_info.setFont(CUSTOM_FONT_SMALL)
+        self.lotw_upload_cache_info.setTextFormat(QtCore.Qt.TextFormat.RichText)
+        self.lotw_upload_cache_info.setStyleSheet(get_setting_qss(ODD_COLOR))
+        self.notice_labels.append(self.lotw_upload_cache_info)
+        self.lotw_upload_cache_info.setAutoFillBackground(True)
+
+        lotw_upload_settings_group = QtWidgets.QGroupBox(SettingsStrings.GROUP_LOTW_UPLOAD_SETTINGS())
+        self.group_boxes.append(lotw_upload_settings_group)
+        lotw_upload_settings_group.setFont(CUSTOM_FONT_SMALL)
+
+        lotw_upload_settings_widget = QtWidgets.QWidget()
+        lotw_upload_settings_layout = QtWidgets.QGridLayout(lotw_upload_settings_widget)
+
+        self.enable_lotw_upload = QtWidgets.QCheckBox(SettingsStrings.CHECK_ENABLE_LOTW_UPLOAD())
+        self.enable_lotw_upload.setFont(CUSTOM_FONT)
+        self.enable_lotw_upload.setChecked(False)
+
+        lotw_username_label = QtWidgets.QLabel(SettingsStrings.LABEL_LOTW_USERNAME())
+        lotw_username_label.setFont(CUSTOM_FONT)
+        self.lotw_username = QtWidgets.QLineEdit()
+        self.lotw_username.setFont(CUSTOM_FONT)
+        self.lotw_username.setPlaceholderText(SettingsStrings.PLACEHOLDER_LOTW_USERNAME())
+
+        lotw_password_label = QtWidgets.QLabel(SettingsStrings.LABEL_LOTW_PASSWORD())
+        lotw_password_label.setFont(CUSTOM_FONT)
+        self.lotw_password = QtWidgets.QLineEdit()
+        self.lotw_password.setFont(CUSTOM_FONT)
+        self.lotw_password.setEchoMode(QtWidgets.QLineEdit.EchoMode.Password)
+        self.lotw_password.setPlaceholderText(SettingsStrings.PLACEHOLDER_LOTW_PASSWORD())
+
+        lotw_location_label = QtWidgets.QLabel(SettingsStrings.LABEL_LOTW_LOCATION())
+        lotw_location_label.setFont(CUSTOM_FONT)
+        self.lotw_location = QtWidgets.QLineEdit()
+        self.lotw_location.setFont(CUSTOM_FONT)
+        self.lotw_location.setPlaceholderText(SettingsStrings.PLACEHOLDER_LOTW_LOCATION())
+
+        lotw_signing_password_label = QtWidgets.QLabel(SettingsStrings.LABEL_LOTW_SIGNING_PASSWORD())
+        lotw_signing_password_label.setFont(CUSTOM_FONT)
+        self.lotw_signing_password = QtWidgets.QLineEdit()
+        self.lotw_signing_password.setFont(CUSTOM_FONT)
+        self.lotw_signing_password.setEchoMode(QtWidgets.QLineEdit.EchoMode.Password)
+        self.lotw_signing_password.setPlaceholderText(SettingsStrings.PLACEHOLDER_LOTW_SIGNING_PASSWORD())
+
+        tqsl_path_label = QtWidgets.QLabel(SettingsStrings.LABEL_TQSL_PATH())
+        tqsl_path_label.setFont(CUSTOM_FONT)
+        self.tqsl_path = QtWidgets.QLineEdit()
+        self.tqsl_path.setFont(CUSTOM_FONT)
+
+        self.browse_tqsl_button = QtWidgets.QPushButton(SettingsStrings.BUTTON_BROWSE_TQSL())
+        self.browse_tqsl_button.setFont(CUSTOM_FONT)
+        self.browse_tqsl_button.clicked.connect(self.browse_tqsl_path)
+
+        tqsl_path_layout = QtWidgets.QHBoxLayout()
+        tqsl_path_layout.addWidget(self.tqsl_path)
+        tqsl_path_layout.addWidget(self.browse_tqsl_button)
+
+        tqsl_dir_label = QtWidgets.QLabel(SettingsStrings.LABEL_TQSL_DIR())
+        tqsl_dir_label.setFont(CUSTOM_FONT)
+        self.tqsl_dir = QtWidgets.QLineEdit()
+        self.tqsl_dir.setFont(CUSTOM_FONT)
+
+        self.browse_tqsl_dir_button = QtWidgets.QPushButton(SettingsStrings.BUTTON_BROWSE_TQSL_DIR())
+        self.browse_tqsl_dir_button.setFont(CUSTOM_FONT)
+        self.browse_tqsl_dir_button.clicked.connect(self.browse_tqsl_dir)
+
+        tqsl_dir_layout = QtWidgets.QHBoxLayout()
+        tqsl_dir_layout.addWidget(self.tqsl_dir)
+        tqsl_dir_layout.addWidget(self.browse_tqsl_dir_button)
+
+        self.test_lotw_upload_button = QtWidgets.QPushButton(SettingsStrings.BUTTON_TEST_LOTW_UPLOAD())
+        self.test_lotw_upload_button.setFont(CUSTOM_FONT)
+        self.test_lotw_upload_button.clicked.connect(self.test_lotw_upload_last_qso)
+
+        lotw_upload_settings_layout.addWidget(self.enable_lotw_upload, 0, 0, 1, 2)
+        lotw_upload_settings_layout.addWidget(lotw_username_label, 1, 0, QtCore.Qt.AlignmentFlag.AlignRight)
+        lotw_upload_settings_layout.addWidget(self.lotw_username, 1, 1)
+        lotw_upload_settings_layout.addWidget(lotw_password_label, 2, 0, QtCore.Qt.AlignmentFlag.AlignRight)
+        lotw_upload_settings_layout.addWidget(self.lotw_password, 2, 1)
+        lotw_upload_settings_layout.addWidget(lotw_location_label, 3, 0, QtCore.Qt.AlignmentFlag.AlignRight)
+        lotw_upload_settings_layout.addWidget(self.lotw_location, 3, 1)
+        lotw_upload_settings_layout.addWidget(lotw_signing_password_label, 4, 0, QtCore.Qt.AlignmentFlag.AlignRight)
+        lotw_upload_settings_layout.addWidget(self.lotw_signing_password, 4, 1)
+        lotw_upload_settings_layout.addWidget(tqsl_path_label, 5, 0, QtCore.Qt.AlignmentFlag.AlignRight)
+        lotw_upload_settings_layout.addLayout(tqsl_path_layout, 5, 1)
+        lotw_upload_settings_layout.addWidget(tqsl_dir_label, 6, 0, QtCore.Qt.AlignmentFlag.AlignRight)
+        lotw_upload_settings_layout.addLayout(tqsl_dir_layout, 6, 1)
+        lotw_upload_settings_layout.addWidget(self.test_lotw_upload_button, 7, 0, 1, 2)
+
+        # Reduce vertical spacing between rows
+        lotw_upload_settings_layout.setVerticalSpacing(10)
+
+        lotw_upload_settings_group.setLayout(QtWidgets.QVBoxLayout())
+        lotw_upload_settings_group.layout().setContentsMargins(0, 0, 0, 0)
+        lotw_upload_settings_group.layout().addWidget(lotw_upload_settings_widget)
+
         lotw_layout.addWidget(lotw_notice_label)
         lotw_layout.addWidget(lotw_cache_info)
         lotw_layout.addWidget(lotw_settings_group)
+        lotw_layout.addWidget(self.lotw_upload_cache_info)
+        lotw_layout.addWidget(lotw_upload_settings_group)
         lotw_layout.addStretch()
 
         """
@@ -1725,6 +1835,160 @@ class SettingsDialog(QtWidgets.QDialog):
         else:
             print("No file selected.")
 
+    def browse_tqsl_path(self):
+        """Browse for TQSL executable"""
+        dialog = QFileDialog(self)
+        dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
+
+        # Show hidden files while keeping native dialog
+        dialog.setFilter(QtCore.QDir.Filter.Hidden | QtCore.QDir.Filter.AllDirs | QtCore.QDir.Filter.Files)
+
+        if platform.system() == 'Windows':
+            dialog.setNameFilter("Executable Files (*.exe);;All Files (*.*)")
+        elif platform.system() == 'Darwin':
+            # On macOS, TQSL is inside the app bundle
+            dialog.setDirectory("/Applications")
+            dialog.setNameFilter("All Files (*);;Applications (*.app)")
+        else:
+            dialog.setNameFilter("All Files (*)")
+
+        if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            selected_files = dialog.selectedFiles()
+            if selected_files:
+                selected_path = selected_files[0]
+
+                # If on macOS and user selected the .app bundle, point to the actual executable
+                if platform.system() == 'Darwin' and selected_path.endswith('.app'):
+                    tqsl_executable = os.path.join(selected_path, 'Contents', 'MacOS', 'tqsl')
+                    if os.path.exists(tqsl_executable):
+                        selected_path = tqsl_executable
+
+                self.tqsl_path.setText(selected_path)
+
+    def browse_tqsl_dir(self):
+        """Browse for .tqsl directory"""
+        dialog = QFileDialog(self)
+        dialog.setFileMode(QFileDialog.FileMode.Directory)
+
+        # Show hidden files while keeping native dialog
+        dialog.setFilter(QtCore.QDir.Filter.Hidden | QtCore.QDir.Filter.AllDirs)
+
+        # Start in home directory
+        home_dir = os.path.expanduser("~")
+        dialog.setDirectory(home_dir)
+
+        if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            selected_dirs = dialog.selectedFiles()
+            if selected_dirs:
+                self.tqsl_dir.setText(selected_dirs[0])
+
+    def test_lotw_upload_last_qso(self):
+        """Test LoTW upload by uploading the last QSO from the log"""
+        username = self.lotw_username.text().strip()
+        password = self.lotw_password.text().strip()
+        location = self.lotw_location.text().strip()
+        signing_password = self.lotw_signing_password.text().strip()
+        tqsl_path = self.tqsl_path.text().strip()
+
+        if not username:
+            log.warning("LoTW test upload failed: No username provided")
+            WindowController.show_test_result_dialog(self, {
+                'title': 'Missing Information',
+                'message': 'Please enter your LoTW username.'
+            })
+            return
+
+        # Get the last QSO from the log file
+        from constants import ADIF_WORKED_CALLSIGNS_FILE
+
+        if not os.path.exists(ADIF_WORKED_CALLSIGNS_FILE):
+            log.warning(f"LoTW test upload failed: Log file not found at {ADIF_WORKED_CALLSIGNS_FILE}")
+            WindowController.show_test_result_dialog(self, {
+                'title': 'No Log File',
+                'message': f'No QSO log file found at:\n{ADIF_WORKED_CALLSIGNS_FILE}\n\nMake at least one QSO first.'
+            })
+            return
+
+        try:
+            log.info(f"Starting LoTW test upload for user: {username}")
+
+            # Read the last QSO from the ADIF file
+            with open(ADIF_WORKED_CALLSIGNS_FILE, 'r', encoding='utf-8') as f:
+                content = f.read().strip()
+
+            if not content:
+                log.warning("LoTW test upload failed: Log file is empty")
+                WindowController.show_test_result_dialog(self, {
+                    'title': 'Empty Log File',
+                    'message': 'The log file is empty. Make at least one QSO first.'
+                })
+                return
+
+            # Split by <eor> tags (case insensitive)
+            import re
+            records = re.split(r'<eor>', content, flags=re.IGNORECASE)
+
+            # Filter out empty records
+            records = [r.strip() for r in records if r.strip()]
+
+            if not records:
+                log.warning("LoTW test upload failed: No QSO records found in log file")
+                WindowController.show_test_result_dialog(self, {
+                    'title': 'No QSOs Found',
+                    'message': f'No QSO records found in log file:\n{ADIF_WORKED_CALLSIGNS_FILE}'
+                })
+                return
+
+            # Get the last QSO record and add back the <eor> tag
+            last_qso = records[-1] + ' <eor>'
+
+            # Prepend a minimal ADIF header
+            adif_with_header = "ADIF Export\n<ADIF_VER:5>3.1.0\n<PROGRAMID:17>Wait and Pounce\n<EOH>\n" + last_qso
+
+            # Extract callsign for display
+            call_match = re.search(r'<call:\d+>([^\s<]+)', last_qso, re.IGNORECASE)
+            callsign = call_match.group(1) if call_match else 'Unknown'
+
+            log.info(f"Attempting to upload QSO with {callsign} to LoTW")
+
+            # Get tqsl_dir from settings
+            tqsl_dir = self.tqsl_dir.text().strip()
+
+            log.info(f"Starting LoTW upload for QSO with {callsign}")
+
+            # Create uploader instance
+            uploader = LoTWUploader(
+                username=username,
+                password=password,
+                tqsl_path=tqsl_path if tqsl_path else None,
+                tqsl_dir=tqsl_dir if tqsl_dir else None,
+                location=location if location else None,
+                signing_password=signing_password if signing_password else None
+            )
+
+            # Try to upload (this will take a few seconds)
+            success, message = uploader.upload_qso(adif_with_header)
+
+            if success:
+                log.info(f"LoTW upload successful for QSO with {callsign}")
+                WindowController.show_test_result_dialog(self, {
+                    'title': 'Upload Successful',
+                    'message': f'Last QSO with {callsign} uploaded successfully to LoTW!'
+                })
+            else:
+                log.error(f"LoTW upload failed for QSO with {callsign}: {message}")
+                WindowController.show_test_result_dialog(self, {
+                    'title': 'Upload Failed',
+                    'message': f'Upload failed:\n\n{message}'
+                })
+
+        except Exception as e:
+            log.error(f"LoTW test upload exception: {str(e)}", exc_info=True)
+            WindowController.show_test_result_dialog(self, {
+                'title': 'Error',
+                'message': f'An error occurred while uploading:\n\n{str(e)}'
+            })
+
     def add_file_to_list(self, file_path):
         """Add a file entry to the table"""
         row_position = self.adif_files_table.rowCount()
@@ -1990,6 +2254,29 @@ class SettingsDialog(QtWidgets.QDialog):
             self.params.get('club_log_callsign', '')
         )
 
+        # Load LoTW Upload settings
+        self.enable_lotw_upload.setChecked(
+            self.params.get('enable_lotw_upload', False)
+        )
+        self.lotw_username.setText(
+            self.params.get('lotw_username', '')
+        )
+        self.lotw_password.setText(
+            self.params.get('lotw_password', '')
+        )
+        self.lotw_location.setText(
+            self.params.get('lotw_location', '')
+        )
+        self.lotw_signing_password.setText(
+            self.params.get('lotw_signing_password', '')
+        )
+        self.tqsl_path.setText(
+            self.params.get('tqsl_path', '')
+        )
+        self.tqsl_dir.setText(
+            self.params.get('tqsl_dir', '')
+        )
+
         # Load ADIF files (support both single file and multiple files for backward compatibility)
         selected_files = self.params.get('adif_file_paths')
         if selected_files is None:
@@ -2170,5 +2457,12 @@ class SettingsDialog(QtWidgets.QDialog):
             'enable_club_log_synch'                      : self.enable_club_log_synch.isChecked(),
             'club_log_email'                             : self.club_log_email.text(),
             'club_log_password'                          : self.club_log_password.text(),
-            'club_log_callsign'                          : self.club_log_callsign.text()
+            'club_log_callsign'                          : self.club_log_callsign.text(),
+            'enable_lotw_upload'                         : self.enable_lotw_upload.isChecked(),
+            'lotw_username'                              : self.lotw_username.text(),
+            'lotw_password'                              : self.lotw_password.text(),
+            'lotw_location'                              : self.lotw_location.text(),
+            'lotw_signing_password'                      : self.lotw_signing_password.text(),
+            'tqsl_path'                                  : self.tqsl_path.text(),
+            'tqsl_dir'                                   : self.tqsl_dir.text()
         }
