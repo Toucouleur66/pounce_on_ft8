@@ -6,7 +6,6 @@ import subprocess
 import requests
 import tempfile
 from datetime import datetime
-from urllib.parse import urlencode
 
 from logger import get_logger
 

@@ -4060,6 +4060,14 @@ class MainApp(QtWidgets.QMainWindow):
         self.worker.club_log_password               = self.local_params.get('club_log_password', '')
         self.worker.club_log_callsign               = self.local_params.get('club_log_callsign', '')
 
+        self.worker.enable_lotw_upload              = self.local_params.get('enable_lotw_upload', False)
+        self.worker.lotw_username                   = self.local_params.get('lotw_username', '')
+        self.worker.lotw_password                   = self.local_params.get('lotw_password', '')
+        self.worker.lotw_location                   = self.local_params.get('lotw_location', '')
+        self.worker.lotw_signing_password           = self.local_params.get('lotw_signing_password', '')
+        self.worker.tqsl_path                       = self.local_params.get('tqsl_path', '')
+        self.worker.tqsl_dir                        = self.local_params.get('tqsl_dir', '')
+
         self.worker.min_freq                        = self.local_params.get('min_freq', FREQ_MINIMUM)
         self.worker.max_freq                        = self.local_params.get('max_freq', FREQ_MAXIMUM)
 

@@ -81,7 +81,14 @@ class Worker(QObject):
             enable_club_log_synch              = False,
             club_log_email                     = '',
             club_log_password                  = '',
-            club_log_callsign                  = ''
+            club_log_callsign                  = '',
+            enable_lotw_upload                 = False,
+            lotw_username                      = '',
+            lotw_password                      = '',
+            lotw_location                      = '',
+            lotw_signing_password              = '',
+            tqsl_path                          = '',
+            tqsl_dir                           = ''
         ):
 
         super().__init__()
@@ -141,6 +148,14 @@ class Worker(QObject):
         self.club_log_password                  = club_log_password
         self.club_log_callsign                  = club_log_callsign
 
+        self.enable_lotw_upload                 = enable_lotw_upload
+        self.lotw_username                      = lotw_username
+        self.lotw_password                      = lotw_password
+        self.lotw_location                      = lotw_location
+        self.lotw_signing_password              = lotw_signing_password
+        self.tqsl_path                          = tqsl_path
+        self.tqsl_dir                           = tqsl_dir
+
         self.timer = QTimer()
         self.timer.timeout.connect(self.check_stop_event)
 
@@ -197,6 +212,14 @@ class Worker(QObject):
                 club_log_email                  = self.club_log_email,
                 club_log_password               = self.club_log_password,
                 club_log_callsign               = self.club_log_callsign,
+
+                enable_lotw_upload              = self.enable_lotw_upload,
+                lotw_username                   = self.lotw_username,
+                lotw_password                   = self.lotw_password,
+                lotw_location                   = self.lotw_location,
+                lotw_signing_password           = self.lotw_signing_password,
+                tqsl_path                       = self.tqsl_path,
+                tqsl_dir                        = self.tqsl_dir,
 
                 message_callback                = self.message.emit
             )
@@ -282,6 +305,14 @@ class Worker(QObject):
             self.listener.club_log_password                     = self.club_log_password
             self.listener.club_log_callsign                     = self.club_log_callsign
 
+            self.listener.enable_lotw_upload                    = self.enable_lotw_upload
+            self.listener.lotw_username                         = self.lotw_username
+            self.listener.lotw_password                         = self.lotw_password
+            self.listener.lotw_location                         = self.lotw_location
+            self.listener.lotw_signing_password                 = self.lotw_signing_password
+            self.listener.tqsl_path                             = self.tqsl_path
+            self.listener.tqsl_dir                              = self.tqsl_dir
+
             # Reinitialize Club Log uploader if settings changed
             if self.enable_club_log_synch and self.club_log_email and self.club_log_password:
                 from clublog import ClubLogUploader
@@ -294,6 +325,20 @@ class Worker(QObject):
                 )
             else:
                 self.listener.club_log_uploader = None
+
+            # Reinitialize LoTW uploader if settings changed
+            if self.enable_lotw_upload and self.lotw_username:
+                from lotw_uploader import LoTWUploader
+                self.listener.lotw_uploader = LoTWUploader(
+                    self.lotw_username,
+                    self.lotw_password,
+                    self.tqsl_path or None,
+                    self.tqsl_dir or None,
+                    self.lotw_location or None,
+                    self.lotw_signing_password or None
+                )
+            else:
+                self.listener.lotw_uploader = None
             
             self.listener.update_listener_settings()
 

@@ -29,6 +29,7 @@ from callsign_lookup import CallsignLookup
 from adif_monitor import AdifMonitor
 from telemetry_service import TelemetryService
 from clublog import ClubLogUploader
+from lotw_uploader import LoTWUploader
 
 log     = get_logger(__name__)
 
@@ -92,6 +93,13 @@ class Listener(QObject):
             club_log_email,
             club_log_password,
             club_log_callsign,
+            enable_lotw_upload,
+            lotw_username,
+            lotw_password,
+            lotw_location,
+            lotw_signing_password,
+            tqsl_path,
+            tqsl_dir,
             message_callback
         ):
         super().__init__()
@@ -224,6 +232,15 @@ class Listener(QObject):
         self.club_log_callsign              = club_log_callsign
         self.club_log_uploader              = None
 
+        self.enable_lotw_upload             = enable_lotw_upload
+        self.lotw_username                  = lotw_username
+        self.lotw_password                  = lotw_password
+        self.lotw_location                  = lotw_location
+        self.lotw_signing_password          = lotw_signing_password
+        self.tqsl_path                      = tqsl_path
+        self.tqsl_dir                       = tqsl_dir
+        self.lotw_uploader                  = None
+
         self.adif_data                      = {}
         self.adif_monitor                   = None
         self.adif_file_paths                 = adif_file_paths or []      
@@ -272,6 +289,19 @@ class Listener(QObject):
                 self.club_log_password,
                 CLUB_LOG_API_KEY,
                 self.club_log_callsign or ''
+            )
+
+        """
+            Initialize LoTW uploader
+        """
+        if self.enable_lotw_upload and self.lotw_username:
+            self.lotw_uploader = LoTWUploader(
+                self.lotw_username,
+                self.lotw_password,
+                self.tqsl_path or None,
+                self.tqsl_dir or None,
+                self.lotw_location or None,
+                self.lotw_signing_password or None
             )
 
         """
@@ -542,8 +572,10 @@ class Listener(QObject):
         log_output.append(f"WorkedBeforePreference={self.worked_before_preference}")
         log_output.append(f"Marathon={self.enable_marathon}")
         log_output.append(f"GridTracker={self.enable_grid_tracker}")
-        log_output.append(f"LotwOnly={self.enable_reply_to_lotw_only }") 
-        log_output.append(f"PriorityOrder={self.priority_order}")                   
+        log_output.append(f"LoTWReplyOnly={self.enable_reply_to_lotw_only }") 
+        log_output.append(f"PriorityOrder={self.priority_order}")      
+        log_output.append(f"ClubLogSynch={self.enable_club_log_synch}")
+        log_output.append(f"LoTWUpload={self.enable_lotw_upload}")    
 
         log.warning(f"\n\t".join(log_output))
 
@@ -1779,13 +1811,13 @@ class Listener(QObject):
                                 
     def log_qso_to_adif(self):
         if self.last_logged_call == self.call_ready_to_log:
-            return 
-        
+            return
+
         callsign        = self.call_ready_to_log
         grid            = self.grid_being_called.get(self.call_ready_to_log, '')
         mode            = self.mode
-        rst_sent        = get_clean_rst(self.rst_sent.get(self.call_ready_to_log, '?')) 
-        rst_rcvd        = get_clean_rst(self.rst_rcvd_from_being_called.get(self.call_ready_to_log, '?')) 
+        rst_sent        = get_clean_rst(self.rst_sent.get(self.call_ready_to_log, '?'))
+        rst_rcvd        = get_clean_rst(self.rst_rcvd_from_being_called.get(self.call_ready_to_log, '?'))
         freq_rx         = f"{round((self.frequency + self.rx_df) / 1_000_000, 6):.6f}"
         freq            = f"{round((self.frequency + self.tx_df) / 1_000_000, 6):.6f}"
         band            = self.band
@@ -1794,11 +1826,11 @@ class Listener(QObject):
         try:
             if (
                 self.qso_time_off.get(self.call_ready_to_log) and
-                not self.qso_time_on.get(self.call_ready_to_log)            
+                not self.qso_time_on.get(self.call_ready_to_log)
             ):
                 self.qso_time_on[self.call_ready_to_log] = self.qso_time_off[self.call_ready_to_log]
-            
-            qso_date        = self.qso_time_on[self.call_ready_to_log].strftime('%Y%m%d')        
+
+            qso_date        = self.qso_time_on[self.call_ready_to_log].strftime('%Y%m%d')
             qso_time_on     = self.qso_time_on[self.call_ready_to_log].strftime('%H%M%S')
             qso_time_off    = self.qso_time_off[self.call_ready_to_log].strftime('%H%M%S')
 
@@ -1819,6 +1851,9 @@ class Listener(QObject):
                 f"<eor>\n"
             ])
 
+            # Store the ADIF entry for reuse by other functions
+            self.last_adif_entry = adif_entry
+
             with open(self.adif_worked_backup_file_path, "a") as adif_file:
                 adif_file.write(adif_entry)
             log.warning("QSO Logged [ {} ]".format(self.call_ready_to_log))
@@ -1836,6 +1871,9 @@ class Listener(QObject):
                             self.club_log_uploader = None
                 except Exception as club_log_error:
                     log.error(f"Club Log upload error for {callsign}: {club_log_error}")
+
+            if self.enable_lotw_upload and self.lotw_uploader:
+                self.log_qso_to_lotw()
 
         except Exception as e:
             log.error(f"Can't write ADIF file {e}\n{traceback.format_exc()}")
@@ -1884,6 +1922,43 @@ class Listener(QObject):
         except Exception as e:
             log.error(f"Error sending QSOLoggedPacket via UDP: {e}")
             log.error("Caught an error while trying to send QSOLoggedPacket packet: error {}\n{}".format(e, traceback.format_exc()))
+
+    def log_qso_to_lotw(self):
+        if not self.enable_lotw_upload or not self.lotw_uploader:
+            return
+
+        # Reuse the ADIF entry created by log_qso_to_adif
+        if not hasattr(self, 'last_adif_entry') or not self.last_adif_entry:
+            log.error("No ADIF entry available for LoTW upload")
+            return
+
+        try:
+            callsign = self.call_ready_to_log
+            band = self.band
+
+            # Remove the trailing newline from the ADIF entry and add <eor> if needed
+            adif_entry = self.last_adif_entry.strip()
+            if not adif_entry.endswith('<eor>'):
+                adif_entry += ' <eor>'
+
+            # Prepend ADIF header
+            adif_with_header = "ADIF Export\n<ADIF_VER:5>3.1.0\n<PROGRAMID:17>Wait and Pounce\n<EOH>\n" + adif_entry
+
+            log.warning(f"Uploading QSO with {callsign} to LoTW")
+            success, message = self.lotw_uploader.upload_qso(adif_with_header)
+
+            if success:
+                self.lotw_uploader.update_cache(callsign, band)
+                log.info(f"LoTW upload successful for {callsign}: {message}")
+            else:
+                log.error(f"LoTW upload failed for {callsign}: {message}")
+                if "TQSL executable not found" in message or "Authentication failed" in message:
+                    self.lotw_uploader = None
+                    self.enable_lotw_upload = False
+
+        except Exception as lotw_error:
+            log.error(f"LoTW upload error for {self.call_ready_to_log}: {lotw_error}")
+            log.error(f"LoTW upload exception: {traceback.format_exc()}")
 
     def is_ftx_mode(self):
         return self.mode in ["FT8", "FT4"]
