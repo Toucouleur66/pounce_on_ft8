@@ -347,15 +347,31 @@ class WindowController:
                     except:
                         pass
 
-                # The OK button is always the 4th button (index 3) in the JTDX Log QSO dialog
-                # Order: Minimize, Maximize, Close, OK, Cancel
-                if len(buttons) >= 4:
+                # Find the OK button by text (case-insensitive)
+                ok_button = None
+                ok_button_index = None
+                for idx, btn in enumerate(buttons):
+                    try:
+                        text = btn.window_text()
+                        if text.upper() == "OK":
+                            ok_button = btn
+                            ok_button_index = idx
+                            break
+                    except:
+                        pass
+
+                # Fall back to index 3 if OK button not found by text
+                if ok_button is None and len(buttons) >= 4:
                     ok_button = buttons[3]
+                    ok_button_index = 3
+                    log.warning("OK button not found by text, using fallback index 3")
+
+                if ok_button:
                     try:
                         button_text = ok_button.window_text()
-                        log.warning(f"Clicking button at index 3: [ {button_text} ]")
+                        log.warning(f"Clicking button at index {ok_button_index}: [ {button_text} ]")
                     except:
-                        log.warning("Clicking button at index 3")
+                        log.warning(f"Clicking button at index {ok_button_index}")
 
                     ok_button.click()
                     log.warning("Button clicked!")
