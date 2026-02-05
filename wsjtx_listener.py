@@ -679,7 +679,12 @@ class Listener(QObject):
         self.processor_worker.stop()
         self.receiver_thread.quit()
         self.processor_thread.quit()
-        
+
+        if not self.receiver_thread.wait(2_000):
+            log.warning("Receiver thread did not quit in time")
+        if not self.processor_thread.wait(2_000):
+            log.warning("Processor thread did not quit in time")
+
         # Stop ADIF monitor to prevent duplicate processing
         if self.adif_monitor:
             log.info("Stopping ADIF monitor")

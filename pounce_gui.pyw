@@ -2473,7 +2473,14 @@ class MainApp(QtWidgets.QMainWindow):
     def stop_sound_queue(self):
         self.sound_timer.stop()
         while not self.sound_queue.empty():
-            self.sound_queue.get()  
+            self.sound_queue.get()
+
+        # Stop media player
+        try:
+            if hasattr(self, 'media_player') and self.media_player is not None:
+                self.media_player.stop()
+        except Exception as e:
+            log.exception("Error stopping media player in stop_sound_queue")
 
         self.currently_playing = False
     
@@ -2485,17 +2492,23 @@ class MainApp(QtWidgets.QMainWindow):
         if not self.sound_queue.empty():
             self.currently_playing = True
             sound_name = self.sound_queue.get()
-            
+
             # Recreate audio output to handle device changes on macOS
             if sys.platform == 'darwin':
+                # Clean up old audio output before creating new one
+                if hasattr(self, 'audio_output') and self.audio_output is not None:
+                    try:
+                        self.audio_output.deleteLater()
+                    except Exception as e:
+                        log.debug(f"Error deleting old audio output: {e}")
                 self.audio_output = QAudioOutput()
                 self.media_player.setAudioOutput(self.audio_output)
-            
+
             # Set source and play
             sound_file = self.sound_files[sound_name]
             self.media_player.setSource(QtCore.QUrl.fromLocalFile(sound_file))
             self.media_player.play()
-            
+
             # Use fixed duration since QMediaPlayer duration isn't immediately available
             self.sound_timer.start(1000)
         else:
@@ -2708,12 +2721,32 @@ class MainApp(QtWidgets.QMainWindow):
             
     def on_close(self, event):
         self.save_window_position()
+
+        # Stop monitoring first
+        if self._running:
+            self.stop_monitoring()
+
+        # Clean up multimedia resources
+        try:
+            if hasattr(self, 'media_player') and self.media_player is not None:
+                self.media_player.stop()
+                self.media_player.setSource(QtCore.QUrl())
+        except Exception as e:
+            log.exception("Error stopping media player in on_close")
+
+        # Stop timers
+        try:
+            if hasattr(self, 'sound_timer') and self.sound_timer is not None:
+                self.sound_timer.stop()
+        except Exception as e:
+            log.exception("Error stopping sound timer")
+
+        # Close child windows
         if self.grid_monitor:
             self.grid_monitor.close()
         if self.active_users_window:
             self.active_users_window.close()
-        if self._running:
-            self.stop_monitoring()
+
         event.accept()
 
     def show_active_users(self):
@@ -2783,16 +2816,32 @@ class MainApp(QtWidgets.QMainWindow):
 
     def quit_application(self):
         self.save_window_position()
-        
+
         log.debug(f"Quit {GUI_LABEL_NAME}")
-        
+
         # Set flag to indicate app is shutting down
         self.app_shutting_down = True
-        
+
+        # Stop monitoring if running
+        if self._running:
+            self.stop_monitoring()
+
+        # Clean up multimedia resources
+        try:
+            if hasattr(self, 'media_player') and self.media_player is not None:
+                self.media_player.stop()
+                self.media_player.setSource(QtCore.QUrl())
+        except Exception as e:
+            log.exception("Error stopping media player")
+
         # Close grid monitor without triggering toggle
         if self.grid_monitor:
             self.grid_monitor.close()
-        
+
+        # Close active users window
+        if hasattr(self, 'active_users_window') and self.active_users_window:
+            self.active_users_window.close()
+
         QtWidgets.QApplication.quit()
 
     def change_language(self, language_code):
@@ -2818,9 +2867,21 @@ class MainApp(QtWidgets.QMainWindow):
         # Set flag to indicate app is shutting down
         self.app_shutting_down = True
 
+        # Clean up multimedia resources
+        try:
+            if hasattr(self, 'media_player') and self.media_player is not None:
+                self.media_player.stop()
+                self.media_player.setSource(QtCore.QUrl())
+        except Exception as e:
+            log.exception("Error stopping media player")
+
         # Close grid monitor without triggering toggle
         if self.grid_monitor:
             self.grid_monitor.close()
+
+        # Close active users window
+        if hasattr(self, 'active_users_window') and self.active_users_window:
+            self.active_users_window.close()
 
         # Determine the executable path for restart
         if getattr(sys, 'frozen', False):
@@ -4188,10 +4249,70 @@ class MainApp(QtWidgets.QMainWindow):
 
 def on_about_to_quit(window):
     log.info("Application is about to quit. Cleaning up...")
-    
+
+    # Stop all monitoring activities first
+    if window._running:
+        try:
+            log.info("Stopping monitoring")
+            window.stop_monitoring()
+        except Exception as e:
+            log.exception("Error stopping monitoring")
+
+    # Clean up multimedia resources
+    try:
+        log.info("Cleaning up multimedia resources")
+        if hasattr(window, 'media_player') and window.media_player is not None:
+            window.media_player.stop()
+            window.media_player.setSource(QtCore.QUrl())
+            window.media_player.deleteLater()
+            window.media_player = None
+
+        if hasattr(window, 'audio_output') and window.audio_output is not None:
+            window.audio_output.deleteLater()
+            window.audio_output = None
+    except Exception as e:
+        log.exception("Error cleaning up multimedia resources")
+
+    # Stop any running timers
+    try:
+        log.info("Stopping timers")
+        if hasattr(window, 'sound_timer') and window.sound_timer is not None:
+            window.sound_timer.stop()
+        if hasattr(window, 'timer') and window.timer is not None:
+            window.timer.stop()
+    except Exception as e:
+        log.exception("Error stopping timers")
+
+    # Clean up threads
+    try:
+        log.info("Cleaning up threads")
+        if hasattr(window, 'thread') and window.thread is not None:
+            if window.thread.isRunning():
+                window.thread.quit()
+                if not window.thread.wait(3000):
+                    log.warning("Thread did not quit in time, terminating")
+                    window.thread.terminate()
+                    window.thread.wait()
+            window.thread = None
+    except Exception as e:
+        log.exception("Error cleaning up threads")
+
+    # Clean up file handler
+    try:
+        log.info("Cleaning up file handler")
+        if hasattr(window, 'file_handler') and window.file_handler is not None:
+            remove_file_handler(window.file_handler)
+            window.file_handler = None
+    except Exception as e:
+        log.exception("Error cleaning up file handler")
+
+    # Close windows
     if window.grid_monitor:
         window.app_shutting_down = True
         window.grid_monitor.close()
+
+    if hasattr(window, 'active_users_window') and window.active_users_window:
+        window.active_users_window.close()
 
     if sys.platform == 'darwin':
         try:
@@ -4210,7 +4331,10 @@ def on_about_to_quit(window):
         log.info("Calling save_worked_callsigns")
         window.save_worked_callsigns()
     except Exception as e:
-        log.exception("Error in save_worked_callsigns")     
+        log.exception("Error in save_worked_callsigns")
+
+    # Small delay to allow resources to fully release
+    QtCore.QThread.msleep(100)     
 
 def main():
     app             = QtWidgets.QApplication(sys.argv)    
