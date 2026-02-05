@@ -355,6 +355,7 @@ class SettingsStrings:
 
     GROUP_AUTOMATE_TASKS_SETTINGS = lambda: tr("SettingsDialog", "Automation Options")
     CLOSE_JTDX_LOG_QSO_PROMPT = lambda: tr("SettingsDialog", "Close JTDX Log QSO window prompt")
+    JTDX_CLICK_DELAY_LABEL = lambda: tr("SettingsDialog", "Delay before clicking (seconds):")
     BUTTON_AUTOMATE_TASKS_TEST = lambda: tr("SettingsDialog", "Test it")
     BUTTON_TEST_WINDOWS_MONITORING = lambda: tr("SettingsDialog", "Test Windows Monitoring Permissions")
 

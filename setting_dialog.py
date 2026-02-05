@@ -71,6 +71,7 @@ from constants import (
     DEFAULT_MAX_WAITING_DELAY,
     DEFAULT_MINIMUM_REPORT,
     DEFAULT_JTDX_CLICK_PROMPT_LOG_QSO,
+    DEFAULT_JTDX_CLICK_DELAY,
     # Fonts
     CUSTOM_FONT,
     CUSTOM_FONT_SMALL,
@@ -1396,6 +1397,23 @@ class SettingsDialog(QtWidgets.QDialog):
 
         automate_tasks_settings_layout.addLayout(jtdx_log_qso_layout)
 
+        # Add delay spinbox for JTDX click delay
+        jtdx_delay_layout = QtWidgets.QHBoxLayout()
+        jtdx_delay_label = QtWidgets.QLabel(SettingsStrings.JTDX_CLICK_DELAY_LABEL())
+        jtdx_delay_label.setFont(CUSTOM_FONT)
+        self.jtdx_click_delay_spinbox = QtWidgets.QSpinBox()
+        self.jtdx_click_delay_spinbox.setFont(CUSTOM_FONT)
+        self.jtdx_click_delay_spinbox.setMinimum(0)
+        self.jtdx_click_delay_spinbox.setMaximum(30)
+        self.jtdx_click_delay_spinbox.setValue(DEFAULT_JTDX_CLICK_DELAY)
+        self.jtdx_click_delay_spinbox.setSuffix(" s")
+        self.jtdx_click_delay_spinbox.setMaximumWidth(100)
+        jtdx_delay_layout.addWidget(jtdx_delay_label)
+        jtdx_delay_layout.addWidget(self.jtdx_click_delay_spinbox)
+        jtdx_delay_layout.addStretch()
+
+        automate_tasks_settings_layout.addLayout(jtdx_delay_layout)
+
         automate_tasks_settings_group.setLayout(automate_tasks_settings_layout)
 
         # Test button outside the group
@@ -2194,6 +2212,9 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_jtdx_click_log_qso.setChecked(
             self.params.get('enable_jtdx_click_log_qso', DEFAULT_JTDX_CLICK_PROMPT_LOG_QSO)
         )
+        self.jtdx_click_delay_spinbox.setValue(
+            self.params.get('jtdx_click_delay', DEFAULT_JTDX_CLICK_DELAY)
+        )
         self.enable_debug_output.setChecked(
             self.params.get('enable_debug_output', DEFAULT_DEBUG_OUTPUT)
         )
@@ -2433,6 +2454,7 @@ class SettingsDialog(QtWidgets.QDialog):
             'enable_gap_finder'                          : self.enable_gap_finder.isChecked(),
             'enable_watchdog_bypass'                     : self.enable_watchdog_bypass.isChecked(),
             'enable_jtdx_click_log_qso'                  : self.enable_jtdx_click_log_qso.isChecked(),
+            'jtdx_click_delay'                           : self.jtdx_click_delay_spinbox.value(),
             'enable_debug_output'                        : self.enable_debug_output.isChecked(),
             'enable_extra_gui_debug_output'              : self.enable_extra_gui_debug_output.isChecked(),
             'enable_pounce_log'                          : self.enable_pounce_log.isChecked(),

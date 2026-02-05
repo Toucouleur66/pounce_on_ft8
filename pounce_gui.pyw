@@ -151,6 +151,7 @@ from constants import (
     DEFAULT_GAP_FINDER,
     DEFAULT_WATCHDOG_BYPASS,
     DEFAULT_JTDX_CLICK_PROMPT_LOG_QSO,
+    DEFAULT_JTDX_CLICK_DELAY,
     DEFAULT_DEBUG_OUTPUT,
     DEFAULT_POUNCE_LOG,
     DEFAULT_LOG_PACKET_DATA,
@@ -295,6 +296,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.jtdx_auto_click_timer = QtCore.QTimer(self)
         self.jtdx_auto_click_timer.timeout.connect(self.auto_click_jtdx_window)
         self.jtdx_window_controller = None
+        self.jtdx_window_detected_at = None
 
         self._running                           = False
         self._instance                          = None
@@ -4145,13 +4147,56 @@ class MainApp(QtWidgets.QMainWindow):
                 from window_controller import WindowController
                 self.jtdx_window_controller = WindowController()
 
-            self.jtdx_window_controller.auto_click_jtdx_log_qso_if_present()
+            # Get the configured delay
+            delay_seconds = self.local_params.get('jtdx_click_delay', DEFAULT_JTDX_CLICK_DELAY)
+
+            # Check if the window is present
+            import platform
+            from window_controller import is_admin_windows
+
+            if platform.system() == "Windows" and not is_admin_windows():
+                return
+
+            windows = self.jtdx_window_controller.get_windows_list()
+            target_window = None
+            for window in windows:
+                window_display = window.get('display', '')
+                if "JTDX" in window_display and "Log QSO" in window_display:
+                    target_window = window
+                    break
+
+            if target_window:
+                # Window is present
+                import time
+                current_time = time.time()
+
+                if self.jtdx_window_detected_at is None:
+                    # First detection, record the time
+                    self.jtdx_window_detected_at = current_time
+                    if delay_seconds > 0:
+                        log.info(f"JTDX Log QSO window detected, waiting {delay_seconds}s before clicking")
+                    else:
+                        log.info("JTDX Log QSO window detected, clicking immediately")
+
+                # Check if enough time has passed
+                elapsed = current_time - self.jtdx_window_detected_at
+                if elapsed >= delay_seconds:
+                    # Time to click
+                    success = self.jtdx_window_controller.click_ok_button_jtdx(target_window)
+                    if success:
+                        log.warning(f"Auto-clicked OK on: {target_window['display']}")
+                        # Reset the detection time for next occurrence
+                        self.jtdx_window_detected_at = None
+            else:
+                # Window not present, reset detection time
+                self.jtdx_window_detected_at = None
+
         except Exception as e:
             log.error(f"Error in auto_click_jtdx_window: {e}")
 
     def start_jtdx_auto_click(self):
         if not self.jtdx_auto_click_timer.isActive():
-            self.jtdx_auto_click_timer.start(1000) 
+            self.jtdx_auto_click_timer.start(1_000) 
             log.info("Started JTDX Log QSO monitoring")
 
     def stop_jtdx_auto_click(self):
