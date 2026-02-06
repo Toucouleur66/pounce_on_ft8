@@ -326,7 +326,8 @@ class SettingsStrings:
         "<p>Wait and Pounce will write a new entry on a dedicated and specific ADIF File for each logged QSO.</p><p>This file can be used as a backup of your main logging sequence with JTDX or WSJT-x.</p><p>This log will always be analyzed even if you have an empty list of ADIF files for logbook analysis.</p>"
     )
     GROUP_BACKUP_FILE = lambda: tr("SettingsDialog", "Wait and Pounce Backup File")
-    CHECK_SAVE_LOG = lambda filename: tr("SettingsDialog", "Save log to") + f" {filename}"
+    CHECK_SAVE_LOG = lambda: tr("SettingsDialog", "Save debugging to log") 
+    BUTTON_OPEN_LOG_FOLDER = lambda: tr("SettingsDialog", "Open log folder")
     BUTTON_SELECT_BACKUP = lambda: tr("SettingsDialog", "Select Backup File")
     BACKUP_STATUS_NO_FILE = lambda: tr("SettingsDialog", "<p>Backup File Status: No file selected</p>")
     BACKUP_STATUS_READY = lambda status, total, unique, first, last: (

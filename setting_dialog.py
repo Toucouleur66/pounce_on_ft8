@@ -1456,7 +1456,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_extra_gui_debug_output.setFont(CUSTOM_FONT)
         self.enable_extra_gui_debug_output.setChecked(False)
 
-        self.enable_pounce_log = QtWidgets.QCheckBox(SettingsStrings.CHECK_SAVE_LOG(get_log_filename()))
+        self.enable_pounce_log = QtWidgets.QCheckBox(SettingsStrings.CHECK_SAVE_LOG())
         self.enable_pounce_log.setFont(CUSTOM_FONT)
         self.enable_pounce_log.setChecked(DEFAULT_POUNCE_LOG)
 
@@ -1471,9 +1471,14 @@ class SettingsDialog(QtWidgets.QDialog):
 
         log_settings_group.setLayout(log_settings_layout)
 
+        # Add button to open log folder
+        self.open_log_folder_button = CustomButton(SettingsStrings.BUTTON_OPEN_LOG_FOLDER())
+        self.open_log_folder_button.clicked.connect(self.open_log_folder_clicked)
+
         # Add debug settings to debugging page
         debugging_layout.addWidget(debug_notice_label)
         debugging_layout.addWidget(log_settings_group)
+        debugging_layout.addWidget(self.open_log_folder_button)
         debugging_layout.addStretch()
 
         self.load_params()
@@ -2127,6 +2132,21 @@ class SettingsDialog(QtWidgets.QDialog):
     def open_windows_monitoring_test(self):
         dialog = WindowMonitoringDialog(self, self.dark_mode)
         dialog.exec()
+
+    def open_log_folder_clicked(self):
+        from utils import get_app_data_dir
+        log_folder = get_app_data_dir()
+
+        if not os.path.exists(log_folder):
+            QtWidgets.QMessageBox.warning(self, "Folder not found", f"Log folder doesn't exist:\n{log_folder}")
+            return
+
+        if platform.system() == 'Darwin':
+            subprocess.call(['open', log_folder])
+        elif platform.system() == 'Windows':
+            subprocess.run(['explorer', log_folder])
+        elif os.name == 'posix':
+            subprocess.call(['xdg-open', log_folder])
 
     def test_jtdx_log_qso_window(self):        
         controller = WindowController()
