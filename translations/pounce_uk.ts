@@ -782,6 +782,62 @@
         <translation>Увімкнути автоматичне завантаження до Club Log</translation>
     </message>
     <message>
+        <source>LoTW Upload/Download Settings</source>
+        <translation>Налаштування синхронізації LoTW</translation>
+    </message>
+    <message>
+        <source>Enable automatic synch to LoTW</source>
+        <translation>Увімкнути автоматичну синхронізацію з LoTW</translation>
+    </message>
+    <message>
+        <source>Download QSLs since:</source>
+        <translation>Завантажити QSL з:</translation>
+    </message>
+    <message>
+        <source>Download interval (minutes):</source>
+        <translation>Інтервал завантаження (хвилини):</translation>
+    </message>
+    <message>
+        <source>Station Location:</source>
+        <translation>Місцезнаходження станції:</translation>
+    </message>
+    <message>
+        <source>Signing Password:</source>
+        <translation>Пароль підпису:</translation>
+    </message>
+    <message>
+        <source>TQSL Path:</source>
+        <translation>Шлях до TQSL:</translation>
+    </message>
+    <message>
+        <source>.tqsl Folder:</source>
+        <translation>Тека .tqsl:</translation>
+    </message>
+    <message>
+        <source>Test Upload Last QSO</source>
+        <translation>Тест завантаження останнього QSO</translation>
+    </message>
+    <message>
+        <source>Test Download QSLs</source>
+        <translation>Тест завантаження QSL</translation>
+    </message>
+    <message>
+        <source>Your LoTW username (usually callsign)</source>
+        <translation>Ваше ім'я користувача LoTW (зазвичай позивний)</translation>
+    </message>
+    <message>
+        <source>Your LoTW account password</source>
+        <translation>Пароль вашого облікового запису LoTW</translation>
+    </message>
+    <message>
+        <source>Station location name in TQSL</source>
+        <translation>Назва місцезнаходження станції в TQSL</translation>
+    </message>
+    <message>
+        <source>Certificate signing password (if set)</source>
+        <translation>Пароль підпису сертифіката (якщо встановлено)</translation>
+    </message>
+    <message>
         <source>Callsign:</source>
         <translation>Позивний:</translation>
     </message>

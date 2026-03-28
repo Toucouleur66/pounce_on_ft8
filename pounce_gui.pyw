@@ -51,6 +51,7 @@ from theme_manager import ThemeManager
 from context_menu_handler import ContextMenuHandler
 from clublog import ClubLogManager
 from lotw_manager import LoTWManager
+from lotw_sync_worker import LoTWSyncWorker
 from country_files import CountryFilesManager
 from setting_dialog import SettingsDialog
 from exclusion_dialog import ExclusionDialog
@@ -163,6 +164,7 @@ from constants import (
     ACTIVITY_BAR_MAX_VALUE,
     WKB4_REPLY_MODE_ALWAYS,
     convert_wkb4_reply_mode,
+    LOTW_SYNC_INTERVAL_MINUTES,
     # Fonts
     CUSTOM_FONT,
     CUSTOM_FONT_MONO_LG,
@@ -210,6 +212,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.worker              = None
         self.timer               = None
         self.tray_icon           = None
+        self.lotw_download_timer = None
+        self._lotw_sync_thread   = None
+        self._lotw_sync_worker   = None
         self.grid_monitor        = None
         self.active_users_window = None
         self.app_shutting_down   = False
@@ -789,7 +794,10 @@ class MainApp(QtWidgets.QMainWindow):
 
         if self.enable_auto_start_monitoring:
             self.start_monitoring()
-        
+
+        # Start LoTW sync independently of monitoring
+        self._restart_lotw_sync_timer()
+
     def init_status_bar(self):
             self.status_bar = CustomStatusBar()
             self.status_bar.clicked.connect(self.open_settings)
@@ -2495,17 +2503,6 @@ class MainApp(QtWidgets.QMainWindow):
             self.currently_playing = True
             sound_name = self.sound_queue.get()
 
-            # Recreate audio output to handle device changes on macOS
-            if sys.platform == 'darwin':
-                # Clean up old audio output before creating new one
-                if hasattr(self, 'audio_output') and self.audio_output is not None:
-                    try:
-                        self.audio_output.deleteLater()
-                    except Exception as e:
-                        log.debug(f"Error deleting old audio output: {e}")
-                self.audio_output = QAudioOutput()
-                self.media_player.setAudioOutput(self.audio_output)
-
             # Set source and play
             sound_file = self.sound_files[sound_name]
             self.media_player.setSource(QtCore.QUrl.fromLocalFile(sound_file))
@@ -2514,7 +2511,7 @@ class MainApp(QtWidgets.QMainWindow):
             # Use fixed duration since QMediaPlayer duration isn't immediately available
             self.sound_timer.start(1000)
         else:
-            self.currently_playing = False            
+            self.currently_playing = False
 
     def get_size_of_output_model(self):
         output_model_size_bytes = self.output_model._current_size_bytes
@@ -2812,6 +2809,9 @@ class MainApp(QtWidgets.QMainWindow):
             elif not self.enable_pounce_log and previous_enable_pounce_log:
                 remove_file_handler(self.file_handler)
                 self.file_handler = None
+
+            # Restart LoTW sync timer regardless of monitoring state
+            self._restart_lotw_sync_timer()
 
             if self._running:
                 self.refresh_monitoring()
@@ -4038,12 +4038,79 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.worker.message.connect(self.handle_message_received)
 
-        self.thread.start()   
+        self.thread.start()
+
+    def _restart_lotw_sync_timer(self):
+        """Stop any existing LoTW timer and restart it based on current settings"""
+        if self.lotw_download_timer:
+            self.lotw_download_timer.stop()
+            self.lotw_download_timer = None
+
+        if self.local_params.get('enable_lotw_upload', False) and self.local_params.get('lotw_username', ''):
+            interval_minutes = self.local_params.get('lotw_download_interval', LOTW_SYNC_INTERVAL_MINUTES)
+            interval_ms = interval_minutes * 60 * 1000
+
+            self.lotw_download_timer = QtCore.QTimer(self)
+            self.lotw_download_timer.timeout.connect(self.download_lotw_qsls)
+            self.lotw_download_timer.start(interval_ms)
+
+            # Trigger an immediate first sync 5 seconds after launch/settings change
+            QtCore.QTimer.singleShot(5000, self.download_lotw_qsls)
+            log.info(f"LoTW sync timer started — first sync in 5s, then every {interval_minutes} min")
+        else:
+            log.info("LoTW sync disabled — timer not started")
 
     def handle_worker_error(self, error_message):
         log.error(error_message)
         self.stop_worker() 
         self.stop_monitoring()
+
+    def download_lotw_qsls(self):
+        """Trigger a background LoTW QSL download using LoTWSyncWorker in a QThread"""
+        # Skip if a sync is already running
+        if self._lotw_sync_thread and self._lotw_sync_thread.isRunning():
+            log.info("LoTW sync already in progress, skipping")
+            return
+
+        username      = self.local_params.get('lotw_username', '')
+        password      = self.local_params.get('lotw_password', '')
+        qso_since_str = self.local_params.get('lotw_qso_since_date', '')
+
+        if not username or not password:
+            return
+
+        thread = QtCore.QThread(self)
+        worker = LoTWSyncWorker(username, password, qso_since_str)
+        worker.moveToThread(thread)
+
+        def on_finished(success, new_since, updated_count):
+            thread.quit()
+            self._lotw_sync_thread = None
+            self._lotw_sync_worker = None
+
+            if success:
+                self.local_params['lotw_qso_since_date'] = new_since
+                self.save_params()
+                if updated_count:
+                    log.info(f"LoTW sync completed — {updated_count} local record(s) updated")
+                    # Force a full rescan so adif_monitor picks up the in-place edits
+                    try:
+                        from constants import ADIF_WORKED_CALLSIGNS_FILE
+                        if self.worker and self.worker.listener and self.worker.listener.adif_monitor:
+                            self.worker.listener.adif_monitor.force_full_rescan(ADIF_WORKED_CALLSIGNS_FILE)
+                    except Exception:
+                        pass
+                else:
+                    log.info("LoTW sync completed — no local records matched")
+            else:
+                log.error("LoTW sync failed — since_date unchanged, will retry next interval")
+
+        thread.started.connect(worker.run)
+        worker.finished.connect(on_finished)
+
+        self._lotw_sync_thread = thread
+        self._lotw_sync_worker = worker
+        thread.start()
 
     def on_listener_started(self):
         if platform.system() == 'Windows':
@@ -4072,10 +4139,10 @@ class MainApp(QtWidgets.QMainWindow):
     def refresh_monitoring(self):
         if not self._running or not self.worker:
             return
-            
+
         self.local_params = self.load_params()
         self.set_worker_settings()
-        
+
         # Signal the worker to update its listener settings
         self.worker.update_listener_settings_signal.emit()
         self.worker.show_listener_settings_signal.emit()
@@ -4207,6 +4274,10 @@ class MainApp(QtWidgets.QMainWindow):
     def stop_monitoring(self):
         self.network_check_status.stop()
         self.stop_jtdx_auto_click()
+
+        if hasattr(self, 'lotw_download_timer') and self.lotw_download_timer:
+            self.lotw_download_timer.stop()
+            self.lotw_download_timer = None
         self.activity_bar.setValue(0)
         self.hide_status_menu()
 

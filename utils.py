@@ -37,7 +37,8 @@ AMATEUR_BANDS = {
         '4m'    : (69_950_000, 70_500_000),
         '2m'    : (144_000_000, 148_000_000),
         '70cm'  : (430_000_000, 440_000_000),
-        '13cm' : (2_300_000_000, 2_450_000_000)
+        '13cm' : (2_300_000_000, 2_450_000_000),
+        '3cm' : (10_455_000_000, 10_500_000_000),
 }
 
 ADIF_FIELD_RE = re.compile(r"<(\w+):\d+(?::\w+)?>([^<]+)", re.IGNORECASE)
@@ -389,7 +390,7 @@ def is_exact_match(patterns, callsign):
     return callsign.upper() in patterns
 
 def is_valid_continent(continent):
-    valid_continents = {"EU", "NA", "OC", "SA", "AS"}
+    valid_continents = {"EU", "NA", "OC", "SA", "AS", "USA", "AF"}
     return continent in valid_continents
 
 def is_valid_grid(grid, callsign_info):
@@ -1021,10 +1022,10 @@ def complementary_color(color):
     return QColor.fromHsv(complementary_h, s, v, a)
 
 def band_sort_key(band):
-    if band.endswith("m"):
-        return int(band[:-1])
-    elif band.endswith("cm"):
+    if band.endswith("cm"):
         return float(band[:-2]) / 100
+    elif band.endswith("m"):
+        return int(band[:-1])
     return float('inf')
 
 def is_valid_grid_format(grid):

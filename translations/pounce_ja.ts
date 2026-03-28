@@ -778,6 +778,62 @@
         <translation>Club Logへの自動アップロードを有効化</translation>
     </message>
     <message>
+        <source>LoTW Upload/Download Settings</source>
+        <translation>LoTW同期設定</translation>
+    </message>
+    <message>
+        <source>Enable automatic synch to LoTW</source>
+        <translation>LoTWへの自動同期を有効化</translation>
+    </message>
+    <message>
+        <source>Download QSLs since:</source>
+        <translation>QSLのダウンロード開始日：</translation>
+    </message>
+    <message>
+        <source>Download interval (minutes):</source>
+        <translation>ダウンロード間隔（分）：</translation>
+    </message>
+    <message>
+        <source>Station Location:</source>
+        <translation>ステーションロケーション：</translation>
+    </message>
+    <message>
+        <source>Signing Password:</source>
+        <translation>署名パスワード：</translation>
+    </message>
+    <message>
+        <source>TQSL Path:</source>
+        <translation>TQSLパス：</translation>
+    </message>
+    <message>
+        <source>.tqsl Folder:</source>
+        <translation>.tqslフォルダ：</translation>
+    </message>
+    <message>
+        <source>Test Upload Last QSO</source>
+        <translation>最後のQSOのアップロードをテスト</translation>
+    </message>
+    <message>
+        <source>Test Download QSLs</source>
+        <translation>QSLのダウンロードをテスト</translation>
+    </message>
+    <message>
+        <source>Your LoTW username (usually callsign)</source>
+        <translation>LoTWのユーザー名（通常はコールサイン）</translation>
+    </message>
+    <message>
+        <source>Your LoTW account password</source>
+        <translation>LoTWアカウントのパスワード</translation>
+    </message>
+    <message>
+        <source>Station location name in TQSL</source>
+        <translation>TQSLのステーションロケーション名</translation>
+    </message>
+    <message>
+        <source>Certificate signing password (if set)</source>
+        <translation>証明書署名パスワード（設定されている場合）</translation>
+    </message>
+    <message>
         <source>Callsign:</source>
         <translation>コールサイン:</translation>
     </message>

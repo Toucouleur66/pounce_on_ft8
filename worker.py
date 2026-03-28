@@ -328,8 +328,8 @@ class Worker(QObject):
 
             # Reinitialize LoTW uploader if settings changed
             if self.enable_lotw_upload and self.lotw_username:
-                from lotw_uploader import LoTWUploader
-                self.listener.lotw_uploader = LoTWUploader(
+                from lotw_uploader import LoTWClient
+                self.listener.lotw_uploader = LoTWClient(
                     self.lotw_username,
                     self.lotw_password,
                     self.tqsl_path or None,

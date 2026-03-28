@@ -14,7 +14,10 @@ from constants import LOTW_UPLOAD_CACHE_FILE
 log = get_logger(__name__)
 
 
-class LoTWUploader:
+class LoTWClient:
+    UPLOAD_URL   = "https://lotw.arrl.org/lotw/upload"
+    DOWNLOAD_URL = "https://lotw.arrl.org/lotwuser/lotwreport.adi"
+
     def __init__(self, username, password, tqsl_path=None, tqsl_dir=None, location=None, signing_password=None):
         """
             Initialize LoTW uploader
@@ -202,19 +205,21 @@ class LoTWUploader:
         """
         try:
             params = {
-                'login': self.username,
-                'password': self.password,
-                'qso_query': '1',
-                'qso_qsl': 'yes',
-                'qso_qsldetail': 'yes',
+                'login':        self.username,
+                'password':     self.password,
+                'qso_query':    '1',
+                'qso_qsl':      'yes',
+                'qso_qsldetail':'yes',
                 'qso_mydetail': 'yes',
-                'qso_withown': 'yes'
+                'qso_withown':  'yes'
             }
 
             if qsl_since:
-                params['qso_qslsince'] = qsl_since
+                # LoTW requires full datetime YYYY-MM-DD HH:MM:SS (date-only is ignored)
+                params['qso_qslsince'] = qsl_since[:19]
+                log.info(f"Filtering QSLs since: {params['qso_qslsince']}")
             if qso_since:
-                params['qso_qsorxsince'] = qso_since
+                params['qso_qsorxsince'] = qso_since[:10]
             if callsign:
                 params['qso_callsign'] = callsign
             if mode:
@@ -222,14 +227,16 @@ class LoTWUploader:
             if band:
                 params['qso_band'] = band
 
-            log.debug(f"Downloading from LoTW: {self.DOWNLOAD_URL}")
-            log.debug(f"Parameters: login={self.username}, filters={callsign or 'all'}/{mode or 'all'}/{band or 'all'}")
+            from urllib.parse import urlencode, quote
+            # LoTW requires spaces encoded as %20 (not +) and colons encoded as %2C
+            # Build query string manually with quote_via=quote to avoid + encoding
+            query_string = urlencode(params, quote_via=quote)
+            full_url = f"{self.DOWNLOAD_URL}?{query_string}"
+            log.info(f"Sending HTTP GET to LoTW: {full_url.replace(self.password, '***')}")
 
-            response = requests.get(
-                self.DOWNLOAD_URL,
-                params=params,
-                timeout=60
-            )
+            response = requests.get(full_url, timeout=60)
+
+            log.info(f"LoTW HTTP response received: status={response.status_code}, size={len(response.text)} bytes")
 
             if response.status_code == 200:
                 # Verify response contains ADIF data

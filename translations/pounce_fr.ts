@@ -778,6 +778,62 @@
         <translation type="unfinished">Activer le téléversement automatique vers Club Log</translation>
     </message>
     <message>
+        <source>LoTW Upload/Download Settings</source>
+        <translation>Paramètres de synchronisation LoTW</translation>
+    </message>
+    <message>
+        <source>Enable automatic synch to LoTW</source>
+        <translation>Activer la synchronisation automatique avec LoTW</translation>
+    </message>
+    <message>
+        <source>Download QSLs since:</source>
+        <translation>Télécharger les QSL depuis :</translation>
+    </message>
+    <message>
+        <source>Download interval (minutes):</source>
+        <translation>Intervalle de téléchargement (minutes) :</translation>
+    </message>
+    <message>
+        <source>Station Location:</source>
+        <translation>Emplacement de la station :</translation>
+    </message>
+    <message>
+        <source>Signing Password:</source>
+        <translation>Mot de passe de signature :</translation>
+    </message>
+    <message>
+        <source>TQSL Path:</source>
+        <translation>Chemin TQSL :</translation>
+    </message>
+    <message>
+        <source>.tqsl Folder:</source>
+        <translation>Dossier .tqsl :</translation>
+    </message>
+    <message>
+        <source>Test Upload Last QSO</source>
+        <translation>Tester l'envoi du dernier QSO</translation>
+    </message>
+    <message>
+        <source>Test Download QSLs</source>
+        <translation>Tester le téléchargement des QSL</translation>
+    </message>
+    <message>
+        <source>Your LoTW username (usually callsign)</source>
+        <translation>Votre identifiant LoTW (généralement l'indicatif)</translation>
+    </message>
+    <message>
+        <source>Your LoTW account password</source>
+        <translation>Votre mot de passe LoTW</translation>
+    </message>
+    <message>
+        <source>Station location name in TQSL</source>
+        <translation>Nom de l'emplacement de station dans TQSL</translation>
+    </message>
+    <message>
+        <source>Certificate signing password (if set)</source>
+        <translation>Mot de passe de signature du certificat (si défini)</translation>
+    </message>
+    <message>
         <source>Callsign:</source>
         <translation>Indicatif:</translation>
     </message>

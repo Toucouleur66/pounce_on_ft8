@@ -29,7 +29,7 @@ from callsign_lookup import CallsignLookup
 from adif_monitor import AdifMonitor
 from telemetry_service import TelemetryService
 from clublog import ClubLogUploader
-from lotw_uploader import LoTWUploader
+from lotw_uploader import LoTWClient
 
 log     = get_logger(__name__)
 
@@ -295,7 +295,7 @@ class Listener(QObject):
             Initialize LoTW uploader
         """
         if self.enable_lotw_upload and self.lotw_username:
-            self.lotw_uploader = LoTWUploader(
+            self.lotw_uploader = LoTWClient(
                 self.lotw_username,
                 self.lotw_password,
                 self.tqsl_path or None,

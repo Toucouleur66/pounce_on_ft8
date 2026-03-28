@@ -14,7 +14,9 @@ from custom_button import CustomButton
 from priority_table import PriorityTableWidget
 from adif_summary_dialog import AdifSummaryDialog
 from lotw_manager import LoTWManager
-from lotw_uploader import LoTWUploader
+from lotw_uploader import LoTWClient
+from lotw_incoming_dialog import LoTWIncomingDialog
+from lotw_sync_worker import LoTWDownloadWorker
 from clublog import ClubLogUploader
 from window_monitoring_dialog import WindowMonitoringDialog
 from window_controller import WindowController
@@ -782,7 +784,7 @@ class SettingsDialog(QtWidgets.QDialog):
         lotw_settings_group.layout().addWidget(lotw_settings_widget)
 
         # LoTW Upload/Download Settings
-        last_upload, total_uploaded, last_callsign_uploaded, last_band_uploaded = LoTWUploader.get_cache_info()
+        last_upload, total_uploaded, last_callsign_uploaded, last_band_uploaded = LoTWClient.get_cache_info()
         if last_upload:
             lotw_upload_cache_text = SettingsStrings.LOTW_UPLOAD_STATUS(total_uploaded, last_upload, last_callsign_uploaded, last_band_uploaded)
         else:
@@ -803,7 +805,7 @@ class SettingsDialog(QtWidgets.QDialog):
         lotw_upload_settings_widget = QtWidgets.QWidget()
         lotw_upload_settings_layout = QtWidgets.QGridLayout(lotw_upload_settings_widget)
 
-        self.enable_lotw_upload = QtWidgets.QCheckBox(SettingsStrings.CHECK_ENABLE_LOTW_UPLOAD())
+        self.enable_lotw_upload = QtWidgets.QCheckBox(SettingsStrings.CHECK_ENABLE_LOTW_SYNCH())
         self.enable_lotw_upload.setFont(CUSTOM_FONT)
         self.enable_lotw_upload.setChecked(False)
 
@@ -832,6 +834,25 @@ class SettingsDialog(QtWidgets.QDialog):
         self.lotw_signing_password.setFont(CUSTOM_FONT)
         self.lotw_signing_password.setEchoMode(QtWidgets.QLineEdit.EchoMode.Password)
         self.lotw_signing_password.setPlaceholderText(SettingsStrings.PLACEHOLDER_LOTW_SIGNING_PASSWORD())
+
+        lotw_qso_since_date_label = QtWidgets.QLabel(SettingsStrings.LABEL_LOTW_QSO_SINCE_DATE())
+        lotw_qso_since_date_label.setFont(CUSTOM_FONT)
+        self.lotw_qso_since_date = QtWidgets.QDateTimeEdit()
+        self.lotw_qso_since_date.setFont(CUSTOM_FONT)
+        self.lotw_qso_since_date.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
+        self.lotw_qso_since_date.setCalendarPopup(False)  # No calendar popup
+        # Set default to 1 year ago
+        from datetime import datetime, timedelta
+        default_date = datetime.now() - timedelta(days=365)
+        self.lotw_qso_since_date.setDateTime(default_date)
+
+        lotw_download_interval_label = QtWidgets.QLabel(SettingsStrings.LABEL_LOTW_DOWNLOAD_INTERVAL())
+        lotw_download_interval_label.setFont(CUSTOM_FONT)
+        self.lotw_download_interval = QtWidgets.QSpinBox()
+        self.lotw_download_interval.setFont(CUSTOM_FONT)
+        self.lotw_download_interval.setMinimum(5)
+        self.lotw_download_interval.setMaximum(1440)
+        self.lotw_download_interval.setValue(10)
 
         tqsl_path_label = QtWidgets.QLabel(SettingsStrings.LABEL_TQSL_PATH())
         tqsl_path_label.setFont(CUSTOM_FONT)
@@ -863,6 +884,14 @@ class SettingsDialog(QtWidgets.QDialog):
         self.test_lotw_upload_button.setFont(CUSTOM_FONT)
         self.test_lotw_upload_button.clicked.connect(self.test_lotw_upload_last_qso)
 
+        self.test_lotw_download_button = QtWidgets.QPushButton(SettingsStrings.BUTTON_TEST_LOTW_DOWNLOAD())
+        self.test_lotw_download_button.setFont(CUSTOM_FONT)
+        self.test_lotw_download_button.clicked.connect(self.test_lotw_download_qsls)
+
+        test_buttons_layout = QtWidgets.QHBoxLayout()
+        test_buttons_layout.addWidget(self.test_lotw_upload_button)
+        test_buttons_layout.addWidget(self.test_lotw_download_button)
+
         lotw_upload_settings_layout.addWidget(self.enable_lotw_upload, 0, 0, 1, 2)
         lotw_upload_settings_layout.addWidget(lotw_username_label, 1, 0, QtCore.Qt.AlignmentFlag.AlignRight)
         lotw_upload_settings_layout.addWidget(self.lotw_username, 1, 1)
@@ -872,11 +901,15 @@ class SettingsDialog(QtWidgets.QDialog):
         lotw_upload_settings_layout.addWidget(self.lotw_location, 3, 1)
         lotw_upload_settings_layout.addWidget(lotw_signing_password_label, 4, 0, QtCore.Qt.AlignmentFlag.AlignRight)
         lotw_upload_settings_layout.addWidget(self.lotw_signing_password, 4, 1)
-        lotw_upload_settings_layout.addWidget(tqsl_path_label, 5, 0, QtCore.Qt.AlignmentFlag.AlignRight)
-        lotw_upload_settings_layout.addLayout(tqsl_path_layout, 5, 1)
-        lotw_upload_settings_layout.addWidget(tqsl_dir_label, 6, 0, QtCore.Qt.AlignmentFlag.AlignRight)
-        lotw_upload_settings_layout.addLayout(tqsl_dir_layout, 6, 1)
-        lotw_upload_settings_layout.addWidget(self.test_lotw_upload_button, 7, 0, 1, 2)
+        lotw_upload_settings_layout.addWidget(lotw_qso_since_date_label, 5, 0, QtCore.Qt.AlignmentFlag.AlignRight)
+        lotw_upload_settings_layout.addWidget(self.lotw_qso_since_date, 5, 1)
+        lotw_upload_settings_layout.addWidget(lotw_download_interval_label, 6, 0, QtCore.Qt.AlignmentFlag.AlignRight)
+        lotw_upload_settings_layout.addWidget(self.lotw_download_interval, 6, 1)
+        lotw_upload_settings_layout.addWidget(tqsl_path_label, 7, 0, QtCore.Qt.AlignmentFlag.AlignRight)
+        lotw_upload_settings_layout.addLayout(tqsl_path_layout, 7, 1)
+        lotw_upload_settings_layout.addWidget(tqsl_dir_label, 8, 0, QtCore.Qt.AlignmentFlag.AlignRight)
+        lotw_upload_settings_layout.addLayout(tqsl_dir_layout, 8, 1)
+        lotw_upload_settings_layout.addLayout(test_buttons_layout, 9, 0, 1, 2)
 
         # Reduce vertical spacing between rows
         lotw_upload_settings_layout.setVerticalSpacing(10)
@@ -1121,7 +1154,7 @@ class SettingsDialog(QtWidgets.QDialog):
         row = 0
         col = 0
 
-        for amateur_band in list(AMATEUR_BANDS.keys())[:-3]:
+        for amateur_band in list(AMATEUR_BANDS.keys()):
             btn = CustomButton(amateur_band)
             btn.setCheckable(True)
             btn.toggled.connect(lambda checked, btn=btn, name=amateur_band: self.on_band_toggled(btn, name, checked))
@@ -1862,8 +1895,55 @@ class SettingsDialog(QtWidgets.QDialog):
         else:
             print("No file selected.")
 
+    def test_lotw_download_qsls(self):
+        username = self.lotw_username.text().strip()
+        password = self.lotw_password.text().strip()
+
+        if not username or not password:
+            log.warning("LoTW test download: username or password missing")
+            WindowController.show_test_result_dialog(self, {
+                'title': 'Missing Information',
+                'message': 'Please enter your LoTW username and password.'
+            })
+            return
+
+        qso_since_str = self.lotw_qso_since_date.dateTime().toString('yyyy-MM-dd HH:mm:ss')
+        log.info(f"Starting LoTW test download for {username} since {qso_since_str}")
+
+        self.test_lotw_download_button.setEnabled(False)
+        self.test_lotw_download_button.setText("Downloading...")
+        QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.CursorShape.WaitCursor)
+
+        thread = QtCore.QThread(self)
+        self._lotw_test_worker = LoTWDownloadWorker(username, password, qso_since_str)
+        self._lotw_test_thread = thread
+        self._lotw_test_worker.moveToThread(thread)
+        thread.started.connect(self._lotw_test_worker.run)
+
+        def on_finished(success, result):
+            QtWidgets.QApplication.restoreOverrideCursor()
+            self.test_lotw_download_button.setEnabled(True)
+            self.test_lotw_download_button.setText(SettingsStrings.BUTTON_TEST_LOTW_DOWNLOAD())
+            thread.quit()
+            self._lotw_test_worker = None
+            self._lotw_test_thread = None
+
+            if not success:
+                log.error(f"LoTW test download failed: {result}")
+                WindowController.show_test_result_dialog(self, {
+                    'title': 'Download Failed',
+                    'message': f'Download failed:\n\n{result}'
+                })
+                return
+
+            log.info("LoTW test download successful, showing results")
+            dialog = LoTWIncomingDialog(result, since_date=qso_since_str, dark_mode=self.dark_mode, parent=self)
+            dialog.exec()
+
+        self._lotw_test_worker.finished.connect(on_finished)
+        thread.start()
+
     def browse_tqsl_path(self):
-        """Browse for TQSL executable"""
         dialog = QFileDialog(self)
         dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
 
@@ -1893,7 +1973,21 @@ class SettingsDialog(QtWidgets.QDialog):
                 self.tqsl_path.setText(selected_path)
 
     def browse_tqsl_dir(self):
-        """Browse for .tqsl directory"""
+        dialog = QFileDialog(self)
+        dialog.setFileMode(QFileDialog.FileMode.Directory)
+
+        # Show hidden files while keeping native dialog
+        dialog.setFilter(QtCore.QDir.Filter.Hidden | QtCore.QDir.Filter.AllDirs | QtCore.QDir.Filter.Files)
+
+        # Set default directory to user's home
+        dialog.setDirectory(os.path.expanduser("~"))
+
+        if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            selected_dirs = dialog.selectedFiles()
+            if selected_dirs:
+                self.tqsl_dir.setText(selected_dirs[0])
+
+    def browse_tqsl_dir(self):
         dialog = QFileDialog(self)
         dialog.setFileMode(QFileDialog.FileMode.Directory)
 
@@ -1910,7 +2004,6 @@ class SettingsDialog(QtWidgets.QDialog):
                 self.tqsl_dir.setText(selected_dirs[0])
 
     def test_lotw_upload_last_qso(self):
-        """Test LoTW upload by uploading the last QSO from the log"""
         username = self.lotw_username.text().strip()
         password = self.lotw_password.text().strip()
         location = self.lotw_location.text().strip()
@@ -1984,7 +2077,7 @@ class SettingsDialog(QtWidgets.QDialog):
             log.info(f"Starting LoTW upload for QSO with {callsign}")
 
             # Create uploader instance
-            uploader = LoTWUploader(
+            uploader = LoTWClient(
                 username=username,
                 password=password,
                 tqsl_path=tqsl_path if tqsl_path else None,
@@ -2322,6 +2415,20 @@ class SettingsDialog(QtWidgets.QDialog):
             self.params.get('tqsl_dir', '')
         )
 
+        # Load LoTW QSO since date
+        lotw_qso_since_str = self.params.get('lotw_qso_since_date', '')
+        if lotw_qso_since_str:
+            try:
+                from datetime import datetime
+                lotw_qso_since = datetime.strptime(lotw_qso_since_str, '%Y-%m-%d %H:%M:%S')
+                self.lotw_qso_since_date.setDateTime(lotw_qso_since)
+            except:
+                pass  # Keep default value if parsing fails
+
+        self.lotw_download_interval.setValue(
+            self.params.get('lotw_download_interval', 10)
+        )
+
         # Load ADIF files (support both single file and multiple files for backward compatibility)
         selected_files = self.params.get('adif_file_paths')
         if selected_files is None:
@@ -2509,6 +2616,8 @@ class SettingsDialog(QtWidgets.QDialog):
             'lotw_password'                              : self.lotw_password.text(),
             'lotw_location'                              : self.lotw_location.text(),
             'lotw_signing_password'                      : self.lotw_signing_password.text(),
+            'lotw_qso_since_date'                        : self.lotw_qso_since_date.dateTime().toString('yyyy-MM-dd HH:mm:ss'),
+            'lotw_download_interval'                     : self.lotw_download_interval.value(),
             'tqsl_path'                                  : self.tqsl_path.text(),
             'tqsl_dir'                                   : self.tqsl_dir.text()
         }

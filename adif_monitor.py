@@ -299,6 +299,12 @@ class AdifMonitor:
     def log_statistics(self):
         self._log_adif_statistics()
 
+    def force_full_rescan(self, file_path):
+        abs_path = os.path.abspath(file_path)
+        if abs_path in self.adif_last_size:
+            self.adif_last_size[abs_path] = None
+            log.info(f"Full rescan scheduled for: {abs_path}")
+
     def stop(self):
         log.info("Stopping ADIF monitor")
         self._running = False

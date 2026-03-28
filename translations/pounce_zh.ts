@@ -786,6 +786,62 @@
         <translation>启用自动上传到Club Log</translation>
     </message>
     <message>
+        <source>LoTW Upload/Download Settings</source>
+        <translation>LoTW同步设置</translation>
+    </message>
+    <message>
+        <source>Enable automatic synch to LoTW</source>
+        <translation>启用自动同步到LoTW</translation>
+    </message>
+    <message>
+        <source>Download QSLs since:</source>
+        <translation>下载QSL从：</translation>
+    </message>
+    <message>
+        <source>Download interval (minutes):</source>
+        <translation>下载间隔（分钟）：</translation>
+    </message>
+    <message>
+        <source>Station Location:</source>
+        <translation>电台位置：</translation>
+    </message>
+    <message>
+        <source>Signing Password:</source>
+        <translation>签名密码：</translation>
+    </message>
+    <message>
+        <source>TQSL Path:</source>
+        <translation>TQSL路径：</translation>
+    </message>
+    <message>
+        <source>.tqsl Folder:</source>
+        <translation>.tqsl文件夹：</translation>
+    </message>
+    <message>
+        <source>Test Upload Last QSO</source>
+        <translation>测试上传最后一个QSO</translation>
+    </message>
+    <message>
+        <source>Test Download QSLs</source>
+        <translation>测试下载QSL</translation>
+    </message>
+    <message>
+        <source>Your LoTW username (usually callsign)</source>
+        <translation>您的LoTW用户名（通常是呼号）</translation>
+    </message>
+    <message>
+        <source>Your LoTW account password</source>
+        <translation>您的LoTW账户密码</translation>
+    </message>
+    <message>
+        <source>Station location name in TQSL</source>
+        <translation>TQSL中的电台位置名称</translation>
+    </message>
+    <message>
+        <source>Certificate signing password (if set)</source>
+        <translation>证书签名密码（如已设置）</translation>
+    </message>
+    <message>
         <source>Callsign:</source>
         <translation>呼号：</translation>
     </message>
