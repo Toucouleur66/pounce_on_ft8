@@ -4095,6 +4095,10 @@ class MainApp(QtWidgets.QMainWindow):
         worker = LoTWSyncWorker(username, password, qso_since_str)
         worker.moveToThread(thread)
 
+        # Store references immediately to prevent garbage collection before thread finishes
+        self._lotw_sync_thread = thread
+        self._lotw_sync_worker = worker
+
         def on_finished(success, new_since, updated_count):
             thread.quit()
             self._lotw_sync_thread = None
@@ -4104,7 +4108,6 @@ class MainApp(QtWidgets.QMainWindow):
                 if updated_count:
                     self.local_params['lotw_qso_since_date'] = new_since
                     self.save_params()
-                if updated_count:
                     log.info(f"LoTW sync completed — {updated_count} local record(s) updated")
                     # Force a full rescan so adif_monitor picks up the in-place edits
                     try:
@@ -4114,15 +4117,12 @@ class MainApp(QtWidgets.QMainWindow):
                     except Exception:
                         pass
                 else:
-                    log.info("LoTW sync completed — no local records matched")
+                    log.info("LoTW sync completed — no new QSLs matched")
             else:
                 log.error("LoTW sync failed — since_date unchanged, will retry next interval")
 
         thread.started.connect(worker.run)
         worker.finished.connect(on_finished)
-
-        self._lotw_sync_thread = thread
-        self._lotw_sync_worker = worker
         thread.start()
 
     def on_listener_started(self):
