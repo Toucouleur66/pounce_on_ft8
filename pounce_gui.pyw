@@ -4101,8 +4101,9 @@ class MainApp(QtWidgets.QMainWindow):
             self._lotw_sync_worker = None
 
             if success:
-                self.local_params['lotw_qso_since_date'] = new_since
-                self.save_params()
+                if updated_count:
+                    self.local_params['lotw_qso_since_date'] = new_since
+                    self.save_params()
                 if updated_count:
                     log.info(f"LoTW sync completed — {updated_count} local record(s) updated")
                     # Force a full rescan so adif_monitor picks up the in-place edits

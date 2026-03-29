@@ -73,9 +73,7 @@ class LoTWSyncWorker(QObject):
 
         if not confirmed:
             log.info("LoTW SyncWorker: no new QSLs")
-            # Still update since_date so we don't re-download the same empty window
-            new_since = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            self.finished.emit(True, new_since, 0)
+            self.finished.emit(True, self._qso_since_str, 0)
             return
 
         log.info(f"LoTW SyncWorker: {len(confirmed)} confirmed QSO(s) from LoTW")
