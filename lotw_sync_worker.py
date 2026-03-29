@@ -8,17 +8,13 @@ from datetime import datetime
 from PyQt6.QtCore import QObject, pyqtSignal
 
 from logger import get_logger
-from constants import ADIF_WORKED_CALLSIGNS_FILE
+from constants import ADIF_WORKED_CALLSIGNS_FILE, LOTW_QSL_LOG_FILE
 
 log = get_logger(__name__)
 
 
 class LoTWDownloadWorker(QObject):
-    """
-    Lightweight worker: download only, no ADIF update.
-    Used by the settings dialog test button.
-    """
-    finished = pyqtSignal(bool, str)   # success, adif_data_or_error
+    finished = pyqtSignal(bool, str) 
 
     def __init__(self, username, password, since):
         super().__init__()
@@ -132,11 +128,21 @@ class LoTWSyncWorker(QObject):
                             chunk += ' <lotw_qsl_sent:1>Y'
                             added.append('lotw_qsl_sent:1>Y')
                         if added:
-                            chunk += ' ' 
+                            chunk += ' '
                             updated += 1
+                            mode_m = re.search(r'<mode:\d+>([^\s<]+)', chunk, re.IGNORECASE)
+                            mode   = mode_m.group(1).upper() if mode_m else ''
+                            rcvd_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                             log.info(
                                 f"LoTW Sync: QSL received for {call_m.group(1).upper()} "
                                 f"on {date_m.group(1)} [ {band_m.group(1)} ]"
+                            )
+                            self._append_qsl_log(
+                                callsign  = call_m.group(1).upper(),
+                                qso_date  = date_m.group(1),
+                                band      = band_m.group(1),
+                                mode      = mode,
+                                rcvd_at   = rcvd_at,
                             )
 
                 output.append(chunk + eor_tag)
@@ -157,3 +163,47 @@ class LoTWSyncWorker(QObject):
             log.info("LoTW SyncWorker: no local records matched — ADIF file unchanged")
 
         return updated
+
+    @staticmethod
+    def _append_qsl_log(callsign, qso_date, band, mode, rcvd_at):
+        import json
+        entry = {
+            'callsign': callsign,
+            'qso_date': qso_date,
+            'band':     band,
+            'mode':     mode,
+            'rcvd_at':  rcvd_at,
+        }
+        try:
+            if os.path.exists(LOTW_QSL_LOG_FILE):
+                with open(LOTW_QSL_LOG_FILE, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+            else:
+                data = []
+            data.append(entry)
+            with open(LOTW_QSL_LOG_FILE, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2)
+        except Exception as e:
+            log.error(f"LoTW SyncWorker: failed to write QSL log: {e}")
+
+    @staticmethod
+    def clear_qsl_log():
+        import json
+        try:
+            with open(LOTW_QSL_LOG_FILE, 'w', encoding='utf-8') as f:
+                json.dump([], f)
+            log.info("LoTW QSL log cleared")
+        except Exception as e:
+            log.error(f"LoTW SyncWorker: failed to clear QSL log: {e}")
+
+    @staticmethod
+    def load_qsl_log():
+        """Load all entries from the persistent QSL log file"""
+        import json
+        try:
+            if os.path.exists(LOTW_QSL_LOG_FILE):
+                with open(LOTW_QSL_LOG_FILE, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+        except Exception as e:
+            log.error(f"LoTW SyncWorker: failed to read QSL log: {e}")
+        return []

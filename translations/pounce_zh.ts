@@ -243,6 +243,10 @@
         <translation>更新 LoTW 信息</translation>
     </message>
     <message>
+        <source>Show LoTW QSLs received</source>
+        <translation>显示收到的LoTW QSL</translation>
+    </message>
+    <message>
         <source>Update country and region files</source>
         <translation>更新国家和地区文件</translation>
     </message>

@@ -18,19 +18,47 @@ log = get_logger(__name__)
 
 
 class LoTWIncomingDialog(QDialog):
-    def __init__(self, adif_data, since_date='', dark_mode=False, parent=None):
+    """
+        Can be used in two modes:
+        - adif_data mode (test download): pass raw ADIF string, shows preview without QSL rcvd date
+        - log mode (menu): pass log_entries list of dicts from LoTWSyncWorker.load_qsl_log()
+    """
+    def __init__(self, adif_data=None, since_date='', log_entries=None, dark_mode=False, parent=None):
         super().__init__(parent)
         self.dark_mode   = dark_mode
         self._since_date = since_date
+        self._log_mode   = log_entries is not None
         self.setWindowTitle(f"LoTW Incoming - {GUI_LABEL_VERSION}")
-        self.setMinimumSize(550, 450)
+        self.setMinimumSize(600, 450)
 
-        self._records = self._parse_adif(adif_data)
-        self._stats   = self._compute_stats(self._records)
+        if self._log_mode:
+            self._records = self._records_from_log(log_entries)
+        else:
+            self._records = self._parse_adif(adif_data or '')
+        self._stats = self._compute_stats(self._records)
 
         self._setup_ui()
         self._populate_table()
         self._apply_palette(dark_mode)
+
+    def _records_from_log(self, entries):
+        records = []
+        for e in entries:
+            qso_date = e.get('qso_date', '')
+            if len(qso_date) == 8:
+                date_str = f"{qso_date[6:8]}/{qso_date[4:6]}/{qso_date[:4]}"
+            else:
+                date_str = qso_date
+            records.append({
+                'date':     date_str,
+                'time':     '',
+                'callsign': e.get('callsign', '').upper(),
+                'band':     e.get('band', ''),
+                'mode':     e.get('mode', '').upper(),
+                'rcvd_at':  e.get('rcvd_at', ''),
+                'raw_date': qso_date,
+            })
+        return records
 
     def _parse_adif(self, adif_data):
         records = []
@@ -96,8 +124,13 @@ class LoTWIncomingDialog(QDialog):
         layout = QVBoxLayout(self)
 
         self.table = QTableWidget()
-        self.table.setColumnCount(5)
-        self.table.setHorizontalHeaderLabels(['Date', 'Time', 'Callsign', 'Band', 'Mode'])
+
+        if self._log_mode:
+            self.table.setColumnCount(6)
+            self.table.setHorizontalHeaderLabels(['Date', 'Time', 'Callsign', 'Band', 'Mode', 'QSL Rcvd date'])
+        else:
+            self.table.setColumnCount(5)
+            self.table.setHorizontalHeaderLabels(['Date', 'Time', 'Callsign', 'Band', 'Mode'])
 
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
@@ -112,11 +145,13 @@ class LoTWIncomingDialog(QDialog):
         header.setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)  # Date
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)  # Time
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)             # Callsign — wider
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)             # Callsign
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)  # Band
-        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)             # Mode — compact
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)             # Mode
         self.table.setColumnWidth(2, 140)
         self.table.setColumnWidth(4, 70)
+        if self._log_mode:
+            header.setSectionResizeMode(5, QHeaderView.ResizeMode.Stretch)       # QSL Rcvd date
 
         layout.addWidget(self.table)
 
@@ -131,6 +166,10 @@ class LoTWIncomingDialog(QDialog):
 
         # Buttons
         btn_layout = QHBoxLayout()
+        if self._log_mode:
+            clear_btn = CustomButton("Clear LoTW QSL log")
+            clear_btn.clicked.connect(self._clear_log)
+            btn_layout.addWidget(clear_btn)
         btn_layout.addStretch()
         close_btn = CustomButton("Close")
         close_btn.clicked.connect(self.accept)
@@ -147,6 +186,8 @@ class LoTWIncomingDialog(QDialog):
             self.table.setItem(row, 2, QTableWidgetItem(r['callsign']))
             self.table.setItem(row, 3, QTableWidgetItem(r['band']))
             self.table.setItem(row, 4, QTableWidgetItem(r['mode']))
+            if self._log_mode:
+                self.table.setItem(row, 5, QTableWidgetItem(r.get('rcvd_at', '')))
 
         self.table.setSortingEnabled(True)
 
@@ -156,6 +197,15 @@ class LoTWIncomingDialog(QDialog):
         )
         since_text = f"Fetched from LoTW since: {self._since_date}" if self._since_date else ""
         self.since_label.setText(since_text)
+
+    def _clear_log(self):
+        from lotw_sync_worker import LoTWSyncWorker
+        LoTWSyncWorker.clear_qsl_log()
+        self.table.setRowCount(0)
+        self._records = []
+        self._stats   = {'qsl_rcvd': 0, 'not_in_log': 0}
+        self.stats_label.setText("0 QSL(s) rcvd, 0 QSO(s) not in log")
+        self.since_label.setText("")
 
     def _apply_palette(self, dark_mode):
         set_macos_window_appearance(self, dark_mode)

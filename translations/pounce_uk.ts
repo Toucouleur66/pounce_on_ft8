@@ -243,6 +243,10 @@
         <translation>Оновити LoTW інформацію</translation>
     </message>
     <message>
+        <source>Show LoTW QSLs received</source>
+        <translation>Показати отримані QSL LoTW</translation>
+    </message>
+    <message>
         <source>Update country and region files</source>
         <translation>Оновити файли країн та регіонів</translation>
     </message>

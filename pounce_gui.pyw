@@ -2748,6 +2748,13 @@ class MainApp(QtWidgets.QMainWindow):
 
         event.accept()
 
+    def show_lotw_qsls(self):
+        from lotw_sync_worker import LoTWSyncWorker
+        from lotw_incoming_dialog import LoTWIncomingDialog
+        entries = LoTWSyncWorker.load_qsl_log()
+        dialog = LoTWIncomingDialog(log_entries=entries, dark_mode=self.dark_mode, parent=self)
+        dialog.exec()
+
     def show_active_users(self):
         try:
             if not hasattr(self, 'worker') or self.worker is None:
@@ -3618,6 +3625,11 @@ class MainApp(QtWidgets.QMainWindow):
         self.online_menu.addAction(load_clublog_action)
         self.online_menu.addAction(load_lotw_action)
         self.online_menu.addAction(load_country_file_action)
+        self.online_menu.addSeparator()
+
+        show_lotw_qsls_action = QtGui.QAction(MainWindowStrings.SHOW_LOTW_QSLS(), self)
+        show_lotw_qsls_action.triggered.connect(self.show_lotw_qsls)
+        self.online_menu.addAction(show_lotw_qsls_action)
         self.online_menu.addSeparator()
 
         show_active_users_action = QtGui.QAction("List of active users", self)

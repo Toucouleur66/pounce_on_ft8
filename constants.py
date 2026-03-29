@@ -29,6 +29,7 @@ TEMP_EXCLUDED_CALLSIGNS_FILE    = os.path.join(get_app_data_dir(), "temp_exclude
 ADIF_WORKED_CALLSIGNS_FILE      = os.path.join(get_app_data_dir(), "wait_pounce_log.adif")
 CLUB_LOG_CACHE_FILE             = os.path.join(get_app_data_dir(), "club_log_cache.json")
 LOTW_UPLOAD_CACHE_FILE          = os.path.join(get_app_data_dir(), "lotw_upload_cache.json")
+LOTW_QSL_LOG_FILE               = os.path.join(get_app_data_dir(), "lotw_qsl_log.json")
 
 GUI_LABEL_NAME                  = "Wait and Pounce"
 GUI_LABEL_VERSION               = f"{GUI_LABEL_NAME} build {CURRENT_VERSION_NUMBER}"

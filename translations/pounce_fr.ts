@@ -243,6 +243,10 @@
         <translation>Mettre à jour les infos LoTW</translation>
     </message>
     <message>
+        <source>Show LoTW QSLs received</source>
+        <translation>Afficher les QSL LoTW reçues</translation>
+    </message>
+    <message>
         <source>Update country and region files</source>
         <translation>Mettre à jour les fichiers pays et régions</translation>
     </message>

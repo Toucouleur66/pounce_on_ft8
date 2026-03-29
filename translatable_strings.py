@@ -132,6 +132,7 @@ class MainWindowStrings:
     DISCORD_SERVER = lambda app_name: tr("MainWindow", "Discord Server for %1").replace("%1", str(app_name))
     UPDATE_DXCC_INFO = lambda: tr("MainWindow", "Update DXCC Info")
     UPDATE_LOTW_INFO = lambda: tr("MainWindow", "Update LoTW Info")
+    SHOW_LOTW_QSLS = lambda: tr("MainWindow", "Show LoTW QSLs received")
     UPDATE_COUNTRY_FILES = lambda: tr("MainWindow", "Update country and region files")
     COMPACT_VIEW = lambda: tr("MainWindow", "Compact View")
     ALWAYS_ON_TOP = lambda: tr("MainWindow", "Always on Top")
