@@ -1912,7 +1912,6 @@ class SettingsDialog(QtWidgets.QDialog):
 
         self.test_lotw_download_button.setEnabled(False)
         self.test_lotw_download_button.setText("Downloading...")
-        QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.CursorShape.WaitCursor)
 
         thread = QtCore.QThread(self)
         self._lotw_test_worker = LoTWDownloadWorker(username, password, qso_since_str)

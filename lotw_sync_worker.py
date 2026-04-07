@@ -3,7 +3,7 @@
 import os
 import re
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from PyQt6.QtCore import QObject, pyqtSignal
 
@@ -81,7 +81,7 @@ class LoTWSyncWorker(QObject):
         # Update local ADIF file
         updated_count = self._update_adif(confirmed)
 
-        new_since = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        new_since = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         self.finished.emit(True, new_since, updated_count)
 
     def _update_adif(self, confirmed):

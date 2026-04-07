@@ -29,7 +29,7 @@ class LoTWIncomingDialog(QDialog):
         self._since_date = since_date
         self._log_mode   = log_entries is not None
         self.setWindowTitle(f"LoTW Incoming - {GUI_LABEL_VERSION}")
-        self.setMinimumSize(600, 450)
+        self.setMinimumSize(700 if self._log_mode else 550, 350)
 
         if self._log_mode:
             self._records = self._records_from_log(log_entries)
@@ -40,6 +40,8 @@ class LoTWIncomingDialog(QDialog):
         self._setup_ui()
         self._populate_table()
         self._apply_palette(dark_mode)
+        if not self._log_mode:
+            self.adjustSize()
 
     def _records_from_log(self, entries):
         records = []
@@ -147,11 +149,13 @@ class LoTWIncomingDialog(QDialog):
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)  # Time
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)             # Callsign
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)  # Band
-        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)             # Mode
         self.table.setColumnWidth(2, 140)
         self.table.setColumnWidth(4, 70)
         if self._log_mode:
+            header.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)         # Mode
             header.setSectionResizeMode(5, QHeaderView.ResizeMode.Stretch)       # QSL Rcvd date
+        else:
+            header.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)  # Mode — fills remaining space in preview
 
         layout.addWidget(self.table)
 
@@ -190,6 +194,9 @@ class LoTWIncomingDialog(QDialog):
                 self.table.setItem(row, 5, QTableWidgetItem(r.get('rcvd_at', '')))
 
         self.table.setSortingEnabled(True)
+
+        if self._log_mode:
+            self.table.sortByColumn(5, Qt.SortOrder.DescendingOrder)
 
         self.stats_label.setText(
             f"{self._stats['qsl_rcvd']} QSL(s) rcvd, "

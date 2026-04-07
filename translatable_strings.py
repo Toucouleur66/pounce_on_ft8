@@ -243,7 +243,7 @@ class SettingsStrings:
     LABEL_LOTW_PASSWORD = lambda: tr("SettingsDialog", "Password:")
     LABEL_LOTW_LOCATION = lambda: tr("SettingsDialog", "Station Location:")
     LABEL_LOTW_SIGNING_PASSWORD = lambda: tr("SettingsDialog", "Signing Password:")
-    LABEL_LOTW_QSO_SINCE_DATE = lambda: tr("SettingsDialog", "Download QSLs since:")
+    LABEL_LOTW_QSO_SINCE_DATE = lambda: tr("SettingsDialog", "Download QSLs since (UTC):")
     LABEL_LOTW_DOWNLOAD_INTERVAL = lambda: tr("SettingsDialog", "Download interval (minutes):")
     LABEL_TQSL_PATH = lambda: tr("SettingsDialog", "TQSL Path:")
     LABEL_TQSL_DIR = lambda: tr("SettingsDialog", ".tqsl Folder:")

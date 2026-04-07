@@ -60,6 +60,8 @@ from raw_data_model import RawDataModel
 from raw_data_filter_proxy_model import RawDataFilterProxyModel
 from grid_map_viewer import GridMapWindow
 from active_users_window import ActiveUsersWindow
+from lotw_sync_worker import LoTWSyncWorker
+from lotw_incoming_dialog import LoTWIncomingDialog
 
 if sys.platform == 'darwin':
     from status_menu import StatusMenuAgent
@@ -2749,8 +2751,6 @@ class MainApp(QtWidgets.QMainWindow):
         event.accept()
 
     def show_lotw_qsls(self):
-        from lotw_sync_worker import LoTWSyncWorker
-        from lotw_incoming_dialog import LoTWIncomingDialog
         entries = LoTWSyncWorker.load_qsl_log()
         dialog = LoTWIncomingDialog(log_entries=entries, dark_mode=self.dark_mode, parent=self)
         dialog.exec()
@@ -4078,7 +4078,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.stop_monitoring()
 
     def download_lotw_qsls(self):
-        """Trigger a background LoTW QSL download using LoTWSyncWorker in a QThread"""
         # Skip if a sync is already running
         if self._lotw_sync_thread and self._lotw_sync_thread.isRunning():
             log.info("LoTW sync already in progress, skipping")
