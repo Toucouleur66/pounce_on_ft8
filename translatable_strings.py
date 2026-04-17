@@ -191,7 +191,7 @@ class SettingsStrings:
     CHECK_IGNORE_WRONG_CONTINENT = lambda: tr("SettingsDialog", "Ignore callsign if it targets another continent")
     # Watchdog and Retry page
     WATCHDOG_NOTICE = lambda: tr("SettingsDialog",
-        "<p>Wait and Pounce can prevent you from calling indefinitely, unlike the Watchdog function of traditional tools. If you activate the Watchdog function, you can determine the number of times Wait and Pounce will reply to make QSO. If it fails, it will try again after a specified time. If the wanted callsign reply within this interval, Wait and Pounce will complete the contact, overiding watchdog timer set in your JTDX/WSJT-X instance.</p>"
+        "<p>Wait and Pounce can prevent you from calling indefinitely, unlike the Watchdog function of traditional tools. If you activate the Watchdog function, you can determine the number of times Wait and Pounce will reply to make QSO.</p><p>If it fails, Wait and Pounce will try again after a specified time. If the wanted callsign reply within this interval, Wait and Pounce will complete the contact, overiding watchdog timer set in your JTDX/WSJT-X instance.</p>"
     )
     GROUP_WATCHDOG_RETRY = lambda: tr("SettingsDialog", "Watchdog and Retry")
     CHECK_ENABLE_WATCHDOG = lambda: tr("SettingsDialog", "Enable Watchdog")

@@ -1846,8 +1846,19 @@ class MainApp(QtWidgets.QMainWindow):
                         message.get('frequency'),
                         message.get('transmitting')
                     )     
-            elif message_type == 'temporarily_excluded':     
-                self.add_callsign_to_exclusion_list(
+            elif message_type == 'temporarily_excluded':
+                exclusion_minutes = message.get('exclusion_minutes')
+                if exclusion_minutes is not None:
+                    self.add_callsign_to_exclusion_list(
+                        message.get('callsign'),
+                        exclusion_minutes,
+                    )
+                else:
+                    self.add_callsign_to_exclusion_list(
+                        message.get('callsign'),
+                    )
+            elif message_type == 'watchdog_exclusion_lifted':
+                self.remove_callsign_from_exclusion_list(
                     message.get('callsign'),
                 )
             elif 'decode_time_str' in message:
@@ -2262,6 +2273,24 @@ class MainApp(QtWidgets.QMainWindow):
 
         # Save to file
         self.save_temp_excluded_callsigns()
+
+    def remove_callsign_from_exclusion_list(self, callsign):
+        if not callsign:
+            return
+        callsign_upper = callsign.upper()
+        changed = False
+        for band in list(self.temp_excluded_callsigns.keys()):
+            if callsign_upper in self.temp_excluded_callsigns[band]:
+                del self.temp_excluded_callsigns[band][callsign_upper]
+                changed = True
+            if not self.temp_excluded_callsigns[band]:
+                del self.temp_excluded_callsigns[band]
+        for band, var in self.excluded_callsigns_vars.items():
+            if callsign_upper in text_to_array(var.text()):
+                self.update_var(var, callsign_upper, "remove")
+                changed = True
+        if changed:
+            self.save_temp_excluded_callsigns()
 
     def cleanup_expired_exclusions(self):
         current_time = datetime.now()

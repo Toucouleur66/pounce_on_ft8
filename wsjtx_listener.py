@@ -955,9 +955,7 @@ class Listener(QObject):
         if until is None:
             return False
         if datetime.now(timezone.utc) >= until:
-            self.watchdog_exclusions.pop(callsign, None)
-            self.reply_attempts.pop(callsign, None)
-            log.warning(f"Watchdog retry window elapsed for [ {callsign} ], eligible again")
+            self.lift_watchdog_exclusion(callsign, reason='window elapsed')
             return False
         return True
 
@@ -966,9 +964,23 @@ class Listener(QObject):
         self.watchdog_exclusions[callsign] = until
         log.error(f"Watchdog: [ {callsign} ] temporarily excluded for {self.watchdog_retry_time} min (until {until.isoformat()})")
         self.message_callback({
-            'type'    : 'temporarily_excluded',
-            'callsign': callsign
+            'type'             : 'temporarily_excluded',
+            'callsign'         : callsign,
+            'exclusion_minutes': self.watchdog_retry_time
         })
+
+    def lift_watchdog_exclusion(self, callsign, reason=None):
+        if callsign in self.watchdog_exclusions:
+            self.watchdog_exclusions.pop(callsign, None)
+            self.reply_attempts.pop(callsign, None)
+            if reason:
+                log.warning(f"Watchdog exclusion lifted for [ {callsign} ] ({reason})")
+            else:
+                log.warning(f"Watchdog exclusion lifted for [ {callsign} ]")
+            self.message_callback({
+                'type'    : 'watchdog_exclusion_lifted',
+                'callsign': callsign
+            })
 
     def reset_targeted_call(self):
         """
@@ -1552,9 +1564,7 @@ class Listener(QObject):
                     """
                     if self.enable_watchdog and self.is_watchdog_excluded(callsign):
                         if directed == self.my_call:
-                            log.warning(f"[ {callsign} ] replied during watchdog window — lifting exclusion and completing QSO")
-                            self.watchdog_exclusions.pop(callsign, None)
-                            self.reply_attempts.pop(callsign, None)
+                            self.lift_watchdog_exclusion(callsign, reason='direct reply received')
                         else:
                             log.debug(f"Skipping [ {callsign} ] — watchdog retry window active")
                             reply_to_packet = False
