@@ -154,7 +154,7 @@ class SettingsStrings:
     # Menu items (left sidebar)
     MENU_SERVER = lambda: tr("SettingsDialog", "Server")
     MENU_GENERAL_SETTINGS = lambda: tr("SettingsDialog", "General Settings")
-    MENU_WATCHDOG_RETRY = lambda: tr("SettingsDialog", "Watchdog and Retry")
+    MENU_WATCHDOG_RETRY = lambda: tr("SettingsDialog", "Watchdog and retry")
     MENU_OFFSET_UPDATER = lambda: tr("SettingsDialog", "Offset Updater")
     MENU_SOUND_ALERTS = lambda: tr("SettingsDialog", "Sound Alerts")
     MENU_LOTW = lambda: tr("SettingsDialog", "Logbook of The World")
@@ -189,11 +189,11 @@ class SettingsStrings:
     CHECK_LOG_ALL_VALID = lambda: tr("SettingsDialog", "Log all valid contacts (not only from Wanted)")
     CHECK_IGNORE_INVALID_CALLSIGN = lambda: tr("SettingsDialog", "Ignore callsign if prefix is invalid")
     CHECK_IGNORE_WRONG_CONTINENT = lambda: tr("SettingsDialog", "Ignore callsign if it targets another continent")
-    # Watchdog and Retry page
+    # Watchdog and retry page
     WATCHDOG_NOTICE = lambda: tr("SettingsDialog",
-        "<p>Wait and Pounce can prevent you from calling indefinitely, unlike the Watchdog function of traditional tools. If you activate the Watchdog function, you can determine the number of times Wait and Pounce will reply to make QSO.</p><p>If it fails, Wait and Pounce will try again after a specified time. If the wanted callsign reply within this interval, Wait and Pounce will complete the contact, overiding watchdog timer set in your JTDX/WSJT-X instance.</p>"
+        "<p>Wait and Pounce can prevent you from calling indefinitely, unlike the Watchdog function of traditional tools. If you activate the Watchdog function, you can determine the number of times Wait and Pounce will reply to make QSO.</p><p>If it fails, Wait and Pounce will retry after a specified time.</p><p>If the wanted callsign reply within this interval, Wait and Pounce will complete the QSO, overiding watchdog timer set in your JTDX/WSJT-X instance.</p>"
     )
-    GROUP_WATCHDOG_RETRY = lambda: tr("SettingsDialog", "Watchdog and Retry")
+    GROUP_WATCHDOG_RETRY = lambda: tr("SettingsDialog", "Watchdog and retry Settings")
     CHECK_ENABLE_WATCHDOG = lambda: tr("SettingsDialog", "Enable Watchdog")
     LABEL_WATCHDOG_NUMBER_OF_ATTEMPTS = lambda: tr("SettingsDialog", "Number of attempts")
     LABEL_WATCHDOG_RETRY_TIME = lambda: tr("SettingsDialog", "Wait time")
@@ -220,7 +220,7 @@ class SettingsStrings:
     GROUP_MINIMUM_REPORT = lambda: tr("SettingsDialog", "Minimum dB signal for reply (FT8/FT4 Mode only)")
     LABEL_MINIMUM_REPORT = lambda: tr("SettingsDialog", "Minimum report")
     # Priority Manager
-    GROUP_PRIORITY_MANAGER = lambda: tr("SettingsDialog", "Priority Manager")
+    GROUP_PRIORITY_MANAGER = lambda: tr("SettingsDialog", "Priority Manager Settings")
     PRIORITY_NOTICE = lambda: tr("SettingsDialog",
         "<p>Set the priority order for reply decisions when decoding several potential callsigns for a same period.</p><p>Drag and drop blocks to reorder them. The first row has the highest priority, and the last row refers to the lowest priority.</p>"
     )

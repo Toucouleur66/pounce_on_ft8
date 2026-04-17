@@ -1801,26 +1801,36 @@ class Listener(QObject):
         if callsign not in self.reply_attempts:
             self.reply_attempts[callsign] = []
 
+        attempts_limit = self.get_watchdog_attempts_limit()
+        if (
+            self.enable_watchdog
+            and len(self.reply_attempts[callsign]) >= attempts_limit
+        ):
+            log.warning(f"Watchdog limit ({attempts_limit}) reached for [ {callsign} ] — skipping reply")
+            self.add_watchdog_exclusion(callsign)
+            self.reset_targeted_call()
+            self.last_selected_message = selected_message
+            return
+
         if callsign_packet.time not in self.reply_attempts[callsign]:
             self.reply_attempts[callsign].append(callsign_packet.time)
             count_attempts = len(self.reply_attempts[callsign])
-            attempts_limit = self.get_watchdog_attempts_limit()
             if count_attempts >= (attempts_limit - 1):
                 log.warning(f"{count_attempts}/{attempts_limit} attempts for [ {callsign} ]")
         """
-            Update frequency if necessary 
+            Update frequency if necessary
         """
         if (
             self.enable_gap_finder and
-            self.suggested_frequency is None                
+            self.suggested_frequency is None
         ):
             self.targeted_call_period   = self.odd_or_even_period()
             my_period                   = ODD if self.targeted_call_period == EVEN else EVEN
             self.suggested_frequency    = self.get_frequency_suggestion(my_period)
             if self.suggested_frequency is not None:
-                self.set_delta_f_packet(self.suggested_frequency)                
+                self.set_delta_f_packet(self.suggested_frequency)
 
-        self.reply_to_packet(callsign_packet) 
+        self.reply_to_packet(callsign_packet)
         self.last_selected_message = selected_message
 
     def halt_packet(self):
