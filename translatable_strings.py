@@ -154,6 +154,7 @@ class SettingsStrings:
     # Menu items (left sidebar)
     MENU_SERVER = lambda: tr("SettingsDialog", "Server")
     MENU_GENERAL_SETTINGS = lambda: tr("SettingsDialog", "General Settings")
+    MENU_WATCHDOG_RETRY = lambda: tr("SettingsDialog", "Watchdog and Retry")
     MENU_OFFSET_UPDATER = lambda: tr("SettingsDialog", "Offset Updater")
     MENU_SOUND_ALERTS = lambda: tr("SettingsDialog", "Sound Alerts")
     MENU_LOTW = lambda: tr("SettingsDialog", "Logbook of The World")
@@ -185,10 +186,17 @@ class SettingsStrings:
     GROUP_GENERAL_SETTINGS = lambda: tr("SettingsDialog", "General Wait and Pounce Settings")
     CHECK_ENABLE_REPLY = lambda: tr("SettingsDialog", "Enable reply")
     CHECK_ENABLE_POLITE_REPLY = lambda: tr("SettingsDialog", "Enable polite reply")
-    CHECK_ENABLE_WATCHDOG_BYPASS = lambda: tr("SettingsDialog", "Enable watchdog bypass")
     CHECK_LOG_ALL_VALID = lambda: tr("SettingsDialog", "Log all valid contacts (not only from Wanted)")
     CHECK_IGNORE_INVALID_CALLSIGN = lambda: tr("SettingsDialog", "Ignore callsign if prefix is invalid")
     CHECK_IGNORE_WRONG_CONTINENT = lambda: tr("SettingsDialog", "Ignore callsign if it targets another continent")
+    # Watchdog and Retry page
+    WATCHDOG_NOTICE = lambda: tr("SettingsDialog",
+        "<p>Wait and Pounce can prevent you from calling indefinitely, unlike the Watchdog function of traditional tools. If you activate the Watchdog function, you can determine the number of times Wait and Pounce will reply to make QSO. If it fails, it will try again after a specified time. If the wanted callsign reply within this interval, Wait and Pounce will complete the contact, overiding watchdog timer set in your JTDX/WSJT-X instance.</p>"
+    )
+    GROUP_WATCHDOG_RETRY = lambda: tr("SettingsDialog", "Watchdog and Retry")
+    CHECK_ENABLE_WATCHDOG = lambda: tr("SettingsDialog", "Enable Watchdog")
+    LABEL_WATCHDOG_NUMBER_OF_ATTEMPTS = lambda: tr("SettingsDialog", "Number of attempts")
+    LABEL_WATCHDOG_RETRY_TIME = lambda: tr("SettingsDialog", "Wait time")
     # Offset Updater page
     OFFSET_NOTICE = lambda: tr("SettingsDialog",
         "<p>The frequency offset updater helps to find a free frequency offset from nominal (DF).</p><p>Select one of the pre-defined operating modes from <u>Normal</u>, <u>Fox/Hound</u>, or <u>SuperFox</u>.</p><p>You can also set your own custom frequency range.</p>"

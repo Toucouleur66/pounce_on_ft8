@@ -10,7 +10,7 @@ import inspect
 import uuid
 import threading
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from collections import deque
 
 from receiver_worker import ReceiverWorker
@@ -73,7 +73,9 @@ class Listener(QObject):
             enable_reply_to_valid_direction,
             enable_reply_to_lotw_only,
             enable_gap_finder,
-            enable_watchdog_bypass,
+            enable_watchdog,
+            watchdog_number_of_attempts,
+            watchdog_retry_time,
             enable_debug_output,
             enable_pounce_log,        
             enable_log_packet_data, 
@@ -152,6 +154,7 @@ class Listener(QObject):
         self.tx_df                      = None
 
         self.reply_attempts             = {}
+        self.watchdog_exclusions        = {}
 
         self.enable_sending_reply               = enable_sending_reply
         self.enable_polite_reply                = enable_polite_reply
@@ -160,7 +163,9 @@ class Listener(QObject):
         self.enable_reply_to_valid_direction    = enable_reply_to_valid_direction
         self.enable_reply_to_lotw_only          = enable_reply_to_lotw_only
         self.enable_gap_finder                  = enable_gap_finder
-        self.enable_watchdog_bypass             = enable_watchdog_bypass
+        self.enable_watchdog                    = enable_watchdog
+        self.watchdog_number_of_attempts        = watchdog_number_of_attempts
+        self.watchdog_retry_time                = watchdog_retry_time
         self.enable_debug_output                = enable_debug_output
         self.enable_pounce_log                  = enable_pounce_log 
         self.enable_log_packet_data             = enable_log_packet_data
@@ -575,7 +580,8 @@ class Listener(QObject):
         log_output.append(f"LoTWReplyOnly={self.enable_reply_to_lotw_only }") 
         log_output.append(f"PriorityOrder={self.priority_order}")      
         log_output.append(f"ClubLogSynch={self.enable_club_log_synch}")
-        log_output.append(f"LoTWUpload={self.enable_lotw_upload}")    
+        log_output.append(f"LoTWUpload={self.enable_lotw_upload}")
+        log_output.append(f"Watchdog={self.enable_watchdog} (attempts={self.watchdog_number_of_attempts}, retry={self.watchdog_retry_time}min)")
 
         log.warning(f"\n\t".join(log_output))
 
@@ -826,8 +832,7 @@ class Listener(QObject):
                 elif self.the_packet.tx_watchdog == 1:
                     error_found = True
                     log.error('Watchdog enabled')
-                    if self.enable_watchdog_bypass :
-                        self.reset_targeted_call()            
+
                 elif self.targeted_call == self.dx_call:  
                     self.time_off   = datetime.now(timezone.utc)
                 elif (
@@ -938,6 +943,31 @@ class Listener(QObject):
             'type'                      : 'stop_monitoring',
             'decode_packet_count'       : self.decode_packet_count,
             'last_decode_packet_time'   : self.last_decode_packet_time
+        })
+
+    def get_watchdog_attempts_limit(self):
+        if self.enable_watchdog:
+            return self.watchdog_number_of_attempts
+        return self.max_reply_attempts_to_callsign
+
+    def is_watchdog_excluded(self, callsign):
+        until = self.watchdog_exclusions.get(callsign)
+        if until is None:
+            return False
+        if datetime.now(timezone.utc) >= until:
+            self.watchdog_exclusions.pop(callsign, None)
+            self.reply_attempts.pop(callsign, None)
+            log.warning(f"Watchdog retry window elapsed for [ {callsign} ], eligible again")
+            return False
+        return True
+
+    def add_watchdog_exclusion(self, callsign):
+        until = datetime.now(timezone.utc) + timedelta(minutes=self.watchdog_retry_time)
+        self.watchdog_exclusions[callsign] = until
+        log.error(f"Watchdog: [ {callsign} ] temporarily excluded for {self.watchdog_retry_time} min (until {until.isoformat()})")
+        self.message_callback({
+            'type'    : 'temporarily_excluded',
+            'callsign': callsign
         })
 
     def reset_targeted_call(self):
@@ -1354,8 +1384,11 @@ class Listener(QObject):
                         log.warning(f"Waiting for [ {self.targeted_call} ] but we are about to switch on [ {callsign} ]")
                         self.reset_targeted_call()
                     
-                    if len(self.reply_attempts.get(self.targeted_call) or []) >= self.max_reply_attempts_to_callsign:
+                    attempts_limit = self.get_watchdog_attempts_limit()
+                    if len(self.reply_attempts.get(self.targeted_call) or []) >= attempts_limit:
                         log.warning(f"{len(self.reply_attempts[self.targeted_call])} attempts for [ {self.targeted_call} ] but we are about to switch on [ {callsign} ]")
+                        if self.enable_watchdog:
+                            self.add_watchdog_exclusion(self.targeted_call)
                         self.reset_targeted_call()
 
                     if (
@@ -1500,15 +1533,35 @@ class Listener(QObject):
                         not exactly_matched
                         and directed != self.my_call
                         and callsign not in self.excluded_callsigns
-                        and len(self.reply_attempts.get(self.targeted_call) or []) >= self.max_reply_attempts_to_callsign
+                        and len(self.reply_attempts.get(self.targeted_call) or []) >= self.get_watchdog_attempts_limit()
                     ):
+                        if self.enable_watchdog and self.targeted_call:
+                            self.add_watchdog_exclusion(self.targeted_call)
                         self.reply_attempts[callsign] = []
                         log.error(f"Add [ {callsign} ] to temporarily excluded")
                         self.message_callback({
                             'type': 'temporarily_excluded',
-                            'callsign': callsign 
+                            'callsign': callsign
                         })
                         reply_to_packet = False
+
+                    """
+                        Ignore if temporarily excluded by Watchdog,
+                        unless the callsign is replying directly to us — in that
+                        case drop the exclusion and let the QSO proceed.
+                    """
+                    if self.enable_watchdog and self.is_watchdog_excluded(callsign):
+                        if directed == self.my_call:
+                            log.warning(f"[ {callsign} ] replied during watchdog window — lifting exclusion and completing QSO")
+                            self.watchdog_exclusions.pop(callsign, None)
+                            self.reply_attempts.pop(callsign, None)
+                        else:
+                            log.debug(f"Skipping [ {callsign} ] — watchdog retry window active")
+                            reply_to_packet = False
+                            wanted          = False
+                            wanted_grid     = False
+                            wanted_cq_zone  = False
+                            message_type    = 'callsign_excluded'
 
                     """
                         Ignore if excluded
@@ -1741,8 +1794,9 @@ class Listener(QObject):
         if callsign_packet.time not in self.reply_attempts[callsign]:
             self.reply_attempts[callsign].append(callsign_packet.time)
             count_attempts = len(self.reply_attempts[callsign])
-            if count_attempts >= (self.max_reply_attempts_to_callsign - 1):
-                log.warning(f"{count_attempts} attempts for [ {callsign} ]")             
+            attempts_limit = self.get_watchdog_attempts_limit()
+            if count_attempts >= (attempts_limit - 1):
+                log.warning(f"{count_attempts}/{attempts_limit} attempts for [ {callsign} ]")
         """
             Update frequency if necessary 
         """

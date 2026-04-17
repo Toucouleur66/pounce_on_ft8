@@ -20,7 +20,9 @@ from constants import (
     DEFAULT_MAX_WAITING_DELAY,
     DEFAULT_LOG_ALL_VALID_CONTACT,
     DEFAULT_GAP_FINDER,
-    DEFAULT_WATCHDOG_BYPASS,
+    DEFAULT_WATCHDOG,
+    DEFAULT_WATCHDOG_NUMBER_OF_ATTEMPTS,
+    DEFAULT_WATCHDOG_RETRY_TIME,
     DEFAULT_DEBUG_OUTPUT,
     DEFAULT_POUNCE_LOG,
     DEFAULT_LOG_PACKET_DATA,
@@ -64,7 +66,9 @@ class Worker(QObject):
             enable_reply_to_valid_direction    = DEFAULT_LOG_ALL_VALID_CONTACT,
             enable_reply_to_lotw_only          = False,
             enable_gap_finder                  = DEFAULT_GAP_FINDER,
-            enable_watchdog_bypass             = DEFAULT_WATCHDOG_BYPASS,
+            enable_watchdog                    = DEFAULT_WATCHDOG,
+            watchdog_number_of_attempts        = DEFAULT_WATCHDOG_NUMBER_OF_ATTEMPTS,
+            watchdog_retry_time                = DEFAULT_WATCHDOG_RETRY_TIME,
             enable_jtdx_click_log_qso          = DEFAULT_JTDX_CLICK_PROMPT_LOG_QSO,
             enable_debug_output                = DEFAULT_DEBUG_OUTPUT,
             enable_pounce_log                  = DEFAULT_POUNCE_LOG,
@@ -127,7 +131,9 @@ class Worker(QObject):
         self.enable_reply_to_valid_direction    = enable_reply_to_valid_direction
         self.enable_reply_to_lotw_only          = enable_reply_to_lotw_only
         self.enable_gap_finder                  = enable_gap_finder
-        self.enable_watchdog_bypass             = enable_watchdog_bypass
+        self.enable_watchdog                    = enable_watchdog
+        self.watchdog_number_of_attempts        = watchdog_number_of_attempts
+        self.watchdog_retry_time                = watchdog_retry_time
         self.enable_jtdx_click_log_qso          = enable_jtdx_click_log_qso
         self.enable_debug_output                = enable_debug_output
         self.enable_pounce_log                  = enable_pounce_log
@@ -187,7 +193,9 @@ class Worker(QObject):
                 enable_reply_to_lotw_only       = self.enable_reply_to_lotw_only,
 
                 enable_gap_finder               = self.enable_gap_finder,
-                enable_watchdog_bypass          = self.enable_watchdog_bypass,
+                enable_watchdog                 = self.enable_watchdog,
+                watchdog_number_of_attempts     = self.watchdog_number_of_attempts,
+                watchdog_retry_time             = self.watchdog_retry_time,
                 enable_debug_output             = self.enable_debug_output,
                 enable_pounce_log               = self.enable_pounce_log,
                 enable_log_packet_data          = self.enable_log_packet_data,
@@ -287,7 +295,9 @@ class Worker(QObject):
             self.listener.enable_reply_to_valid_direction       = self.enable_reply_to_valid_direction
             self.listener.enable_reply_to_lotw_only             = self.enable_reply_to_lotw_only
             self.listener.enable_gap_finder                     = self.enable_gap_finder
-            self.listener.enable_watchdog_bypass                = self.enable_watchdog_bypass
+            self.listener.enable_watchdog                       = self.enable_watchdog
+            self.listener.watchdog_number_of_attempts           = self.watchdog_number_of_attempts
+            self.listener.watchdog_retry_time                   = self.watchdog_retry_time
             self.listener.enable_debug_output                   = self.enable_debug_output
             self.listener.enable_pounce_log                     = self.enable_pounce_log
             self.listener.enable_log_packet_data                = self.enable_log_packet_data

@@ -152,7 +152,9 @@ from constants import (
     # Default settings
     DEFAULT_AUTO_START_MONITORING,
     DEFAULT_GAP_FINDER,
-    DEFAULT_WATCHDOG_BYPASS,
+    DEFAULT_WATCHDOG,
+    DEFAULT_WATCHDOG_NUMBER_OF_ATTEMPTS,
+    DEFAULT_WATCHDOG_RETRY_TIME,
     DEFAULT_JTDX_CLICK_PROMPT_LOG_QSO,
     DEFAULT_JTDX_CLICK_DELAY,
     DEFAULT_DEBUG_OUTPUT,
@@ -4181,7 +4183,9 @@ class MainApp(QtWidgets.QMainWindow):
         self.worker.enable_reply_to_valid_direction = self.local_params.get('enable_reply_to_valid_direction', DEFAULT_LOG_ALL_VALID_CONTACT)
         self.worker.enable_reply_to_lotw_only       = self.local_params.get('enable_reply_to_lotw_only', False)
         self.worker.enable_gap_finder               = self.local_params.get('enable_gap_finder', DEFAULT_GAP_FINDER)
-        self.worker.enable_watchdog_bypass          = self.local_params.get('enable_watchdog_bypass', DEFAULT_WATCHDOG_BYPASS)
+        self.worker.enable_watchdog                 = self.local_params.get('enable_watchdog', DEFAULT_WATCHDOG)
+        self.worker.watchdog_number_of_attempts     = self.local_params.get('watchdog_number_of_attempts', DEFAULT_WATCHDOG_NUMBER_OF_ATTEMPTS)
+        self.worker.watchdog_retry_time             = self.local_params.get('watchdog_retry_time', DEFAULT_WATCHDOG_RETRY_TIME)
         self.worker.enable_jtdx_click_log_qso       = self.local_params.get('enable_jtdx_click_log_qso', DEFAULT_JTDX_CLICK_PROMPT_LOG_QSO)
         self.worker.enable_debug_output             = self.local_params.get('enable_debug_output', DEFAULT_DEBUG_OUTPUT)
         self.worker.enable_pounce_log               = self.local_params.get('enable_pounce_log', DEFAULT_POUNCE_LOG)

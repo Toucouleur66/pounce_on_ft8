@@ -6,7 +6,7 @@ import os
 import sys
 import re
 
-from PyQt6 import QtWidgets, QtCore
+from PyQt6 import QtWidgets, QtCore, QtGui
 from PyQt6.QtWidgets import QFileDialog, QTableWidgetItem
 from PyQt6.QtCore import Qt
 
@@ -64,7 +64,9 @@ from constants import (
     DEFAULT_SENDING_REPLY,
     DEFAULT_POLITE_REPLY,
     DEFAULT_GAP_FINDER,
-    DEFAULT_WATCHDOG_BYPASS,
+    DEFAULT_WATCHDOG,
+    DEFAULT_WATCHDOG_NUMBER_OF_ATTEMPTS,
+    DEFAULT_WATCHDOG_RETRY_TIME,
     DEFAULT_DEBUG_OUTPUT,
     DEFAULT_POUNCE_LOG,
     DEFAULT_LOG_PACKET_DATA,
@@ -115,6 +117,7 @@ class SettingsDialog(QtWidgets.QDialog):
         menu_items = [
             SettingsStrings.MENU_SERVER(),
             SettingsStrings.MENU_GENERAL_SETTINGS(),
+            SettingsStrings.MENU_WATCHDOG_RETRY(),
             SettingsStrings.MENU_OFFSET_UPDATER(),
             SettingsStrings.MENU_SOUND_ALERTS(),
             SettingsStrings.MENU_LOTW(),
@@ -145,6 +148,7 @@ class SettingsDialog(QtWidgets.QDialog):
 
         server_page       = QtWidgets.QWidget()
         general_page      = QtWidgets.QWidget()
+        watchdog_page     = QtWidgets.QWidget()
         offset_page       = QtWidgets.QWidget()
         sound_page        = QtWidgets.QWidget()
         lotw_page         = QtWidgets.QWidget()
@@ -162,6 +166,7 @@ class SettingsDialog(QtWidgets.QDialog):
 
         self.stacked_widget.addWidget(server_page)
         self.stacked_widget.addWidget(general_page)
+        self.stacked_widget.addWidget(watchdog_page)
         self.stacked_widget.addWidget(offset_page)
         self.stacked_widget.addWidget(sound_page)
         self.stacked_widget.addWidget(lotw_page)
@@ -177,6 +182,7 @@ class SettingsDialog(QtWidgets.QDialog):
 
         server_layout         = QtWidgets.QVBoxLayout(server_page)
         general_layout        = QtWidgets.QVBoxLayout(general_page)
+        watchdog_layout       = QtWidgets.QVBoxLayout(watchdog_page)
         offset_layout         = QtWidgets.QVBoxLayout(offset_page)
         sound_layout          = QtWidgets.QVBoxLayout(sound_page)
         priority_layout       = QtWidgets.QVBoxLayout(priority_page)
@@ -359,11 +365,6 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_polite_reply.setChecked(DEFAULT_POLITE_REPLY)
         self.enable_polite_reply.toggled.connect(self.populate_priority_list)
 
-
-        self.enable_watchdog_bypass = QtWidgets.QCheckBox(SettingsStrings.CHECK_ENABLE_WATCHDOG_BYPASS())
-        self.enable_watchdog_bypass.setFont(CUSTOM_FONT)
-        self.enable_watchdog_bypass.setChecked(DEFAULT_WATCHDOG_BYPASS)
-
         self.enable_log_all_valid_contact = QtWidgets.QCheckBox(SettingsStrings.CHECK_LOG_ALL_VALID())
         self.enable_log_all_valid_contact.setFont(CUSTOM_FONT)
         self.enable_log_all_valid_contact.setChecked(True)
@@ -378,10 +379,9 @@ class SettingsDialog(QtWidgets.QDialog):
 
         general_settings_layout.addWidget(self.enable_sending_reply, 0, 0, 1, 2)
         general_settings_layout.addWidget(self.enable_polite_reply, 1, 0, 1, 2)
-        general_settings_layout.addWidget(self.enable_watchdog_bypass, 2, 0, 1, 2)
-        general_settings_layout.addWidget(self.enable_log_all_valid_contact, 3, 0, 1, 2)
-        general_settings_layout.addWidget(self.enable_reply_to_valid_callsign, 4, 0, 1, 2)
-        general_settings_layout.addWidget(self.enable_reply_to_valid_direction, 5, 0, 1, 2)
+        general_settings_layout.addWidget(self.enable_log_all_valid_contact, 2, 0, 1, 2)
+        general_settings_layout.addWidget(self.enable_reply_to_valid_callsign, 3, 0, 1, 2)
+        general_settings_layout.addWidget(self.enable_reply_to_valid_direction, 4, 0, 1, 2)
 
         general_settings_group.setLayout(QtWidgets.QVBoxLayout())
         general_settings_group.layout().setContentsMargins(0, 0, 0, 0)
@@ -620,6 +620,69 @@ class SettingsDialog(QtWidgets.QDialog):
         general_layout.addWidget(minimum_report_group)
 
         general_layout.addStretch()
+
+        """
+            Watchdog and Retry page
+        """
+        watchdog_notice_text = SettingsStrings.WATCHDOG_NOTICE()
+        watchdog_notice_label = QtWidgets.QLabel(watchdog_notice_text)
+        watchdog_notice_label.setWordWrap(True)
+        watchdog_notice_label.setFont(CUSTOM_FONT_SMALL)
+        watchdog_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
+        watchdog_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
+        self.notice_labels.append(watchdog_notice_label)
+        watchdog_notice_label.setAutoFillBackground(True)
+
+        watchdog_group = QtWidgets.QGroupBox(SettingsStrings.GROUP_WATCHDOG_RETRY())
+        self.group_boxes.append(watchdog_group)
+        watchdog_group.setFont(CUSTOM_FONT_SMALL)
+
+        watchdog_widget = QtWidgets.QWidget()
+        watchdog_grid_layout = QtWidgets.QGridLayout(watchdog_widget)
+        watchdog_grid_layout.setVerticalSpacing(15)
+
+        self.enable_watchdog = QtWidgets.QCheckBox(SettingsStrings.CHECK_ENABLE_WATCHDOG())
+        self.enable_watchdog.setFont(CUSTOM_FONT)
+        self.enable_watchdog.setChecked(DEFAULT_WATCHDOG)
+
+        watchdog_number_of_attempts_label = QtWidgets.QLabel(SettingsStrings.LABEL_WATCHDOG_NUMBER_OF_ATTEMPTS())
+        watchdog_number_of_attempts_label.setFont(CUSTOM_FONT)
+        watchdog_number_of_attempts_label.setFixedWidth(200)
+
+        self.watchdog_number_of_attempts = QtWidgets.QLineEdit()
+        self.watchdog_number_of_attempts.setFont(CUSTOM_FONT)
+        self.watchdog_number_of_attempts.setMinimumWidth(100)
+        self.watchdog_number_of_attempts.setText(str(DEFAULT_WATCHDOG_NUMBER_OF_ATTEMPTS))
+        self.watchdog_number_of_attempts.setValidator(QtGui.QIntValidator(1, 9999, self))
+
+        watchdog_retry_time_label = QtWidgets.QLabel(SettingsStrings.LABEL_WATCHDOG_RETRY_TIME())
+        watchdog_retry_time_label.setFont(CUSTOM_FONT)
+        watchdog_retry_time_label.setFixedWidth(200)
+
+        self.watchdog_retry_time = QtWidgets.QLineEdit()
+        self.watchdog_retry_time.setFont(CUSTOM_FONT)
+        self.watchdog_retry_time.setMinimumWidth(100)
+        self.watchdog_retry_time.setText(str(DEFAULT_WATCHDOG_RETRY_TIME))
+        self.watchdog_retry_time.setValidator(QtGui.QIntValidator(1, 9999, self))
+
+        watchdog_retry_minutes_label = QtWidgets.QLabel(SettingsStrings.LABEL_MINUTES())
+        watchdog_retry_minutes_label.setFont(CUSTOM_FONT)
+
+        watchdog_grid_layout.addWidget(self.enable_watchdog, 0, 0, 1, 3)
+        watchdog_grid_layout.addWidget(watchdog_number_of_attempts_label, 1, 0)
+        watchdog_grid_layout.addWidget(self.watchdog_number_of_attempts, 1, 1)
+        watchdog_grid_layout.addWidget(watchdog_retry_time_label, 2, 0)
+        watchdog_grid_layout.addWidget(self.watchdog_retry_time, 2, 1)
+        watchdog_grid_layout.addWidget(watchdog_retry_minutes_label, 2, 2)
+        watchdog_grid_layout.setColumnStretch(2, 1)
+
+        watchdog_group.setLayout(QtWidgets.QVBoxLayout())
+        watchdog_group.layout().setContentsMargins(0, 0, 0, 0)
+        watchdog_group.layout().addWidget(watchdog_widget)
+
+        watchdog_layout.addWidget(watchdog_notice_label)
+        watchdog_layout.addWidget(watchdog_group)
+        watchdog_layout.addStretch()
 
         """
             Priority Manager Group
@@ -2322,8 +2385,14 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_gap_finder.setChecked(
             self.params.get('enable_gap_finder', DEFAULT_GAP_FINDER)
         )
-        self.enable_watchdog_bypass.setChecked(
-            self.params.get('enable_watchdog_bypass', DEFAULT_WATCHDOG_BYPASS)
+        self.enable_watchdog.setChecked(
+            self.params.get('enable_watchdog', DEFAULT_WATCHDOG)
+        )
+        self.watchdog_number_of_attempts.setText(
+            str(self.params.get('watchdog_number_of_attempts', DEFAULT_WATCHDOG_NUMBER_OF_ATTEMPTS))
+        )
+        self.watchdog_retry_time.setText(
+            str(self.params.get('watchdog_retry_time', DEFAULT_WATCHDOG_RETRY_TIME))
         )
         self.enable_jtdx_click_log_qso.setChecked(
             self.params.get('enable_jtdx_click_log_qso', DEFAULT_JTDX_CLICK_PROMPT_LOG_QSO)
@@ -2582,7 +2651,9 @@ class SettingsDialog(QtWidgets.QDialog):
             'max_waiting_delay'                          : max_waiting_delay,
             'minimum_report_for_reply'                   : minimum_report_for_reply,
             'enable_gap_finder'                          : self.enable_gap_finder.isChecked(),
-            'enable_watchdog_bypass'                     : self.enable_watchdog_bypass.isChecked(),
+            'enable_watchdog'                            : self.enable_watchdog.isChecked(),
+            'watchdog_number_of_attempts'                : int(self.watchdog_number_of_attempts.text()) if self.watchdog_number_of_attempts.text().isdigit() else DEFAULT_WATCHDOG_NUMBER_OF_ATTEMPTS,
+            'watchdog_retry_time'                        : int(self.watchdog_retry_time.text()) if self.watchdog_retry_time.text().isdigit() else DEFAULT_WATCHDOG_RETRY_TIME,
             'enable_jtdx_click_log_qso'                  : self.enable_jtdx_click_log_qso.isChecked(),
             'jtdx_click_delay'                           : self.jtdx_click_delay_slider.value(),
             'enable_debug_output'                        : self.enable_debug_output.isChecked(),
