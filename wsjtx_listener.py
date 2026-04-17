@@ -1579,7 +1579,7 @@ class Listener(QObject):
                         if self.enable_watchdog and self.targeted_call:
                             self.add_watchdog_exclusion(self.targeted_call)
                         self.reply_attempts[callsign] = []
-                        log.error(f"Add [ {callsign} ] to temporarily excluded (switch path)")
+                        log.error(f"Add [ {callsign} ] to temporarily excluded")
                         self.message_callback({
                             'type'             : 'temporarily_excluded',
                             'callsign'         : callsign,
@@ -1837,17 +1837,18 @@ class Listener(QObject):
             self.enable_watchdog
             and len(self.reply_attempts[callsign]) >= attempts_limit
         ):
-            log.warning(f"Watchdog limit ({attempts_limit}) reached for [ {callsign} ] — skipping reply")
+            log.warning(f"Watchdog limit ({attempts_limit}) reached for [ {callsign} ]")
             self.add_watchdog_exclusion(callsign)
             self.reset_targeted_call()
+            self.halt_packet()
             self.last_selected_message = selected_message
             return
 
         if callsign_packet.time not in self.reply_attempts[callsign]:
             self.reply_attempts[callsign].append(callsign_packet.time)
             count_attempts = len(self.reply_attempts[callsign])
-            if count_attempts >= (attempts_limit - 1):
-                log.warning(f"{count_attempts}/{attempts_limit} attempts for [ {callsign} ]")
+            if self.enable_watchdog:
+                log.warning(f"Watchdog check with {count_attempts} attempts for [ {callsign} ]")
         """
             Update frequency if necessary
         """
