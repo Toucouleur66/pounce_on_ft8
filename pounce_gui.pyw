@@ -1848,14 +1848,17 @@ class MainApp(QtWidgets.QMainWindow):
                     )     
             elif message_type == 'temporarily_excluded':
                 exclusion_minutes = message.get('exclusion_minutes')
+                band              = message.get('band')
                 if exclusion_minutes is not None:
                     self.add_callsign_to_exclusion_list(
                         message.get('callsign'),
                         exclusion_minutes,
+                        band=band,
                     )
                 else:
                     self.add_callsign_to_exclusion_list(
                         message.get('callsign'),
+                        band=band,
                     )
             elif message_type == 'watchdog_exclusion_lifted':
                 self.remove_callsign_from_exclusion_list(
@@ -2257,19 +2260,23 @@ class MainApp(QtWidgets.QMainWindow):
 
         self.message_buffer = deque(maxlen=500)
 
-    def add_callsign_to_exclusion_list(self, callsign, exclusion_minutes = 10):
-        if not self.gui_selected_band:
+    def add_callsign_to_exclusion_list(self, callsign, exclusion_minutes = 10, band = None):
+        target_band = band or self.operating_band or self.gui_selected_band
+        if not target_band:
+            log.warning(f"add_callsign_to_exclusion_list: no target band for [ {callsign} ], skipping")
             return
 
-        if self.gui_selected_band not in self.temp_excluded_callsigns:
-            self.temp_excluded_callsigns[self.gui_selected_band] = {}
+        if target_band not in self.temp_excluded_callsigns:
+            self.temp_excluded_callsigns[target_band] = {}
 
         current_time = datetime.now()
         expiration_time = current_time + timedelta(minutes=exclusion_minutes)
-        self.temp_excluded_callsigns[self.gui_selected_band][callsign.upper()] = expiration_time
+        self.temp_excluded_callsigns[target_band][callsign.upper()] = expiration_time
+        log.info(f"Exclusion list: [ {callsign.upper()} ] on [ {target_band} ] for {exclusion_minutes} min (until {expiration_time.isoformat()})")
 
         # Also add to the permanent excluded list
-        self.update_var(self.excluded_callsigns_vars[self.gui_selected_band], callsign, "add")
+        if target_band in self.excluded_callsigns_vars:
+            self.update_var(self.excluded_callsigns_vars[target_band], callsign, "add")
 
         # Save to file
         self.save_temp_excluded_callsigns()

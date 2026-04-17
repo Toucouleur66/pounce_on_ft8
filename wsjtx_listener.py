@@ -993,7 +993,8 @@ class Listener(QObject):
         self.message_callback({
             'type'             : 'temporarily_excluded',
             'callsign'         : callsign,
-            'exclusion_minutes': self.watchdog_retry_time
+            'exclusion_minutes': self.watchdog_retry_time,
+            'band'             : self.band
         })
 
     def lift_watchdog_exclusion(self, callsign, reason=None):
@@ -1006,7 +1007,8 @@ class Listener(QObject):
                 log.warning(f"Watchdog exclusion lifted for [ {callsign} ]")
             self.message_callback({
                 'type'    : 'watchdog_exclusion_lifted',
-                'callsign': callsign
+                'callsign': callsign,
+                'band'    : self.band
             })
 
     def reset_targeted_call(self):
