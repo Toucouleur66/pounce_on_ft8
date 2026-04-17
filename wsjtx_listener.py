@@ -1579,10 +1579,12 @@ class Listener(QObject):
                         if self.enable_watchdog and self.targeted_call:
                             self.add_watchdog_exclusion(self.targeted_call)
                         self.reply_attempts[callsign] = []
-                        log.error(f"Add [ {callsign} ] to temporarily excluded")
+                        log.error(f"Add [ {callsign} ] to temporarily excluded (switch path)")
                         self.message_callback({
-                            'type': 'temporarily_excluded',
-                            'callsign': callsign
+                            'type'             : 'temporarily_excluded',
+                            'callsign'         : callsign,
+                            'exclusion_minutes': self.watchdog_retry_time if self.enable_watchdog else None,
+                            'band'             : self.band
                         })
                         reply_to_packet = False
 
