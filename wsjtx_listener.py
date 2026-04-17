@@ -675,6 +675,12 @@ class Listener(QObject):
         self._instance = MASTER
         self.synched_settings = False
 
+        if hasattr(self, '_watchdog_sweep_timer') and self._watchdog_sweep_timer:
+            try:
+                self._watchdog_sweep_timer.cancel()
+            except Exception:
+                pass
+
         try:
             if self.s and self.s.sock:
                 self.s.sock.close()
@@ -708,6 +714,27 @@ class Listener(QObject):
 
         # Start telemetry service
         self.telemetry_service.start()
+
+        # Start watchdog sweeper to lift expired exclusions even without decodes
+        self._schedule_watchdog_sweep()
+
+    def _schedule_watchdog_sweep(self):
+        if not self._running:
+            return
+        self._watchdog_sweep_timer = threading.Timer(2.0, self._sweep_watchdog_exclusions)
+        self._watchdog_sweep_timer.daemon = True
+        self._watchdog_sweep_timer.start()
+
+    def _sweep_watchdog_exclusions(self):
+        try:
+            now = datetime.now(timezone.utc)
+            expired = [cs for cs, until in list(self.watchdog_exclusions.items()) if now >= until]
+            for cs in expired:
+                self.lift_watchdog_exclusion(cs, reason='window elapsed (sweep)')
+        except Exception as e:
+            log.error(f"Watchdog sweep failed: {e}")
+        finally:
+            self._schedule_watchdog_sweep()
 
     def send_heartbeat_packet(self):
         if self._instance == SLAVE: 
