@@ -1,0 +1,10 @@
+# Build output & dependencies
+node_modules/
+.vitepress/dist/
+.vitepress/cache/
+
+# Re-include docs config files that the repo-root .gitignore would otherwise exclude
+!package.json
+!package-lock.json
+!public/
+!public/logo.png
