@@ -4241,6 +4241,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.worker.club_log_email                  = self.local_params.get('club_log_email', '')
         self.worker.club_log_password               = self.local_params.get('club_log_password', '')
         self.worker.club_log_callsign               = self.local_params.get('club_log_callsign', '')
+        self.worker.club_log_api_key                = self.local_params.get('club_log_api_key', '')
 
         self.worker.enable_lotw_upload              = self.local_params.get('enable_lotw_upload', False)
         self.worker.lotw_username                   = self.local_params.get('lotw_username', '')

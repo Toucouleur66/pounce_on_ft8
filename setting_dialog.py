@@ -1295,13 +1295,13 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_club_log_synch.setFont(CUSTOM_FONT)
         self.enable_club_log_synch.setChecked(False)
 
-        club_log_email_label = QtWidgets.QLabel(SettingsStrings.LABEL_CALLSIGN())
+        club_log_email_label = QtWidgets.QLabel(SettingsStrings.LABEL_EMAIL())
         club_log_email_label.setFont(CUSTOM_FONT)
         self.club_log_email = QtWidgets.QLineEdit()
         self.club_log_email.setFont(CUSTOM_FONT)
         self.club_log_email.setPlaceholderText(SettingsStrings.PLACEHOLDER_EMAIL())
 
-        club_log_password_label = QtWidgets.QLabel(SettingsStrings.LABEL_API_KEY())
+        club_log_password_label = QtWidgets.QLabel(SettingsStrings.LABEL_PASSWORD())
         club_log_password_label.setFont(CUSTOM_FONT)
         self.club_log_password = QtWidgets.QLineEdit()
         self.club_log_password.setFont(CUSTOM_FONT)
@@ -1314,6 +1314,20 @@ class SettingsDialog(QtWidgets.QDialog):
         self.club_log_callsign.setFont(CUSTOM_FONT)
         self.club_log_callsign.setPlaceholderText(SettingsStrings.PLACEHOLDER_CALLSIGN())
 
+        club_log_api_key_label = QtWidgets.QLabel(SettingsStrings.LABEL_API_KEY())
+        club_log_api_key_label.setFont(CUSTOM_FONT)
+        self.club_log_api_key = QtWidgets.QLineEdit()
+        self.club_log_api_key.setFont(CUSTOM_FONT)
+        self.club_log_api_key.setEchoMode(QtWidgets.QLineEdit.EchoMode.Password)
+        self.club_log_api_key.setPlaceholderText(SettingsStrings.PLACEHOLDER_CLUB_LOG_API_KEY())
+
+        self.test_club_log_upload_button = QtWidgets.QPushButton(SettingsStrings.BUTTON_TEST_CLUB_LOG_UPLOAD())
+        self.test_club_log_upload_button.setFont(CUSTOM_FONT)
+        self.test_club_log_upload_button.clicked.connect(self.test_club_log_upload_last_qso)
+
+        club_log_test_buttons_layout = QtWidgets.QHBoxLayout()
+        club_log_test_buttons_layout.addWidget(self.test_club_log_upload_button)
+
         club_log_settings_layout.addWidget(self.enable_club_log_synch, 0, 0, 1, 2)
         club_log_settings_layout.addWidget(club_log_email_label, 1, 0, QtCore.Qt.AlignmentFlag.AlignRight)
         club_log_settings_layout.addWidget(self.club_log_email, 1, 1)
@@ -1321,6 +1335,9 @@ class SettingsDialog(QtWidgets.QDialog):
         club_log_settings_layout.addWidget(self.club_log_password, 2, 1)
         club_log_settings_layout.addWidget(club_log_callsign_label, 3, 0, QtCore.Qt.AlignmentFlag.AlignRight)
         club_log_settings_layout.addWidget(self.club_log_callsign, 3, 1)
+        club_log_settings_layout.addWidget(club_log_api_key_label, 4, 0, QtCore.Qt.AlignmentFlag.AlignRight)
+        club_log_settings_layout.addWidget(self.club_log_api_key, 4, 1)
+        club_log_settings_layout.addLayout(club_log_test_buttons_layout, 5, 0, 1, 2)
 
         club_log_settings_group.setLayout(QtWidgets.QVBoxLayout())
         club_log_settings_group.layout().setContentsMargins(0, 0, 0, 0)
@@ -2171,6 +2188,96 @@ class SettingsDialog(QtWidgets.QDialog):
                 'message': f'An error occurred while uploading:\n\n{str(e)}'
             })
 
+    def test_club_log_upload_last_qso(self):
+        email = self.club_log_email.text().strip()
+        password = self.club_log_password.text().strip()
+        callsign = self.club_log_callsign.text().strip()
+        api_key = self.club_log_api_key.text().strip()
+
+        if not email or not password or not api_key:
+            log.warning("Club Log test upload failed: Missing email, password or API key")
+            WindowController.show_test_result_dialog(self, {
+                'title': 'Missing Information',
+                'message': 'Please enter your Club Log email, application password and API key.'
+            })
+            return
+
+        # Get the last QSO from the log file
+        from constants import ADIF_WORKED_CALLSIGNS_FILE
+
+        if not os.path.exists(ADIF_WORKED_CALLSIGNS_FILE):
+            log.warning(f"Club Log test upload failed: Log file not found at {ADIF_WORKED_CALLSIGNS_FILE}")
+            WindowController.show_test_result_dialog(self, {
+                'title': 'No Log File',
+                'message': f'No QSO log file found at:\n{ADIF_WORKED_CALLSIGNS_FILE}\n\nMake at least one QSO first.'
+            })
+            return
+
+        try:
+            log.info(f"Starting Club Log test upload for email: {email}")
+
+            # Read the last QSO from the ADIF file (errors='replace' — user logs may contain Latin-1 chars)
+            with open(ADIF_WORKED_CALLSIGNS_FILE, 'r', encoding='utf-8', errors='replace') as f:
+                content = f.read().strip()
+
+            if not content:
+                log.warning("Club Log test upload failed: Log file is empty")
+                WindowController.show_test_result_dialog(self, {
+                    'title': 'Empty Log File',
+                    'message': 'The log file is empty. Make at least one QSO first.'
+                })
+                return
+
+            # Split by <eor> tags (case insensitive)
+            import re
+            records = re.split(r'<eor>', content, flags=re.IGNORECASE)
+
+            # Filter out empty records
+            records = [r.strip() for r in records if r.strip()]
+
+            if not records:
+                log.warning("Club Log test upload failed: No QSO records found in log file")
+                WindowController.show_test_result_dialog(self, {
+                    'title': 'No QSOs Found',
+                    'message': f'No QSO records found in log file:\n{ADIF_WORKED_CALLSIGNS_FILE}'
+                })
+                return
+
+            # Get the last QSO record and add back the <EOR> tag (Club Log expects a single ADIF record)
+            last_qso = records[-1] + ' <EOR>'
+
+            # Extract callsign for display
+            call_match = re.search(r'<call:\d+>([^\s<]+)', last_qso, re.IGNORECASE)
+            qso_callsign = call_match.group(1) if call_match else 'Unknown'
+
+            log.info(f"Attempting to upload QSO with {qso_callsign} to Club Log")
+
+            # Create uploader instance with the user's own credentials
+            uploader = ClubLogUploader(email, password, api_key, callsign)
+
+            # Try to upload (this will take a few seconds)
+            success, message = uploader.upload_qso(last_qso)
+
+            if success:
+                log.info(f"Club Log upload successful for QSO with {qso_callsign}")
+                WindowController.show_test_result_dialog(self, {
+                    'title': 'Upload Successful',
+                    'message': f'Last QSO with {qso_callsign} uploaded successfully to Club Log!'
+                })
+            else:
+                log.error(f"Club Log upload failed for QSO with {qso_callsign}: {message}")
+                WindowController.show_test_result_dialog(self, {
+                    'title': 'Upload Failed',
+                    'message': f'Upload failed:\n\n{message}'
+                })
+
+        except Exception as e:
+            log.error(f"Club Log test upload exception: {str(e)}", exc_info=True)
+            WindowController.show_test_result_dialog(self, {
+                'title': 'Error',
+                'message': f'An error occurred while uploading:\n\n{str(e)}'
+            })
+
     def add_file_to_list(self, file_path):
         """Add a file entry to the table"""
         row_position = self.adif_files_table.rowCount()
@@ -2459,6 +2566,9 @@ class SettingsDialog(QtWidgets.QDialog):
         self.club_log_callsign.setText(
             self.params.get('club_log_callsign', '')
         )
+        self.club_log_api_key.setText(
+            self.params.get('club_log_api_key', '')
+        )
 
         # Load LoTW Upload settings
         self.enable_lotw_upload.setChecked(
@@ -2681,6 +2791,7 @@ class SettingsDialog(QtWidgets.QDialog):
             'club_log_email'                             : self.club_log_email.text(),
             'club_log_password'                          : self.club_log_password.text(),
             'club_log_callsign'                          : self.club_log_callsign.text(),
+            'club_log_api_key'                           : self.club_log_api_key.text(),
             'enable_lotw_upload'                         : self.enable_lotw_upload.isChecked(),
             'lotw_username'                              : self.lotw_username.text(),
             'lotw_password'                              : self.lotw_password.text(),

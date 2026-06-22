@@ -49,8 +49,7 @@ from constants import (
     WKB4_REPLY_MODE_CURRENT_YEAR,
     ADIF_WORKED_CALLSIGNS_FILE,
     MARATHON_FILE,
-    PRIORITY_LIST,
-    CLUB_LOG_API_KEY
+    PRIORITY_LIST
 )
 
 class Listener(QObject):
@@ -95,6 +94,7 @@ class Listener(QObject):
             club_log_email,
             club_log_password,
             club_log_callsign,
+            club_log_api_key,
             enable_lotw_upload,
             lotw_username,
             lotw_password,
@@ -235,6 +235,7 @@ class Listener(QObject):
         self.club_log_email                 = club_log_email
         self.club_log_password              = club_log_password
         self.club_log_callsign              = club_log_callsign
+        self.club_log_api_key               = club_log_api_key
         self.club_log_uploader              = None
 
         self.enable_lotw_upload             = enable_lotw_upload
@@ -288,11 +289,11 @@ class Listener(QObject):
         """
             Initialize Club Log uploader
         """
-        if self.enable_club_log_synch and self.club_log_email and self.club_log_password:
+        if self.enable_club_log_synch and self.club_log_email and self.club_log_password and self.club_log_api_key:
             self.club_log_uploader = ClubLogUploader(
                 self.club_log_email,
                 self.club_log_password,
-                CLUB_LOG_API_KEY,
+                self.club_log_api_key,
                 self.club_log_callsign or ''
             )
 

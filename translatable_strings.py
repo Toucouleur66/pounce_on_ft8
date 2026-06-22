@@ -315,7 +315,7 @@ class SettingsStrings:
     LABEL_SELECT_BANDS_GRID = lambda: tr("SettingsDialog", "Select bands for Grid Tracker:")
     # Club Log
     CLUB_LOG_NOTICE = lambda: tr("SettingsDialog",
-        "<p>Club Log is a web service for amateur radio logging and statistics.</p><p>You can enable automatic upload of your QSO data to Club Log.</p>"
+        "<p>Club Log is a web service for amateur radio logging and statistics.</p><p>You can enable automatic upload of your QSO data to Club Log.</p><p>Use your registered email, an Application Password and your own API key (create them in your Club Log account settings).</p>"
     )
     GROUP_CLUB_LOG_SETTINGS = lambda: tr("SettingsDialog", "Club Log Settings")
     CHECK_ENABLE_CLUB_LOG = lambda: tr("SettingsDialog", "Enable automatic upload to Club Log")
@@ -324,9 +324,11 @@ class SettingsStrings:
     LABEL_PASSWORD = lambda: tr("SettingsDialog", "Password:")
     LABEL_API_KEY = lambda: tr("SettingsDialog", "API Key:")
     BUTTON_TEST_CONNECTION = lambda: tr("SettingsDialog", "Test Connection")
+    BUTTON_TEST_CLUB_LOG_UPLOAD = lambda: tr("SettingsDialog", "Test Upload Last QSO")
     PLACEHOLDER_EMAIL = lambda: tr("SettingsDialog", "Registered email address in Club Log")
     PLACEHOLDER_PASSWORD = lambda: tr("SettingsDialog", "Application password")
     PLACEHOLDER_CALLSIGN = lambda: tr("SettingsDialog", "Your callsign")
+    PLACEHOLDER_CLUB_LOG_API_KEY = lambda: tr("SettingsDialog", "Your Club Log API key")
     CLUB_LOG_STATUS = lambda total, last_sync, callsign, band: (
         tr("SettingsDialog", "Club Log Status:") + f" {total} " + tr("SettingsDialog", "QSOs uploaded") + f"<br />" +
         tr("SettingsDialog", "Last upload:") + f" {last_sync}<br />" +
