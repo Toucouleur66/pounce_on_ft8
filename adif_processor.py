@@ -34,11 +34,23 @@ class AdifProcessor:
     def start(self):
         if not self._running:
             self._running = True
-            
+
+            # Clear the stop flag in case the processor was previously stopped
+            # and is now being restarted (e.g. Stop/Start monitoring).
+            self.stop_event.clear()
+
+            # Drain any leftover sentinel/task from a previous run so the fresh
+            # worker doesn't read a stale None and exit immediately.
+            while True:
+                try:
+                    self.task_queue.get_nowait()
+                except queue.Empty:
+                    break
+
             # Additional Windows safety check
             if hasattr(multiprocessing, 'freeze_support'):
                 multiprocessing.freeze_support()
-            
+
             self.process = Process(
                 target=self._worker_process,
                 args=(self.task_queue, self.result_queue, self.progress_queue, self.stop_event),
@@ -50,14 +62,32 @@ class AdifProcessor:
     def stop(self):
         if self._running:
             self._running = False
+
+            # Ask the worker to exit on its own so it can release its DLL
+            # handles and clean up its PyInstaller _MEIxxxxx temp dir. A brutal
+            # terminate() leaves those handles open, which on Windows produces
+            # the "Failed to remove temporary directory" warning during use.
             self.stop_event.set()
-            
+
+            # Also push a sentinel in case the worker is blocked in task_queue.get()
+            try:
+                self.task_queue.put(None, timeout=1)
+            except queue.Full:
+                pass
+
             if self.process and self.process.is_alive():
-                self.process.terminate()
+                # Give the worker a chance to leave its loop and shut down cleanly.
                 self.process.join(timeout=5)
+
+                # Only as a last resort, force-kill it.
                 if self.process.is_alive():
-                    log.warning("ADIF processor did not stop gracefully")
-            
+                    log.warning("ADIF processor did not stop gracefully, terminating")
+                    self.process.terminate()
+                    self.process.join(timeout=5)
+                    if self.process.is_alive():
+                        log.warning("ADIF processor still alive after terminate")
+
+            self.process = None
             log.info("ADIF processor stopped")
     
     def process_file(self, file_path, last_size, lookup=None, max_lines=10):

@@ -2111,8 +2111,8 @@ class SettingsDialog(QtWidgets.QDialog):
         try:
             log.info(f"Starting LoTW test upload for user: {username}")
 
-            # Read the last QSO from the ADIF file
-            with open(ADIF_WORKED_CALLSIGNS_FILE, 'r', encoding='utf-8') as f:
+            # Read the last QSO from the ADIF file (errors='replace' — user logs may contain Latin-1 chars)
+            with open(ADIF_WORKED_CALLSIGNS_FILE, 'r', encoding='utf-8', errors='replace') as f:
                 content = f.read().strip()
 
             if not content:

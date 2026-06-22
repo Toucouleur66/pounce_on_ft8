@@ -107,7 +107,8 @@ class LoTWIncomingDialog(QDialog):
         try:
             import os
             if os.path.exists(ADIF_WORKED_CALLSIGNS_FILE):
-                with open(ADIF_WORKED_CALLSIGNS_FILE, 'r', encoding='utf-8') as f:
+                # read-only count; errors='replace' tolerates non-UTF-8 (Latin-1) user logs
+                with open(ADIF_WORKED_CALLSIGNS_FILE, 'r', encoding='utf-8', errors='replace') as f:
                     local = f.read()
 
                 for r in records:

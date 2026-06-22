@@ -1966,7 +1966,9 @@ class Listener(QObject):
             # Store the ADIF entry for reuse by other functions
             self.last_adif_entry = adif_entry
 
-            with open(self.adif_worked_backup_file_path, "a") as adif_file:
+            # Pin encoding to latin-1 to match the read side (lotw_sync_worker) and avoid
+            # mixed encodings across platforms (macOS defaults to utf-8, some Windows to cp1252)
+            with open(self.adif_worked_backup_file_path, "a", encoding="latin-1", errors="replace") as adif_file:
                 adif_file.write(adif_entry)
             log.warning("QSO Logged [ {} ]".format(self.call_ready_to_log))
 

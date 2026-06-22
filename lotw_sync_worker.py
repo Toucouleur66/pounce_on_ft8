@@ -90,7 +90,10 @@ class LoTWSyncWorker(QObject):
             return 0
 
         try:
-            with open(ADIF_WORKED_CALLSIGNS_FILE, 'r', encoding='utf-8') as f:
+            # Read as latin-1: a 1:1 byte-preserving codec. We only match ASCII ADIF
+            # tags via regex, and writing back with the same codec round-trips the file
+            # byte-for-byte — avoiding corruption of accented chars in user field values.
+            with open(ADIF_WORKED_CALLSIGNS_FILE, 'r', encoding='latin-1') as f:
                 content = f.read()
         except Exception as e:
             log.error(f"LoTW SyncWorker: failed to read ADIF file: {e}")
@@ -151,7 +154,8 @@ class LoTWSyncWorker(QObject):
         if updated:
             try:
                 new_content = ''.join(output)
-                with open(ADIF_WORKED_CALLSIGNS_FILE, 'w', encoding='utf-8') as f:
+                # Write with the same latin-1 codec used to read, preserving original bytes
+                with open(ADIF_WORKED_CALLSIGNS_FILE, 'w', encoding='latin-1') as f:
                     f.write(new_content)
                 log.info(f"LoTW SyncWorker: ADIF file updated — {updated} record(s) modified")
             except Exception as e:
