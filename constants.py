@@ -131,6 +131,8 @@ PRIORITY_LIST                   = {
 
 DISCORD_URL                     = "https://discord.gg/fqCu24naCM"
 DISCORD_SECTION                 = f'<a href="{DISCORD_URL}">Support available on Discord</a>'
+GUIDE_URL                       = "https://f5ukw.com/wait-and-pounce/"
+GUIDE_SECTION                   = f'<a href="{GUIDE_URL}">User guide</a>'
 DONATION_URL                    = "https://www.paypal.com/donate/?cmd=_s-xclick&hosted_button_id=R4HK9ZTUPYHSL&ssrt=1732865689562"
 DONATION_SECTION                = f'<a href="{DONATION_URL}">Donations are welcome</a>'
 

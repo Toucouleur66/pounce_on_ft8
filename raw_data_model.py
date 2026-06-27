@@ -77,6 +77,10 @@ class RawDataModel(QtCore.QAbstractTableModel):
             else:
                 return str(section + 1)                
         
+        if role == QtCore.Qt.ItemDataRole.ToolTipRole:
+            if orientation == QtCore.Qt.Orientation.Horizontal and section == 0:
+                return MainWindowStrings.HEADER_TIME_TOGGLE_TOOLTIP()
+
         if role == QtCore.Qt.ItemDataRole.TextAlignmentRole:
             if orientation == QtCore.Qt.Orientation.Horizontal:
                 if section == 0 and self.datetime_column_setting == DATE_COLUMN_AGE:

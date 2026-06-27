@@ -175,6 +175,7 @@ from constants import (
     CUSTOM_FONT_SMALL,
     # URL
     DISCORD_SECTION,
+    GUIDE_SECTION,
     DONATION_SECTION,
     DONATION_URL,
     DISCORD_URL,
@@ -1109,6 +1110,8 @@ class MainApp(QtWidgets.QMainWindow):
                 else:
                     output_table.setColumnWidth(i, width)  
         
+        # Pointing-hand cursor on the header hints that sections (esp. Time) are clickable
+        output_table.horizontalHeader().setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         output_table.horizontalHeader().sectionClicked.connect(self.on_header_clicked)
         output_table.horizontalHeader().sectionResized.connect(self.on_country_column_resized)
 
@@ -2499,7 +2502,9 @@ class MainApp(QtWidgets.QMainWindow):
             elif priority_type == 'polite_reply':
                 focus_message = "Politeness"  
             elif priority_type == 'wanted_cq_zone':
-                focus_message = "Zone"
+                callsign_info = message.get('callsign_info') or {}
+                cq_zone = callsign_info.get('cqz')
+                focus_message = f"Zone {cq_zone}" if cq_zone else "Zone"
             elif priority_type == 'dxcc_entity':
                 focus_message = "DXCC"
 
@@ -3913,6 +3918,11 @@ class MainApp(QtWidgets.QMainWindow):
         discord_section.setOpenExternalLinks(True)
         discord_section.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(discord_section)
+
+        guide_section = CustomQLabel(GUIDE_SECTION)
+        guide_section.setOpenExternalLinks(True)
+        guide_section.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(guide_section)
 
         layout.addStretch()
 

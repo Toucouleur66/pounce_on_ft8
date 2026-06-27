@@ -68,8 +68,9 @@ class MainWindowStrings:
     CQ_ZONE_PLACEHOLDER = lambda: tr("MainWindow", "CQ zones list separated by uppercase commas")
     # Table headers (output table)
     HEADER_DATETIME = lambda: tr("MainWindow", "DateTime")
-    HEADER_TIME = lambda: tr("MainWindow", "Time")
-    HEADER_AGE = lambda: tr("MainWindow", "Age")
+    HEADER_TIME = lambda: tr("MainWindow", "Time") + " ⇥"
+    HEADER_AGE = lambda: tr("MainWindow", "Age") + " ⇤"
+    HEADER_TIME_TOGGLE_TOOLTIP = lambda: tr("MainWindow", "Click to toggle between Time and Age")
     # Time display mode labels
     SHOW_TIME_ACTION = lambda: tr("MainWindow", "Show Time")
     SHOW_AGE_ACTION = lambda: tr("MainWindow", "Show Age")
