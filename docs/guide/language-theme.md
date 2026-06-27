@@ -14,8 +14,7 @@ Wait and Pounce is fully translated. Choose your language from the **Language** 
 Changing language takes effect after a **restart** of the application. The app will prompt you.
 :::
 
-All user-facing strings live in a central translation table (`translatable_strings.py`) compiled
-into Qt `.qm` files, so menus, settings, tooltips and the grid map are all localised.
+Everything is translated — menus, settings, tooltips and the grid map are all localised.
 
 ## Theme
 

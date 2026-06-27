@@ -1,124 +1,99 @@
-# How It Works
+# How It Decides Who to Call
 
-This page explains the engine behind Wait and Pounce — the path a single FT8 decode takes from
-the network to a reply keying your radio. Understanding it makes every setting easier to reason
-about.
+When you let Wait and Pounce work for you, the hardest moment is a **busy band**: five, ten, twenty
+stations decode at the same instant and only one reply can go out. This page explains, in plain
+terms, how the software decides **who to call** — and why it sometimes waits a fraction of a second
+before transmitting.
 
-## The pipeline at a glance
+You don't need to read this to use the program, but understanding it makes the
+[priority settings](/guide/reply-engine) much easier to tune.
 
-```
-WSJT-X UDP ──► Receiver thread ──► Queue ──► Processor thread ──► assign_packet()
-                                                                       │
-                          ┌────────────────────────────────────────────┤
-                          ▼                ▼                ▼            ▼
-                    HeartBeat        Status         Decode        Setting/Reply/…
-                          │                │                │
-                          │       updates band/freq/   handle_decode_packet()
-                          │       my_call/mode             │
-                          │                          parse + classify
-                          │                          (wanted? zone? grid?
-                          │                           marathon? excluded?
-                          │                           worked-before?)
-                          │                                │
-                          │                        reply_message_buffer (deque)
-                          │                                │
-                          │                   debounce 200 ms, pick highest
-                          │                   priority of this TX period
-                          │                                │
-                          │                        process_pending_reply()
-                          │                                │
-                          │                   reply_to_packet()  ──► WSJT-X Reply packet
-                          ▼                                            (keys the radio)
-                  liveness / sync
-```
+## The 15-second rhythm
 
-The core lives in **`wsjtx_listener.py`** in a class called `Listener`, hosted on a background
-thread by **`worker.py`** so the GUI never blocks.
+FT8 works in **15-second periods** (FT4 is faster). Every period, the radio decodes a batch of
+messages all at once. Wait and Pounce treats each batch as a single "round": it looks at everyone
+who decoded in **that** period and picks the best station to answer in the next period.
 
-## 1. Receiving packets
+This is the key idea: **it never reacts to one decode in isolation.** It waits for the whole batch,
+compares everybody, then commits to one choice.
 
-Wait and Pounce opens a UDP socket on the same address/port WSJT-X uses (default `2237`). Two
-threads cooperate:
+## Step 1 — Collecting the candidates
 
-- A **receiver thread** does nothing but read datagrams off the socket and drop them onto an
-  in-memory queue (up to 1000 deep).
-- A **processor thread** pops packets, decodes them with the bundled `pywsjtx` library, and
-  dispatches each to a handler by type.
+As decodes arrive, the software keeps the ones that are actually worth answering — the stations
+that match something you want (a wanted callsign, a wanted zone, a needed marathon entity, a new
+grid, or someone calling *you*). These go into a short-lived **shortlist** for the current period.
 
-WSJT-X emits several packet types; the ones that matter here are:
+Decodes that match nothing, that are excluded, or that you've already worked (depending on your
+[Worked-Before](/guide/worked-before) setting) don't make the shortlist.
 
-| Packet | What Wait and Pounce does |
-|---|---|
-| **Heartbeat** | Tracks that WSJT-X is alive; replies with its own heartbeat. |
-| **Status** | Learns your callsign, grid, current dial frequency → **band**, mode (FT8/FT4), and whether the radio is transmitting. Detects band changes. |
-| **Decode** | The important one — every decoded message flows through the pounce logic. |
-| **QSO Logged** | A contact was logged in WSJT-X → recorded in the worked history. |
-| **Request/Setting** | Used for [Master/Slave sync](/guide/master-slave) between instances. |
+Only stations from the **same period** compete with each other. A station heard two periods ago
+isn't lumped in with the current batch.
 
-## 2. Classifying a decode
+## Step 2 — Ranking the shortlist
 
-When a Decode packet arrives, the message text (e.g. `CQ DX TX5S BG23`) is parsed and matched
-against your lists for the **current band**. Each decode is tagged with a set of flags:
+Every station on the shortlist is scored. The ranking, from most to least important:
 
-- `wanted` / `wanted_cq_zone` — matches a wanted callsign or CQ zone
-- `monitored` — matches a monitored call/zone (alert only, no auto-reply)
-- `excluded` — on your excluded list (never reply)
-- `directed` — the message is *directed at your callsign* (someone is answering you)
-- `cqing` — the station is calling CQ
-- Enrichment: `report` (SNR), `grid`, `lotw` (uses LoTW?), `entity_code` (DXCC), CQ zone
+1. **Someone answering you.** If a station is calling *your* callsign, it jumps to the top —
+   you're in the middle of a QSO and finishing it always comes first. If it's the very station you
+   were already working, it ranks even higher.
+2. **Calling CQ.** A station calling CQ is readier to be worked than one already in a QSO with
+   someone else, so it gets a small boost.
+3. **Your priority order.** Then the software adds a bonus based on *why* the station is wanted —
+   wanted callsign, wanted zone, marathon, new grid, or politeness — in the exact order **you** set
+   in the [priority settings](/guide/reply-engine). A station matching a higher reason outranks one
+   matching a lower reason.
 
-A decode becomes a **reply candidate** only after passing a cascade of gates:
+### Breaking a tie
 
-1. **Worked-Before** — if you've already worked this call+band, it may be demoted depending on
-   your [WkB4 mode](/guide/worked-before).
-2. **Marathon** — needed for the [DX Marathon](/guide/marathon)? → candidate.
-3. **Grid tracker** — a [new/unconfirmed grid](/guide/grid-tracker)? → candidate.
-4. **Valid callsign** filter — optionally drop calls with no resolvable DXCC entity.
-5. **Direction** filter — optionally drop calls beaming at another continent.
-6. **LoTW-only** filter — optionally only reply to LoTW users.
-7. **Minimum report** — drop decodes weaker than your threshold.
+If two stations are still even, the software prefers, in order:
 
-If a decode is *directed at your callsign* with `RRR` / `RR73` / `73`, the engine instead
-**logs the QSO** (ADIF + optional LoTW/Club Log upload), marks the call worked, and clears it
-from your wanted list.
+1. the one representing the **more recent** contact opportunity (helps with year-based goals),
+2. a station that **uses LoTW** (more likely to confirm your contact),
+3. the **stronger** signal (more likely to complete),
+4. and finally the one that was **heard first**.
 
-## 3. Choosing who to reply to
+The single highest-ranked station becomes the chosen target.
 
-Multiple candidates can appear in the **same FT8/FT4 transmit period**. Wait and Pounce does not
-reply to the first one — it waits and scores them all:
+## Step 3 — The brief pause before transmitting
 
-- A station **answering you** always wins.
-- Otherwise each candidate gets a **priority score** from your configurable
-  [Priority Manager](/guide/reply-engine#priority-manager) order.
-- Ties are broken by: most recent worked-before year → LoTW user → strongest SNR → earliest
-  received.
+Here's the part that surprises people: when a new best choice appears, Wait and Pounce arms a
+**very short timer (about a fifth of a second)** instead of transmitting immediately.
 
-A short **200 ms debounce timer** (`WAITING_TIME_BEFORE_REPLY`) lets the full period's decodes
-arrive before the *single best* candidate is chosen. That candidate becomes the `targeted_call`.
+Why wait at all? Because decodes from the same period don't all land at the exact same millisecond.
+If the software fired on the *first* wanted station it saw, it might call a weak duplicate and miss
+the rare DX that decoded 100 ms later in the same batch. The tiny pause lets the **entire** batch
+arrive so the *final* best choice wins — not whoever happened to decode first.
 
-## 4. Replying (keying the radio)
+If a better station shows up during that pause, the timer resets to the new leader. When the pause
+ends, the winner is locked in and the reply goes out in the next period.
 
-For the winning candidate, the engine sends a **Reply packet** back to WSJT-X. WSJT-X then calls
-that station exactly as if you'd double-clicked it. Optionally the engine also:
-
-- Moves your TX frequency to a clear slot ([Gap Finder](/guide/gap-finder)).
-- Sends a **Halt TX** packet when it gives up on a station (e.g. the
-  [watchdog](/guide/watchdog) limit is reached).
-
-::: info Slave instances never key the radio
-In a [Master/Slave](/guide/master-slave) setup, only the **Master** sends Reply/Halt/frequency
-packets. Slave instances mirror the configuration but stay receive-only.
+::: tip Why it sometimes "changes its mind"
+On a crowded opening you may see the highlighted target flicker between stations for a split second
+before it settles. That's this selection process choosing the best of the batch. It settles before
+the next transmit slot — it is not indecision, it's comparison.
 :::
 
-## 5. Sticking with, or abandoning, a target
+## Step 4 — Sticking with the target
 
-Once `targeted_call` is set, Wait and Pounce keeps replying to that station until:
+Once a station is chosen, the software keeps calling it across the following periods until one of
+these happens:
 
-- the QSO completes (it sees `RR73`/`73`), **or**
-- the **maximum waiting delay** elapses (default 2 minutes) with no answer, **or**
-- the **maximum number of attempts** is reached.
+- **the QSO completes** (the station sends its final acknowledgement),
+- **time runs out** — your *maximum waiting delay* elapses with no answer, or
+- **too many tries** — your *maximum number of attempts* is reached.
 
-When it gives up, the [watchdog](/guide/watchdog) can *temporarily exclude* the station so the
-engine moves on to other targets instead of looping forever.
+When it gives up, the [Watchdog](/guide/watchdog) can set the station aside temporarily so the
+software immediately moves on to the next-best target instead of looping on a station that can't
+hear you. It also tells the radio to stop transmitting so you're not calling into the void.
 
-Next: see this reflected in [The Main Window](/guide/main-window).
+## Step 5 — Housekeeping
+
+The shortlist is constantly trimmed: stations older than a couple of minutes drop off so the
+comparison always reflects what's being heard **now**, not what was heard long ago.
+
+---
+
+In short: **collect the whole period → rank everyone by your rules → wait a heartbeat for the full
+batch → call the single best station → stick with it until it's worked or hopeless.** Everything you
+configure in [Choosing Who to Reply To](/guide/reply-engine), [Worked-Before](/guide/worked-before),
+[Marathon](/guide/marathon) and [Grid Tracker](/guide/grid-tracker) simply feeds into this ranking.

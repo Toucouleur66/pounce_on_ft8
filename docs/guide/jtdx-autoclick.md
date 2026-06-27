@@ -6,8 +6,9 @@ that prompt for you so unattended pouncing isn't interrupted.
 
 ::: warning Windows only, requires permissions
 This feature drives another application's window and is **Windows-only**. On Windows it may need
-the app to run with administrator privileges and "monitoring" permissions. It does **not** work in
-[Slave mode](/guide/master-slave) (only the Master keys the radio and logs QSOs).
+the app to run with administrator privileges and "monitoring" permissions. It does **not** work on
+a receive-only instance (see [Running Several Instances](/guide/master-slave)) — only the main copy
+keys the radio and logs QSOs.
 :::
 
 ## Settings
@@ -20,8 +21,6 @@ In **Settings → Automate tasks**:
 | **Test it** | Trigger a test click to verify it finds the button. |
 | **Delay before clicking** (slider, 0–30 s) | Wait this long before clicking — gives you time to intervene or lets the window settle. |
 | **Test Windows Monitoring Permissions** | Check that the OS lets the app inspect/click other windows. |
-
-Config keys: `enable_jtdx_autoclick` (prompt close), `jtdx_click_delay`.
 
 ## How it works
 

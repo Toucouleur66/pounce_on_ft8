@@ -12,16 +12,10 @@ The packaged builds are distributed from the project's
 [SourceForge page](https://sourceforge.net/projects/wait-and-pounce-ft8/). Download the build for
 your platform and run it.
 
-- **Windows** — the app may request **administrator privileges**. This is required for the
-  optional [JTDX auto-click](/guide/jtdx-autoclick) feature, which interacts with another
-  window. The app expires after a built-in date and will prompt you to update.
-- **macOS** — a `.app` bundle; a small status-menu agent provides the menu-bar icon.
-
-::: tip Running from source
-Developers can run it directly — see [Building from Source](/reference/building). The main entry
-point is `pounce_gui.pyw` and dependencies are pinned in `requirements.txt` (PyQt6 6.8, numpy,
-shapely, requests, …).
-:::
+- **Windows** — the app may request **administrator privileges**. This is needed only for the
+  optional [JTDX auto-click](/guide/jtdx-autoclick) feature, which interacts with another window.
+  The app will also prompt you when a new version is available.
+- **macOS** — a standard application bundle; a small menu-bar icon is provided.
 
 ## Configuring WSJT-X / JTDX
 

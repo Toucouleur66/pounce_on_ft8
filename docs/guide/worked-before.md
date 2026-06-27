@@ -27,7 +27,7 @@ The current year is shown live in the middle option's label.
 
 ## How it affects the engine
 
-WkB4 acts as an early gate in the [reply pipeline](/guide/how-it-works#_2-classifying-a-decode):
+WkB4 acts as an early gate in the [reply pipeline](/guide/how-it-works):
 
 - A wanted call that fails the WkB4 test is **demoted to monitored** — you still get the alert and
   the highlight, but the engine won't auto-call it.
@@ -44,7 +44,7 @@ The table's **★** column shows the worked-before status:
 
 ## Where the data comes from
 
-Your log is parsed into a worked-before structure keyed by `year → band → set(callsigns)`. The
-app's own contacts are also written to its backup log (`wait_pounce_log.adif`) and folded in, so
-stations you work *during* a session immediately count as worked-before too. See
-[ADIF Logbook Analysis](/guide/adif) for how the log is monitored and parsed.
+Your log is parsed so the app knows, for each year and band, which callsigns you've worked. The
+app's own contacts are also folded in, so stations you work *during* a session immediately count
+as worked-before too. See [ADIF Logbook Analysis](/guide/adif) for how the log is monitored and
+parsed.

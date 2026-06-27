@@ -13,7 +13,7 @@ hero:
       text: Get Started
       link: /guide/introduction
     - theme: alt
-      text: How It Works
+      text: How It Decides
       link: /guide/how-it-works
     - theme: alt
       text: All Settings
@@ -21,31 +21,32 @@ hero:
 
 features:
   - title: 🎯 Smart Pouncing
-    details: Watches every WSJT-X / JTDX decode and replies to your wanted callsigns, CQ zones, new grids and DX-Marathon entities — automatically, with a configurable priority order.
+    details: Watches every decode and replies to your wanted callsigns, CQ zones, new grids and DX-Marathon entities — automatically, in the priority order you choose.
   - title: 📡 Works with WSJT-X & JTDX
-    details: Listens on the UDP server, forwards packets, and keys your radio by sending Reply packets. No modification of WSJT-X or JTDX required.
+    details: Sits alongside WSJT-X or JTDX and replies for you, exactly as if you'd double-clicked the decode yourself. No changes to your existing setup.
   - title: 🗂️ Logbook-Aware
-    details: Parses your ADIF logbook to know what you've already worked. Worked-Before logic, per-year tracking, and a built-in logbook analyzer.
+    details: Reads your logbook so it never wastes time on stations you've already worked — with flexible, per-year worked-before rules.
   - title: 🏆 DX Marathon & Grid Tracking
-    details: Hunt every DXCC entity once per year, or chase new Maidenhead grids regardless of band, with an interactive grid map.
+    details: Hunt every DXCC entity once per year, or chase new grid squares regardless of band, with an interactive map.
   - title: ☁️ LoTW & Club Log
-    details: Auto-upload contacts to Logbook of The World (via TQSL) and Club Log in real time, and download confirmations back into your log.
-  - title: 🔗 Multi-Instance Sync
-    details: Run a Master and one or more Slave instances across rigs; wanted lists and reply state stay in sync automatically.
+    details: Upload your contacts to Logbook of The World and Club Log automatically, and pull confirmations back into your log.
+  - title: 🔊 Alerts & Awareness
+    details: Distinct sounds, colour-coded decodes and a live activity bar keep you aware of what's happening, even hands-off.
 ---
 
 ## What is Wait and Pounce?
 
-**Wait and Pounce** is a companion application for the popular weak-signal digital modes
-software **WSJT-X** and **JTDX**. Where WSJT-X handles the FT8/FT4 protocol, decoding and
-the radio, Wait and Pounce adds an intelligent **automatic-reply ("pounce") engine** on top:
-you tell it *who* and *what* you want to work, and it watches the decode stream and replies on
-your behalf the instant a target appears.
+**Wait and Pounce** is a companion application for the popular weak-signal digital-mode software
+**WSJT-X** and **JTDX**. Those programs handle the FT8/FT4 modes, the decoding and your radio.
+Wait and Pounce adds an intelligent **automatic-reply ("pounce") assistant** on top: you tell it
+*who* and *what* you want to work, and it watches the decodes and replies on your behalf the instant
+a target appears.
 
-It is written in **Python 3 / PyQt6**, runs on **Windows and macOS**, and talks to WSJT-X / JTDX
-purely over the standard **UDP network protocol** (default port `2237`).
+It runs on **Windows and macOS** and works alongside your existing WSJT-X / JTDX installation — no
+changes to your radio setup required.
 
 ::: tip New here?
 Start with the [Introduction](/guide/introduction), then read
-[How It Works](/guide/how-it-works) to understand the pounce engine before configuring anything.
+[How It Decides Who to Call](/guide/how-it-works) to understand the assistant before configuring
+anything.
 :::

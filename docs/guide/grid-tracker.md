@@ -20,8 +20,8 @@ paper, or eQSL).
 
 ## Grid Map window
 
-Open it with **View → Grid Monitoring** (<kbd>Ctrl</kbd>+<kbd>G</kbd>). It is a native PyQt6
-canvas (`grid_map_viewer.py`) painted over OpenStreetMap raster tiles.
+Open it with **View → Grid Monitoring** (<kbd>Ctrl</kbd>+<kbd>G</kbd>). It is a map painted over
+OpenStreetMap raster tiles.
 
 ### What it shows
 
@@ -35,10 +35,10 @@ canvas (`grid_map_viewer.py`) painted over OpenStreetMap raster tiles.
 
 ### Context menu
 
-The grid map supports a right-click context menu (e.g. to set an *Excluded* trigger), shared with
-the main table via `ContextMenuHandler`.
+The grid map supports a right-click context menu (e.g. to set an *Excluded* trigger), the same one
+available on the main table.
 
 ::: info Data source
-The map reads `adif_data['grid'][band][grid_square]` — the per-band, per-grid QSO lists produced
-by the ADIF processor. Its worked/confirmed state therefore stays in sync with your logbook.
+The map reads its per-band worked and confirmed grids from your logbook, so its colouring stays in
+sync with what you've worked.
 :::

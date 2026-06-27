@@ -1,89 +1,65 @@
-# Reply & Priority Engine
+# Choosing Who to Reply To
 
-When several wanted stations decode in the same transmit period, Wait and Pounce must pick
-*one* to call. This page covers how that decision is made and the settings that shape it.
+When several wanted stations decode at the same time, Wait and Pounce must pick *one* to call.
+This page covers the settings that shape that choice. For the full picture of *how* the decision is
+made, see [How It Decides Who to Call](/guide/how-it-works).
 
-## Enable reply
+## Turn replying on
 
-Nothing transmits unless **Enable reply** is on (Settings → General Settings). With it off, Wait
-and Pounce becomes a smart **monitor** — it highlights and sounds alerts but never keys the radio.
-There is also a one-click toggle (<kbd>Ctrl</kbd>+<kbd>S</kbd> plays a sound when reply is
-disabled) and the reply state can be synced between instances.
+Nothing transmits unless **Enable reply** is on (in **Settings → General Settings**). With it off,
+Wait and Pounce becomes a smart **monitor** — it highlights decodes and plays alerts but never keys
+the radio. You can also flip replying on and off quickly with the sound/reply toggle, and a sound
+confirms when replying has been turned off.
 
-## The candidate buffer
+## Your priority order
 
-Every decode that passes the [gates](/guide/how-it-works#_2-classifying-a-decode) and has reply
-enabled is appended to a buffer. **Only decodes from the same FT8/FT4 period compete** — the
-engine matches their decode time (HH:MM:SS) so it always reasons about one period at a time.
+When more than one wanted station is available, the order you set here decides who wins. In
+**Settings → Priority Manager**, drag the reasons into the order you prefer:
 
-## Priority scoring
-
-Each candidate gets a score:
-
-1. A station **answering your callsign** gets the top priority (and even higher if it's the call
-   you're already working).
-2. **CQ** messages get a base bonus over non-CQ.
-3. A per-property bonus is added by walking your **Priority Manager** order.
-
-### Priority Manager
-
-In **Settings → Priority Manager** you drag-and-drop to order these reply reasons:
-
-| Reason | Key |
+| Priority | Reason |
 |---|---|
-| Wanted Callsign(s) | `wanted` |
-| Wanted CQ Zone(s) | `wanted_cq_zone` |
-| Marathon | `marathon` |
-| New Grid | `wanted_grid` |
-| Politeness reply | `polite_reply` |
+| Highest | **Wanted Callsign** |
+| | **Wanted CQ Zone** |
+| | **Marathon** |
+| | **New Grid** |
+| Lowest | **Politeness reply** |
 
-The default order is exactly the list above (wanted call is most important). A candidate matching
-a higher item in the list outscores one matching a lower item.
+That's the default order — a wanted callsign beats a wanted zone, which beats a marathon entity,
+and so on. Reorder it to match how *you* hunt.
 
-The same page sets:
+::: tip Someone answering you always wins
+Whatever your order, a station that is **calling your callsign** is answered first — you're already
+in a QSO and finishing it comes before chasing anything new.
+:::
+
+The same page also sets how long the software persists with one station:
 
 - **Maximum number of attempts** (4–30) — how many times to call a station before giving up.
 - **Maximum waiting delay** (1–10 min) — how long to keep trying a target with no answer.
 
-## Tie-breaking
-
-When two candidates tie on priority, the engine breaks the tie in this order:
-
-1. **Most recent worked-before year** (prefer something fresher)
-2. **LoTW user** (more likely to confirm)
-3. **Strongest SNR** (more likely to complete)
-4. **Earliest received** packet
-
-## The 200 ms debounce
-
-The engine does **not** fire on the first candidate. When the best candidate changes, it arms a
-**200 ms timer** (`WAITING_TIME_BEFORE_REPLY`). This lets the rest of the period's decodes arrive
-so the *final* best pick wins, instead of whoever happened to decode first. When the timer fires,
-`process_pending_reply()` sets the `targeted_call`, optionally retunes the TX frequency
-([Gap Finder](/guide/gap-finder)), and sends the Reply packet.
-
 ## Polite reply
 
-**Enable polite reply** (General Settings) makes the engine answer stations that are *calling you*
-even if they aren't on your wanted list — i.e. don't be rude and ignore someone working you.
-Selecting on this basis shows the **`/ POLITENESS`** suffix in the focus label.
+**Enable polite reply** (General Settings) makes the software answer a station that is *calling you*
+even if it isn't on your wanted list — so you're never rude to someone trying to work you. A reply
+chosen this way is labelled **/ POLITENESS** in the focus display.
 
-## Filters that drop candidates
+## Filters that skip a station
 
-In **General Settings** you can additionally require candidates to pass:
+In **General Settings** you can require every candidate to pass extra checks:
 
-- **Minimum report** — drop anything weaker than your chosen SNR (`+10` … `−26 dB`).
-- **Ignore callsign if prefix is invalid** — drop calls with no resolvable DXCC entity.
-- **Ignore callsign if it targets another continent** — drop stations beaming away from you.
+- **Minimum report** — ignore signals weaker than your chosen level (from +10 dB down to −26 dB).
+- **Ignore callsign if prefix is invalid** — skip calls that don't resolve to a real country.
+- **Ignore callsign if it targets another continent** — skip stations beaming away from you.
 - **Reply only for callsigns that use LoTW** (on the LoTW page) — chase confirmable contacts only.
 
-## Completing and logging a QSO
+## Completing a contact
 
-When the targeted station sends `RRR` / `RR73` / `73` directed at you, the engine:
+When your target sends its final acknowledgement, Wait and Pounce:
 
-1. Sends one final reply if needed (except in Hound mode).
-2. Logs the QSO to ADIF (and optional [LoTW](/guide/lotw) / [Club Log](/guide/clublog) upload).
-3. Marks the call worked for the band and removes it from Wanted.
-4. Resets `targeted_call` so the next target can be chosen.
+1. Sends a final reply if one is needed.
+2. Logs the contact (and uploads it to [LoTW](/guide/lotw) / [Club Log](/guide/clublog) if enabled).
+3. Marks the station worked for that band and removes it from your wanted list.
+4. Frees up to choose the next target.
 
-When it *cannot* complete (no answer within limits), the [Watchdog](/guide/watchdog) steps in.
+If a contact **can't** be completed within your limits, the [Watchdog](/guide/watchdog) steps in
+and sets that station aside so you move on.

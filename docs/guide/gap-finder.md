@@ -35,9 +35,8 @@ a restricted clean passband or you want to keep replies inside a specific sub-ba
 
 ## When it runs
 
-The frequency is set at reply time, just before the Reply packet is sent
-(in `process_pending_reply`). If the gap finder is disabled, Wait and Pounce leaves your TX offset
-untouched and WSJT-X behaves normally.
+The frequency is set at reply time, just before the Reply packet is sent. If the gap finder is
+disabled, Wait and Pounce leaves your TX offset untouched and WSJT-X behaves normally.
 
 ::: tip Fox/Hound and SuperFox
 For DXpeditions running Fox/Hound or SuperFox, pick the matching mode so the gap finder searches

@@ -6,12 +6,14 @@ export default defineConfig({
   lang: 'en-US',
   title: 'Wait and Pounce',
   description: 'User & developer guide for Wait and Pounce — the FT8/FT4 DX pounce assistant for WSJT-X and JTDX.',
+  // Served under https://f5ukw.com/wait-and-pounce/ — base must match the nginx location.
+  base: '/wait-and-pounce/',
   lastUpdated: true,
   cleanUrls: true,
   ignoreDeadLinks: true,
 
   head: [
-    ['link', { rel: 'icon', type: 'image/png', href: '/logo.png' }]
+    ['link', { rel: 'icon', type: 'image/png', href: '/wait-and-pounce/logo.png' }]
   ],
 
   themeConfig: {
@@ -24,7 +26,7 @@ export default defineConfig({
       {
         text: 'Links',
         items: [
-          { text: 'Project (SourceForge)', link: 'https://sourceforge.net/projects/wait-and-pounce-ft8/' },
+          { text: 'Download (SourceForge)', link: 'https://sourceforge.net/projects/wait-and-pounce-ft8/' },
           { text: 'Discord Support', link: 'https://discord.gg/fqCu24naCM' },
           { text: 'Donate', link: 'https://www.paypal.com/donate/?cmd=_s-xclick&hosted_button_id=R4HK9ZTUPYHSL' }
         ]
@@ -38,7 +40,7 @@ export default defineConfig({
           collapsed: false,
           items: [
             { text: 'Introduction', link: '/guide/introduction' },
-            { text: 'How It Works', link: '/guide/how-it-works' },
+            { text: 'How It Decides Who to Call', link: '/guide/how-it-works' },
             { text: 'Installation & Setup', link: '/guide/installation' },
             { text: 'Quick Start', link: '/guide/quick-start' }
           ]
@@ -49,33 +51,33 @@ export default defineConfig({
           items: [
             { text: 'The Main Window', link: '/guide/main-window' },
             { text: 'Wanted / Monitored / Excluded', link: '/guide/targets' },
-            { text: 'Reply & Priority Engine', link: '/guide/reply-engine' },
+            { text: 'Choosing Who to Reply To', link: '/guide/reply-engine' },
             { text: 'Watchdog & Exclusions', link: '/guide/watchdog' },
-            { text: 'Worked-Before (WkB4)', link: '/guide/worked-before' },
+            { text: 'Worked-Before', link: '/guide/worked-before' },
             { text: 'DX Marathon', link: '/guide/marathon' },
             { text: 'Grid Tracker & Map', link: '/guide/grid-tracker' },
-            { text: 'Offset / Gap Finder', link: '/guide/gap-finder' }
+            { text: 'Finding a Clear Frequency', link: '/guide/gap-finder' }
           ]
         },
         {
           text: 'Logging & Integrations',
           collapsed: false,
           items: [
-            { text: 'ADIF Logbook Analysis', link: '/guide/adif' },
+            { text: 'Your Logbook (ADIF)', link: '/guide/adif' },
             { text: 'Logbook of The World', link: '/guide/lotw' },
             { text: 'Club Log', link: '/guide/clublog' },
-            { text: 'Callsign Lookup & Data Files', link: '/guide/lookup' },
+            { text: 'Country & Callsign Info', link: '/guide/lookup' },
             { text: 'JTDX Auto-Click', link: '/guide/jtdx-autoclick' }
           ]
         },
         {
-          text: 'Advanced',
+          text: 'More',
           collapsed: false,
           items: [
-            { text: 'Master / Slave Sync', link: '/guide/master-slave' },
+            { text: 'Running Several Instances', link: '/guide/master-slave' },
             { text: 'Sound Alerts', link: '/guide/sounds' },
             { text: 'Language & Theme', link: '/guide/language-theme' },
-            { text: 'Telemetry & Privacy', link: '/guide/telemetry' },
+            { text: 'Privacy', link: '/guide/telemetry' },
             { text: 'Troubleshooting', link: '/guide/troubleshooting' }
           ]
         }
@@ -87,12 +89,8 @@ export default defineConfig({
           collapsed: false,
           items: [
             { text: 'All Settings', link: '/reference/settings' },
-            { text: 'Architecture', link: '/reference/architecture' },
-            { text: 'UDP Protocol & Packets', link: '/reference/udp-protocol' },
-            { text: 'Files & Data Stores', link: '/reference/files' },
             { text: 'Keyboard Shortcuts', link: '/reference/shortcuts' },
-            { text: 'Building from Source', link: '/reference/building' },
-            { text: 'Feature History', link: '/reference/history' },
+            { text: "What's New", link: '/reference/history' },
             { text: 'Glossary', link: '/reference/glossary' }
           ]
         }

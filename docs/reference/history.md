@@ -1,93 +1,63 @@
-# Feature History
+# What's New
 
-A timeline of how Wait and Pounce grew, reconstructed from the git history. It started in **July
-2024** as a command-line frequency-hopping script and evolved into the full PyQt6 pounce assistant
-documented here (build **2.20**).
+Wait and Pounce has grown a lot since it began. This page summarises the main capabilities the
+program has gained over time, written for users — not a changelog of every tweak. The current
+version is **2.20**.
 
-## 2024 — From script to GUI
+## Recent highlights (version 2.20)
 
-### July 2024 — Origins
-- Initial command-line script: an FT8 listener that could **frequency-hop** and reply to a wanted
-  callsign, with expected-sequence priorities.
-- First **GUI** to launch/stop the script (Windows only).
+- **Watchdog improvements.** The watchdog now has its own settings (enable it, set the number of
+  attempts and the retry time), and a station that can't be completed is set aside *and* the radio
+  is told to stop transmitting, so you're never left calling into the void. Temporary exclusions now
+  expire reliably even on a quiet band.
+- **Logbook of The World built in.** Upload your contacts to LoTW automatically and download
+  confirmations straight back into your log, with a window to review received QSLs.
+- **JTDX auto-click.** On Windows, the app can dismiss the JTDX "Log QSO" prompt for you, with a
+  configurable delay — handy for unattended operating.
+- **Always on top** and a quick **Open log folder** button.
 
-### Sept–Oct 2024 — A real application
-- Settings panel, enhanced GUI, log-analysis view, error/traceback capture.
-- **Tooltips**, **sounds**, status updates from parsed packets.
-- "Focus on wanted callsign" and **automatic QSO logging to ADIF** when a contact completes.
+## Award hunting
 
-### Nov 2024 — The core matures
-- **Watchdog** logic and TX-disabled handling; watchdog bypass setting.
-- **Gap finder** (frequency suggestion / used-frequency collection).
-- **Sound settings**, wildcard wanted callsigns, band-change sound.
-- **ThemeManager** introduced; generic **PyInstaller builder**.
-- Large refactor splitting `ToolTip`, `TrayIcon`, `ActivityBar`, `MonitoringSettings` into modules.
+- **DX Marathon** — chase every DXCC entity once per year, per band or across all bands.
+- **Grid Tracker & map** — chase new grid squares regardless of band, with an interactive map that
+  shows worked vs confirmed grids, a day/night line, and a live signal-density heatmap.
+- **Worked-Before rules** — flexible per-year logic so you never waste time on dupes, while still
+  being able to re-work a station for a new year.
 
-### Dec 2024 — Bands & frequency
-- Separate **operating band** vs **selected tab**; per-band frequency awareness.
-- Frequency range settings moved into the Settings dialog.
+## Smarter replying
 
-## 2025 — Logbook intelligence & multi-instance
+- **Configurable priority** — decide the order in which wanted callsigns, CQ zones, marathon
+  entities, new grids and politeness replies are chosen.
+- **Best-of-the-batch selection** — when many stations decode at once, the best one is picked rather
+  than whoever decoded first.
+- **Politeness reply** — never ignore a station that's calling you.
+- **Clear-frequency finder** — automatically move your transmit slot to an open frequency.
+- Filters to skip weak signals, invalid prefixes, or stations beaming at another continent.
 
-### Jan 2025 — ADIF & priority
-- **AdifMonitor** added — the app now reads your logbook continuously.
-- Grid/report detection in message parsing; **ADIF summary dialog**.
-- **Message priority buffer** — choose the best of several simultaneous decodes.
-- Table size/row-limit management for performance.
+## Logbook & confirmations
 
-### Feb 2025 — Lookup & marathon foundations
-- **DXCC ADIF parsing**, larger callsign-lookup cache, sorted monitoring values.
-- Context-menu entries; major **Listener refactor**; priority computed in the Listener (not GUI).
+- **Reads your ADIF logbook** continuously, so new contacts count immediately.
+- **Built-in logbook analyzer** showing your worked totals per year and band.
+- **Club Log** real-time upload.
+- **Logbook of The World** upload and confirmation download.
 
-### Mar 2025 — Master / Slave
-- The **multi-instance sync** system landed: `RequestSettingPacket` / `SettingPacket`, header
-  prefixing for role detection, slave GUI handling, `apply_master_setting` /
-  `restore_slave_settings`, `halt_packet` fixes.
-- **Marathon** behaviour stabilised (`marathon_preference`).
-- QTimer used instead of `time.sleep` to avoid GUI freezes.
+## Awareness & comfort
 
-### Apr–May 2025 — Polish & lookups
-- Set frequency even with no decodes yet; GUI messages when the server can't open.
-- Distinct sound when a wanted call decodes **for the first time**.
-- **QRZ.com** lookup from the context menu; RawDataModel changes.
-- Exact-callsign matching even on a grid-less CQ.
+- **Colour-coded decodes**, a focus display telling you *why* a station was chosen, and a live
+  activity bar.
+- **Sound alerts** for wanted, monitored, and directed-to-you messages.
+- **Grid map**, **Active Users** window, and a status bar that shows connection health at a glance.
+- **Five languages** — English, Français, 中文, 日本語, Українська — and **Light / Dark / System**
+  themes.
+- **Compact and alternate views**, always-on-top, and a tray / menu-bar icon.
 
-### Jun 2025 — Priority Manager & politeness
-- **Politeness reply** setting.
-- User-configurable **Priority Manager** (`PriorityTableWidget`, `get_priority_bonus`) — drag to
-  order wanted / zone / marathon / grid / politeness.
-- Better sound management.
+## Multi-station operating
 
-### Mid/late 2025 — Maps, zones, telemetry
-- **Active Users** window and **telemetry** service.
-- **Club Log** real-time importer; **grid map** with worked/confirmed colouring, heatmap, and
-  all-bands grid view; CQ-zone work.
-- Theme refinements, dark-mode fixes, macOS window appearance.
-- **Language selector** with Chinese, Japanese, French, Ukrainian translations.
-- Improved ADIF analyzer; settings save optimised to a single load/save cycle.
-- Callsign-lookup performance: CTY prefix index, `lru_cache`, larger local cache.
+- **Run several copies** — one main copy keys the radio; extra copies mirror its wanted lists and
+  stay in sync without ever transmitting, ideal for multi-rig stations or a second monitoring
+  screen.
 
-## 2026 — LoTW, JTDX automation, watchdog hardening
+---
 
-### Early 2026
-- **LoTW** integration: uploader (TQSL), automatic upload, downloader to update ADIF files,
-  `LoTWIncomingDialog`, "Show LoTW QSLs received".
-- **JTDX auto-click**: window controller, admin-privilege checks, direct `pywinauto` usage,
-  configurable click delay (slider), OK-button fallback.
-- **Always on top**; **open log folder** button; spin-box → slider conversions.
-- Clean shutdown (release multimedia/threads/handles before exit).
-
-### Build 2.20 (current, `handle_slave` branch)
-- **Watchdog settings** surfaced (enable / attempts / retry time).
-- Watchdog threshold checked on all switch paths; recurring **`_schedule_watchdog_sweep`** timer so
-  exclusions expire even with no decodes.
-- Fixed `temporarily_excluded` so a timed exclusion no longer leaked into the permanent excluded
-  list, with a clearer GUI message.
-- **"Ask instance to halt TX"** — the watchdog now sends a Halt TX packet when giving up on a
-  station.
-
-::: info Branches
-Development happens on feature branches (`handle_slave`, `heatmap`, `table_filters`,
-`handle_message_priority`, `status_menu_agent`, …) that merge into `main`. This guide reflects
-`handle_slave` at build 2.20.
-:::
+For the official release notes and downloads, see the
+[SourceForge project page](https://sourceforge.net/projects/wait-and-pounce-ft8/).

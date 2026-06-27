@@ -42,8 +42,9 @@ that Wait and Pounce can auto-click.
 **LoTW** — *Logbook of The World*, ARRL's online confirmation service. Wait and Pounce uploads via
 TQSL and downloads confirmations.
 
-**Master / Slave** — Roles for multiple cooperating instances. The Master talks to WSJT-X and keys
-the radio; Slaves mirror the config receive-only.
+**Master / Slave** — When you run several cooperating copies of the program, the *main* copy talks
+to WSJT-X and keys the radio, while *extra* copies mirror its settings and stay receive-only. See
+[Running Several Instances](/guide/master-slave).
 
 **Pounce** — To quickly reply to a wanted station the instant it decodes — the core action this app
 automates.

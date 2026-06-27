@@ -16,32 +16,30 @@ In **Settings → Watchdog and retry**:
 | **Wait time** (minutes) | 20 | 1–9999 | How long the temporary exclusion lasts. |
 
 When the watchdog is **off**, the attempt cap falls back to the
-[Priority Manager](/guide/reply-engine#priority-manager) *Maximum number of attempts*.
+[*Maximum number of attempts*](/guide/reply-engine) set in the Priority Manager.
 
 ## What happens when the limit is hit
 
-When `targeted_call` reaches the attempt limit:
+When the targeted station reaches the attempt limit:
 
-1. The call is added to a **temporary exclusion list** with an expiry of *now + wait time*.
-2. A **Halt TX** packet is sent to WSJT-X so the radio actually stops transmitting — not just
-   skipped internally. *(Added in build 2.20, commit "Ask instance to halt TX".)*
-3. The target is reset and the engine picks the next-best candidate.
-4. The GUI shows a **temporarily-excluded** notice for that call (with the band and minutes).
+1. The call is added to a **temporary exclusion list** until the wait time elapses.
+2. WSJT-X is told to **stop transmitting**, so the radio actually stops calling — you're not left
+   transmitting into the void.
+3. The target is cleared and the next-best station is chosen.
+4. A **temporarily-excluded** notice appears for that call (with the band and the number of minutes).
 
 ## Automatic re-try (the sweep)
 
-Temporary exclusions expire on their own. A recurring background timer
-(`_schedule_watchdog_sweep`, every 2 seconds) checks the exclusion list and **lifts** any whose
-window has elapsed — even when no decodes are currently arriving.
+Temporary exclusions expire on their own. A recurring background check regularly inspects the
+exclusion list and **lifts** any whose window has elapsed — even when no decodes are currently
+arriving.
 
 ::: info Why the sweep matters
-Earlier builds only expired exclusions while actively handling decodes, so a quiet band could
-leave a station excluded long past its timer. The dedicated sweep timer (build 2.20) fixes this:
-exclusions now expire on schedule regardless of activity.
+Exclusions expire on schedule regardless of activity, so a quiet band will never leave a station
+excluded long past its timer.
 :::
 
-When an exclusion is lifted, the call's attempt counter is cleared so it starts fresh, and the GUI
-is notified (`watchdog_exclusion_lifted`).
+When an exclusion is lifted, the call's attempt counter is cleared so it starts fresh.
 
 ## Direct reply overrides exclusion
 

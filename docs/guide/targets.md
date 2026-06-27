@@ -3,8 +3,8 @@
 Your *targets* are the heart of the configuration. Each band tab has six comma-separated input
 fields. Everything is **per band** — `TX5S` wanted on 20 m does not affect 40 m.
 
-These lists are stored in a thread-safe shared store (`MonitoringSettings`) that bridges the GUI
-and the listener, and pushed live to the running engine as you type (debounced).
+Your changes are applied live as you type — there's no Save button. The lists are remembered
+between sessions.
 
 ## The six fields
 
@@ -47,8 +47,8 @@ There are **two** kinds of exclusion:
 
 ### Adding a temporary exclusion manually
 
-Right-click a decode → **Temporarily add &lt;call&gt; to Excluded**. A dialog
-(`ExclusionDialog`) offers a row of durations:
+Right-click a decode → **Temporarily add &lt;call&gt; to Excluded**. A small window offers a row of
+durations:
 
 > **2 min · 10 min (default) · 1 hour · 1 day · 1 week · 1 month**
 
@@ -68,5 +68,5 @@ immediately so an in-progress QSO is never dropped.
 - **"Make &lt;call&gt; your only Wanted Callsign"** clears the Wanted field and sets just that one
   call — handy when you want to lock onto a single DXpedition.
 
-Next: how the engine turns these matches into a single reply — the
-[Reply & Priority Engine](/guide/reply-engine).
+Next: how the app turns these matches into a single reply — see
+[Choosing Who to Reply To](/guide/reply-engine).

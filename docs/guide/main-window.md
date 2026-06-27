@@ -1,29 +1,6 @@
 # The Main Window
 
-The main window (`pounce_gui.pyw`) is where you watch decodes and steer the pounce engine.
-
-## Layout, top to bottom
-
-```
-┌──────────────────────────────────────────────────────────────────┐
-│  FOCUS VALUE (currently targeted decode)            12:34:56  UTC │  ← focus + clock bar
-├──────────────────────────────────────────────────────────────────┤
-│ [160m][80m][40m][30m][20m]…[6m]      │ Worked Callsigns (42):     │  ← band tabs + history
-│  Wanted Callsign(s): [ TX5S, 3D2*  ]│  TX5S  20m  12:30          │
-│  Monitored Callsign(s): [        ]  │  K1ABC 40m  12:18          │
-│  Wanted CQ Zone(s): [ 31, 32     ]  │  …                         │
-│  Excluded Callsign(s): [         ]  │                            │
-├──────────────────────────────────────────────────────────────────┤
-│ Time │Band│Rep│ DT │Freq│ Message        │•│Country│Zone│Cont│★   │  ← decodes table
-│ 12:34│20m │-12│0.1 │1320│ CQ DX TX5S BG23│•│ Clipperton │…       │  │
-├──────────────────────────────────────────────────────────────────┤
-│ [filters – hidden, Ctrl+F to open]                          ▕▏   │  ← filter bar + activity bar
-├──────────────────────────────────────────────────────────────────┤
-│ (toggles)            [Clear] [Start Monitoring] [Stop all]        │  ← bottom bar
-├──────────────────────────────────────────────────────────────────┤
-│ FT8 · 14.074 · 12 pkts · 8MB · last 2s · ♥ ok · Master          │  ← status bar
-└──────────────────────────────────────────────────────────────────┘
-```
+The main window is where you watch decodes and steer the pounce engine.
 
 ### Focus + clock bar
 
@@ -119,3 +96,4 @@ A thin vertical histogram on the far right showing live decode density / band bu
 - **Restart** (macOS) — restart the app.
 
 See the full [menu reference and shortcuts](/reference/shortcuts).
+
