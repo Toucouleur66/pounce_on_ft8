@@ -8,7 +8,7 @@ import ctypes
 from datetime import datetime, timezone
 from ctypes import wintypes
 from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QSlider, QGraphicsOpacityEffect
-from PyQt6.QtCore import Qt, QPoint, QTimer, pyqtSignal
+from PyQt6.QtCore import Qt, QPoint, QPointF, QRectF, QTimer, pyqtSignal
 from PyQt6.QtGui import QFont, QPainter, QWheelEvent, QMouseEvent, QKeyEvent, QColor, QBrush, QPen, QPainterPath, QPolygon, QCursor, QIcon
 
 from custom_qlabel import CustomQLabel
@@ -77,22 +77,35 @@ class GridMapWidget(QWidget):
         self.save_timer.setSingleShot(True)
         self.save_timer.timeout.connect(self._save_grid_map_settings_now)
 
-        self.zoom                       = 2
-        self.center_lat                 = 0.0
-        self.center_lon                 = 0.0
+        # --- Canonical view state (continuous, drift-free) ---
+        # The view center is stored as a NORMALIZED world coordinate in [0, 1):
+        #   world_nx = (lon + 180) / 360
+        #   world_ny = (1 - asinh(tan(lat)) / pi) / 2   (Web-Mercator Y)
+        # These are independent of zoom, so zooming is pure power-of-two scaling
+        # in world pixels and is exactly invertible (zoom in then out returns home).
+        # self.zoom is now a FLOAT (fractional zoom for smooth granularity).
+        # center_lat / center_lon are derived @property views over world_nx/ny so
+        # that all existing call sites keep working unchanged.
+        self.world_nx                   = 0.5   # lon 0
+        self.world_ny                   = 0.5   # lat 0
+        self.zoom                       = 2.0
         self.tile_size                  = 256
-        
+
+        # Fractional zoom step per wheel notch (4 notches = one tile level).
+        self.zoom_step                  = 0.25
+        self.min_user_zoom              = 2.0
+        self.max_user_zoom              = 16.0
+
         self.dragging                   = False
         self.mouse_pressed              = False
         self.has_moved                  = False
         self.last_pan_point             = QPoint()
-        self.pan_velocity               = QPoint(0, 0)
+        # Pan momentum carried in floating world pixels for sub-pixel smoothness.
+        self.pan_velocity_x             = 0.0
+        self.pan_velocity_y             = 0.0
         self.last_pan_time              = 0
         self.momentum_decay             = 0.92
         self.momentum_threshold         = 1.0
-        
-        self.center_pixel_offset_x      = 0.0
-        self.center_pixel_offset_y      = 0.0
         
         self.show_grid                  = True
         self.show_heatmap               = True
@@ -221,9 +234,63 @@ class GridMapWidget(QWidget):
         self.update_timer.timeout.connect(self.update_animation)
         self.update_timer.start(16)
 
-        self.parent_app = None  
+        self.parent_app = None
         self.load_grid_map_settings()
-    
+
+    # ------------------------------------------------------------------
+    # World-coordinate core
+    #
+    # Canonical state is (self.world_nx, self.world_ny) in [0, 1) plus a float
+    # self.zoom. Everything else (lat/lon, screen pixels, tiles) derives from
+    # these. center_lat / center_lon are properties so legacy call sites that
+    # read or assign them keep working without edits.
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def latlon_to_norm(lat, lon):
+        # Web-Mercator normalized world coords in [0, 1).
+        lat = max(-85.05112878, min(85.05112878, lat))
+        nx = (lon + 180.0) / 360.0
+        ny = (1.0 - math.asinh(math.tan(math.radians(lat))) / math.pi) / 2.0
+        return nx, ny
+
+    @staticmethod
+    def norm_to_latlon(nx, ny):
+        lon = nx * 360.0 - 180.0
+        lat = math.degrees(math.atan(math.sinh(math.pi * (1.0 - 2.0 * ny))))
+        return lat, lon
+
+    @property
+    def center_lat(self):
+        lat, _ = self.norm_to_latlon(self.world_nx, self.world_ny)
+        return lat
+
+    @center_lat.setter
+    def center_lat(self, value):
+        _, self.world_ny = self.latlon_to_norm(value, self.center_lon)
+
+    @property
+    def center_lon(self):
+        _, lon = self.norm_to_latlon(self.world_nx, self.world_ny)
+        return lon
+
+    @center_lon.setter
+    def center_lon(self, value):
+        self.world_nx = ((value + 180.0) / 360.0) % 1.0
+
+    def world_size_px(self, zoom=None):
+        # Total map size in pixels at the given (possibly fractional) zoom.
+        if zoom is None:
+            zoom = self.zoom
+        return (2.0 ** zoom) * self.tile_size
+
+    @property
+    def zoom_level(self):
+        # Integer tile level the float zoom currently renders at. Used for
+        # discrete detail decisions (grid granularity, label fonts, buffers)
+        # so they switch in lockstep with the rendered tile pyramid level.
+        return int(math.floor(self.zoom))
+
     def set_parent_app(self, parent_app):
         self.parent_app = parent_app
         self.load_grid_map_settings()
@@ -277,34 +344,20 @@ class GridMapWidget(QWidget):
             self.show_night     = params.get('grid_map_show_night', self.show_night)
             self.show_excluded  = params.get('grid_map_show_excluded', self.show_excluded)
 
-            self.zoom           = params.get('grid_map_zoom', self.zoom)
-            self.center_lat     = max(-85, min(85, params.get('grid_map_center_lat', self.center_lat)))
-            self.center_lon     = max(-180, min(180, params.get('grid_map_center_lon', self.center_lon)))
-            
-            self.center_pixel_offset_x = 0.0
-            self.center_pixel_offset_y = 0.0
-            
-            self.validate_and_adjust_position()            
-            self.apply_pan_movement(0, 0)
+            self.zoom           = float(params.get('grid_map_zoom', self.zoom))
+            loaded_lat          = max(-85, min(85, params.get('grid_map_center_lat', self.center_lat)))
+            loaded_lon          = max(-180, min(180, params.get('grid_map_center_lon', self.center_lon)))
+            # Set both axes together via the normalized world coordinate.
+            self.world_nx, self.world_ny = self.latlon_to_norm(loaded_lat, loaded_lon)
+
+            self.validate_and_adjust_position()
+            self.clamp_view()
     
     def validate_and_adjust_position(self):
-        center_tile_x, center_tile_y = self.deg2num(self.center_lat, self.center_lon, self.zoom)
-        
-        max_tile = 2 ** self.zoom
-        
-        visible_tiles_y = math.ceil(600 / self.tile_size) + 2  
-        visible_tiles_x = math.ceil(800 / self.tile_size) + 2  
-        
-        min_safe_tile_y = visible_tiles_y // 2 + 1
-        max_safe_tile_y = max_tile - (visible_tiles_y // 2) - 1
-        
-        if center_tile_y < min_safe_tile_y:
-            safe_lat, _ = self.num2deg(center_tile_x, min_safe_tile_y, self.zoom)
-            self.center_lat = safe_lat
-        elif center_tile_y > max_safe_tile_y:
-            safe_lat, _ = self.num2deg(center_tile_x, max_safe_tile_y, self.zoom)
-            self.center_lat = safe_lat
-    
+        # Vertical bounds are now enforced uniformly by clamp_view() over the
+        # normalized world coordinate (kept as a named entry point for callers).
+        self.clamp_view()
+
     def deg2num(self, lat_deg, lon_deg, zoom):
         lat_rad = math.radians(lat_deg)
         n = 2.0 ** zoom
@@ -340,27 +393,26 @@ class GridMapWidget(QWidget):
     def update_animation(self):
         needs_update = False
         
-        if not self.dragging and (abs(self.pan_velocity.x()) > self.momentum_threshold or 
-                                  abs(self.pan_velocity.y()) > self.momentum_threshold):
-            
-            old_lat, old_lon = self.center_lat, self.center_lon
-            old_offset_x, old_offset_y = self.center_pixel_offset_x, self.center_pixel_offset_y
-            
-            self.apply_pan_movement(self.pan_velocity.x(), self.pan_velocity.y())
-            
-            if (abs(self.center_lat - old_lat) < 0.0001 and 
-                abs(self.center_lon - old_lon) < 0.0001 and
-                abs(self.center_pixel_offset_x - old_offset_x) < 1 and
-                abs(self.center_pixel_offset_y - old_offset_y) < 1):
-                self.pan_velocity = QPoint(0, 0)
+        if not self.dragging and (abs(self.pan_velocity_x) > self.momentum_threshold or
+                                  abs(self.pan_velocity_y) > self.momentum_threshold):
+
+            old_nx, old_ny = self.world_nx, self.world_ny
+
+            self.apply_pan_movement(self.pan_velocity_x, self.pan_velocity_y)
+
+            world_size = self.world_size_px()
+            moved_x = abs(self.world_nx - old_nx) * world_size
+            moved_y = abs(self.world_ny - old_ny) * world_size
+            if moved_x < 0.5 and moved_y < 0.5:
+                self.pan_velocity_x = 0.0
+                self.pan_velocity_y = 0.0
             else:
-                self.pan_velocity = QPoint(
-                    int(self.pan_velocity.x() * self.momentum_decay),
-                    int(self.pan_velocity.y() * self.momentum_decay)
-                )
+                self.pan_velocity_x *= self.momentum_decay
+                self.pan_velocity_y *= self.momentum_decay
             needs_update = True
         elif not self.dragging:
-            self.pan_velocity = QPoint(0, 0)
+            self.pan_velocity_x = 0.0
+            self.pan_velocity_y = 0.0
         
         if needs_update:
             self.update()
@@ -370,43 +422,32 @@ class GridMapWidget(QWidget):
         return world_size
     
     def apply_pan_movement(self, delta_x, delta_y):
-        self.center_pixel_offset_x += delta_x
-        self.center_pixel_offset_y += delta_y
-        
-        center_tile_x, center_tile_y = self.deg2num(self.center_lat, self.center_lon, self.zoom)
-        
-        world_size = self.get_world_bounds_at_zoom()
-        center_pixel_x = center_tile_x * self.tile_size + self.center_pixel_offset_x
-        center_pixel_y = center_tile_y * self.tile_size + self.center_pixel_offset_y
-        
-        half_height = self.height() / 2
-        half_width = self.width() / 2
-        
-        # Constrain vertical movement
-        center_pixel_y = max(half_height, min(world_size - half_height, center_pixel_y))
-        
-        # Constrain horizontal movement to prevent edge jumping
-        # Allow seamless wrapping by using modulo for horizontal positioning
-        center_pixel_x = center_pixel_x % world_size
-        if center_pixel_x < 0:
-            center_pixel_x += world_size
-        
-        new_tile_x = center_pixel_x / self.tile_size
-        new_tile_y = center_pixel_y / self.tile_size
-        
-        self.center_pixel_offset_x = (new_tile_x - int(new_tile_x)) * self.tile_size
-        self.center_pixel_offset_y = (new_tile_y - int(new_tile_y)) * self.tile_size
-        
-        new_lat, new_lon = self.num2deg(new_tile_x, new_tile_y, self.zoom)
-        
-        # Constrain coordinates to valid bounds to prevent showing grey areas
-        self.center_lat = max(-85, min(85, new_lat))
-        # Allow longitude wrapping for seamless horizontal panning
-        while new_lon > 180:
-            new_lon -= 360
-        while new_lon < -180:
-            new_lon += 360
-        self.center_lon = new_lon
+        # Shift the view center by a pixel delta. Pure arithmetic on the
+        # normalized world coordinate — no Mercator round-trip, no truncation.
+        world_size = self.world_size_px()
+
+        self.world_nx = (self.world_nx + delta_x / world_size) % 1.0
+        self.world_ny = self.world_ny + delta_y / world_size
+
+        self.clamp_view()
+
+    def clamp_view(self):
+        # Keep the vertical center so the visible window never runs past the top
+        # or bottom of the world (avoids grey bands). Horizontal wraps freely.
+        world_size = self.world_size_px()
+        if world_size <= 0:
+            return
+
+        half_height_n = (self.height() / 2) / world_size
+        min_ny = half_height_n
+        max_ny = 1.0 - half_height_n
+        if min_ny <= max_ny:
+            self.world_ny = max(min_ny, min(max_ny, self.world_ny))
+        else:
+            # World shorter than the viewport: center it vertically.
+            self.world_ny = 0.5
+
+        self.world_nx %= 1.0
     
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -418,61 +459,57 @@ class GridMapWidget(QWidget):
         
         widget_width = self.width()
         widget_height = self.height()
-        
-        exact_x, exact_y = self.deg2num(self.center_lat, self.center_lon, self.zoom)
-        center_tile_x = int(exact_x)
-        center_tile_y = int(exact_y)
-        
-        offset_x = (exact_x - center_tile_x) * self.tile_size + self.center_pixel_offset_x
-        offset_y = (exact_y - center_tile_y) * self.tile_size + self.center_pixel_offset_y
-        
-        tiles_x = math.ceil(widget_width / self.tile_size) + 2
-        tiles_y = math.ceil(widget_height / self.tile_size) + 2
-        
-        center_pixel_x = widget_width // 2
-        center_pixel_y = widget_height // 2
-        
-        max_tile = 2 ** self.zoom
-        
-        for dy in range(-tiles_y//2, tiles_y//2 + 1):
-            for dx in range(-tiles_x//2, tiles_x//2 + 1):
-                tile_x = center_tile_x + dx
-                tile_y = center_tile_y + dy
-                
-                if tile_y < 0 or tile_y >= max_tile:
-                    continue
-                
+
+        # Fractional zoom: fetch tiles at the integer base level and draw them
+        # scaled by 2**(zoom - base_z) so the map can sit between tile levels.
+        base_z = int(math.floor(self.zoom))
+        base_z = max(0, min(19, base_z))
+        scale = 2.0 ** (self.zoom - base_z)
+        scaled_tile = self.tile_size * scale
+        max_tile = 2 ** base_z
+
+        # View center in scaled base-level pixels, then the screen's top-left
+        # corner in the same space.
+        world_size_base = max_tile * scaled_tile
+        center_px = self.world_nx * world_size_base
+        center_py = self.world_ny * world_size_base
+        view_left = center_px - widget_width / 2
+        view_top  = center_py - widget_height / 2
+
+        first_tile_x = int(math.floor(view_left / scaled_tile))
+        first_tile_y = int(math.floor(view_top / scaled_tile))
+        tiles_x = math.ceil(widget_width / scaled_tile) + 2
+        tiles_y = math.ceil(widget_height / scaled_tile) + 2
+
+        for ty_i in range(tiles_y):
+            tile_y = first_tile_y + ty_i
+            if tile_y < 0 or tile_y >= max_tile:
+                continue
+            for tx_i in range(tiles_x):
+                tile_x = first_tile_x + tx_i
+
                 wrapped_tile_x = tile_x % max_tile
                 if wrapped_tile_x < 0:
                     wrapped_tile_x += max_tile
-                
-                screen_x = center_pixel_x + (dx * self.tile_size) - int(offset_x)
-                screen_y = center_pixel_y + (dy * self.tile_size) - int(offset_y)
-                
-                key = self.get_tile_key(self.zoom, wrapped_tile_x, tile_y)
-                pixmap = None
-                
-                if key in self.memory_cache:
-                    pixmap = self.memory_cache[key]
-                    painter.drawPixmap(screen_x, screen_y, pixmap)
+
+                # Top-left of this tile in screen coords (float, then rounded).
+                screen_x = tile_x * scaled_tile - view_left
+                screen_y = tile_y * scaled_tile - view_top
+
+                target = QRectF(screen_x, screen_y, scaled_tile, scaled_tile)
+
+                key = self.get_tile_key(base_z, wrapped_tile_x, tile_y)
+                pixmap = self.memory_cache.get(key)
+                if pixmap is None:
+                    pixmap = self.file_cache.get_cached_tile(base_z, wrapped_tile_x, tile_y)
+                    if pixmap:
+                        self.memory_cache[key] = pixmap
+
+                if pixmap:
+                    painter.drawPixmap(target, pixmap, QRectF(pixmap.rect()))
                 else:
-                    cached_pixmap = self.file_cache.get_cached_tile(self.zoom, wrapped_tile_x, tile_y)
-                    if cached_pixmap:
-                        self.memory_cache[key] = cached_pixmap
-                        painter.drawPixmap(
-                            screen_x,
-                            screen_y,
-                            cached_pixmap
-                        )
-                    else:
-                        self.tile_downloader.add_tile(self.zoom, wrapped_tile_x, tile_y)
-                        painter.fillRect(
-                            screen_x, 
-                            screen_y,
-                            self.tile_size,
-                            self.tile_size,
-                            Qt.GlobalColor.lightGray
-                        )
+                    self.tile_downloader.add_tile(base_z, wrapped_tile_x, tile_y)
+                    painter.fillRect(target, Qt.GlobalColor.lightGray)
         
         """
             Make sure to properly set the order of drawing elements (like Z-index).
@@ -501,122 +538,102 @@ class GridMapWidget(QWidget):
     def wheelEvent(self, event: QWheelEvent):
         min_zoom = self.get_min_zoom_for_size(self.width(), self.height())
 
-        zoom_delta = 1 if event.angleDelta().y() > 0 else -1
-        new_zoom = self.zoom + zoom_delta
+        # Fractional zoom: each notch moves by self.zoom_step (default 0.25), so
+        # four notches equal one tile level. Smooth and exactly reversible.
+        notches = event.angleDelta().y() / 120.0
+        if notches == 0:
+            return
 
-        new_zoom = max(min_zoom, min(16, new_zoom))
+        new_zoom = self.zoom + notches * self.zoom_step
+        new_zoom = max(min_zoom, min(self.max_user_zoom, new_zoom))
 
-        if new_zoom != self.zoom:
-            # Get mouse position
-            mouse_pos = event.position()
-            mouse_x = mouse_pos.x()
-            mouse_y = mouse_pos.y()
+        if new_zoom == self.zoom:
+            return
 
-            # Get the lat/lon under the mouse cursor at current zoom
-            target_lat, target_lon = self.screen_to_lat_lon(mouse_x, mouse_y)
+        # Normalized world point under the cursor BEFORE the zoom change.
+        # Normalized coords are zoom-independent, so this exact point can be
+        # re-anchored after we change the zoom level.
+        mouse_pos = event.position()
+        mouse_x   = mouse_pos.x()
+        mouse_y   = mouse_pos.y()
 
-            # Update zoom level
-            self.zoom = new_zoom
+        world_size = self.world_size_px()
+        anchor_nx = (self.world_nx * world_size + (mouse_x - self.width() / 2)) / world_size
+        anchor_ny = (self.world_ny * world_size + (mouse_y - self.height() / 2)) / world_size
 
-            # Calculate new center so that target_lat/lon appears at mouse position
-            new_center_lat, new_center_lon = self.calculate_center_for_cursor_point(
-                mouse_x, mouse_y, target_lat, target_lon
-            )
+        self.zoom = new_zoom
+        self.anchor_zoom_at_cursor(mouse_x, mouse_y, anchor_nx, anchor_ny)
 
-            # Update center
-            self.center_lat = new_center_lat
-            self.center_lon = new_center_lon
-            self.center_pixel_offset_x = 0.0
-            self.center_pixel_offset_y = 0.0
+        # Keep the view inside valid vertical bounds without re-deriving center.
+        self.clamp_view()
 
-            # Validate and apply
-            self.apply_pan_movement(0, 0)
+        self.pan_velocity_x = 0.0
+        self.pan_velocity_y = 0.0
 
-            self.pan_velocity = QPoint(0, 0)
-
-            self.memory_cache.clear()
-
-            QApplication.processEvents()
-
-            self.repaint()
-
-            self.save_grid_map_settings()
+        self.update()
+        self.save_grid_map_settings()
     
     def screen_to_lat_lon(self, screen_x, screen_y):
-        center_screen_x = self.width() / 2
-        center_screen_y = self.height() / 2
-        
-        offset_x = screen_x - center_screen_x
-        offset_y = screen_y - center_screen_y
-        
-        total_offset_x = offset_x + self.center_pixel_offset_x
-        total_offset_y = offset_y + self.center_pixel_offset_y
-        
-        world_size = 2 ** self.zoom * self.tile_size
-        center_world_x = (self.center_lon + 180) / 360 * world_size
-        center_world_y = (1 - math.asinh(math.tan(math.radians(self.center_lat))) / math.pi) / 2 * world_size
-        
-        mouse_world_x = center_world_x + total_offset_x
-        mouse_world_y = center_world_y + total_offset_y
-        
-        mouse_lon = (mouse_world_x / world_size * 360) - 180
-        lat_rad = math.atan(math.sinh(math.pi * (1 - 2 * mouse_world_y / world_size)))
-        mouse_lat = math.degrees(lat_rad)
-        
-        return mouse_lat, mouse_lon
+        world_size = self.world_size_px()
+
+        center_world_x = self.world_nx * world_size
+        center_world_y = self.world_ny * world_size
+
+        mouse_world_x = center_world_x + (screen_x - self.width() / 2)
+        mouse_world_y = center_world_y + (screen_y - self.height() / 2)
+
+        # Return a CONTINUOUS longitude around the view center (do NOT wrap nx to
+        # [0,1) here). When the view straddles the antimeridian, screen edges may
+        # map to lon < -180 or > 180; callers (e.g. get_visible_grid_squares,
+        # lat_lon_to_screen) rely on this continuity so a shape's corners stay on
+        # the same world copy. Latitude is still clamped to the valid range.
+        nx = mouse_world_x / world_size
+        ny = min(1.0, max(0.0, mouse_world_y / world_size))
+        lat, _ = self.norm_to_latlon(0.5, ny)
+        lon = nx * 360.0 - 180.0
+        return lat, lon
     
     def lat_lon_to_screen(self, lat: float, lon: float):
-        n = 2 ** self.zoom
-        xtile = (lon + 180.0) / 360.0 * n
-        ytile = (1.0 - math.asinh(math.tan(math.radians(lat))) / math.pi) / 2.0 * n
+        world_size = self.world_size_px()
 
-        cx_tile = (self.center_lon + 180.0) / 360.0 * n
-        cy_tile = (1.0 - math.asinh(math.tan(math.radians(self.center_lat))) / math.pi) / 2.0 * n
+        nx, ny = self.latlon_to_norm(lat, lon)
 
-        dx_px = (xtile - cx_tile) * self.tile_size - self.center_pixel_offset_x
-        dy_px = (ytile - cy_tile) * self.tile_size - self.center_pixel_offset_y
-
-        screen_x = self.width()  / 2 + dx_px
-        screen_y = self.height() / 2 + dy_px
-        return screen_x, screen_y
-    
-    def lat_lon_to_screen_stable(self, lat: float, lon: float):
-        n = 2 ** self.zoom
-        xtile = (lon + 180.0) / 360.0 * n
-        ytile = (1.0 - math.asinh(math.tan(math.radians(lat))) / math.pi) / 2.0 * n
-
-        cx_tile = (self.center_lon + 180.0) / 360.0 * n
-        cy_tile = (1.0 - math.asinh(math.tan(math.radians(self.center_lat))) / math.pi) / 2.0 * n
-
-        dx_px = (xtile - cx_tile) * self.tile_size
-        dy_px = (ytile - cy_tile) * self.tile_size
+        # Horizontal placement relative to the view center. We DO NOT wrap each
+        # point independently here: doing so lets the two corners of one shape
+        # land on opposite copies of the world (when they straddle the +/-0.5
+        # boundary), stretching it into a full-width band. Callers that need
+        # antimeridian wrapping pass longitudes already shifted toward the view
+        # center (maidenhead_to_lat_lon adjust_for_view), so a single linear
+        # projection keeps every point of a shape on the same copy.
+        dx_px = (nx - self.world_nx) * world_size
+        dy_px = (ny - self.world_ny) * world_size
 
         screen_x = self.width() / 2 + dx_px
         screen_y = self.height() / 2 + dy_px
         return screen_x, screen_y
+
+    # Kept as an alias: the world-coordinate model no longer needs a separate
+    # "stable" (offset-free) projection — the offset is folded into world_nx/ny.
+    def lat_lon_to_screen_stable(self, lat: float, lon: float):
+        return self.lat_lon_to_screen(lat, lon)
     
-    def calculate_center_for_cursor_point(self, cursor_x, cursor_y, target_lat, target_lon):
-        center_screen_x = self.width() / 2
-        center_screen_y = self.height() / 2
-        
-        offset_x = cursor_x - center_screen_x
-        offset_y = cursor_y - center_screen_y
-        
-        world_size = 2 ** self.zoom * self.tile_size
-        target_world_x = (target_lon + 180) / 360 * world_size
-        target_world_y = (1 - math.asinh(math.tan(math.radians(target_lat))) / math.pi) / 2 * world_size
-        
-        center_world_x = target_world_x - offset_x
-        center_world_y = target_world_y - offset_y
-        
-        center_lon = (center_world_x / world_size * 360) - 180
-        lat_rad = math.atan(math.sinh(math.pi * (1 - 2 * center_world_y / world_size)))
-        center_lat = math.degrees(lat_rad)
-        
-        center_lat = max(-85, min(85, center_lat))
-        center_lon = max(-180, min(180, center_lon))
-        
-        return center_lat, center_lon
+    def anchor_zoom_at_cursor(self, cursor_x, cursor_y, anchor_nx, anchor_ny):
+        """
+            Re-center the view (in normalized world coords) so that the world
+            point (anchor_nx, anchor_ny) stays under the cursor after a zoom
+            change. All math is linear in world pixels at the CURRENT zoom, so
+            it is exactly invertible — zoom in then out returns to the start.
+        """
+        world_size = self.world_size_px()
+
+        offset_x = cursor_x - self.width() / 2
+        offset_y = cursor_y - self.height() / 2
+
+        anchor_world_x = anchor_nx * world_size
+        anchor_world_y = anchor_ny * world_size
+
+        self.world_nx = ((anchor_world_x - offset_x) / world_size) % 1.0
+        self.world_ny = (anchor_world_y - offset_y) / world_size
     
     def lat_lon_to_maidenhead(self, lat, lon):
         norm_lon = lon + 180.0
@@ -712,24 +729,7 @@ class GridMapWidget(QWidget):
         }
     
     def screen_to_lat_lon_stable(self, screen_x, screen_y):
-        center_screen_x = self.width() / 2
-        center_screen_y = self.height() / 2
-        
-        offset_x        = screen_x - center_screen_x
-        offset_y        = screen_y - center_screen_y
-        
-        world_size      = 2 ** self.zoom * self.tile_size
-        center_world_x  = (self.center_lon + 180) / 360 * world_size
-        center_world_y  = (1 - math.asinh(math.tan(math.radians(self.center_lat))) / math.pi) / 2 * world_size
-        
-        mouse_world_x   = center_world_x + offset_x
-        mouse_world_y   = center_world_y + offset_y
-        
-        mouse_lon       = (mouse_world_x / world_size * 360) - 180
-        lat_rad         = math.atan(math.sinh(math.pi * (1 - 2 * mouse_world_y / world_size)))
-        mouse_lat       = math.degrees(lat_rad)
-        
-        return mouse_lat, mouse_lon
+        return self.screen_to_lat_lon(screen_x, screen_y)
 
     def get_visible_grid_squares(self):
         top_left_lat, top_left_lon = self.screen_to_lat_lon_stable(0, 0)
@@ -756,7 +756,7 @@ class GridMapWidget(QWidget):
             start_lat_idx = math.floor((south - grid_base_lat) / unit_lat)
             end_lat_idx   = math.ceil((north - grid_base_lat) / unit_lat) + 1
             
-            buffer = 1 if self.zoom <= 3 else 2
+            buffer = 1 if self.zoom_level <= 3 else 2
             
             for lon_idx in range(start_lon_idx - buffer, end_lon_idx + buffer):
                 for lat_idx in range(start_lat_idx - buffer, end_lat_idx + buffer):
@@ -810,14 +810,14 @@ class GridMapWidget(QWidget):
                             'color'         : color
                         })
 
-        if self.zoom >= 5:
-            add_grid_type(1.0, 2.0, 'square', False, 'gray')        
-            
-        if self.zoom >= 10:
+        if self.zoom_level >= 5:
+            add_grid_type(1.0, 2.0, 'square', False, 'gray')
+
+        if self.zoom_level >= 10:
             add_grid_type(1.0/24.0, 2.0/24.0, 'subsquare', True, 'red')
-        elif self.zoom >= 6:
+        elif self.zoom_level >= 6:
             add_grid_type(1.0, 2.0, 'square', True, 'red')
-        elif self.zoom >= 5:
+        elif self.zoom_level >= 5:
             add_grid_type(10.0, 20.0, 'field', True, 'red')
         else:
             add_grid_type(10.0, 20.0, 'field', True, 'red')
@@ -828,15 +828,15 @@ class GridMapWidget(QWidget):
         grid_squares = self.get_visible_grid_squares()
         
         font = QFont(CUSTOM_FONT)
-        if self.zoom >= 12:
+        if self.zoom_level >= 12:
             font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 4)
-            font.setPointSize(22)     
-        elif self.zoom >= 10:
+            font.setPointSize(22)
+        elif self.zoom_level >= 10:
             font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 2)
             font.setPointSize(12)
-        elif self.zoom >= 6:
+        elif self.zoom_level >= 6:
             font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 4)
-            font.setPointSize(22)            
+            font.setPointSize(22)
         else:
             font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 6)
             font.setPointSize(30)
@@ -1519,11 +1519,10 @@ class GridMapWidget(QWidget):
                     if last_grid:
                         grid_info = self.maidenhead_to_lat_lon(last_grid, adjust_for_view=False)
                         if grid_info:
-                            self.center_lat = grid_info['center_lat']
-                            self.center_lon = grid_info['center_lon']
-                            self.center_pixel_offset_x = 0.0
-                            self.center_pixel_offset_y = 0.0
-                            self.apply_pan_movement(0, 0)
+                            self.world_nx, self.world_ny = self.latlon_to_norm(
+                                grid_info['center_lat'], grid_info['center_lon']
+                            )
+                            self.clamp_view()
                 except Exception as e:
                     log.error(f"Error centering on grid: {e}")
                         
@@ -1852,7 +1851,8 @@ class GridMapWidget(QWidget):
             self.mouse_pressed = True
             self.has_moved = False
             self.last_pan_point = event.pos()
-            self.pan_velocity = QPoint(0, 0)
+            self.pan_velocity_x = 0.0
+            self.pan_velocity_y = 0.0
             self.last_pan_time = time.time() * 1000
         elif event.button() == Qt.MouseButton.RightButton:
             # Handle right-click for context menu
@@ -1878,11 +1878,9 @@ class GridMapWidget(QWidget):
                     if time_delta > 0:
                         velocity_x = -delta.x() / max(time_delta, 1) * 16
                         velocity_y = -delta.y() / max(time_delta, 1) * 16
-                        
-                        self.pan_velocity = QPoint(
-                            int(self.pan_velocity.x() * 0.8 + velocity_x * 0.2),
-                            int(self.pan_velocity.y() * 0.8 + velocity_y * 0.2)
-                        )
+
+                        self.pan_velocity_x = self.pan_velocity_x * 0.8 + velocity_x * 0.2
+                        self.pan_velocity_y = self.pan_velocity_y * 0.8 + velocity_y * 0.2
                     
                     self.update()
                 
@@ -2327,13 +2325,15 @@ class GridMapWidget(QWidget):
     
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        
+
         min_zoom = self.get_min_zoom_for_size(self.width(), self.height())
-        
-        if self.zoom < min_zoom - 1:
-            self.zoom = min_zoom
-            self.memory_cache.clear()
+
+        if self.zoom < min_zoom:
+            self.zoom = float(min_zoom)
             self.update()
+
+        # Re-clamp the vertical center for the new viewport height.
+        self.clamp_view()
     
     def closeEvent(self, event):
         self.tile_downloader.stop()
