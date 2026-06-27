@@ -124,7 +124,8 @@ PRIORITY_LIST                   = {
     "Wanted Callsign(s)"        : "wanted",
     "Wanted CQ Zone(s)"         : "wanted_cq_zone",
     "Marathon"                  : "marathon",
-    "New Grid"                  : "wanted_grid",        
+    "DXCC Program"              : "dxcc_entity",
+    "New Grid"                  : "wanted_grid",
     "Politeness reply"          : "polite_reply",
 }
 

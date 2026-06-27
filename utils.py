@@ -660,7 +660,8 @@ def process_adif_records(
         parsed_grid_data,
         parsed_entity_data,
         lookup=None,
-        progress_callback=None
+        progress_callback=None,
+        parsed_entity_qsl_data=None
     ):
     processed_count = 0
     total_records = len([r for r in records if r.strip()])
@@ -681,6 +682,19 @@ def process_adif_records(
                 if band not in parsed_entity_data[year]:
                     parsed_entity_data[year][band] = set()
                 parsed_entity_data[year][band].add(info.get('entity_code'))
+
+            # All-time DXCC Program structure (band -> entity_code -> [qso dicts with qsl_status])
+            if lookup and band and info and info.get('entity_code') and parsed_entity_qsl_data is not None:
+                entity_code = info.get('entity_code')
+                if band not in parsed_entity_qsl_data:
+                    parsed_entity_qsl_data[band] = defaultdict(list)
+                if entity_code not in parsed_entity_qsl_data[band]:
+                    parsed_entity_qsl_data[band][entity_code] = []
+                parsed_entity_qsl_data[band][entity_code].append({
+                    'year'       : year,
+                    'call'       : call,
+                    'qsl_status' : qsl_status
+                })
             
             if year and band and call:
                 if year not in parsed_wkb4_data:
@@ -728,19 +742,21 @@ def parse_adif_incremental(file_path, last_size, lookup=None, max_lines=10):
     """
     start_time = time.time()
 
-    parsed_wkb4_data    = defaultdict(lambda: defaultdict(set))
-    parsed_grid_data    = defaultdict(lambda: defaultdict(list))
-    parsed_entity_data  = defaultdict(lambda: defaultdict(set)) if lookup else None
+    parsed_wkb4_data       = defaultdict(lambda: defaultdict(set))
+    parsed_grid_data       = defaultdict(lambda: defaultdict(list))
+    parsed_entity_data     = defaultdict(lambda: defaultdict(set)) if lookup else None
+    parsed_entity_qsl_data = defaultdict(lambda: defaultdict(list)) if lookup else None
 
     if not os.path.exists(file_path):
         return time.time() - start_time, {
-            'wkb4'  : parsed_wkb4_data,
-            'entity': parsed_entity_data,
-            'grid'  : parsed_grid_data
+            'wkb4'      : parsed_wkb4_data,
+            'entity'    : parsed_entity_data,
+            'entity_qsl': parsed_entity_qsl_data,
+            'grid'      : parsed_grid_data
         }
-    
+
     file_size = os.path.getsize(file_path)
-    
+
     # If file is smaller than last known size, process entire file (file was truncated/replaced)
     if last_size is not None and last_size > 0 and file_size < last_size:
         # Avoid infinite recursion by calling the original implementation
@@ -754,9 +770,10 @@ def parse_adif_incremental(file_path, last_size, lookup=None, max_lines=10):
         # If file size hasn't changed, no new data
         if file_size == last_size:
             return time.time() - start_time, {
-                'wkb4'  : parsed_wkb4_data,
-                'entity': parsed_entity_data,
-                'grid'  : parsed_grid_data
+                'wkb4'      : parsed_wkb4_data,
+                'entity'    : parsed_entity_data,
+                'entity_qsl': parsed_entity_qsl_data,
+                'grid'      : parsed_grid_data
             }
 
         # Read only new content from the end of the file
@@ -775,14 +792,15 @@ def parse_adif_incremental(file_path, last_size, lookup=None, max_lines=10):
     if content:
         # Process the content for ADIF records
         records = re.split(r"<EOR>", content, flags=re.IGNORECASE)
-        process_adif_records(records, parsed_wkb4_data, parsed_grid_data, parsed_entity_data, lookup)
+        process_adif_records(records, parsed_wkb4_data, parsed_grid_data, parsed_entity_data, lookup, parsed_entity_qsl_data=parsed_entity_qsl_data)
 
     processing_time = time.time() - start_time
-    
+
     return processing_time, {
-        'wkb4'  : parsed_wkb4_data,
-        'entity': parsed_entity_data,
-        'grid'  : parsed_grid_data
+        'wkb4'      : parsed_wkb4_data,
+        'entity'    : parsed_entity_data,
+        'entity_qsl': parsed_entity_qsl_data,
+        'grid'      : parsed_grid_data
     }
 
 def is_worked_b4_year_band(data, callsign, year, band):
@@ -827,8 +845,53 @@ def is_grid_needed(
     else:
         return False
 
+def is_entity_needed(
+        data,
+        entity_code,
+        band,
+        check_band=True,
+        check_qsl_status=True
+    ):
+    """
+        DXCC Program: decide whether a DXCC entity is still needed.
+
+        All-time semantics (data['entity_qsl'] is keyed by band -> entity_code -> [qso dicts]).
+
+        check_band=True   -> consider only the given band (per-band DXCC).
+        check_band=False  -> consider every band (Unlimited mode); the entity
+                             is needed only if absent/unconfirmed across all bands.
+        check_qsl_status  -> when True, an entity worked but not yet confirmed
+                             (no QSO with a truthy qsl_status) is still needed.
+    """
+    entity_qsl = data.get('entity_qsl', {})
+
+    if check_band:
+        entities = entity_qsl.get(band, {})
+        if entity_code not in entities:
+            return True
+        if check_qsl_status:
+            for qso in entities[entity_code]:
+                if bool(qso.get('qsl_status')):
+                    return False
+            return True
+        return False
+
+    # Unlimited mode: scan all bands
+    found = False
+    for band_entities in entity_qsl.values():
+        if entity_code in band_entities:
+            found = True
+            if check_qsl_status:
+                for qso in band_entities[entity_code]:
+                    if bool(qso.get('qsl_status')):
+                        return False
+            else:
+                return False
+
+    return not found
+
 def get_wkb4_year(data, callsign, band):
-    worked_years = []    
+    worked_years = []
     for year, bands in data.items():
         if band in bands and callsign in bands[band]:
             worked_years.append(year)

@@ -159,6 +159,7 @@ class SettingsStrings:
     MENU_SOUND_ALERTS = lambda: tr("SettingsDialog", "Sound Alerts")
     MENU_LOTW = lambda: tr("SettingsDialog", "Logbook of The World")
     MENU_DX_MARATHON = lambda: tr("SettingsDialog", "DX Marathon")
+    MENU_DXCC_PROGRAM = lambda: tr("SettingsDialog", "DXCC Program")
     MENU_GRID_TRACKER = lambda: tr("SettingsDialog", "Grid Tracker")
     MENU_PRIORITY_MANAGER = lambda: tr("SettingsDialog", "Priority Manager")
     MENU_LOGBOOK_ANALYSIS = lambda: tr("SettingsDialog", "Logbook Analysis")
@@ -302,6 +303,12 @@ class SettingsStrings:
     GROUP_MARATHON_SETTINGS = lambda: tr("SettingsDialog", "Enable Marathon for selected bands")
     CHECK_ENABLE_MARATHON = lambda: tr("SettingsDialog", "Enable Marathon mode")
     LABEL_SELECT_BANDS = lambda: tr("SettingsDialog", "Select bands for Marathon:")
+    # DXCC Program
+    DXCC_NOTICE = lambda: tr("SettingsDialog",
+        "<p>DXCC Program tracks DXCC entities you have not worked on the selected bands (all-time, regardless of year).</p><p>When a new DXCC is decoded, Wait and Pounce will reply to this callsign. If you keep working stations from the same DXCC until it is confirmed, enable the option below.</p><p>Enable <u>Unlimited</u> to chase any DXCC not yet worked on any band.</p>"
+    )
+    GROUP_DXCC_SETTINGS = lambda: tr("SettingsDialog", "Enable DXCC Program for selected bands")
+    CHECK_ENABLE_DXCC_UNCONFIRMED = lambda: tr("SettingsDialog", "Keep replying to an entity until it is confirmed (QSL)")
     # Grid Tracker
     GRID_TRACKER_NOTICE = lambda: tr("SettingsDialog",
         "<p>Grid Tracker feature monitors for new grids (4 or 6 character Maidenhead) that haven't been worked yet.</p><p>When enabled, the program will reply to stations in grids you haven't worked on the selected bands.</p>"

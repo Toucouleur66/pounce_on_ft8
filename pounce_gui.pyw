@@ -386,6 +386,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.adif_file_path                     = self.local_params.get('adif_file_path', None)
         self.worked_before_preference           = convert_wkb4_reply_mode(self.local_params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS))
         self.marathon_preference                = self.local_params.get('marathon_preference', {})
+        self.dxcc_preference                    = self.local_params.get('dxcc_preference', {})
         self.grid_tracker_preference            = self.local_params.get('grid_tracker_preference', {})
 
         self.enable_auto_start_monitoring       = self.local_params.get('enable_auto_start_monitoring', DEFAULT_AUTO_START_MONITORING)
@@ -2499,6 +2500,8 @@ class MainApp(QtWidgets.QMainWindow):
                 focus_message = "Politeness"  
             elif priority_type == 'wanted_cq_zone':
                 focus_message = "Zone"
+            elif priority_type == 'dxcc_entity':
+                focus_message = "DXCC"
 
             if focus_message:    
                 formatted_message+= f" / {focus_message.upper()}"
@@ -4231,6 +4234,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.worker.adif_worked_backup_file_path    = self.local_params.get('adif_worked_backup_file_path', None)
         self.worker.worked_before_preference        = convert_wkb4_reply_mode(self.local_params.get('worked_before_preference', WKB4_REPLY_MODE_ALWAYS))
         self.worker.marathon_preference             = self.local_params.get('marathon_preference', {})
+        self.worker.dxcc_preference                 = self.local_params.get('dxcc_preference', {})
+        self.worker.enable_dxcc_reply_unconfirmed   = self.local_params.get('enable_dxcc_reply_unconfirmed', False)
         self.worker.grid_tracker_preference         = self.local_params.get('grid_tracker_preference', {})
         self.worker.enable_grid_reply_new_grid      = self.local_params.get('enable_grid_reply_new_grid', False)
         self.worker.enable_grid_reply_unconfirmed   = self.local_params.get('enable_grid_reply_unconfirmed', False)

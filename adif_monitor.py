@@ -373,29 +373,32 @@ class AdifMonitor:
         """
         merged_data = copy.deepcopy(existing_data)
         
-        for data_type in ['wkb4', 'entity', 'grid']:
+        # 'grid' and 'entity_qsl' store lists of QSO dicts; 'wkb4'/'entity' store sets
+        list_data_types = ('grid', 'entity_qsl')
+
+        for data_type in ['wkb4', 'entity', 'entity_qsl', 'grid']:
             if data_type in incremental_data and incremental_data[data_type]:
                 if data_type not in merged_data:
                     merged_data[data_type] = {}
-                
+
                 for key1, value1 in incremental_data[data_type].items():
                     if key1 not in merged_data[data_type]:
                         merged_data[data_type][key1] = {}
-                    
+
                     for key2, value2 in value1.items():
                         if key2 not in merged_data[data_type][key1]:
-                            if data_type == 'grid':
+                            if data_type in list_data_types:
                                 merged_data[data_type][key1][key2] = []
                             else:
                                 merged_data[data_type][key1][key2] = set()
-                        
-                        if data_type == 'grid' and isinstance(value2, list):
+
+                        if data_type in list_data_types and isinstance(value2, list):
                             merged_data[data_type][key1][key2].extend(value2)
                         elif isinstance(value2, set):
                             merged_data[data_type][key1][key2].update(value2)
                         else:
                             # Handle backward compatibility
-                            if data_type == 'grid':
+                            if data_type in list_data_types:
                                 merged_data[data_type][key1][key2].extend(value2 if isinstance(value2, list) else [value2])
                             else:
                                 merged_data[data_type][key1][key2].add(value2)
@@ -508,9 +511,10 @@ class AdifMonitor:
 
     def get_adif_data(self):
         merged_data = {
-            'wkb4'  : defaultdict(lambda: defaultdict(set)),
-            'entity': defaultdict(lambda: defaultdict(set)),
-            'grid'  : defaultdict(lambda: defaultdict(list)),
+            'wkb4'      : defaultdict(lambda: defaultdict(set)),
+            'entity'    : defaultdict(lambda: defaultdict(set)),
+            'entity_qsl': defaultdict(lambda: defaultdict(list)),
+            'grid'      : defaultdict(lambda: defaultdict(list)),
         }
         
         # Create a snapshot to avoid iterator invalidation
@@ -528,14 +532,23 @@ class AdifMonitor:
                         merged_data['wkb4'][year][band].update(calls)
             
             entity_data = data.get('entity')
-            
+
             if entity_data:
                 for year, bands in entity_data.items():
                     if bands is None:
                         continue
                     for band, entities in bands.items():
                         merged_data['entity'][year][band].update(entities)
-            
+
+            entity_qsl_data = data.get('entity_qsl')
+
+            if entity_qsl_data:
+                for band, entities in entity_qsl_data.items():
+                    if entities is None:
+                        continue
+                    for entity_code, qso_data in entities.items():
+                        merged_data['entity_qsl'][band][entity_code].extend(qso_data)
+
             grid_data = data.get('grid')
             if grid_data:
                 for band, grids in grid_data.items():

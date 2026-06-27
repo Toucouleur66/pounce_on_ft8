@@ -22,7 +22,7 @@ from logger import get_logger
 
 from utils import get_local_ip_address, get_mode_interval, get_amateur_band, parse_wsjtx_message
 from utils import get_wkb4_year, get_clean_rst
-from utils import is_valid_continent, is_valid_grid, is_grid_needed
+from utils import is_valid_continent, is_valid_grid, is_grid_needed, is_entity_needed
 from utils import load_marathon_wanted_data, save_marathon_wanted_data
 
 from callsign_lookup import CallsignLookup
@@ -82,6 +82,8 @@ class Listener(QObject):
             min_freq,
             max_freq,
             marathon_preference,
+            dxcc_preference,
+            enable_dxcc_reply_unconfirmed,
             grid_tracker_preference,
             enable_grid_reply_new_grid,
             enable_grid_reply_unconfirmed,
@@ -172,8 +174,11 @@ class Listener(QObject):
 
         self.enable_marathon                    = None
         self.enable_grid_tracker                = None
+        self.enable_dxcc                        = False
 
         self.marathon_preference                = marathon_preference
+        self.dxcc_preference                    = dxcc_preference or {}
+        self.enable_dxcc_reply_unconfirmed      = enable_dxcc_reply_unconfirmed
         self.grid_tracker_preference            = grid_tracker_preference
         self.enable_grid_reply_new_grid         = enable_grid_reply_new_grid
         self.enable_grid_reply_unconfirmed      = enable_grid_reply_unconfirmed
@@ -547,6 +552,13 @@ class Listener(QObject):
         else:
             self.enable_grid_tracker = False
 
+        if self.dxcc_preference.get(self.band):
+            self.enable_dxcc        = True
+        elif self.dxcc_preference.get(MARATHON_UNLIMITED):
+            self.enable_dxcc        = True
+        else:
+            self.enable_dxcc        = False
+
         if self.worked_callsigns:
             callsigns_to_remove = [
                 callsign for callsign in self.worked_callsigns if callsign in self.wanted_callsigns
@@ -577,6 +589,7 @@ class Listener(QObject):
         log_output.append(f"ExcludedZones={self.excluded_cq_zones}")
         log_output.append(f"WorkedBeforePreference={self.worked_before_preference}")
         log_output.append(f"Marathon={self.enable_marathon}")
+        log_output.append(f"DXCCProgram={self.enable_dxcc}")
         log_output.append(f"GridTracker={self.enable_grid_tracker}")
         log_output.append(f"LoTWReplyOnly={self.enable_reply_to_lotw_only }") 
         log_output.append(f"PriorityOrder={self.priority_order}")      
@@ -1211,6 +1224,7 @@ class Listener(QObject):
                 callsign_info     = parsed_message['callsign_info']
                 callsign_wkb4     = False
                 marathon          = False
+                dxcc              = False
                 priority          = 0
                 priority_type     = None
 
@@ -1291,7 +1305,43 @@ class Listener(QObject):
                     if marathon:
                         log.info(f"Focus on [ {callsign} ] for marathon on [ {self.band} ]")
                         reply_to_packet = True
-                
+
+                """
+                    Check if entity is needed for DXCC Program
+
+                    All-time, ignores Worked Before rules (a new DXCC is a new DXCC).
+                    When 'unconfirmed' is enabled, keep replying to stations from
+                    the same entity until it is confirmed (QSL) on the band.
+                """
+                if (
+                    self.enable_dxcc
+                    and self.adif_data.get('entity_qsl')
+                    and entity_code
+                    and not wanted
+                    and not wanted_cq_zone
+                    and not marathon
+                    and not wanted_grid
+                ):
+                    # Do not re-call a callsign already worked for this entity on this band
+                    entity_qsos = self.adif_data.get('entity_qsl', {}).get(self.band, {}).get(entity_code, [])
+                    callsign_already_worked_for_entity = any(
+                        qso.get('call') == callsign for qso in entity_qsos
+                    )
+
+                    if (
+                        not callsign_already_worked_for_entity
+                        and is_entity_needed(
+                            self.adif_data,
+                            entity_code,
+                            self.band,
+                            check_band=not self.dxcc_preference.get(MARATHON_UNLIMITED),
+                            check_qsl_status=self.enable_dxcc_reply_unconfirmed
+                        )
+                    ):
+                        dxcc = True
+                        log.info(f"Focus on [ {callsign} ] for DXCC entity [ {entity_code} ] on [ {self.band} ]")
+                        reply_to_packet = True
+
                 """
                     Check if grid is needed
                 """
@@ -1649,6 +1699,7 @@ class Listener(QObject):
                         'wanted_cq_zone'    : wanted_cq_zone,
                         'wanted_grid'       : wanted_grid,
                         'marathon'          : marathon,
+                        'dxcc_entity'       : dxcc,
                         'lotw'              : lotw,
                         'snr'               : snr,
                         'wkb4_year'         : wkb4_year,

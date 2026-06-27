@@ -77,6 +77,8 @@ class Worker(QObject):
             adif_worked_backup_file_path       = None,
             worked_before_preference           = WKB4_REPLY_MODE_ALWAYS,
             marathon_preference                = None,
+            dxcc_preference                    = None,
+            enable_dxcc_reply_unconfirmed      = False,
             grid_tracker_preference            = None,
             enable_grid_reply_new_grid         = False,
             enable_grid_reply_unconfirmed      = False,
@@ -144,6 +146,8 @@ class Worker(QObject):
         self.adif_worked_backup_file_path       = adif_worked_backup_file_path
         self.worked_before_preference           = worked_before_preference
         self.marathon_preference                = marathon_preference or {}
+        self.dxcc_preference                    = dxcc_preference or {}
+        self.enable_dxcc_reply_unconfirmed      = enable_dxcc_reply_unconfirmed
         self.grid_tracker_preference            = grid_tracker_preference or {}
         self.enable_grid_reply_new_grid         = enable_grid_reply_new_grid
         self.enable_grid_reply_unconfirmed      = enable_grid_reply_unconfirmed
@@ -208,6 +212,8 @@ class Worker(QObject):
                 max_freq                        = self.max_freq,
 
                 marathon_preference             = self.marathon_preference,
+                dxcc_preference                 = self.dxcc_preference,
+                enable_dxcc_reply_unconfirmed   = self.enable_dxcc_reply_unconfirmed,
                 grid_tracker_preference         = self.grid_tracker_preference,
                 enable_grid_reply_new_grid      = self.enable_grid_reply_new_grid,
                 enable_grid_reply_unconfirmed   = self.enable_grid_reply_unconfirmed,
@@ -305,6 +311,8 @@ class Worker(QObject):
             self.listener.enable_pounce_log                     = self.enable_pounce_log
             self.listener.enable_log_packet_data                = self.enable_log_packet_data
             self.listener.marathon_preference                   = self.marathon_preference
+            self.listener.dxcc_preference                       = self.dxcc_preference
+            self.listener.enable_dxcc_reply_unconfirmed         = self.enable_dxcc_reply_unconfirmed
             self.listener.grid_tracker_preference               = self.grid_tracker_preference
             self.listener.enable_grid_reply_new_grid            = self.enable_grid_reply_new_grid
             self.listener.enable_grid_reply_unconfirmed         = self.enable_grid_reply_unconfirmed

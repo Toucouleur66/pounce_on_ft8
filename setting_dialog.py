@@ -101,6 +101,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.table_widgets = []
 
         self.marathon_preference     = self.params.get('marathon_preference', {})
+        self.dxcc_preference         = self.params.get('dxcc_preference', {})
         self.grid_tracker_preference = self.params.get('grid_tracker_preference', {})
 
         layout = QtWidgets.QVBoxLayout(self)
@@ -122,6 +123,7 @@ class SettingsDialog(QtWidgets.QDialog):
             SettingsStrings.MENU_SOUND_ALERTS(),
             SettingsStrings.MENU_LOTW(),
             SettingsStrings.MENU_DX_MARATHON(),
+            SettingsStrings.MENU_DXCC_PROGRAM(),
             SettingsStrings.MENU_GRID_TRACKER(),
             SettingsStrings.MENU_PRIORITY_MANAGER(),
             SettingsStrings.MENU_LOGBOOK_ANALYSIS(),
@@ -153,6 +155,7 @@ class SettingsDialog(QtWidgets.QDialog):
         sound_page        = QtWidgets.QWidget()
         lotw_page         = QtWidgets.QWidget()
         marathon_page     = QtWidgets.QWidget()
+        dxcc_page         = QtWidgets.QWidget()
         grid_tracker_page = QtWidgets.QWidget()
         priority_page     = QtWidgets.QWidget()
         log_analysis_page = QtWidgets.QWidget()
@@ -171,6 +174,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.stacked_widget.addWidget(sound_page)
         self.stacked_widget.addWidget(lotw_page)
         self.stacked_widget.addWidget(marathon_page)
+        self.stacked_widget.addWidget(dxcc_page)
         self.stacked_widget.addWidget(grid_tracker_page)
         self.stacked_widget.addWidget(priority_page)
         self.stacked_widget.addWidget(log_analysis_page)
@@ -188,6 +192,7 @@ class SettingsDialog(QtWidgets.QDialog):
         priority_layout       = QtWidgets.QVBoxLayout(priority_page)
         lotw_layout           = QtWidgets.QVBoxLayout(lotw_page)
         marathon_layout       = QtWidgets.QVBoxLayout(marathon_page)
+        dxcc_layout           = QtWidgets.QVBoxLayout(dxcc_page)
         grid_tracker_layout   = QtWidgets.QVBoxLayout(grid_tracker_page)
         log_analysis_layout   = QtWidgets.QVBoxLayout(log_analysis_page)
         worked_b4_layout      = QtWidgets.QVBoxLayout(worked_b4_page)
@@ -1245,6 +1250,57 @@ class SettingsDialog(QtWidgets.QDialog):
         marathon_layout.addStretch()
 
         """
+            DXCC Program Settings
+        """
+        dxcc_notice_text = SettingsStrings.DXCC_NOTICE()
+        dxcc_notice_label = QtWidgets.QLabel(dxcc_notice_text)
+        dxcc_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
+        self.notice_labels.append(dxcc_notice_label)
+        dxcc_notice_label.setWordWrap(True)
+        dxcc_notice_label.setFont(CUSTOM_FONT_SMALL)
+        dxcc_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
+
+        self.dxcc_group = QtWidgets.QGroupBox(SettingsStrings.GROUP_DXCC_SETTINGS())
+        self.group_boxes.append(self.dxcc_group)
+        self.dxcc_group.setFont(CUSTOM_FONT_SMALL)
+        dxcc_select_layout = QtWidgets.QGridLayout()
+
+        self.dxcc_band_buttons = {}
+        max_cols = 3
+        row = 0
+        col = 0
+
+        for amateur_band in list(AMATEUR_BANDS.keys()):
+            btn = CustomButton(amateur_band)
+            btn.setCheckable(True)
+            btn.toggled.connect(lambda checked, btn=btn, name=amateur_band: self.on_dxcc_band_toggled(btn, name, checked))
+            self.dxcc_band_buttons[amateur_band] = btn
+            dxcc_select_layout.addWidget(btn, row, col)
+
+            col += 1
+            if col >= max_cols:
+                col = 0
+                row += 1
+
+        btn = CustomButton(MARATHON_UNLIMITED)
+        btn.setCheckable(True)
+        btn.toggled.connect(lambda checked, btn=btn, name=MARATHON_UNLIMITED: self.on_dxcc_band_toggled(btn, MARATHON_UNLIMITED, checked))
+        self.dxcc_band_buttons[MARATHON_UNLIMITED] = btn
+        dxcc_select_layout.addWidget(btn, row, col)
+
+        self.dxcc_group.setLayout(dxcc_select_layout)
+
+        # Keep replying to an entity until it is confirmed (QSL) checkbox
+        self.enable_dxcc_reply_unconfirmed = QtWidgets.QCheckBox(SettingsStrings.CHECK_ENABLE_DXCC_UNCONFIRMED())
+        self.enable_dxcc_reply_unconfirmed.setFont(CUSTOM_FONT_SMALL)
+        self.enable_dxcc_reply_unconfirmed.setChecked(False)
+
+        dxcc_layout.addWidget(dxcc_notice_label)
+        dxcc_layout.addWidget(self.dxcc_group)
+        dxcc_layout.addWidget(self.enable_dxcc_reply_unconfirmed)
+        dxcc_layout.addStretch()
+
+        """
             Log Analysis Settings
         """
         log_analysis_layout.addWidget(log_analysis_notice_label)
@@ -1662,6 +1718,9 @@ class SettingsDialog(QtWidgets.QDialog):
                 if key == "marathon":
                     if not self.marathon_preference or not any(self.marathon_preference.values()):
                         continue
+                elif key == "dxcc_entity":
+                    if not self.dxcc_preference or not any(self.dxcc_preference.values()):
+                        continue
                 elif key == "wanted_grid":
                     if not self.grid_tracker_preference or not any(self.grid_tracker_preference.values()):
                         continue
@@ -1733,6 +1792,39 @@ class SettingsDialog(QtWidgets.QDialog):
             button.resetStyle()
 
         self.marathon_preference[band_name] = checked
+
+        self.populate_priority_list()
+
+    def on_dxcc_band_toggled(self, button, band_name, checked):
+        if not hasattr(self, "_previous_dxcc_band_states"):
+            self._previous_dxcc_band_states = {}
+
+        if band_name == MARATHON_UNLIMITED:
+            if checked:
+                self._previous_dxcc_band_states = {
+                    name: btn.isChecked() for name, btn in self.dxcc_band_buttons.items() if name != MARATHON_UNLIMITED
+                }
+                for name, btn in self.dxcc_band_buttons.items():
+                    if name != MARATHON_UNLIMITED:
+                        btn.setChecked(False)
+                        self.dxcc_preference[name] = False
+            else:
+                for name, btn in self.dxcc_band_buttons.items():
+                    if name != MARATHON_UNLIMITED and name in self._previous_dxcc_band_states:
+                        btn.setChecked(self._previous_dxcc_band_states[name])
+                        self.dxcc_preference[name] = self._previous_dxcc_band_states[name]
+        else:
+            if checked:
+                self.dxcc_band_buttons[MARATHON_UNLIMITED].setChecked(False)
+                self.dxcc_band_buttons[MARATHON_UNLIMITED].setEnabled(True)
+                self.dxcc_preference[MARATHON_UNLIMITED] = False
+
+        if checked:
+            button.updateStyle(band_name, STATUS_TRX_COLOR, "#FFFFFF")
+        else:
+            button.resetStyle()
+
+        self.dxcc_preference[band_name] = checked
 
         self.populate_priority_list()
 
@@ -2537,6 +2629,9 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_grid_reply_unconfirmed.setChecked(
             self.params.get('enable_grid_reply_unconfirmed', False)
         )
+        self.enable_dxcc_reply_unconfirmed.setChecked(
+            self.params.get('enable_dxcc_reply_unconfirmed', False)
+        )
         self.delay_between_sound_for_monitored.setText(
             str(self.params.get('delay_between_sound_for_monitored', DEFAULT_DELAY_BETWEEN_SOUND))
         )
@@ -2670,6 +2765,14 @@ class SettingsDialog(QtWidgets.QDialog):
             checked = self.marathon_preference.get(band_name, False)
             btn.setChecked(checked)
 
+        self.dxcc_preference = self.params.get('dxcc_preference', {})
+
+        if isinstance(self.dxcc_preference, bool):
+            self.dxcc_preference = {}
+        for band_name, btn in self.dxcc_band_buttons.items():
+            checked = self.dxcc_preference.get(band_name, False)
+            btn.setChecked(checked)
+
         self.grid_tracker_preference = self.params.get('grid_tracker_preference', {})
 
         if isinstance(self.grid_tracker_preference, bool):
@@ -2728,6 +2831,10 @@ class SettingsDialog(QtWidgets.QDialog):
         for band_name, btn in self.band_buttons.items():
             marathon_preference[band_name] = btn.isChecked()
 
+        dxcc_preference = {}
+        for band_name, btn in self.dxcc_band_buttons.items():
+            dxcc_preference[band_name] = btn.isChecked()
+
         grid_tracker_preference = {}
         for band_name, btn in self.grid_tracker_band_buttons.items():
             grid_tracker_preference[band_name] = btn.isChecked()
@@ -2783,6 +2890,8 @@ class SettingsDialog(QtWidgets.QDialog):
             'custom_max_freq'                            : self.custom_max_freq_value,
             'worked_before_preference'                   : worked_before_preference,
             'marathon_preference'                        : marathon_preference,
+            'dxcc_preference'                            : dxcc_preference,
+            'enable_dxcc_reply_unconfirmed'              : self.enable_dxcc_reply_unconfirmed.isChecked(),
             'grid_tracker_preference'                    : grid_tracker_preference,
             'enable_grid_reply_new_grid'                 : self.enable_grid_reply_new_grid.isChecked(),
             'enable_grid_reply_unconfirmed'              : self.enable_grid_reply_unconfirmed.isChecked(),

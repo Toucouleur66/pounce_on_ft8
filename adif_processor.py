@@ -224,11 +224,13 @@ class AdifProcessor:
         parsed_wkb4_data = {}
         parsed_grid_data = {}
         parsed_entity_data = {} if lookup else None
-        
+        parsed_entity_qsl_data = {} if lookup else None
+
         if not os.path.exists(file_path):
             return time.time() - start_time, {
                 'wkb4': parsed_wkb4_data,
                 'entity': parsed_entity_data,
+                'entity_qsl': parsed_entity_qsl_data,
                 'grid': parsed_grid_data
             }
         
@@ -245,6 +247,7 @@ class AdifProcessor:
                 return time.time() - start_time, {
                     'wkb4': parsed_wkb4_data,
                     'entity': parsed_entity_data,
+                    'entity_qsl': parsed_entity_qsl_data,
                     'grid': parsed_grid_data
                 }
             
@@ -297,12 +300,13 @@ class AdifProcessor:
                         pass
             
             # Use shared record processing function
-            process_adif_records(records, parsed_wkb4_data, parsed_grid_data, parsed_entity_data, lookup, progress_callback)
-        
+            process_adif_records(records, parsed_wkb4_data, parsed_grid_data, parsed_entity_data, lookup, progress_callback, parsed_entity_qsl_data=parsed_entity_qsl_data)
+
         processing_time = time.time() - start_time
-        
+
         return processing_time, {
             'wkb4': parsed_wkb4_data,
             'entity': parsed_entity_data,
+            'entity_qsl': parsed_entity_qsl_data,
             'grid': parsed_grid_data
         }
