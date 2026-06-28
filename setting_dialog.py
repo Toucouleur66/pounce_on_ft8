@@ -76,6 +76,11 @@ from constants import (
     DEFAULT_MINIMUM_REPORT,
     DEFAULT_JTDX_CLICK_PROMPT_LOG_QSO,
     DEFAULT_JTDX_CLICK_DELAY,
+    # PstRotator
+    DEFAULT_PSTROTATOR_HOST,
+    DEFAULT_PSTROTATOR_PORT,
+    DEFAULT_ENABLE_PSTROTATOR_WANTED,
+    DEFAULT_ENABLE_PSTROTATOR_SCHEDULE,
     # Fonts
     CUSTOM_FONT,
     CUSTOM_FONT_SMALL,
@@ -131,6 +136,7 @@ class SettingsDialog(QtWidgets.QDialog):
             SettingsStrings.MENU_CLUB_LOG(),
             SettingsStrings.MENU_LOGBOOK_BACKUP(),
             SettingsStrings.MENU_AUTOMATE_TASKS(),
+            SettingsStrings.MENU_PSTROTATOR(),
             SettingsStrings.MENU_DEBUGGING()
         ]
 
@@ -164,6 +170,8 @@ class SettingsDialog(QtWidgets.QDialog):
         backup_page       = QtWidgets.QWidget()
         automate_tasks_page = QtWidgets.QWidget()
         automate_tasks_page.setMinimumHeight(250)
+        pstrotator_page   = QtWidgets.QWidget()
+        pstrotator_page.setMinimumHeight(250)
         debugging_page    = QtWidgets.QWidget()
         debugging_page.setMinimumHeight(250)
 
@@ -182,6 +190,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.stacked_widget.addWidget(club_log_page)
         self.stacked_widget.addWidget(backup_page)
         self.stacked_widget.addWidget(automate_tasks_page)
+        self.stacked_widget.addWidget(pstrotator_page)
         self.stacked_widget.addWidget(debugging_page)
 
         server_layout         = QtWidgets.QVBoxLayout(server_page)
@@ -199,6 +208,7 @@ class SettingsDialog(QtWidgets.QDialog):
         club_log_layout       = QtWidgets.QVBoxLayout(club_log_page)
         backup_layout         = QtWidgets.QVBoxLayout(backup_page)
         automate_tasks_layout = QtWidgets.QVBoxLayout(automate_tasks_page)
+        pstrotator_layout     = QtWidgets.QVBoxLayout(pstrotator_page)
         debugging_layout      = QtWidgets.QVBoxLayout(debugging_page)
 
         self.menu_list.currentRowChanged.connect(self.stacked_widget.setCurrentIndex)
@@ -1600,6 +1610,133 @@ class SettingsDialog(QtWidgets.QDialog):
         automate_tasks_layout.addStretch()
 
         """
+            Antenna Rotator (PstRotatorAz) Settings
+        """
+        pstrotator_notice_label = QtWidgets.QLabel(SettingsStrings.PSTROTATOR_NOTICE())
+        pstrotator_notice_label.setWordWrap(True)
+        pstrotator_notice_label.setFont(CUSTOM_FONT_SMALL)
+        pstrotator_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
+        pstrotator_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
+        self.notice_labels.append(pstrotator_notice_label)
+        pstrotator_notice_label.setAutoFillBackground(True)
+
+        # Connection group
+        pstrotator_connection_group = QtWidgets.QGroupBox(SettingsStrings.GROUP_PSTROTATOR_CONNECTION())
+        self.group_boxes.append(pstrotator_connection_group)
+        pstrotator_connection_group.setFont(CUSTOM_FONT_SMALL)
+        pstrotator_connection_layout = QtWidgets.QGridLayout()
+
+        pstrotator_host_label = QtWidgets.QLabel(SettingsStrings.LABEL_UDP_SERVER())
+        pstrotator_host_label.setFont(CUSTOM_FONT)
+        self.pstrotator_host = QtWidgets.QLineEdit()
+        self.pstrotator_host.setFont(CUSTOM_FONT)
+
+        pstrotator_port_label = QtWidgets.QLabel(SettingsStrings.LABEL_UDP_PORT())
+        pstrotator_port_label.setFont(CUSTOM_FONT)
+        self.pstrotator_port = QtWidgets.QLineEdit()
+        self.pstrotator_port.setFont(CUSTOM_FONT)
+        self.pstrotator_port.setValidator(QtGui.QIntValidator(1, 65535, self))
+
+        pstrotator_current_azimuth_label = QtWidgets.QLabel(SettingsStrings.LABEL_PSTROTATOR_CURRENT_AZIMUTH())
+        pstrotator_current_azimuth_label.setFont(CUSTOM_FONT)
+        self.pstrotator_current_azimuth_value = QtWidgets.QLabel(SettingsStrings.PSTROTATOR_AZIMUTH_UNKNOWN())
+        self.pstrotator_current_azimuth_value.setFont(CUSTOM_FONT)
+
+        pstrotator_connection_layout.addWidget(pstrotator_host_label, 0, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
+        pstrotator_connection_layout.addWidget(self.pstrotator_host, 0, 1)
+        pstrotator_connection_layout.addWidget(pstrotator_port_label, 1, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
+        pstrotator_connection_layout.addWidget(self.pstrotator_port, 1, 1)
+        pstrotator_connection_layout.addWidget(pstrotator_current_azimuth_label, 2, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
+        pstrotator_connection_layout.addWidget(self.pstrotator_current_azimuth_value, 2, 1)
+        pstrotator_connection_layout.setColumnMinimumWidth(0, 200)
+        pstrotator_connection_layout.setColumnStretch(0, 0)
+
+        pstrotator_connection_group.setLayout(pstrotator_connection_layout)
+
+        # Wanted tracking group
+        pstrotator_wanted_group = QtWidgets.QGroupBox(SettingsStrings.GROUP_PSTROTATOR_WANTED())
+        self.group_boxes.append(pstrotator_wanted_group)
+        pstrotator_wanted_group.setFont(CUSTOM_FONT_SMALL)
+        pstrotator_wanted_layout = QtWidgets.QVBoxLayout()
+
+        self.enable_pstrotator_wanted = QtWidgets.QCheckBox(SettingsStrings.CHECK_PSTROTATOR_WANTED())
+        self.enable_pstrotator_wanted.setFont(CUSTOM_FONT)
+        self.enable_pstrotator_wanted.setChecked(DEFAULT_ENABLE_PSTROTATOR_WANTED)
+
+        pstrotator_wanted_layout.addWidget(self.enable_pstrotator_wanted)
+        pstrotator_wanted_group.setLayout(pstrotator_wanted_layout)
+
+        # Hourly schedule group
+        pstrotator_schedule_group = QtWidgets.QGroupBox(SettingsStrings.GROUP_PSTROTATOR_SCHEDULE())
+        self.group_boxes.append(pstrotator_schedule_group)
+        pstrotator_schedule_group.setFont(CUSTOM_FONT_SMALL)
+        pstrotator_schedule_layout = QtWidgets.QVBoxLayout()
+
+        self.enable_pstrotator_schedule = QtWidgets.QCheckBox(SettingsStrings.CHECK_PSTROTATOR_SCHEDULE())
+        self.enable_pstrotator_schedule.setFont(CUSTOM_FONT)
+        self.enable_pstrotator_schedule.setChecked(DEFAULT_ENABLE_PSTROTATOR_SCHEDULE)
+        self.enable_pstrotator_schedule.toggled.connect(self.update_pstrotator_schedule_enabled)
+        pstrotator_schedule_layout.addWidget(self.enable_pstrotator_schedule)
+
+        # Container that gets dimmed when the schedule is disabled (values kept).
+        self.pstrotator_schedule_body = QtWidgets.QWidget()
+        pstrotator_schedule_body_layout = QtWidgets.QVBoxLayout(self.pstrotator_schedule_body)
+        pstrotator_schedule_body_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.pstrotator_schedule_table = QtWidgets.QTableWidget()
+        self.pstrotator_schedule_table.setColumnCount(2)
+        self.pstrotator_schedule_table.setHorizontalHeaderLabels([
+            SettingsStrings.HEADER_PSTROTATOR_TIME(),
+            SettingsStrings.HEADER_PSTROTATOR_AZIMUTH()
+        ])
+        self.pstrotator_schedule_table.setShowGrid(False)
+        self.pstrotator_schedule_table.setAlternatingRowColors(True)
+        self.pstrotator_schedule_table.verticalHeader().setVisible(False)
+        self.pstrotator_schedule_table.setFrameStyle(QtWidgets.QFrame.Shape.NoFrame)
+        self.pstrotator_schedule_table.horizontalHeader().setStretchLastSection(True)
+        self.pstrotator_schedule_table.horizontalHeader().setDefaultAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
+        self.pstrotator_schedule_table.horizontalHeader().setFont(CUSTOM_FONT_SMALL)
+        self.pstrotator_schedule_table.horizontalHeader().setHighlightSections(False)
+        self.pstrotator_schedule_table.verticalHeader().setHighlightSections(False)
+        self.pstrotator_schedule_table.setColumnWidth(0, 200)
+        self.pstrotator_schedule_table.setMaximumHeight(190)
+        self.pstrotator_schedule_table.setFont(CUSTOM_FONT_SMALL)
+        self.pstrotator_schedule_table.setSelectionBehavior(
+            QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows
+        )
+        self.pstrotator_schedule_table.horizontalHeader().setStyleSheet("""
+            QHeaderView::section {
+                font-weight: normal;
+                border: none;
+                padding: 10 4px 4px 4px;
+            }
+        """)
+        self.pstrotator_schedule_table.setStyleSheet(get_table_setting_qss())
+        self.table_widgets.append(self.pstrotator_schedule_table)
+        pstrotator_schedule_body_layout.addWidget(self.pstrotator_schedule_table)
+
+        pstrotator_schedule_buttons_layout = QtWidgets.QHBoxLayout()
+        self.pstrotator_add_button = CustomButton(SettingsStrings.BUTTON_PSTROTATOR_ADD())
+        self.pstrotator_add_button.setMaximumWidth(120)
+        self.pstrotator_add_button.clicked.connect(self.add_pstrotator_schedule_row)
+        self.pstrotator_remove_button = CustomButton(SettingsStrings.BUTTON_PSTROTATOR_REMOVE())
+        self.pstrotator_remove_button.setMaximumWidth(120)
+        self.pstrotator_remove_button.clicked.connect(self.remove_pstrotator_schedule_row)
+        pstrotator_schedule_buttons_layout.addWidget(self.pstrotator_add_button)
+        pstrotator_schedule_buttons_layout.addWidget(self.pstrotator_remove_button)
+        pstrotator_schedule_buttons_layout.addStretch()
+        pstrotator_schedule_body_layout.addLayout(pstrotator_schedule_buttons_layout)
+
+        pstrotator_schedule_layout.addWidget(self.pstrotator_schedule_body)
+        pstrotator_schedule_group.setLayout(pstrotator_schedule_layout)
+
+        pstrotator_layout.addWidget(pstrotator_notice_label)
+        pstrotator_layout.addWidget(pstrotator_connection_group)
+        pstrotator_layout.addWidget(pstrotator_wanted_group)
+        pstrotator_layout.addWidget(pstrotator_schedule_group)
+        pstrotator_layout.addStretch()
+
+        """
             Debug Settings
         """
         debug_notice_text = SettingsStrings.DEBUG_NOTICE()
@@ -1651,6 +1788,11 @@ class SettingsDialog(QtWidgets.QDialog):
         debugging_layout.addStretch()
 
         self.load_params()
+
+        # Live-update the "Current azimuth" label from the rotator poller.
+        self.pst_rotator = getattr(parent, 'pst_rotator', None)
+        if self.pst_rotator is not None:
+            self.pst_rotator.azimuth_read.connect(self.update_pstrotator_current_azimuth)
 
         self.button_box = QtWidgets.QDialogButtonBox()
         self.ok_button = CustomButton(CommonStrings.OK())
@@ -1837,6 +1979,97 @@ class SettingsDialog(QtWidgets.QDialog):
         self.grid_tracker_preference[band_name] = checked
 
         self.populate_priority_list()
+
+    def add_pstrotator_schedule_row(self, hour=0, minute=0, azimuth=0):
+        # Signals from clicked() may pass a bool; ignore non-int defaults.
+        if not isinstance(hour, int):
+            hour = 0
+        if not isinstance(minute, int):
+            minute = 0
+        if not isinstance(azimuth, int):
+            azimuth = 0
+
+        row = self.pstrotator_schedule_table.rowCount()
+        self.pstrotator_schedule_table.insertRow(row)
+        self.pstrotator_schedule_table.setRowHeight(row, 30)
+
+        # Plain editable cells (double-click to edit), no spinbox arrows.
+        time_item = QTableWidgetItem(f"{hour:02d}:{minute:02d}")
+        time_item.setFont(CUSTOM_FONT)
+        time_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        self.pstrotator_schedule_table.setItem(row, 0, time_item)
+
+        azimuth_item = QTableWidgetItem(str(azimuth))
+        azimuth_item.setFont(CUSTOM_FONT)
+        azimuth_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        self.pstrotator_schedule_table.setItem(row, 1, azimuth_item)
+
+    def update_pstrotator_schedule_enabled(self, enabled=None):
+        if enabled is None:
+            enabled = self.enable_pstrotator_schedule.isChecked()
+        # Keep the values but dim the controls when the schedule is disabled.
+        self.pstrotator_schedule_body.setEnabled(enabled)
+        effect = self.pstrotator_schedule_body.graphicsEffect()
+        if not isinstance(effect, QtWidgets.QGraphicsOpacityEffect):
+            effect = QtWidgets.QGraphicsOpacityEffect(self.pstrotator_schedule_body)
+            self.pstrotator_schedule_body.setGraphicsEffect(effect)
+        effect.setOpacity(1.0 if enabled else 0.4)
+
+    def done(self, result):
+        # Detach from the persistent rotator poller before the dialog is destroyed.
+        if getattr(self, 'pst_rotator', None) is not None:
+            try:
+                self.pst_rotator.azimuth_read.disconnect(self.update_pstrotator_current_azimuth)
+            except (TypeError, RuntimeError):
+                pass
+        super().done(result)
+
+    def update_pstrotator_current_azimuth(self, azimuth):
+        if azimuth is None:
+            self.pstrotator_current_azimuth_value.setText(
+                SettingsStrings.PSTROTATOR_AZIMUTH_UNKNOWN()
+            )
+        else:
+            self.pstrotator_current_azimuth_value.setText(
+                SettingsStrings.PSTROTATOR_AZIMUTH_VALUE(round(azimuth))
+            )
+
+    def remove_pstrotator_schedule_row(self):
+        row = self.pstrotator_schedule_table.currentRow()
+        if row < 0:
+            row = self.pstrotator_schedule_table.rowCount() - 1
+        if row >= 0:
+            self.pstrotator_schedule_table.removeRow(row)
+
+    def get_pstrotator_schedule(self):
+        schedule = []
+        for row in range(self.pstrotator_schedule_table.rowCount()):
+            time_item    = self.pstrotator_schedule_table.item(row, 0)
+            azimuth_item = self.pstrotator_schedule_table.item(row, 1)
+            if time_item is None or azimuth_item is None:
+                continue
+
+            time_text = time_item.text().strip()
+            match = re.match(r'^(\d{1,2})[:hH.]?(\d{2})$', time_text)
+            if not match:
+                continue
+            hour, minute = int(match.group(1)), int(match.group(2))
+            if not (0 <= hour <= 23 and 0 <= minute <= 59):
+                continue
+
+            azimuth_text = azimuth_item.text().strip().rstrip('°').strip()
+            if not azimuth_text.isdigit():
+                continue
+            azimuth = int(azimuth_text)
+            if not (0 <= azimuth <= 360):
+                continue
+
+            schedule.append({
+                'hour'   : hour,
+                'minute' : minute,
+                'azimuth': azimuth
+            })
+        return schedule
 
     def on_table_row_selected(self, row, _column):
         # Get the radio button for this row
@@ -2599,6 +2832,31 @@ class SettingsDialog(QtWidgets.QDialog):
         delay_value = self.params.get('jtdx_click_delay', DEFAULT_JTDX_CLICK_DELAY)
         self.jtdx_click_delay_slider.setValue(delay_value)
         self.jtdx_click_delay_value_label.setText(f"{delay_value} s")
+
+        # PstRotatorAz antenna rotator
+        self.pstrotator_host.setText(
+            str(self.params.get('pstrotator_host', DEFAULT_PSTROTATOR_HOST))
+        )
+        self.pstrotator_port.setText(
+            str(self.params.get('pstrotator_port', DEFAULT_PSTROTATOR_PORT))
+        )
+        self.enable_pstrotator_wanted.setChecked(
+            self.params.get('enable_pstrotator_wanted', DEFAULT_ENABLE_PSTROTATOR_WANTED)
+        )
+        self.enable_pstrotator_schedule.setChecked(
+            self.params.get('enable_pstrotator_schedule', DEFAULT_ENABLE_PSTROTATOR_SCHEDULE)
+        )
+        for entry in self.params.get('pstrotator_schedule', []):
+            try:
+                self.add_pstrotator_schedule_row(
+                    int(entry.get('hour', 0)),
+                    int(entry.get('minute', 0)),
+                    int(entry.get('azimuth', 0))
+                )
+            except (AttributeError, TypeError, ValueError):
+                continue
+        self.update_pstrotator_schedule_enabled()
+
         self.enable_debug_output.setChecked(
             self.params.get('enable_debug_output', DEFAULT_DEBUG_OUTPUT)
         )
@@ -2839,6 +3097,9 @@ class SettingsDialog(QtWidgets.QDialog):
         for band_name, btn in self.grid_tracker_band_buttons.items():
             grid_tracker_preference[band_name] = btn.isChecked()
 
+        pstrotator_port_text = self.pstrotator_port.text()
+        pstrotator_port = int(pstrotator_port_text) if pstrotator_port_text.isdigit() else DEFAULT_PSTROTATOR_PORT
+
         # Get priority order - convert display names to property keys
         priority_order = []
         for i in range(self.priority_table.rowCount()):
@@ -2873,6 +3134,11 @@ class SettingsDialog(QtWidgets.QDialog):
             'watchdog_retry_time'                        : int(self.watchdog_retry_time.text()) if self.watchdog_retry_time.text().isdigit() else DEFAULT_WATCHDOG_RETRY_TIME,
             'enable_jtdx_click_log_qso'                  : self.enable_jtdx_click_log_qso.isChecked(),
             'jtdx_click_delay'                           : self.jtdx_click_delay_slider.value(),
+            'pstrotator_host'                            : self.pstrotator_host.text() or DEFAULT_PSTROTATOR_HOST,
+            'pstrotator_port'                            : pstrotator_port,
+            'enable_pstrotator_wanted'                   : self.enable_pstrotator_wanted.isChecked(),
+            'enable_pstrotator_schedule'                 : self.enable_pstrotator_schedule.isChecked(),
+            'pstrotator_schedule'                        : self.get_pstrotator_schedule(),
             'enable_debug_output'                        : self.enable_debug_output.isChecked(),
             'enable_extra_gui_debug_output'              : self.enable_extra_gui_debug_output.isChecked(),
             'enable_pounce_log'                          : self.enable_pounce_log.isChecked(),

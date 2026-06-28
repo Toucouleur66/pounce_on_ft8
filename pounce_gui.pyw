@@ -73,6 +73,9 @@ from utils import get_local_ip_address, matches_any, get_app_data_dir
 from utils import get_mode_interval, get_amateur_band, display_frequency
 from utils import force_input, focus_out_event, text_to_array, has_significant_change
 from utils import calculate_sunrise_sunset
+from utils import calculate_azimuth
+
+from pst_rotator import PstRotatorController
 
 from version import is_first_launch_or_new_version, save_current_version
 
@@ -391,6 +394,10 @@ class MainApp(QtWidgets.QMainWindow):
         self.grid_tracker_preference            = self.local_params.get('grid_tracker_preference', {})
 
         self.enable_auto_start_monitoring       = self.local_params.get('enable_auto_start_monitoring', DEFAULT_AUTO_START_MONITORING)
+
+        # PstRotatorAz antenna rotator controller (UDP client + hourly scheduler)
+        self.pst_rotator = PstRotatorController(self)
+        self.pst_rotator.configure(self.local_params)
 
         # Get sound configuration
         self.enable_sound_wanted_callsigns      = self.local_params.get('enable_sound_wanted_callsigns', True)
@@ -1898,9 +1905,23 @@ class MainApp(QtWidgets.QMainWindow):
                 continent           = empty_str
                                                 
                 """
+                    Antenna rotator: point at a decoded Wanted callsign.
+                    Only triggers on an exact Wanted callsign (not zone/grid).
+                    Uses the decoded grid, falling back to the callsign_info grid.
+                """
+                if wanted is True and self.my_grid:
+                    wanted_grid_square = message.get('grid') or (
+                        callsign_info.get('grid') if callsign_info else None
+                    )
+                    if wanted_grid_square:
+                        azimuth = calculate_azimuth(self.my_grid, wanted_grid_square)
+                        if azimuth is not None:
+                            self.pst_rotator.handle_wanted_azimuth(azimuth)
+
+                """
                     Handle GUI output
                 """
-                self.message_times.append(datetime.now())    
+                self.message_times.append(datetime.now())
 
                 if directed == my_call:
                     message_color      = BG_COLOR_FOCUS_MY_CALL
@@ -2916,6 +2937,9 @@ class MainApp(QtWidgets.QMainWindow):
             self.local_params.update(new_params)
             self.save_params()
 
+            # Re-apply PstRotatorAz settings (host/port/modes/schedule)
+            self.pst_rotator.configure(self.local_params)
+
             self.enable_sound_wanted_callsigns      = self.local_params.get('enable_sound_wanted_callsigns', True)
             self.enable_sound_directed_my_callsign  = self.local_params.get('enable_sound_directed_my_callsign', True)
             self.enable_sound_monitored_callsigns   = self.local_params.get('enable_sound_monitored_callsigns', True)
@@ -2948,6 +2972,10 @@ class MainApp(QtWidgets.QMainWindow):
         # Stop monitoring if running
         if self._running:
             self.stop_monitoring()
+
+        # Stop the antenna rotator scheduler
+        if hasattr(self, 'pst_rotator') and self.pst_rotator is not None:
+            self.pst_rotator.stop()
 
         # Clean up multimedia resources
         try:

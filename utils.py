@@ -12,7 +12,7 @@ import fnmatch
 import locale
 import datetime as dt
 
-from math import sin, acos, tan, radians, degrees
+from math import sin, cos, acos, atan2, tan, radians, degrees
 
 from PyQt6.QtCore import QCoreApplication, QStandardPaths
 from PyQt6.QtGui import QColor
@@ -981,7 +981,28 @@ def grid_to_latlon(grid):
 
     return (lat, lon)
 
-def calculate_sunrise_sunset(grid):    
+def calculate_azimuth(from_grid, to_grid):
+    """
+    Great-circle initial bearing (azimuth, in degrees 0-359) from one Maidenhead
+    grid square to another. Returns None if either grid is unusable.
+    """
+    try:
+        lat1, lon1 = grid_to_latlon(from_grid)
+        lat2, lon2 = grid_to_latlon(to_grid)
+    except (ValueError, TypeError, AttributeError):
+        return None
+
+    lat1_r = radians(lat1)
+    lat2_r = radians(lat2)
+    delta_lon = radians(lon2 - lon1)
+
+    y = sin(delta_lon) * cos(lat2_r)
+    x = cos(lat1_r) * sin(lat2_r) - sin(lat1_r) * cos(lat2_r) * cos(delta_lon)
+
+    azimuth = (degrees(atan2(y, x)) + 360) % 360
+    return round(azimuth)
+
+def calculate_sunrise_sunset(grid):
     try:
         lat, lon = grid_to_latlon(grid)
         now = datetime.now(timezone.utc)

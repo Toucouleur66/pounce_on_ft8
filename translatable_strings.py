@@ -168,6 +168,7 @@ class SettingsStrings:
     MENU_CLUB_LOG = lambda: tr("SettingsDialog", "Club Log")
     MENU_LOGBOOK_BACKUP = lambda: tr("SettingsDialog", "Logbook Backup")
     MENU_AUTOMATE_TASKS = lambda: tr("SettingsDialog", "Automate tasks")
+    MENU_PSTROTATOR = lambda: tr("SettingsDialog", "Antenna Rotator")
     MENU_DEBUGGING = lambda: tr("SettingsDialog", "Debugging")
     # Server page
     SERVER_NOTICE_JTDX = lambda: tr("SettingsDialog",
@@ -381,6 +382,24 @@ class SettingsStrings:
     JTDX_CLICK_DELAY_LABEL = lambda: tr("SettingsDialog", "Delay before clicking:")
     BUTTON_AUTOMATE_TASKS_TEST = lambda: tr("SettingsDialog", "Test it")
     BUTTON_TEST_WINDOWS_MONITORING = lambda: tr("SettingsDialog", "Test Windows Monitoring Permissions")
+
+    # Antenna Rotator (PstRotatorAz)
+    PSTROTATOR_NOTICE = lambda: tr("SettingsDialog",
+        "<p>Wait and Pounce can drive a <b>PstRotatorAz</b> antenna rotator over UDP.</p>"
+        "<p>In PstRotatorAz: set <u>Communication &gt; UDP Control Port</u> to the port below and enable <u>UDP Control</u> in Setup.</p>"
+        "<p>Two automation modes are available and can be combined. Wanted tracking takes priority over the hourly schedule.</p>")
+    GROUP_PSTROTATOR_CONNECTION = lambda: tr("SettingsDialog", "PstRotatorAz Connection")
+    LABEL_PSTROTATOR_CURRENT_AZIMUTH = lambda: tr("SettingsDialog", "Current azimuth:")
+    PSTROTATOR_AZIMUTH_UNKNOWN = lambda: tr("SettingsDialog", "—")
+    PSTROTATOR_AZIMUTH_VALUE = lambda az: tr("SettingsDialog", "%1°").replace("%1", str(az))
+    GROUP_PSTROTATOR_WANTED = lambda: tr("SettingsDialog", "Wanted Tracking")
+    CHECK_PSTROTATOR_WANTED = lambda: tr("SettingsDialog", "Point the antenna at decoded Wanted callsigns automatically")
+    GROUP_PSTROTATOR_SCHEDULE = lambda: tr("SettingsDialog", "Hourly Schedule")
+    CHECK_PSTROTATOR_SCHEDULE = lambda: tr("SettingsDialog", "Rotate to a fixed azimuth at given times (UTC)")
+    HEADER_PSTROTATOR_TIME = lambda: tr("SettingsDialog", "Time (UTC)")
+    HEADER_PSTROTATOR_AZIMUTH = lambda: tr("SettingsDialog", "Azimuth (°)")
+    BUTTON_PSTROTATOR_ADD = lambda: tr("SettingsDialog", "Add")
+    BUTTON_PSTROTATOR_REMOVE = lambda: tr("SettingsDialog", "Remove")
 
     # Automation test results
     AUTOMATION_ADMIN_REQUIRED_TITLE = lambda: tr("SettingsDialog", "Administrator Rights Required")
