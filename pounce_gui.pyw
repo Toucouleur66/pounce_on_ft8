@@ -1962,8 +1962,9 @@ class MainApp(QtWidgets.QMainWindow):
                     message.get('grid'),
                     message_type,
                     message_color,
-                    message.get('message_uid'),                  
-                )   
+                    message.get('message_uid'),
+                    message.get('packet_id'),
+                )
 
                 self.message_buffer.append(message)         
 
@@ -3335,14 +3336,15 @@ class MainApp(QtWidgets.QMainWindow):
             grid,
             message_type,
             row_color         = None,
-            message_uid       = None
+            message_uid       = None,
+            packet_id         = None
         ):
 
         """
             Store data for filter use
         """
         raw_data = {
-            "wanted"            : wanted, 
+            "wanted"            : wanted,
             "callsign"          : callsign,
             "wkb4_year"         : wkb4_year,
             "directed"          : directed,
@@ -3351,7 +3353,8 @@ class MainApp(QtWidgets.QMainWindow):
             "snr"               : snr,
             "delta_time"        : delta_time,
             "delta_freq"        : delta_freq,
-            "message_uid"       : message_uid,            
+            "message_uid"       : message_uid,
+            "packet_id"         : packet_id,
             "message"           : message,
             "formatted_message" : formatted_message,
             "entity"            : entity,
