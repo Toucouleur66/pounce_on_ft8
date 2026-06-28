@@ -935,9 +935,11 @@ class Listener(QObject):
                 self.callback_stop_monitoring()
             """
         elif isinstance(self.the_packet, pywsjtx.RequestSettingPacket):
-            self.handle_request_setting_packet(addr_port)                      
+            self.handle_request_setting_packet(addr_port)
         elif isinstance(self.the_packet, pywsjtx.SettingPacket):
-            self.handle_setting_packet(addr_port)      
+            self.handle_setting_packet(addr_port)
+        elif isinstance(self.the_packet, pywsjtx.RequestReplyPacket):
+            self.handle_request_reply_packet(addr_port)
         else:
             status_update = False
             log.error('Unknown packet type {}; {}'.format(type(self.the_packet),self.the_packet))
@@ -957,6 +959,8 @@ class Listener(QObject):
         elif isinstance(self.the_packet, pywsjtx.RequestSettingPacket):
             return False
         elif isinstance(self.the_packet, pywsjtx.SettingPacket):
+            return False
+        elif isinstance(self.the_packet, pywsjtx.RequestReplyPacket):
             return False
         else:
             return True
@@ -1932,15 +1936,61 @@ class Listener(QObject):
 
     def reply_to_packet(self, callsign_packet):
         if self._instance == SLAVE:
-            return        
-        
-        try:            
-            self.reply_to_packet_time = datetime.now(timezone.utc)            
+            # A SLAVE has no direct radio link: ask the MASTER to reply on our
+            # behalf. The decode is identified by millis_since_midnight + message.
+            self.send_request_reply_packet(callsign_packet)
+            return
+
+        try:
+            self.reply_to_packet_time = datetime.now(timezone.utc)
             reply_pkt = pywsjtx.ReplyPacket.Builder(callsign_packet)
-            self.s.send_packet(self.origin_addr_port, reply_pkt)         
-            log.debug(f"[ {callsign_packet.wsjtx_id} ] Sent ReplyPacket: {reply_pkt}")            
+            self.s.send_packet(self.origin_addr_port, reply_pkt)
+            log.debug(f"[ {callsign_packet.wsjtx_id} ] Sent ReplyPacket: {reply_pkt}")
         except Exception as e:
             log.error(f"Error sending packets: {e}\n{traceback.format_exc()}")
+
+    def send_request_reply_packet(self, callsign_packet):
+        # SLAVE -> MASTER: request a reply to a specific decode. Sent raw (no
+        # forwarding header) to self.origin_addr_port, which on a SLAVE points
+        # at the MASTER (learned from the relayed packets' header).
+        try:
+            request_reply_packet = pywsjtx.RequestReplyPacket.Builder(
+                callsign_packet.wsjtx_id,
+                callsign_packet.millis_since_midnight,
+                callsign_packet.message,
+                self.targeted_call or ""
+            )
+            self.s.send_packet(self.origin_addr_port, request_reply_packet)
+            log.info(f"RequestReplyPacket sent to {self.origin_addr_port} for [ {callsign_packet.message} ].")
+        except Exception as e:
+            log.error(f"Failed to request Master reply: {e}\n{traceback.format_exc()}")
+
+    def handle_request_reply_packet(self, addr_port):
+        # MASTER side: a SLAVE asked us to reply to a decode. Find the matching
+        # DecodePacket in our own packet_store (millis_since_midnight + message)
+        # and reply to it against the radio.
+        if self._instance == SLAVE:
+            return
+
+        millis  = self.the_packet.millis_since_midnight
+        message = self.the_packet.message
+        log.info(f"Received RequestReplyPacket from {addr_port} for [ {message} ].")
+
+        matched_packet = None
+        for stored_packet in reversed(list(self.packet_store.values())):
+            if (
+                getattr(stored_packet, 'millis_since_midnight', None) == millis and
+                getattr(stored_packet, 'message', None) == message
+            ):
+                matched_packet = stored_packet
+                break
+
+        if matched_packet is None:
+            log.warning(f"RequestReplyPacket ignored: no matching decode in store for [ {message} ] at {millis}ms.")
+            return
+
+        self.targeted_call = self.the_packet.callsign or None
+        self.reply_to_packet(matched_packet)
 
     def set_delta_f_packet(self, frequency):  
         if self._instance == SLAVE:

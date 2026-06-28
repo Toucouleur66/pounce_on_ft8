@@ -664,6 +664,37 @@ class RequestSettingPacket(GenericWSJTXPacket):
         pkt.write_QString(synch_time)
         return pkt.packet
 
+class RequestReplyPacket(GenericWSJTXPacket):
+    # Custom (non-WSJT-X) control packet: a SLAVE asks the MASTER to reply to a
+    # specific decode on its behalf, since only the MASTER owns the radio link.
+    # The decode is identified by millis_since_midnight + message, which are
+    # stable across the relayed DecodePacket on both instances.
+    TYPE_VALUE = 35
+
+    def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
+        GenericWSJTXPacket.__init__(self, addr_port, magic, schema, pkt_type, id, pkt)
+        ps = PacketReader(pkt)
+        the_type = ps.QInt32()
+        self.wsjtx_id = ps.QString()
+        self.millis_since_midnight = ps.QInt32()
+        self.message = ps.QString()
+        self.callsign = ps.QString()
+
+    def __repr__(self):
+        return 'RequestReplyPacket: from {}:{}\n\twsjtx id:{}\tmillis:{}\tmessage:{}\tcallsign:{}'.format(
+            self.addr_port[0], self.addr_port[1], self.wsjtx_id, self.millis_since_midnight, self.message, self.callsign
+        )
+
+    @classmethod
+    def Builder(cls, to_wsjtx_id='WSJT-X', millis_since_midnight=0, message='', callsign=''):
+        pkt = PacketWriter()
+        pkt.write_QInt32(RequestReplyPacket.TYPE_VALUE)
+        pkt.write_QString(to_wsjtx_id)
+        pkt.write_QInt32(millis_since_midnight)
+        pkt.write_QString(message)
+        pkt.write_QString(callsign)
+        return pkt.packet
+
 class WSJTXPacketClassFactory(GenericWSJTXPacket):
     PACKET_TYPE_TO_OBJ_MAP = {
         HeartBeatPacket.TYPE_VALUE: HeartBeatPacket,
@@ -682,7 +713,8 @@ class WSJTXPacketClassFactory(GenericWSJTXPacket):
         HighlightCallsignPacket.TYPE_VALUE: HighlightCallsignPacket,
         ConfigurePacket.TYPE_VALUE: ConfigurePacket,
         SettingPacket.TYPE_VALUE: SettingPacket,
-        RequestSettingPacket.TYPE_VALUE: RequestSettingPacket 
+        RequestSettingPacket.TYPE_VALUE: RequestSettingPacket,
+        RequestReplyPacket.TYPE_VALUE: RequestReplyPacket
     }
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
         self.addr_port = addr_port

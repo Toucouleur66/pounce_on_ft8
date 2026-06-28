@@ -2283,10 +2283,6 @@ class MainApp(QtWidgets.QMainWindow):
             log.warning("Double-click reply ignored: no active listener")
             return
 
-        if self._instance == SLAVE:
-            log.warning("Double-click reply ignored: instance is SLAVE")
-            return
-
         callsign  = data.get('callsign')
         packet_id = data.get('packet_id')
 
@@ -2295,7 +2291,9 @@ class MainApp(QtWidgets.QMainWindow):
             log.warning(f"Double-click reply ignored: packet {packet_id} no longer in store for [ {callsign} ]")
             return
 
-        log.info(f"Double-click reply to [ {callsign} ] (packet {packet_id})")
+        # On a SLAVE, reply_to_packet forwards a RequestReplyPacket to the MASTER
+        # (which owns the radio link); on a MASTER it sends the ReplyPacket directly.
+        log.info(f"Double-click reply to [ {callsign} ] (packet {packet_id}, instance {self._instance})")
         listener.targeted_call = callsign
         listener.reply_to_packet(callsign_packet)
 
