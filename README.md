@@ -1,6 +1,8 @@
 # DX-Pounce for FT8 QSOs (Wait, search, and pounce)
 
-Dowwnload available : (https://sourceforge.net/projects/wait-and-pounce-ft8/)
+Download available : (https://sourceforge.net/projects/wait-and-pounce-ft8/)
+
+More information  : (https://f5ukw.com/](https://f5ukw.com/wait-and-pounce/)
 
 # Provided by F5UKW
 
