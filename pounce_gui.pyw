@@ -1126,6 +1126,9 @@ class MainApp(QtWidgets.QMainWindow):
         output_table.clicked.connect(
             lambda index: self.on_table_row_clicked(self.output_table, index.row(), index.column())
         )
+        output_table.doubleClicked.connect(
+            lambda index: self.on_table_row_double_clicked(self.output_table, index)
+        )
         output_table.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
 
         return output_table
@@ -2232,6 +2235,44 @@ class MainApp(QtWidgets.QMainWindow):
             data = self.output_model.data(source_index, QtCore.Qt.ItemDataRole.UserRole)
 
         self.context_menu_handler.show_context_menu(table, position, data, "table")
+
+    def on_table_row_double_clicked(self, table, index):
+        """
+            Double-click on a decoded message row triggers an immediate reply
+            in JTDX/WSJT-X for that specific message (sends a Reply UDP packet).
+            Right-click still opens the context menu.
+        """
+        if not index.isValid():
+            return
+
+        if table.objectName() != 'output_table':
+            return
+
+        source_index = self.filter_proxy_model.mapToSource(table.model().index(index.row(), 0))
+        data = self.output_model.data(source_index, QtCore.Qt.ItemDataRole.UserRole)
+        if not data:
+            return
+
+        listener = self.worker.listener if self.worker else None
+        if listener is None:
+            log.warning("Double-click reply ignored: no active listener")
+            return
+
+        if self._instance == SLAVE:
+            log.warning("Double-click reply ignored: instance is SLAVE")
+            return
+
+        callsign  = data.get('callsign')
+        packet_id = data.get('packet_id')
+
+        callsign_packet = listener.packet_store.get(packet_id)
+        if callsign_packet is None:
+            log.warning(f"Double-click reply ignored: packet {packet_id} no longer in store for [ {callsign} ]")
+            return
+
+        log.info(f"Double-click reply to [ {callsign} ] (packet {packet_id})")
+        listener.targeted_call = callsign
+        listener.reply_to_packet(callsign_packet)
 
     def open_qrz_com(self, callsign):
         if callsign:
