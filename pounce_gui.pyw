@@ -1123,12 +1123,16 @@ class MainApp(QtWidgets.QMainWindow):
         output_table.customContextMenuRequested.connect(
             lambda position: self.on_table_context_menu(self.output_table, position)
         )
-        output_table.clicked.connect(
-            lambda index: self.on_table_row_clicked(self.output_table, index.row(), index.column())
-        )
-        output_table.doubleClicked.connect(
-            lambda index: self.on_table_row_double_clicked(self.output_table, index)
-        )
+        # Single left-click no longer opens the context menu: it was swallowing the
+        # second click so doubleClicked never fired. Right-click still opens the menu.
+        #
+        # The view's doubleClicked signal is unreliable here because selectionMode is
+        # NoSelection (notably on Windows, where clicked/doubleClicked depend on the
+        # selection machinery). We intercept the double-click directly on the viewport
+        # via an event filter instead, which is platform-independent. Double-click
+        # triggers an immediate reply in JTDX/WSJT-X for that row.
+        self.output_table_viewport = output_table.viewport()
+        self.output_table_viewport.installEventFilter(self)
         output_table.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
 
         return output_table
@@ -2235,6 +2239,26 @@ class MainApp(QtWidgets.QMainWindow):
             data = self.output_model.data(source_index, QtCore.Qt.ItemDataRole.UserRole)
 
         self.context_menu_handler.show_context_menu(table, position, data, "table")
+
+    def eventFilter(self, source, event):
+        """
+            Intercept double-clicks on the output_table viewport to trigger an
+            immediate reply. Done via an event filter rather than the view's
+            doubleClicked signal because that signal is unreliable when the view
+            uses NoSelection (notably on Windows).
+        """
+        if (
+            getattr(self, 'output_table_viewport', None) is not None
+            and source is self.output_table_viewport
+            and event.type() == QtCore.QEvent.Type.MouseButtonDblClick
+            and event.button() == QtCore.Qt.MouseButton.LeftButton
+        ):
+            index = self.output_table.indexAt(event.position().toPoint())
+            if index.isValid():
+                self.on_table_row_double_clicked(self.output_table, index)
+            return True
+
+        return super().eventFilter(source, event)
 
     def on_table_row_double_clicked(self, table, index):
         """
