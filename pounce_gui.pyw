@@ -2299,6 +2299,10 @@ class MainApp(QtWidgets.QMainWindow):
         listener.targeted_call = callsign
         listener.reply_to_packet(callsign_packet)
 
+        # Reflect the manually-picked message in the focus banner. raw_data has no
+        # priority_type/my_call, so no priority suffix is shown (regular focus colour).
+        self.set_message_to_focus_value_label(data)
+
     def open_qrz_com(self, callsign):
         if callsign:
             qrz_url = f"https://www.qrz.com/db/{callsign}"
