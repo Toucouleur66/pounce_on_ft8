@@ -92,6 +92,47 @@ from logger import get_logger
 
 log = get_logger(__name__)
 
+
+class TimeHHMMDelegate(QtWidgets.QStyledItemDelegate):
+    """Cell editor restricted to a valid HH:mm time (00:00 - 23:59)."""
+
+    def createEditor(self, parent, option, index):
+        editor = QtWidgets.QTimeEdit(parent)
+        editor.setDisplayFormat("HH:mm")
+        editor.setFrame(False)
+        return editor
+
+    def setEditorData(self, editor, index):
+        text = index.data(QtCore.Qt.ItemDataRole.EditRole) or "00:00"
+        time = QtCore.QTime.fromString(str(text), "HH:mm")
+        if not time.isValid():
+            time = QtCore.QTime(0, 0)
+        editor.setTime(time)
+
+    def setModelData(self, editor, model, index):
+        model.setData(index, editor.time().toString("HH:mm"), QtCore.Qt.ItemDataRole.EditRole)
+
+
+class AzimuthDelegate(QtWidgets.QStyledItemDelegate):
+    """Cell editor restricted to an integer azimuth (0 - 359)."""
+
+    def createEditor(self, parent, option, index):
+        editor = QtWidgets.QSpinBox(parent)
+        editor.setRange(0, 359)
+        editor.setFrame(False)
+        return editor
+
+    def setEditorData(self, editor, index):
+        try:
+            value = int(str(index.data(QtCore.Qt.ItemDataRole.EditRole)).strip())
+        except (TypeError, ValueError):
+            value = 0
+        editor.setValue(max(0, min(359, value)))
+
+    def setModelData(self, editor, model, index):
+        editor.interpretText()
+        model.setData(index, str(editor.value()), QtCore.Qt.ItemDataRole.EditRole)
+
 class SettingsDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, params=None, dark_mode=False):
         super().__init__(parent)
@@ -1689,6 +1730,9 @@ class SettingsDialog(QtWidgets.QDialog):
             SettingsStrings.HEADER_PSTROTATOR_TIME(),
             SettingsStrings.HEADER_PSTROTATOR_AZIMUTH()
         ])
+        # Validated cell editors: HH:mm time and 0-359 azimuth only.
+        self.pstrotator_schedule_table.setItemDelegateForColumn(0, TimeHHMMDelegate(self.pstrotator_schedule_table))
+        self.pstrotator_schedule_table.setItemDelegateForColumn(1, AzimuthDelegate(self.pstrotator_schedule_table))
         self.pstrotator_schedule_table.setShowGrid(False)
         self.pstrotator_schedule_table.setAlternatingRowColors(True)
         self.pstrotator_schedule_table.verticalHeader().setVisible(False)
@@ -2058,7 +2102,7 @@ class SettingsDialog(QtWidgets.QDialog):
             if not azimuth_text.isdigit():
                 continue
             azimuth = int(azimuth_text)
-            if not (0 <= azimuth <= 360):
+            if not (0 <= azimuth <= 359):
                 continue
 
             schedule.append({

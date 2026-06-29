@@ -137,7 +137,7 @@ class PstRotatorController(QObject):
                 azimuth = int(entry.get('azimuth'))
             except (AttributeError, TypeError, ValueError):
                 continue
-            if 0 <= hour <= 23 and 0 <= minute <= 59 and 0 <= azimuth <= 360:
+            if 0 <= hour <= 23 and 0 <= minute <= 59 and 0 <= azimuth <= 359:
                 clean.append({'hour': hour, 'minute': minute, 'azimuth': azimuth})
         clean.sort(key=lambda e: (e['hour'], e['minute']))
         return clean
