@@ -25,6 +25,10 @@ from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 from constants import (
     DEFAULT_PSTROTATOR_HOST,
     DEFAULT_PSTROTATOR_PORT,
+    DEFAULT_PSTROTATOR_THRESHOLD,
+    DEFAULT_ENABLE_PSTROTATOR_PARK,
+    DEFAULT_PSTROTATOR_PARK_AZIMUTH,
+    DEFAULT_PSTROTATOR_PARK_DELAY,
 )
 
 from logger import get_logger
@@ -50,6 +54,12 @@ def _cmd_azimuth(az):
     return f"<PST><AZIMUTH>{int(az)}</AZIMUTH></PST>"
 
 
+def _angular_diff(a, b):
+    """Smallest absolute difference between two bearings in degrees (0-180)."""
+    diff = abs(a - b) % 360
+    return min(diff, 360 - diff)
+
+
 class PstRotatorController(QObject):
     """
     Owns the UDP link to PstRotatorAz plus the hourly scheduler QTimer.
@@ -71,14 +81,28 @@ class PstRotatorController(QObject):
         self.enable_wanted   = False
         self.enable_schedule = False
 
+        # Only move when the new azimuth differs from the current rotor position
+        # by more than this many degrees.
+        self.threshold = DEFAULT_PSTROTATOR_THRESHOLD
+
+        # Park (return to rest) settings.
+        self.enable_park   = DEFAULT_ENABLE_PSTROTATOR_PARK
+        self.park_azimuth  = DEFAULT_PSTROTATOR_PARK_AZIMUTH
+        self.park_delay    = DEFAULT_PSTROTATOR_PARK_DELAY  # minutes
+
         # Schedule entries: list of dicts {'hour': int, 'minute': int, 'azimuth': int}
         self.schedule = []
 
         # Last azimuth actually sent, to avoid spamming identical commands.
         self._last_sent_azimuth = None
 
-        # UTC timestamp of the last wanted-driven move (priority hold).
+        # Last azimuth read back from the rotor (physical position), or None.
+        self._current_azimuth = None
+
+        # UTC timestamp of the last wanted-driven move (priority hold + parking).
         self._last_wanted_time = None
+        # True once the antenna has been parked, so we park only once per idle.
+        self._parked = True
 
         # Schedule slot already fired today, keyed by "HH:MM", to fire once per day.
         self._fired_slots = set()
@@ -86,6 +110,14 @@ class PstRotatorController(QObject):
         self._timer = QTimer(self)
         self._timer.setInterval(15_000)  # check the schedule every 15 s
         self._timer.timeout.connect(self._on_schedule_tick)
+
+        # Periodic check for the park (return-to-rest) timer.
+        self._park_timer = QTimer(self)
+        self._park_timer.setInterval(15_000)
+        self._park_timer.timeout.connect(self._on_park_tick)
+
+        # Keep our cached rotor position in sync with the poller.
+        self.azimuth_read.connect(self._on_azimuth_read)
 
         # Background azimuth-polling thread (blocking recvfrom on port+1).
         self._poll_thread = None
@@ -110,6 +142,11 @@ class PstRotatorController(QObject):
         self.enable_schedule = bool(params.get('enable_pstrotator_schedule', False))
         self.schedule        = self._sanitize_schedule(params.get('pstrotator_schedule', []))
 
+        self.threshold    = self._clamp_int(params.get('pstrotator_threshold', DEFAULT_PSTROTATOR_THRESHOLD), 0, 180, DEFAULT_PSTROTATOR_THRESHOLD)
+        self.enable_park  = bool(params.get('enable_pstrotator_park', DEFAULT_ENABLE_PSTROTATOR_PARK))
+        self.park_azimuth = self._clamp_int(params.get('pstrotator_park_azimuth', DEFAULT_PSTROTATOR_PARK_AZIMUTH), 0, 359, DEFAULT_PSTROTATOR_PARK_AZIMUTH)
+        self.park_delay   = self._clamp_int(params.get('pstrotator_park_delay', DEFAULT_PSTROTATOR_PARK_DELAY), 1, 1440, DEFAULT_PSTROTATOR_PARK_DELAY)
+
         if self.enable_schedule and self.schedule:
             if not self._timer.isActive():
                 self._timer.start()
@@ -118,14 +155,33 @@ class PstRotatorController(QObject):
         else:
             self._timer.stop()
 
+        if self.enable_park and self.enable_wanted:
+            if not self._park_timer.isActive():
+                self._park_timer.start()
+        else:
+            self._park_timer.stop()
+
         # (Re)start the azimuth poller so it picks up any host/port change.
         self.start_polling()
 
         log.debug(
             f"PstRotator configured host={self.host} port={self.port} "
             f"wanted={self.enable_wanted} schedule={self.enable_schedule} "
-            f"slots={len(self.schedule)}"
+            f"slots={len(self.schedule)} threshold={self.threshold} "
+            f"park={self.enable_park} park_az={self.park_azimuth} park_delay={self.park_delay}"
         )
+
+    @staticmethod
+    def _clamp_int(value, lo, hi, default):
+        try:
+            value = int(value)
+        except (TypeError, ValueError):
+            return default
+        return max(lo, min(hi, value))
+
+    def _on_azimuth_read(self, azimuth):
+        if azimuth is not None:
+            self._current_azimuth = azimuth
 
     @staticmethod
     def _sanitize_schedule(raw):
@@ -153,6 +209,7 @@ class PstRotatorController(QObject):
         if not self.enable_wanted or azimuth is None:
             return
         self._last_wanted_time = datetime.now(timezone.utc)
+        self._parked = False  # a new wanted move resets the park timer
         log.info(f"PstRotator wanted tracking -> {azimuth}°")
         self._send_azimuth(azimuth)
 
@@ -191,12 +248,41 @@ class PstRotatorController(QObject):
         return (now - self._last_wanted_time).total_seconds() < WANTED_HOLD_SECONDS
 
     """
+        Park (return to rest) after a wanted move
+    """
+    def _on_park_tick(self):
+        if not (self.enable_park and self.enable_wanted):
+            return
+        if self._parked or self._last_wanted_time is None:
+            return
+
+        now = datetime.now(timezone.utc)
+        idle_seconds = (now - self._last_wanted_time).total_seconds()
+        if idle_seconds < self.park_delay * 60:
+            return
+
+        log.info(f"PstRotator parking -> {self.park_azimuth}° after {self.park_delay} min idle")
+        self._parked = True
+        self._send_azimuth(self.park_azimuth)
+
+    """
         UDP transport
     """
     def _send_azimuth(self, azimuth):
         azimuth = int(azimuth)
         if azimuth == self._last_sent_azimuth:
             return
+
+        # Threshold: only move if the target differs from the rotor's current
+        # physical position by more than `threshold` degrees. If we have no
+        # position reading yet, move anyway.
+        if self._current_azimuth is not None and self.threshold > 0:
+            if _angular_diff(azimuth, self._current_azimuth) <= self.threshold:
+                log.debug(
+                    f"PstRotator skip move -> {azimuth}° "
+                    f"(within {self.threshold}° of current {round(self._current_azimuth)}°)"
+                )
+                return
 
         # Force Tracking mode first, otherwise PstRotatorAz ignores the command.
         if self._send_udp(CMD_TRACK_ON):
@@ -282,6 +368,7 @@ class PstRotatorController(QObject):
 
     def stop(self):
         self._timer.stop()
+        self._park_timer.stop()
         with self._poll_lock:
             self._poll_stop.set()
             if self._poll_thread is not None and self._poll_thread.is_alive():

@@ -122,6 +122,13 @@ DEFAULT_PSTROTATOR_HOST             = "127.0.0.1"
 DEFAULT_PSTROTATOR_PORT             = 12000
 DEFAULT_ENABLE_PSTROTATOR_WANTED    = False
 DEFAULT_ENABLE_PSTROTATOR_SCHEDULE  = False
+# Move the antenna only if the new azimuth differs from the current rotor
+# position by more than this many degrees (avoids constant motor jitter).
+DEFAULT_PSTROTATOR_THRESHOLD        = 5
+# Park (return to rest) the antenna after a wanted move when idle.
+DEFAULT_ENABLE_PSTROTATOR_PARK      = False
+DEFAULT_PSTROTATOR_PARK_AZIMUTH     = 0
+DEFAULT_PSTROTATOR_PARK_DELAY       = 15  # minutes of inactivity before parking
 
 DEFAULT_SELECTED_BAND           = "6m"
 DEFAULT_FILTER_VALUE            = "All"
