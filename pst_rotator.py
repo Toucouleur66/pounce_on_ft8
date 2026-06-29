@@ -27,7 +27,6 @@ from constants import (
     DEFAULT_PSTROTATOR_PORT,
     DEFAULT_PSTROTATOR_THRESHOLD,
     DEFAULT_ENABLE_PSTROTATOR_PARK,
-    DEFAULT_PSTROTATOR_PARK_AZIMUTH,
     DEFAULT_PSTROTATOR_PARK_DELAY,
 )
 
@@ -85,10 +84,14 @@ class PstRotatorController(QObject):
         # by more than this many degrees.
         self.threshold = DEFAULT_PSTROTATOR_THRESHOLD
 
-        # Park (return to rest) settings.
+        # Return to the pre-tracking azimuth after no wanted has been decoded
+        # for `park_delay` minutes.
         self.enable_park   = DEFAULT_ENABLE_PSTROTATOR_PARK
-        self.park_azimuth  = DEFAULT_PSTROTATOR_PARK_AZIMUTH
         self.park_delay    = DEFAULT_PSTROTATOR_PARK_DELAY  # minutes
+
+        # Azimuth the rotor sat at just before wanted tracking moved it; we
+        # return to it when parking. Captured on the first wanted move.
+        self._pre_wanted_azimuth = None
 
         # Schedule entries: list of dicts {'hour': int, 'minute': int, 'azimuth': int}
         self.schedule = []
@@ -144,7 +147,6 @@ class PstRotatorController(QObject):
 
         self.threshold    = self._clamp_int(params.get('pstrotator_threshold', DEFAULT_PSTROTATOR_THRESHOLD), 0, 180, DEFAULT_PSTROTATOR_THRESHOLD)
         self.enable_park  = bool(params.get('enable_pstrotator_park', DEFAULT_ENABLE_PSTROTATOR_PARK))
-        self.park_azimuth = self._clamp_int(params.get('pstrotator_park_azimuth', DEFAULT_PSTROTATOR_PARK_AZIMUTH), 0, 359, DEFAULT_PSTROTATOR_PARK_AZIMUTH)
         self.park_delay   = self._clamp_int(params.get('pstrotator_park_delay', DEFAULT_PSTROTATOR_PARK_DELAY), 1, 1440, DEFAULT_PSTROTATOR_PARK_DELAY)
 
         if self.enable_schedule and self.schedule:
@@ -168,7 +170,7 @@ class PstRotatorController(QObject):
             f"PstRotator configured host={self.host} port={self.port} "
             f"wanted={self.enable_wanted} schedule={self.enable_schedule} "
             f"slots={len(self.schedule)} threshold={self.threshold} "
-            f"park={self.enable_park} park_az={self.park_azimuth} park_delay={self.park_delay}"
+            f"park={self.enable_park} park_delay={self.park_delay}"
         )
 
     @staticmethod
@@ -208,6 +210,12 @@ class PstRotatorController(QObject):
         """
         if not self.enable_wanted or azimuth is None:
             return
+
+        # Capture the pre-tracking azimuth on the FIRST wanted move (while still
+        # "parked"), so we can return there once idle.
+        if self._parked:
+            self._pre_wanted_azimuth = self._current_azimuth
+
         self._last_wanted_time = datetime.now(timezone.utc)
         self._parked = False  # a new wanted move resets the park timer
         log.info(f"PstRotator wanted tracking -> {azimuth}°")
@@ -248,7 +256,8 @@ class PstRotatorController(QObject):
         return (now - self._last_wanted_time).total_seconds() < WANTED_HOLD_SECONDS
 
     """
-        Park (return to rest) after a wanted move
+        Return to the pre-tracking azimuth after no wanted has been decoded
+        for `park_delay` minutes.
     """
     def _on_park_tick(self):
         if not (self.enable_park and self.enable_wanted):
@@ -261,9 +270,16 @@ class PstRotatorController(QObject):
         if idle_seconds < self.park_delay * 60:
             return
 
-        log.info(f"PstRotator parking -> {self.park_azimuth}° after {self.park_delay} min idle")
         self._parked = True
-        self._send_azimuth(self.park_azimuth)
+        if self._pre_wanted_azimuth is None:
+            log.debug("PstRotator park: no pre-tracking azimuth known, staying put")
+            return
+
+        log.info(
+            f"PstRotator returning to {round(self._pre_wanted_azimuth)}° "
+            f"after {self.park_delay} min without a wanted decode"
+        )
+        self._send_azimuth(self._pre_wanted_azimuth)
 
     """
         UDP transport

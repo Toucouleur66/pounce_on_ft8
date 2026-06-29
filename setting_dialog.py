@@ -83,7 +83,6 @@ from constants import (
     DEFAULT_ENABLE_PSTROTATOR_SCHEDULE,
     DEFAULT_PSTROTATOR_THRESHOLD,
     DEFAULT_ENABLE_PSTROTATOR_PARK,
-    DEFAULT_PSTROTATOR_PARK_AZIMUTH,
     DEFAULT_PSTROTATOR_PARK_DELAY,
     # Fonts
     CUSTOM_FONT,
@@ -1725,10 +1724,11 @@ class SettingsDialog(QtWidgets.QDialog):
 
         pstrotator_wanted_group.setLayout(pstrotator_wanted_layout)
 
-        # Return-to-rest (park) group
+        # Return-to-previous-position group (depends on Wanted Tracking).
         pstrotator_park_group = QtWidgets.QGroupBox(SettingsStrings.GROUP_PSTROTATOR_PARK())
         self.group_boxes.append(pstrotator_park_group)
         pstrotator_park_group.setFont(CUSTOM_FONT_SMALL)
+        self.pstrotator_park_group = pstrotator_park_group
         pstrotator_park_layout = QtWidgets.QVBoxLayout()
 
         self.enable_pstrotator_park = QtWidgets.QCheckBox(SettingsStrings.CHECK_PSTROTATOR_PARK())
@@ -1742,14 +1742,6 @@ class SettingsDialog(QtWidgets.QDialog):
         pstrotator_park_body_layout = QtWidgets.QGridLayout(self.pstrotator_park_body)
         pstrotator_park_body_layout.setContentsMargins(0, 0, 0, 0)
 
-        pstrotator_park_azimuth_label = QtWidgets.QLabel(SettingsStrings.LABEL_PSTROTATOR_PARK_AZIMUTH())
-        pstrotator_park_azimuth_label.setFont(CUSTOM_FONT)
-        self.pstrotator_park_azimuth = QtWidgets.QSpinBox()
-        self.pstrotator_park_azimuth.setFont(CUSTOM_FONT)
-        self.pstrotator_park_azimuth.setRange(0, 359)
-        self.pstrotator_park_azimuth.setSuffix(SettingsStrings.SUFFIX_PSTROTATOR_DEGREES())
-        self.pstrotator_park_azimuth.setValue(DEFAULT_PSTROTATOR_PARK_AZIMUTH)
-
         pstrotator_park_delay_label = QtWidgets.QLabel(SettingsStrings.LABEL_PSTROTATOR_PARK_DELAY())
         pstrotator_park_delay_label.setFont(CUSTOM_FONT)
         self.pstrotator_park_delay = QtWidgets.QSpinBox()
@@ -1758,15 +1750,16 @@ class SettingsDialog(QtWidgets.QDialog):
         self.pstrotator_park_delay.setSuffix(SettingsStrings.SUFFIX_PSTROTATOR_MINUTES())
         self.pstrotator_park_delay.setValue(DEFAULT_PSTROTATOR_PARK_DELAY)
 
-        pstrotator_park_body_layout.addWidget(pstrotator_park_azimuth_label, 0, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
-        pstrotator_park_body_layout.addWidget(self.pstrotator_park_azimuth, 0, 1, QtCore.Qt.AlignmentFlag.AlignLeft)
-        pstrotator_park_body_layout.addWidget(pstrotator_park_delay_label, 1, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
-        pstrotator_park_body_layout.addWidget(self.pstrotator_park_delay, 1, 1, QtCore.Qt.AlignmentFlag.AlignLeft)
+        pstrotator_park_body_layout.addWidget(pstrotator_park_delay_label, 0, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
+        pstrotator_park_body_layout.addWidget(self.pstrotator_park_delay, 0, 1, QtCore.Qt.AlignmentFlag.AlignLeft)
         pstrotator_park_body_layout.setColumnMinimumWidth(0, 200)
         pstrotator_park_body_layout.setColumnStretch(2, 1)
 
         pstrotator_park_layout.addWidget(self.pstrotator_park_body)
         pstrotator_park_group.setLayout(pstrotator_park_layout)
+
+        # The whole park group only makes sense when Wanted Tracking is on.
+        self.enable_pstrotator_wanted.toggled.connect(self.update_pstrotator_park_enabled)
 
         # Hourly schedule group
         pstrotator_schedule_group = QtWidgets.QGroupBox(SettingsStrings.GROUP_PSTROTATOR_SCHEDULE())
@@ -2118,10 +2111,12 @@ class SettingsDialog(QtWidgets.QDialog):
         # which causes ghost-rendering artefacts on a QStackedWidget page.
         self.pstrotator_schedule_body.setEnabled(enabled)
 
-    def update_pstrotator_park_enabled(self, enabled=None):
-        if enabled is None:
-            enabled = self.enable_pstrotator_park.isChecked()
-        self.pstrotator_park_body.setEnabled(enabled)
+    def update_pstrotator_park_enabled(self, _checked=None):
+        # The whole group depends on Wanted Tracking; the delay field also
+        # depends on the park checkbox itself.
+        wanted_on = self.enable_pstrotator_wanted.isChecked()
+        self.pstrotator_park_group.setEnabled(wanted_on)
+        self.pstrotator_park_body.setEnabled(wanted_on and self.enable_pstrotator_park.isChecked())
 
     def done(self, result):
         # Detach from the persistent rotator poller before the dialog is destroyed.
@@ -2957,9 +2952,6 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_pstrotator_park.setChecked(
             self.params.get('enable_pstrotator_park', DEFAULT_ENABLE_PSTROTATOR_PARK)
         )
-        self.pstrotator_park_azimuth.setValue(
-            self.params.get('pstrotator_park_azimuth', DEFAULT_PSTROTATOR_PARK_AZIMUTH)
-        )
         self.pstrotator_park_delay.setValue(
             self.params.get('pstrotator_park_delay', DEFAULT_PSTROTATOR_PARK_DELAY)
         )
@@ -3260,7 +3252,6 @@ class SettingsDialog(QtWidgets.QDialog):
             'enable_pstrotator_wanted'                   : self.enable_pstrotator_wanted.isChecked(),
             'pstrotator_threshold'                       : self.pstrotator_threshold.value(),
             'enable_pstrotator_park'                     : self.enable_pstrotator_park.isChecked(),
-            'pstrotator_park_azimuth'                    : self.pstrotator_park_azimuth.value(),
             'pstrotator_park_delay'                      : self.pstrotator_park_delay.value(),
             'enable_pstrotator_schedule'                 : self.enable_pstrotator_schedule.isChecked(),
             'pstrotator_schedule'                        : self.get_pstrotator_schedule(),
