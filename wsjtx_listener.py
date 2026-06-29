@@ -198,8 +198,13 @@ class Listener(QObject):
         self.radio_addr_port                = None
         self._instance                      = None
         self.synched_band                   = None
-        self.synched_settings               = None       
-        self.synch_time                     = datetime.now()   
+        self.synched_settings               = None
+        self.synch_time                     = datetime.now()
+        # True once this MASTER has pushed its settings to a SLAVE at least once
+        # (the first MASTER->SLAVE sync). Until then the MASTER refuses any inbound
+        # SettingPacket so a SLAVE can never overwrite the master's wanted callsigns
+        # on the initial sync. A deliberate slave push is honoured only afterwards.
+        self.has_synched_to_slave           = False
 
         self.primary_udp_server_address     = primary_udp_server_address or get_local_ip_address()
         self.primary_udp_server_port        = primary_udp_server_port or 2237
@@ -400,6 +405,11 @@ class Listener(QObject):
                     log.debug(f'Set instance [ {_instance} ] with [ {type(parsed_pkt).__name__} ] from {origin_addr_port}')
 
                     self._instance = _instance
+                    # Becoming a SLAVE: the "I'm a master that already synched down" flag
+                    # no longer applies. Reset it so that if we later flip back to MASTER
+                    # we again re-impose our own config before accepting any slave push.
+                    if _instance == SLAVE:
+                        self.has_synched_to_slave = False
                     self.message_callback({
                         'type'      : 'instance_status',
                         'status'    : self._instance,
@@ -686,6 +696,9 @@ class Listener(QObject):
 
             if self._instance == MASTER:
                 settings_packet = self.add_packet_header() + settings_packet
+                # First MASTER->SLAVE push done: from now on the MASTER may accept a
+                # deliberate slave config push (but never before, see handle_setting_packet).
+                self.has_synched_to_slave = True
                 self.message_callback({
                     'type'      : 'instance_synched',
                     'addr_port' : addr_port
@@ -707,6 +720,7 @@ class Listener(QObject):
         self._running = False
         self._instance = MASTER
         self.synched_settings = False
+        self.has_synched_to_slave = False
 
         if hasattr(self, '_watchdog_sweep_timer') and self._watchdog_sweep_timer:
             try:
@@ -1143,16 +1157,27 @@ class Listener(QObject):
         return int(suggested_freq)
     
     def handle_setting_packet(self, addr_port):
+        # A MASTER must never let a SLAVE overwrite its config on the initial sync:
+        # ignore inbound SettingPackets until the MASTER has pushed its own settings
+        # down at least once. After that, a deliberate slave push is honoured.
+        if self._instance == MASTER and not self.has_synched_to_slave:
+            log.warning(f"Ignoring SettingPacket from {addr_port}: MASTER not yet synched to a SLAVE.")
+            return
+
         if (
-            self.band is not None and 
+            self.band is not None and
             self.synched_band == self.band
         ):
-            try:         
-                log.info(f"SettingPacket received from {addr_port}")             
+            try:
+                log.info(f"SettingPacket received from {addr_port}")
                 synch_time = datetime.fromisoformat(self.the_packet.synch_time)
+                # On a SLAVE's first sync the MASTER is the source of truth: adopt its
+                # settings regardless of timestamp. Afterwards, newer-wins as before.
+                first_slave_sync = (self._instance == SLAVE and self.synched_settings is None)
                 if (
-                    self.synched_settings is None or 
-                    self.synch_time is None or 
+                    first_slave_sync or
+                    self.synched_settings is None or
+                    self.synch_time is None or
                     self.synch_time < synch_time
                 ):
                     self.synched_settings = json.loads(self.the_packet.settings_json)
