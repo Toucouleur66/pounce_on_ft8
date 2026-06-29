@@ -192,6 +192,10 @@ class Listener(QObject):
             self.priority_order = list(PRIORITY_LIST.values())
 
         self.origin_addr_port               = None
+        # Address of the real radio (JTDX/WSJT-X), learned from genuine radio
+        # packets only. Used to send Reply/Halt/SetTxDelta so control packets
+        # (e.g. a SLAVE's RequestReplyPacket) never hijack the radio target.
+        self.radio_addr_port                = None
         self._instance                      = None
         self.synched_band                   = None
         self.synched_settings               = None       
@@ -358,17 +362,17 @@ class Listener(QObject):
 
                         origin_port = int(origin_port_str)
                         origin_addr_port = (origin_ip, origin_port)
-                        actual_pkt  = pkt[header_end+1:]                   
+                        actual_pkt  = pkt[header_end+1:]
 
-                        _instance = SLAVE        
-                    except (UnicodeDecodeError, ValueError):                        
+                        _instance = SLAVE
+                    except (UnicodeDecodeError, ValueError):
                         origin_addr_port = addr_port
                         actual_pkt  = pkt
-                else:                    
+                else:
                     origin_addr_port = addr_port
                     actual_pkt  = pkt
 
-                    _instance = MASTER    
+                    _instance = MASTER
 
                 """
                     self.origin_addr_port can be used to store
@@ -377,10 +381,25 @@ class Listener(QObject):
                 """
                 self.origin_addr_port = origin_addr_port
 
-                if _instance and _instance != self._instance:
-                    log.debug(f'Set instance [ {_instance} ] with [ {type(pywsjtx.WSJTXPacketClassFactory.from_udp_packet(self.origin_addr_port, pkt)).__name__} ] from {self.origin_addr_port}')
+                # Control packets (e.g. a SLAVE's RequestReplyPacket relayed back to the
+                # MASTER) must NOT drive role detection nor the radio target: they don't
+                # come from the radio. Only genuine radio packets do.
+                parsed_pkt   = pywsjtx.WSJTXPacketClassFactory.from_udp_packet(origin_addr_port, actual_pkt)
+                is_control   = isinstance(parsed_pkt, (
+                    pywsjtx.RequestReplyPacket,
+                    pywsjtx.RequestSettingPacket,
+                    pywsjtx.SettingPacket
+                ))
 
-                    self._instance = _instance                 
+                # Remember the real radio address (MASTER receiving a raw radio packet),
+                # so reply/halt/set-delta always target the radio, never the last sender.
+                if _instance == MASTER and not is_control:
+                    self.radio_addr_port = origin_addr_port
+
+                if _instance and _instance != self._instance and not is_control:
+                    log.debug(f'Set instance [ {_instance} ] with [ {type(parsed_pkt).__name__} ] from {origin_addr_port}')
+
+                    self._instance = _instance
                     self.message_callback({
                         'type'      : 'instance_status',
                         'status'    : self._instance,
@@ -1928,9 +1947,10 @@ class Listener(QObject):
         if self.the_packet:
             log.warning("Build HaltPacket")
             try:
-                halt_pkt = pywsjtx.HaltTxPacket.Builder(self.the_packet.wsjtx_id)             
-                self.s.send_packet(self.origin_addr_port, halt_pkt)         
-                log.debug(f"Sent HaltPacket: {halt_pkt}")         
+                radio_addr_port = self.radio_addr_port or self.origin_addr_port
+                halt_pkt = pywsjtx.HaltTxPacket.Builder(self.the_packet.wsjtx_id)
+                self.s.send_packet(radio_addr_port, halt_pkt)
+                log.debug(f"Sent HaltPacket to {radio_addr_port}: {halt_pkt}")
             except Exception as e:
                 log.error(f"Error sending packets: {e}\n{traceback.format_exc()}")
 
@@ -1942,10 +1962,11 @@ class Listener(QObject):
             return
 
         try:
+            radio_addr_port = self.radio_addr_port or self.origin_addr_port
             self.reply_to_packet_time = datetime.now(timezone.utc)
             reply_pkt = pywsjtx.ReplyPacket.Builder(callsign_packet)
-            self.s.send_packet(self.origin_addr_port, reply_pkt)
-            log.debug(f"[ {callsign_packet.wsjtx_id} ] Sent ReplyPacket: {reply_pkt}")
+            self.s.send_packet(radio_addr_port, reply_pkt)
+            log.debug(f"[ {callsign_packet.wsjtx_id} ] Sent ReplyPacket to {radio_addr_port}: {reply_pkt}")
         except Exception as e:
             log.error(f"Error sending packets: {e}\n{traceback.format_exc()}")
 
@@ -1997,9 +2018,10 @@ class Listener(QObject):
             return        
       
         try:
+            radio_addr_port = self.radio_addr_port or self.origin_addr_port
             delta_f_paquet = pywsjtx.SetTxDeltaFreqPacket.Builder(self.the_packet.wsjtx_id, frequency)
-            log.warning(f"Sending SetTxDeltaFreqPacket (Df={frequency}hz): {delta_f_paquet}")
-            self.s.send_packet(self.origin_addr_port, delta_f_paquet)
+            log.warning(f"Sending SetTxDeltaFreqPacket (Df={frequency}hz) to {radio_addr_port}: {delta_f_paquet}")
+            self.s.send_packet(radio_addr_port, delta_f_paquet)
         except Exception as e:
             log.error(f"Error sending packets: {e}\n{traceback.format_exc()}")
 
