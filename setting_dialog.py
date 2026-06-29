@@ -2007,13 +2007,10 @@ class SettingsDialog(QtWidgets.QDialog):
     def update_pstrotator_schedule_enabled(self, enabled=None):
         if enabled is None:
             enabled = self.enable_pstrotator_schedule.isChecked()
-        # Keep the values but dim the controls when the schedule is disabled.
+        # Keep the values but grey out the controls when the schedule is disabled.
+        # setEnabled(False) already dims widgets; we avoid QGraphicsOpacityEffect
+        # which causes ghost-rendering artefacts on a QStackedWidget page.
         self.pstrotator_schedule_body.setEnabled(enabled)
-        effect = self.pstrotator_schedule_body.graphicsEffect()
-        if not isinstance(effect, QtWidgets.QGraphicsOpacityEffect):
-            effect = QtWidgets.QGraphicsOpacityEffect(self.pstrotator_schedule_body)
-            self.pstrotator_schedule_body.setGraphicsEffect(effect)
-        effect.setOpacity(1.0 if enabled else 0.4)
 
     def done(self, result):
         # Detach from the persistent rotator poller before the dialog is destroyed.
