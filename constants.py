@@ -7,7 +7,7 @@ import platform
 from datetime import datetime
 from utils import get_app_data_dir
 
-CURRENT_VERSION_NUMBER          = "2.21"
+CURRENT_VERSION_NUMBER          = "2.30"
 EXPIRATION_DATE                 = datetime(2027, 8, 15)
 UPDATE_JSON_INFO_URL            = "https://f5ukw.com/public/update_info.json"
 README_URL                      = "https://f5ukw.com/public/readme.txt"
