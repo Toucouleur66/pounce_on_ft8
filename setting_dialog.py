@@ -1811,6 +1811,9 @@ class SettingsDialog(QtWidgets.QDialog):
         """)
         self.pstrotator_schedule_table.setStyleSheet(get_table_setting_qss())
         self.table_widgets.append(self.pstrotator_schedule_table)
+        # Re-sort by time whenever a cell is edited (guarded against recursion).
+        self._pstrotator_sorting = False
+        self.pstrotator_schedule_table.itemChanged.connect(self.on_pstrotator_schedule_item_changed)
         pstrotator_schedule_body_layout.addWidget(self.pstrotator_schedule_table)
 
         pstrotator_schedule_buttons_layout = QtWidgets.QHBoxLayout()
@@ -2092,6 +2095,10 @@ class SettingsDialog(QtWidgets.QDialog):
         self.pstrotator_schedule_table.insertRow(row)
         self.pstrotator_schedule_table.setRowHeight(row, 30)
 
+        # Populate both cells before the itemChanged-driven sort can run, so the
+        # two columns of a row stay paired.
+        self.pstrotator_schedule_table.blockSignals(True)
+
         # Plain editable cells (double-click to edit), no spinbox arrows.
         time_item = QTableWidgetItem(f"{hour:02d}:{minute:02d}")
         time_item.setFont(CUSTOM_FONT)
@@ -2102,6 +2109,44 @@ class SettingsDialog(QtWidgets.QDialog):
         azimuth_item.setFont(CUSTOM_FONT)
         azimuth_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.pstrotator_schedule_table.setItem(row, 1, azimuth_item)
+
+        self.pstrotator_schedule_table.blockSignals(False)
+
+    def on_pstrotator_schedule_item_changed(self, _item):
+        # Sort by time whenever the user finishes editing a cell.
+        self.sort_pstrotator_schedule_table()
+
+    def sort_pstrotator_schedule_table(self):
+        # Avoid re-entrancy: rebuilding the rows fires itemChanged again.
+        if self._pstrotator_sorting:
+            return
+        self._pstrotator_sorting = True
+        try:
+            table = self.pstrotator_schedule_table
+
+            rows = []
+            for row in range(table.rowCount()):
+                time_item    = table.item(row, 0)
+                azimuth_item = table.item(row, 1)
+                time_text    = time_item.text() if time_item else ""
+                azimuth_text = azimuth_item.text() if azimuth_item else ""
+
+                match = re.match(r'^(\d{1,2})[:hH.]?(\d{2})$', time_text.strip())
+                # Unparseable times sort last, keeping their on-screen order.
+                sort_key = (int(match.group(1)), int(match.group(2))) if match else (99, 99)
+                rows.append((sort_key, time_text, azimuth_text))
+
+            rows.sort(key=lambda r: r[0])
+
+            for row, (_key, time_text, azimuth_text) in enumerate(rows):
+                time_item    = table.item(row, 0)
+                azimuth_item = table.item(row, 1)
+                if time_item is not None:
+                    time_item.setText(time_text)
+                if azimuth_item is not None:
+                    azimuth_item.setText(azimuth_text)
+        finally:
+            self._pstrotator_sorting = False
 
     def update_pstrotator_schedule_enabled(self, enabled=None):
         if enabled is None:
