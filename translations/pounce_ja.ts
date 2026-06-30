@@ -554,6 +554,10 @@
         <translation>他の大陸を対象とする場合はコールサインを無視</translation>
     </message>
     <message>
+        <source>Ignore entries if prop_mode is set to SAT in ADIF Files</source>
+        <translation>ADIFファイルで prop_mode が SAT に設定されている場合はエントリを無視</translation>
+    </message>
+    <message>
         <source>&lt;p&gt;The frequency offset updater helps to find a free frequency offset from nominal (DF).&lt;/p&gt;&lt;p&gt;Select one of the pre-defined operating modes from &lt;u&gt;Normal&lt;/u&gt;, &lt;u&gt;Fox/Hound&lt;/u&gt;, or &lt;u&gt;SuperFox&lt;/u&gt;.&lt;/p&gt;&lt;p&gt;You can also set your own custom frequency range.&lt;/p&gt;</source>
         <translation>&lt;p&gt;周波数オフセット更新機能は、公称周波数（DF）からの空き周波数オフセットを見つけるのに役立ちます。&lt;/p&gt;&lt;p&gt;&lt;u&gt;通常&lt;/u&gt;、&lt;u&gt;Fox/Hound&lt;/u&gt;、または&lt;u&gt;SuperFox&lt;/u&gt;から事前定義された動作モードの1つを選択します。&lt;/p&gt;&lt;p&gt;独自のカスタム周波数範囲を設定することもできます。&lt;/p&gt;</translation>
     </message>

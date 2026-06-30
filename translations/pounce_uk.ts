@@ -558,6 +558,10 @@
         <translation>Ігнорувати позивний, якщо він націлений на інший континент</translation>
     </message>
     <message>
+        <source>Ignore entries if prop_mode is set to SAT in ADIF Files</source>
+        <translation>Ігнорувати записи, якщо prop_mode встановлено на SAT у файлах ADIF</translation>
+    </message>
+    <message>
         <source>&lt;p&gt;The frequency offset updater helps to find a free frequency offset from nominal (DF).&lt;/p&gt;&lt;p&gt;Select one of the pre-defined operating modes from &lt;u&gt;Normal&lt;/u&gt;, &lt;u&gt;Fox/Hound&lt;/u&gt;, or &lt;u&gt;SuperFox&lt;/u&gt;.&lt;/p&gt;&lt;p&gt;You can also set your own custom frequency range.&lt;/p&gt;</source>
         <translation>&lt;p&gt;Оновлення зсуву частоти допомагає знайти вільний зсув від номінальної частоти (DF).&lt;/p&gt;&lt;p&gt;Виберіть один з попередньо визначених режимів роботи: &lt;u&gt;Звичайний&lt;/u&gt;, &lt;u&gt;Fox/Hound&lt;/u&gt; або &lt;u&gt;SuperFox&lt;/u&gt;.&lt;/p&gt;&lt;p&gt;Ви також можете встановити власний діапазон частот.&lt;/p&gt;</translation>
     </message>

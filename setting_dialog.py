@@ -63,6 +63,7 @@ from constants import (
     DEFAULT_SECONDARY_UDP_SERVER,
     DEFAULT_SENDING_REPLY,
     DEFAULT_POLITE_REPLY,
+    DEFAULT_IGNORE_SAT_ENTRIES,
     DEFAULT_GAP_FINDER,
     DEFAULT_WATCHDOG,
     DEFAULT_WATCHDOG_NUMBER_OF_ATTEMPTS,
@@ -1220,6 +1221,12 @@ class SettingsDialog(QtWidgets.QDialog):
         clear_button_layout.addWidget(self.clear_file_button)
 
         file_selection_layout.addWidget(clear_button_widget)
+
+        self.enable_ignore_sat_entries = QtWidgets.QCheckBox(SettingsStrings.CHECK_IGNORE_SAT_ENTRIES())
+        self.enable_ignore_sat_entries.setFont(CUSTOM_FONT)
+        self.enable_ignore_sat_entries.setChecked(DEFAULT_IGNORE_SAT_ENTRIES)
+
+        file_selection_layout.addWidget(self.enable_ignore_sat_entries)
 
         file_selection_group.setLayout(QtWidgets.QVBoxLayout())
         file_selection_group.layout().setContentsMargins(0, 0, 0, 0)
@@ -2970,6 +2977,9 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_gap_finder.setChecked(
             self.params.get('enable_gap_finder', DEFAULT_GAP_FINDER)
         )
+        self.enable_ignore_sat_entries.setChecked(
+            self.params.get('enable_ignore_sat_entries', DEFAULT_IGNORE_SAT_ENTRIES)
+        )
         self.enable_watchdog.setChecked(
             self.params.get('enable_watchdog', DEFAULT_WATCHDOG)
         )
@@ -3295,6 +3305,7 @@ class SettingsDialog(QtWidgets.QDialog):
             'max_waiting_delay'                          : max_waiting_delay,
             'minimum_report_for_reply'                   : minimum_report_for_reply,
             'enable_gap_finder'                          : self.enable_gap_finder.isChecked(),
+            'enable_ignore_sat_entries'                  : self.enable_ignore_sat_entries.isChecked(),
             'enable_watchdog'                            : self.enable_watchdog.isChecked(),
             'watchdog_number_of_attempts'                : int(self.watchdog_number_of_attempts.text()) if self.watchdog_number_of_attempts.text().isdigit() else DEFAULT_WATCHDOG_NUMBER_OF_ATTEMPTS,
             'watchdog_retry_time'                        : int(self.watchdog_retry_time.text()) if self.watchdog_retry_time.text().isdigit() else DEFAULT_WATCHDOG_RETRY_TIME,

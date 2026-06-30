@@ -558,6 +558,10 @@
         <translation>Ignorer l&apos;indicatif s&apos;il cible un autre continent</translation>
     </message>
     <message>
+        <source>Ignore entries if prop_mode is set to SAT in ADIF Files</source>
+        <translation>Ignorer les entrées si prop_mode est défini sur SAT dans les fichiers ADIF</translation>
+    </message>
+    <message>
         <source>&lt;p&gt;The frequency offset updater helps to find a free frequency offset from nominal (DF).&lt;/p&gt;&lt;p&gt;Select one of the pre-defined operating modes from &lt;u&gt;Normal&lt;/u&gt;, &lt;u&gt;Fox/Hound&lt;/u&gt;, or &lt;u&gt;SuperFox&lt;/u&gt;.&lt;/p&gt;&lt;p&gt;You can also set your own custom frequency range.&lt;/p&gt;</source>
         <translation>&lt;p&gt;La mise à jour du changement de fréquence aide à trouver un décalage de fréquence libre par rapport au nominal (DF).&lt;/p&gt;&lt;p&gt;Sélectionnez l&apos;un des modes de fonctionnement prédéfinis : &lt;u&gt;Normal&lt;/u&gt;, &lt;u&gt;Fox/Hound&lt;/u&gt; ou &lt;u&gt;SuperFox&lt;/u&gt;.&lt;/p&gt;&lt;p&gt;Vous pouvez également définir votre propre plage de fréquences personnalisée.&lt;/p&gt;</translation>
     </message>

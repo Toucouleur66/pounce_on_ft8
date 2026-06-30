@@ -291,6 +291,7 @@ class SettingsStrings:
         "<p>While using Wait and Pounce, you can let this program analyze your working ADIF files from WSJT-x or JTDX.<p><p>Wait and Pounce won't update your ADIF files. Still, it can read, parse and analyse them. You can set several ADIF files, for exemple your main WSJT-X ADIF and a full export of your log.</p>"
     )
     GROUP_FILE_SELECTION = lambda: tr("SettingsDialog", "ADIF Files for log analysis")
+    CHECK_IGNORE_SAT_ENTRIES = lambda: tr("SettingsDialog", "Ignore entries if prop_mode is set to SAT in ADIF Files")
     BUTTON_SELECT_ADIF = lambda: tr("SettingsDialog", "Select new ADIF File for analysis")
     HEADER_ADIF_FILES = lambda: tr("SettingsDialog", "ADIF Files for analysis")
     # Worked Before

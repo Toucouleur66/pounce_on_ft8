@@ -562,6 +562,10 @@
         <translation>如果呼号针对其他大洲则忽略</translation>
     </message>
     <message>
+        <source>Ignore entries if prop_mode is set to SAT in ADIF Files</source>
+        <translation>如果 ADIF 文件中的 prop_mode 设置为 SAT，则忽略该记录</translation>
+    </message>
+    <message>
         <source>&lt;p&gt;The frequency offset updater helps to find a free frequency offset from nominal (DF).&lt;/p&gt;&lt;p&gt;Select one of the pre-defined operating modes from &lt;u&gt;Normal&lt;/u&gt;, &lt;u&gt;Fox/Hound&lt;/u&gt;, or &lt;u&gt;SuperFox&lt;/u&gt;.&lt;/p&gt;&lt;p&gt;You can also set your own custom frequency range.&lt;/p&gt;</source>
         <translation>&lt;p&gt;频率偏移更新器帮助查找与标称频率(DF)的空闲频率偏移。&lt;/p&gt;&lt;p&gt;从&lt;u&gt;常规&lt;/u&gt;、&lt;u&gt;猎狐&lt;/u&gt;或&lt;u&gt;超级狐狸&lt;/u&gt;中选择一个预定义的操作模式。&lt;/p&gt;&lt;p&gt;您也可以设置自己的自定义频率范围。&lt;/p&gt;</translation>
     </message>

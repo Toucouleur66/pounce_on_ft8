@@ -90,17 +90,18 @@ class AdifProcessor:
             self.process = None
             log.info("ADIF processor stopped")
     
-    def process_file(self, file_path, last_size, lookup=None, max_lines=10):
+    def process_file(self, file_path, last_size, lookup=None, max_lines=10, ignore_sat_entries=False):
         if not self._running:
             return None
-            
+
         task_id = f"{file_path}_{time.time()}"
         task = {
             'id': task_id,
             'file_path': file_path,
             'last_size': last_size,
             'needs_lookup': lookup is not None,  # Just flag if lookup is needed
-            'max_lines': max_lines
+            'max_lines': max_lines,
+            'ignore_sat_entries': ignore_sat_entries
         }
         
         try:
@@ -168,7 +169,8 @@ class AdifProcessor:
                         lookup=lookup,
                         max_lines=task['max_lines'],
                         progress_queue=progress_queue,
-                        task_id=task['id']
+                        task_id=task['id'],
+                        ignore_sat_entries=task.get('ignore_sat_entries', False)
                     )
                     
                     # Save cache after processing if lookup was used
@@ -217,7 +219,8 @@ class AdifProcessor:
         lookup=None,
         max_lines=10,
         progress_queue=None,
-        task_id=None
+        task_id=None,
+        ignore_sat_entries=False
     ):
         start_time = time.time()
         
@@ -300,7 +303,7 @@ class AdifProcessor:
                         pass
             
             # Use shared record processing function
-            process_adif_records(records, parsed_wkb4_data, parsed_grid_data, parsed_entity_data, lookup, progress_callback, parsed_entity_qsl_data=parsed_entity_qsl_data)
+            process_adif_records(records, parsed_wkb4_data, parsed_grid_data, parsed_entity_data, lookup, progress_callback, parsed_entity_qsl_data=parsed_entity_qsl_data, ignore_sat_entries=ignore_sat_entries)
 
         processing_time = time.time() - start_time
 

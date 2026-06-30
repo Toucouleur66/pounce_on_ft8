@@ -19,6 +19,7 @@ from constants import (
     DEFAULT_REPLY_ATTEMPTS,
     DEFAULT_MAX_WAITING_DELAY,
     DEFAULT_LOG_ALL_VALID_CONTACT,
+    DEFAULT_IGNORE_SAT_ENTRIES,
     DEFAULT_GAP_FINDER,
     DEFAULT_WATCHDOG,
     DEFAULT_WATCHDOG_NUMBER_OF_ATTEMPTS,
@@ -82,6 +83,7 @@ class Worker(QObject):
             grid_tracker_preference            = None,
             enable_grid_reply_new_grid         = False,
             enable_grid_reply_unconfirmed      = False,
+            enable_ignore_sat_entries          = DEFAULT_IGNORE_SAT_ENTRIES,
             minimum_report_for_reply           = DEFAULT_MINIMUM_REPORT,
             priority_order                     = None,
             enable_club_log_synch              = False,
@@ -152,6 +154,7 @@ class Worker(QObject):
         self.grid_tracker_preference            = grid_tracker_preference or {}
         self.enable_grid_reply_new_grid         = enable_grid_reply_new_grid
         self.enable_grid_reply_unconfirmed      = enable_grid_reply_unconfirmed
+        self.enable_ignore_sat_entries          = enable_ignore_sat_entries
         self.minimum_report_for_reply           = minimum_report_for_reply
         self.priority_order                     = priority_order
 
@@ -219,6 +222,7 @@ class Worker(QObject):
                 grid_tracker_preference         = self.grid_tracker_preference,
                 enable_grid_reply_new_grid      = self.enable_grid_reply_new_grid,
                 enable_grid_reply_unconfirmed   = self.enable_grid_reply_unconfirmed,
+                enable_ignore_sat_entries       = self.enable_ignore_sat_entries,
 
                 adif_file_paths                  = self.adif_file_paths,
                 adif_worked_backup_file_path     = self.adif_worked_backup_file_path,
@@ -319,6 +323,9 @@ class Worker(QObject):
             self.listener.grid_tracker_preference               = self.grid_tracker_preference
             self.listener.enable_grid_reply_new_grid            = self.enable_grid_reply_new_grid
             self.listener.enable_grid_reply_unconfirmed         = self.enable_grid_reply_unconfirmed
+            self.listener.enable_ignore_sat_entries             = self.enable_ignore_sat_entries
+            if self.listener.adif_monitor:
+                self.listener.adif_monitor.set_ignore_sat_entries(self.enable_ignore_sat_entries)
             self.listener.worked_before_preference              = self.worked_before_preference
             self.listener.minimum_report_for_reply              = self.minimum_report_for_reply
             if self.priority_order is not None:

@@ -87,6 +87,7 @@ class Listener(QObject):
             grid_tracker_preference,
             enable_grid_reply_new_grid,
             enable_grid_reply_unconfirmed,
+            enable_ignore_sat_entries,
             adif_file_paths,
             adif_worked_backup_file_path,
             worked_before_preference,
@@ -183,6 +184,7 @@ class Listener(QObject):
         self.grid_tracker_preference            = grid_tracker_preference
         self.enable_grid_reply_new_grid         = enable_grid_reply_new_grid
         self.enable_grid_reply_unconfirmed      = enable_grid_reply_unconfirmed
+        self.enable_ignore_sat_entries          = enable_ignore_sat_entries
 
         self.max_reply_attempts_to_callsign     = max_reply_attempts_to_callsign
 
@@ -291,7 +293,8 @@ class Listener(QObject):
         """          
         self.adif_monitor = AdifMonitor(adif_file_paths, ADIF_WORKED_CALLSIGNS_FILE)
         self.wanted_callsigns_per_entity = load_marathon_wanted_data(MARATHON_FILE)
-    
+
+        self.adif_monitor.set_ignore_sat_entries(self.enable_ignore_sat_entries)
         self.adif_monitor.register_lookup(self.lookup)
         self.adif_monitor.start()
         self.adif_monitor.register_callback(self.update_adif_data)

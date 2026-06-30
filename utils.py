@@ -607,6 +607,7 @@ def parse_adif_record(record, lookup):
     submode     = fields.get('SUBMODE')
     rst_sent    = fields.get('RST_SENT')
     rst_rcvd    = fields.get('RST_RCVD')
+    prop_mode   = fields.get('PROP_MODE')
 
     qso_datetime = None
     if qso_date and len(qso_date) >= 8:
@@ -631,6 +632,7 @@ def parse_adif_record(record, lookup):
     call = call.upper() if call else None
     grid = grid.upper()[:4] if grid else None
     band = band.lower() if band else None
+    prop_mode = prop_mode.upper() if prop_mode else None
     year = qso_date[0:4] if qso_date and len(qso_date) >= 4 else None
 
     if mode == 'MFSK' and submode == 'FT4':
@@ -652,7 +654,7 @@ def parse_adif_record(record, lookup):
         else:
             info = lookup.lookup_callsign(call, enable_cache=True)
 
-    return year, qso_date, band, grid, call, freq, mode, rst_sent, rst_rcvd, qsl_status, info
+    return year, qso_date, band, grid, call, freq, mode, rst_sent, rst_rcvd, qsl_status, prop_mode, info
 
 def process_adif_records(
         records,
@@ -661,7 +663,8 @@ def process_adif_records(
         parsed_entity_data,
         lookup=None,
         progress_callback=None,
-        parsed_entity_qsl_data=None
+        parsed_entity_qsl_data=None,
+        ignore_sat_entries=False
     ):
     processed_count = 0
     total_records = len([r for r in records if r.strip()])
@@ -674,7 +677,14 @@ def process_adif_records(
         record = record.strip()
         if record:
             record = " ".join(record.split())
-            year, qso_date, band, grid, call, freq, mode, rst_sent, rst_rcvd, qsl_status, info = parse_adif_record(record, lookup)
+            year, qso_date, band, grid, call, freq, mode, rst_sent, rst_rcvd, qsl_status, prop_mode, info = parse_adif_record(record, lookup)
+
+            # Skip satellite QSOs when requested (PROP_MODE=SAT in the ADIF file)
+            if ignore_sat_entries and prop_mode == 'SAT':
+                processed_count += 1
+                if progress_callback:
+                    progress_callback(processed_count, total_records)
+                continue
 
             if lookup and year and band and info and info.get('entity_code') and parsed_entity_data is not None:
                 if year not in parsed_entity_data:

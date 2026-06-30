@@ -46,6 +46,7 @@ class AdifMonitor:
         self.data_lock          = threading.RLock()
 
         self._lookup            = False
+        self.ignore_sat_entries = False
         self._running           = False
         self.monitoring_thread  = threading.Thread(target=self.monitor_adif_files, daemon=True)
         self.adif_processor     = AdifProcessor()
@@ -59,6 +60,21 @@ class AdifMonitor:
 
     def register_lookup(self, lookup):
         self._lookup = lookup
+
+    def set_ignore_sat_entries(self, ignore_sat_entries):
+        new_value = bool(ignore_sat_entries)
+        # When the SAT filter toggles, force a full rescan of every monitored
+        # ADIF file so the change takes effect on already-parsed data (a full
+        # rescan replaces the per-file data instead of merging).
+        if new_value != self.ignore_sat_entries:
+            self.ignore_sat_entries = new_value
+            if self._running:
+                self.force_full_rescan_all()
+
+    def force_full_rescan_all(self):
+        for abs_path in self.adif_last_size:
+            self.adif_last_size[abs_path] = None
+        log.info("Full rescan scheduled for all ADIF files (SAT filter changed)")
 
     def update_file_paths(self, updated_adif_file_paths):
         log.info(f"Updating ADIF file paths from {self.adif_file_paths} to {updated_adif_file_paths}")
@@ -105,7 +121,8 @@ class AdifMonitor:
                     
                     log.info(f"Queuing new file for immediate processing: {path}")
                     task_id = self.adif_processor.process_file(
-                        path, 0, self._lookup, max_lines=None
+                        path, 0, self._lookup, max_lines=None,
+                        ignore_sat_entries=self.ignore_sat_entries
                     )
                     
                     if task_id:
@@ -426,11 +443,13 @@ class AdifMonitor:
                             current_size > last_size and 
                             file_path in self.adif_data_by_file):
                             task_id = self.adif_processor.process_file(
-                                file_path, last_size, self._lookup, max_lines=10
+                                file_path, last_size, self._lookup, max_lines=10,
+                                ignore_sat_entries=self.ignore_sat_entries
                             )
                         else:
                             task_id = self.adif_processor.process_file(
-                                file_path, 0, self._lookup, max_lines=None
+                                file_path, 0, self._lookup, max_lines=None,
+                                ignore_sat_entries=self.ignore_sat_entries
                             )
                         
                         if task_id:

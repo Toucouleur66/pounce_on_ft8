@@ -165,6 +165,7 @@ from constants import (
     DEFAULT_LOG_PACKET_DATA,
     DEFAULT_SHOW_ALL_DECODED,
     DEFAULT_LOG_ALL_VALID_CONTACT,
+    DEFAULT_IGNORE_SAT_ENTRIES,
     DEFAULT_DELAY_BETWEEN_SOUND,
     DEFAULT_MAX_WAITING_DELAY,
     DEFAULT_MINIMUM_REPORT,
@@ -4424,6 +4425,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.worker.grid_tracker_preference         = self.local_params.get('grid_tracker_preference', {})
         self.worker.enable_grid_reply_new_grid      = self.local_params.get('enable_grid_reply_new_grid', False)
         self.worker.enable_grid_reply_unconfirmed   = self.local_params.get('enable_grid_reply_unconfirmed', False)
+        self.worker.enable_ignore_sat_entries       = self.local_params.get('enable_ignore_sat_entries', DEFAULT_IGNORE_SAT_ENTRIES)
         self.worker.minimum_report_for_reply        = self.local_params.get('minimum_report_for_reply', DEFAULT_MINIMUM_REPORT)
         self.worker.priority_order                  = self.local_params.get('priority_order', list(PRIORITY_LIST.values()))
 
