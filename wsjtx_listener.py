@@ -20,7 +20,7 @@ from PyQt6.QtCore import QObject, QThread, QTimer
 
 from logger import get_logger
 
-from utils import get_local_ip_address, get_mode_interval, get_amateur_band, parse_wsjtx_message
+from utils import get_local_ip_address, get_mode_interval, get_amateur_band, parse_wsjtx_message, is_exact_match
 from utils import get_wkb4_year, get_clean_rst
 from utils import is_valid_continent, is_valid_grid, is_grid_needed, is_entity_needed
 from utils import load_marathon_wanted_data, save_marathon_wanted_data
@@ -1310,15 +1310,27 @@ class Listener(QObject):
                 debug_message     = None
                                         
                 """
+                    A wanted callsign listed WITHOUT any wildcard must always be
+                    callable again, even when already Worked Before (e.g. POTA
+                    chasers calling the same activator). is_exact_match only matches
+                    a literal callsign entry, so wildcard wanted entries (VK*, etc.)
+                    never qualify and keep the normal WkB4 suppression below.
+                """
+                wanted_exact_no_wildcard = (
+                    self.wanted_callsigns is not None
+                    and is_exact_match(self.wanted_callsigns, callsign)
+                )
+
+                """
                     Check if wanted and is Worked b4
                 """
                 if self.adif_data.get('wkb4'):
-                    wkb4_year = get_wkb4_year(self.adif_data['wkb4'], callsign, self.band)                    
+                    wkb4_year = get_wkb4_year(self.adif_data['wkb4'], callsign, self.band)
                     if (
                         (
-                            wkb4_year is not None and 
+                            wkb4_year is not None and
                             self.worked_before_preference == WKB4_REPLY_MODE_NEVER
-                        ) or 
+                        ) or
                         (
                             wkb4_year == datetime.now().year and
                             self.worked_before_preference == WKB4_REPLY_MODE_CURRENT_YEAR
@@ -1327,6 +1339,17 @@ class Listener(QObject):
                         wanted         = exactly_matched
                         wanted_cq_zone = False
                         callsign_wkb4  = True
+
+                """
+                    Re-enable an exact (non-wildcard) wanted callsign that the WkB4
+                    handling above (or the parser, once the callsign is worked)
+                    suppressed. Force exactly_matched too so it gets the same
+                    downstream exemptions (valid-callsign, direction, LoTW-only) as
+                    a normal exact wanted. Wildcard entries are unaffected.
+                """
+                if wanted_exact_no_wildcard:
+                    wanted          = True
+                    exactly_matched = True
 
                 """
                     Check if entity code is already worked for marathon
