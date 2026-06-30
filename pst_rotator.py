@@ -3,12 +3,13 @@
 # PstRotatorAz antenna rotator control over UDP.
 #
 # Two automation sources feed into one rotator:
-#   1. Wanted tracking  - when a wanted callsign is decoded, point the antenna at
-#      the great-circle azimuth from my_grid to the wanted station's grid.
+#   1. Track on reply  - whenever we reply to a station (wanted callsign, wanted
+#      grid, wanted CQ zone, or a double-click reply), point the antenna at the
+#      great-circle azimuth from my_grid to that station's grid.
 #   2. Hourly schedule  - rotate to a fixed azimuth at given UTC times.
 #
-# Wanted tracking takes priority: a freshly decoded wanted overrides the schedule.
-# The schedule only fires when no recent wanted azimuth is holding the antenna.
+# Track on reply takes priority: a fresh reply overrides the schedule. The
+# schedule only fires when no recent reply azimuth is holding the antenna.
 #
 # PREREQUISITES in PstRotatorAz:
 #   - Communication > UDP Control Port > Port = <configured port> (default 12000)

@@ -388,18 +388,18 @@ class SettingsStrings:
     PSTROTATOR_NOTICE = lambda: tr("SettingsDialog",
         "<p>Wait and Pounce can drive a <b>PstRotatorAz</b> antenna rotator over UDP.</p>"
         "<p>In PstRotatorAz: set <u>Communication &gt; UDP Control Port</u> to the port below and enable <u>UDP Control</u> in Setup.</p>"
-        "<p>Two automation modes are available and can be combined. Wanted tracking takes priority over the hourly schedule.</p>")
+        "<p>Two automation modes are available and can be combined. Track on Reply takes priority over the hourly schedule.</p>")
     GROUP_PSTROTATOR_CONNECTION = lambda: tr("SettingsDialog", "PstRotatorAz Connection")
     LABEL_PSTROTATOR_CURRENT_AZIMUTH = lambda: tr("SettingsDialog", "Current azimuth:")
     PSTROTATOR_AZIMUTH_UNKNOWN = lambda: tr("SettingsDialog", "—")
     PSTROTATOR_AZIMUTH_VALUE = lambda az: tr("SettingsDialog", "%1°").replace("%1", str(az))
-    GROUP_PSTROTATOR_WANTED = lambda: tr("SettingsDialog", "Wanted Tracking")
-    CHECK_PSTROTATOR_WANTED = lambda: tr("SettingsDialog", "Point the antenna at decoded Wanted callsigns automatically")
+    GROUP_PSTROTATOR_WANTED = lambda: tr("SettingsDialog", "Track on Reply")
+    CHECK_PSTROTATOR_WANTED = lambda: tr("SettingsDialog", "Point the antenna at every station we reply to")
     LABEL_PSTROTATOR_THRESHOLD = lambda: tr("SettingsDialog", "Only move if azimuth changes by more than:")
     SUFFIX_PSTROTATOR_DEGREES = lambda: tr("SettingsDialog", "°")
     GROUP_PSTROTATOR_PARK = lambda: tr("SettingsDialog", "Return to Previous Position")
     CHECK_PSTROTATOR_PARK = lambda: tr("SettingsDialog", "Return the antenna to its previous azimuth when idle")
-    LABEL_PSTROTATOR_PARK_DELAY = lambda: tr("SettingsDialog", "Return after not decoding any wanted for:")
+    LABEL_PSTROTATOR_PARK_DELAY = lambda: tr("SettingsDialog", "Return after not replying to any station for:")
     SUFFIX_PSTROTATOR_MINUTES = lambda: tr("SettingsDialog", " min")
     GROUP_PSTROTATOR_SCHEDULE = lambda: tr("SettingsDialog", "Hourly Schedule")
     CHECK_PSTROTATOR_SCHEDULE = lambda: tr("SettingsDialog", "Rotate to a fixed azimuth at given times (UTC)")

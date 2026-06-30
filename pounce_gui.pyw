@@ -1801,9 +1801,26 @@ class MainApp(QtWidgets.QMainWindow):
             if self._instance is not None and self._synch_signal:
                 self.worker.synch_settings_signal.emit()  
 
+    def track_station_azimuth(self, message):
+        """
+        Point the antenna at the station described by `message` (the one we are
+        replying to). Uses the decoded grid, falling back to the callsign_info
+        grid. No-op unless we know my_grid. Honours the controller's own
+        enable/threshold checks.
+        """
+        if not self.my_grid:
+            return
+        callsign_info = message.get('callsign_info') or {}
+        station_grid = message.get('grid') or callsign_info.get('grid')
+        if not station_grid:
+            return
+        azimuth = calculate_azimuth(self.my_grid, station_grid)
+        if azimuth is not None:
+            self.pst_rotator.handle_wanted_azimuth(azimuth)
+
     @QtCore.pyqtSlot(object)
-    def handle_message_received(self, message):        
-        if isinstance(message, dict):            
+    def handle_message_received(self, message):
+        if isinstance(message, dict):
             window_title_changed = False
             if message.get('my_call') and message.get('my_call') != self.my_call:
                 self.my_call = message.get('my_call')
@@ -1915,18 +1932,11 @@ class MainApp(QtWidgets.QMainWindow):
                 continent           = empty_str
                                                 
                 """
-                    Antenna rotator: point at a decoded Wanted callsign.
-                    Only triggers on an exact Wanted callsign (not zone/grid).
-                    Uses the decoded grid, falling back to the callsign_info grid.
+                    Antenna rotator: point at any station we reply to
+                    (wanted callsign, wanted grid or wanted CQ zone).
                 """
-                if wanted is True and self.my_grid:
-                    wanted_grid_square = message.get('grid') or (
-                        callsign_info.get('grid') if callsign_info else None
-                    )
-                    if wanted_grid_square:
-                        azimuth = calculate_azimuth(self.my_grid, wanted_grid_square)
-                        if azimuth is not None:
-                            self.pst_rotator.handle_wanted_azimuth(azimuth)
+                if wanted is True or wanted_grid is True or wanted_cq_zone is True:
+                    self.track_station_azimuth(message)
 
                 """
                     Handle GUI output
@@ -2361,6 +2371,10 @@ class MainApp(QtWidgets.QMainWindow):
         log.info(f"Double-click reply to [ {callsign} ] (packet {packet_id}, instance {self._instance})")
         listener.targeted_call = callsign
         listener.reply_to_packet(callsign_packet)
+
+        # Point the antenna at this station too (only moves if tracking is
+        # enabled; handle_wanted_azimuth guards on the controller's enable flag).
+        self.track_station_azimuth(data)
 
         # Reflect the manually-picked message in the focus banner. raw_data has no
         # priority_type/my_call, so no priority suffix is shown (regular focus colour).
