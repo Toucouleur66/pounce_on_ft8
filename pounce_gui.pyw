@@ -2727,7 +2727,13 @@ class MainApp(QtWidgets.QMainWindow):
         else:
             heartbeat_str = MainWindowStrings.NO_HEARTBEAT_RECEIVED()
 
-        self.status_bar_label_heartbeat.setText(heartbeat_str)
+        # When the connection is alive and we know the rotator's azimuth, show it
+        # in place of the heartbeat. On connection loss, fall back to heartbeat.
+        current_azimuth = getattr(self.pst_rotator, '_current_azimuth', None) if getattr(self, 'pst_rotator', None) else None
+        if not connection_lost and current_azimuth is not None:
+            self.status_bar_label_heartbeat.setText(MainWindowStrings.STATUS_AZIMUTH(round(current_azimuth)))
+        else:
+            self.status_bar_label_heartbeat.setText(heartbeat_str)
 
         if (
             self._instance and

@@ -107,6 +107,7 @@ class MainWindowStrings:
     NO_HEARTBEAT_TIMEOUT = lambda seconds: tr("MainWindow", f"No HeartBeat for more than {seconds} seconds.")
     HEARTBEAT_TIME = lambda time: tr("MainWindow", "HeartBeat:") + f" {time}"
     NO_HEARTBEAT_RECEIVED = lambda: tr("MainWindow", "No HeartBeat received.")
+    STATUS_AZIMUTH = lambda az: tr("MainWindow", "Azimuth:") + f" <u>{az}°</u>"
     # Buffer status
     LABEL_BUFFERED = lambda: tr("MainWindow", "Buffered:")
     STATUS_BUFFERED = lambda count: tr("MainWindow", "Buffered:") + f" {count}"
