@@ -11,6 +11,7 @@ from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 import platform
 import re
 import sys
+import math
 import pickle
 import json
 import os
@@ -399,7 +400,8 @@ class MainApp(QtWidgets.QMainWindow):
         # PstRotatorAz antenna rotator controller (UDP client + hourly scheduler)
         self.pst_rotator = PstRotatorController(self)
         self.pst_rotator.configure(self.local_params)
-        # Refresh the status-bar azimuth read-out on every poll (1 Hz).
+        # Refresh the status-bar azimuth read-out on every poll (1 Hz). This also
+        # updates the embedded return-to-position countdown each second.
         self.pst_rotator.azimuth_read.connect(lambda _az: self.refresh_heartbeat_or_azimuth_label())
 
         # Get sound configuration
@@ -845,9 +847,14 @@ class MainApp(QtWidgets.QMainWindow):
             self.status_bar_label_packet.setFixedWidth(160)         
             self.status_bar.addWidget(self.status_bar_label_decode_packet, 2)          
             self.status_bar_label_decode_packet.setFixedWidth(175)     
-            self.status_bar.addWidget(self.status_bar_label_heartbeat, 1)
+            # Give the azimuth/heartbeat slot the flexible space, and pin the
+            # Master/Slave connection label hard to the right (no stretch).
+            self.status_bar.addWidget(self.status_bar_label_heartbeat, 3)
             # self.status_bar.addWidget(self.status_bar_label_reply, 1)
-            self.status_bar.addWidget(self.status_bar_label_connection, 2)            
+            self.status_bar.addWidget(self.status_bar_label_connection, 0)
+            self.status_bar_label_connection.setAlignment(
+                QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter
+            )
 
             self.status_bar.setContentsMargins(10, 3, 10, 3)
 
@@ -2744,17 +2751,32 @@ class MainApp(QtWidgets.QMainWindow):
     def refresh_heartbeat_or_azimuth_label(self):
         """
         When the connection is alive and the rotator azimuth is known, show
-        "Azimuth: XX°" in the heartbeat slot; otherwise show the heartbeat text.
-        Called both from check_connection_status and from the 1 Hz azimuth poll
-        so the read-out stays near real-time.
+        "Az: XX°" in the heartbeat slot. While a return-to-position countdown is
+        running, show "Az: XX° → YY° Nmin left" (or "Ns left" under a minute).
+        Otherwise show the heartbeat text.
         """
         if not hasattr(self, 'status_bar_label_heartbeat'):
             return
-        current_azimuth = getattr(self.pst_rotator, '_current_azimuth', None) if getattr(self, 'pst_rotator', None) else None
-        if not getattr(self, '_connection_lost', False) and current_azimuth is not None:
-            self.status_bar_label_heartbeat.setText(MainWindowStrings.STATUS_AZIMUTH(round(current_azimuth)))
-        else:
+
+        rotator = getattr(self, 'pst_rotator', None)
+        current_azimuth = getattr(rotator, '_current_azimuth', None) if rotator else None
+
+        if getattr(self, '_connection_lost', False) or current_azimuth is None:
             self.status_bar_label_heartbeat.setText(getattr(self, '_last_heartbeat_str', '') or MainWindowStrings.NO_HEARTBEAT_RECEIVED())
+            return
+
+        remaining = rotator.park_seconds_remaining() if rotator else None
+        return_azimuth = rotator.return_azimuth() if rotator else None
+        if remaining is not None and return_azimuth is not None:
+            if remaining >= 60:
+                remaining_text = MainWindowStrings.RETURN_LEFT_MIN(math.ceil(remaining / 60))
+            else:
+                remaining_text = MainWindowStrings.RETURN_LEFT_SEC(math.ceil(remaining))
+            self.status_bar_label_heartbeat.setText(
+                MainWindowStrings.STATUS_AZIMUTH_RETURN(round(current_azimuth), round(return_azimuth), remaining_text)
+            )
+        else:
+            self.status_bar_label_heartbeat.setText(MainWindowStrings.STATUS_AZIMUTH(round(current_azimuth)))
 
     def check_connection_status(
         self,
@@ -2809,7 +2831,7 @@ class MainApp(QtWidgets.QMainWindow):
 
         if (
             self._instance and
-            self._running and 
+            self._running and
             not connection_lost and
             self._synched_addr_port is not None
         ):
@@ -3014,6 +3036,17 @@ class MainApp(QtWidgets.QMainWindow):
 
             self.local_params.update(new_params)
             self.save_params()
+
+            # On a MASTER, turning off forwarding to the Secondary UDP Server
+            # drops the Master/Slave link, so clear the connection label right
+            # away. A SLAVE never owns this flag, so leave its status untouched.
+            if (
+                self._instance == MASTER
+                and not self.local_params.get('enable_secondary_udp_server', DEFAULT_SECONDARY_UDP_SERVER)
+            ):
+                self._instance = None
+                self._synched_addr_port = None
+                self.status_bar_label_connection.clear()
 
             # Re-apply PstRotatorAz settings (host/port/modes/schedule)
             self.pst_rotator.configure(self.local_params)

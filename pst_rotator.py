@@ -284,6 +284,24 @@ class PstRotatorController(QObject):
         )
         self._send_azimuth(self._pre_wanted_azimuth)
 
+    def park_seconds_remaining(self):
+        """
+        Seconds left before the antenna returns to its pre-tracking azimuth, or
+        None when no countdown is active (park disabled, already parked, no
+        pre-tracking position captured, or no reply yet).
+        """
+        if not (self.enable_park and self.enable_wanted):
+            return None
+        if self._parked or self._last_wanted_time is None or self._pre_wanted_azimuth is None:
+            return None
+        elapsed = (datetime.now(timezone.utc) - self._last_wanted_time).total_seconds()
+        remaining = self.park_delay * 60 - elapsed
+        return remaining if remaining > 0 else None
+
+    def return_azimuth(self):
+        """Azimuth the antenna will return to when parking, or None."""
+        return self._pre_wanted_azimuth
+
     """
         UDP transport
     """
