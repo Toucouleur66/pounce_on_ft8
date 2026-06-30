@@ -43,7 +43,9 @@ CMD_AZ_QUERY = "<PST>AZ?</PST>"
 WANTED_HOLD_SECONDS = 5 * 60
 
 # How often (seconds) we poll PstRotatorAz for the current azimuth.
-AZ_POLL_INTERVAL_SECONDS = 10
+# 1 s gives a near real-time read-out; the cost is one tiny UDP datagram per
+# second, which is negligible on CPU and network.
+AZ_POLL_INTERVAL_SECONDS = 1
 
 # Reply format on UDP port+1, e.g. "AZ:297.0".
 _AZ_REPLY_RE = re.compile(r'AZ\s*[:=]\s*(-?\d+(?:\.\d+)?)', re.IGNORECASE)

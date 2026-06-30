@@ -398,6 +398,8 @@ class MainApp(QtWidgets.QMainWindow):
         # PstRotatorAz antenna rotator controller (UDP client + hourly scheduler)
         self.pst_rotator = PstRotatorController(self)
         self.pst_rotator.configure(self.local_params)
+        # Refresh the status-bar azimuth read-out on every poll (1 Hz).
+        self.pst_rotator.azimuth_read.connect(lambda _az: self.refresh_heartbeat_or_azimuth_label())
 
         # Get sound configuration
         self.enable_sound_wanted_callsigns      = self.local_params.get('enable_sound_wanted_callsigns', True)
@@ -2682,6 +2684,21 @@ class MainApp(QtWidgets.QMainWindow):
         self.update_tab_widget_labels_style()  
         self.update_window_title()          
 
+    def refresh_heartbeat_or_azimuth_label(self):
+        """
+        When the connection is alive and the rotator azimuth is known, show
+        "Azimuth: XX°" in the heartbeat slot; otherwise show the heartbeat text.
+        Called both from check_connection_status and from the 1 Hz azimuth poll
+        so the read-out stays near real-time.
+        """
+        if not hasattr(self, 'status_bar_label_heartbeat'):
+            return
+        current_azimuth = getattr(self.pst_rotator, '_current_azimuth', None) if getattr(self, 'pst_rotator', None) else None
+        if not getattr(self, '_connection_lost', False) and current_azimuth is not None:
+            self.status_bar_label_heartbeat.setText(MainWindowStrings.STATUS_AZIMUTH(round(current_azimuth)))
+        else:
+            self.status_bar_label_heartbeat.setText(getattr(self, '_last_heartbeat_str', '') or MainWindowStrings.NO_HEARTBEAT_RECEIVED())
+
     def check_connection_status(
         self,
         decode_packet_count     = None,
@@ -2727,13 +2744,11 @@ class MainApp(QtWidgets.QMainWindow):
         else:
             heartbeat_str = MainWindowStrings.NO_HEARTBEAT_RECEIVED()
 
-        # When the connection is alive and we know the rotator's azimuth, show it
-        # in place of the heartbeat. On connection loss, fall back to heartbeat.
-        current_azimuth = getattr(self.pst_rotator, '_current_azimuth', None) if getattr(self, 'pst_rotator', None) else None
-        if not connection_lost and current_azimuth is not None:
-            self.status_bar_label_heartbeat.setText(MainWindowStrings.STATUS_AZIMUTH(round(current_azimuth)))
-        else:
-            self.status_bar_label_heartbeat.setText(heartbeat_str)
+        # Remember the latest heartbeat text / connection state so the azimuth
+        # poller (1 Hz) can refresh this same label between status updates.
+        self._last_heartbeat_str = heartbeat_str
+        self._connection_lost = connection_lost
+        self.refresh_heartbeat_or_azimuth_label()
 
         if (
             self._instance and
