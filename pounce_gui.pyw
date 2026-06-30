@@ -1132,16 +1132,24 @@ class MainApp(QtWidgets.QMainWindow):
         output_table.customContextMenuRequested.connect(
             lambda position: self.on_table_context_menu(self.output_table, position)
         )
-        # Single left-click no longer opens the context menu: it was swallowing the
-        # second click so doubleClicked never fired. Right-click still opens the menu.
+        # Both a single left-click (opens the context menu) and a double-click
+        # (immediate reply in JTDX/WSJT-X) are supported on the output table.
         #
-        # The view's doubleClicked signal is unreliable here because selectionMode is
-        # NoSelection (notably on Windows, where clicked/doubleClicked depend on the
-        # selection machinery). We intercept the double-click directly on the viewport
-        # via an event filter instead, which is platform-independent. Double-click
-        # triggers an immediate reply in JTDX/WSJT-X for that row.
+        # The view's clicked/doubleClicked signals are unreliable here because
+        # selectionMode is NoSelection (notably on Windows, where they depend on the
+        # selection machinery). We intercept the raw mouse events directly on the
+        # viewport via an event filter instead, which is platform-independent.
+        #
+        # A naive single-click handler swallows the second click so the double-click
+        # never fires. To support both, a single-click arms a short timer
+        # (doubleClickInterval): if a double-click arrives first, the timer is
+        # cancelled and we reply; otherwise the timer fires and we open the menu.
         self.output_table_viewport = output_table.viewport()
         self.output_table_viewport.installEventFilter(self)
+        self._output_single_click_timer = QtCore.QTimer(self)
+        self._output_single_click_timer.setSingleShot(True)
+        self._output_single_click_timer.timeout.connect(self._fire_output_single_click)
+        self._output_pending_click_pos = None
         output_table.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
 
         return output_table
@@ -2266,23 +2274,57 @@ class MainApp(QtWidgets.QMainWindow):
 
     def eventFilter(self, source, event):
         """
-            Intercept double-clicks on the output_table viewport to trigger an
-            immediate reply. Done via an event filter rather than the view's
-            doubleClicked signal because that signal is unreliable when the view
-            uses NoSelection (notably on Windows).
+            Intercept mouse events on the output_table viewport to support both a
+            single left-click (opens the context menu) and a double-click
+            (immediate reply). Done via an event filter rather than the view's
+            clicked/doubleClicked signals because those are unreliable when the
+            view uses NoSelection (notably on Windows).
+
+            A single left-click arms a short timer (doubleClickInterval). If a
+            double-click arrives first, the timer is cancelled and we reply;
+            otherwise the timer fires and we open the context menu.
         """
         if (
             getattr(self, 'output_table_viewport', None) is not None
             and source is self.output_table_viewport
-            and event.type() == QtCore.QEvent.Type.MouseButtonDblClick
-            and event.button() == QtCore.Qt.MouseButton.LeftButton
         ):
-            index = self.output_table.indexAt(event.position().toPoint())
-            if index.isValid():
-                self.on_table_row_double_clicked(self.output_table, index)
-            return True
+            if (
+                event.type() == QtCore.QEvent.Type.MouseButtonDblClick
+                and event.button() == QtCore.Qt.MouseButton.LeftButton
+            ):
+                self._output_single_click_timer.stop()
+                self._output_pending_click_pos = None
+                index = self.output_table.indexAt(event.position().toPoint())
+                if index.isValid():
+                    self.on_table_row_double_clicked(self.output_table, index)
+                return True
+
+            if (
+                event.type() == QtCore.QEvent.Type.MouseButtonRelease
+                and event.button() == QtCore.Qt.MouseButton.LeftButton
+            ):
+                self._output_pending_click_pos = event.position().toPoint()
+                self._output_single_click_timer.start(
+                    QtWidgets.QApplication.doubleClickInterval()
+                )
+                return False
 
         return super().eventFilter(source, event)
+
+    def _fire_output_single_click(self):
+        """
+            Fired when a single left-click on the output table was not followed
+            by a double-click within the double-click interval: open the context
+            menu at the click position.
+        """
+        position = self._output_pending_click_pos
+        self._output_pending_click_pos = None
+        if position is None:
+            return
+        index = self.output_table.indexAt(position)
+        if not index.isValid():
+            return
+        self.on_table_context_menu(self.output_table, position)
 
     def on_table_row_double_clicked(self, table, index):
         """
