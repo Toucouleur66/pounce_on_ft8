@@ -4284,7 +4284,7 @@ class MainApp(QtWidgets.QMainWindow):
             self.lotw_download_timer.stop()
             self.lotw_download_timer = None
 
-        if self.local_params.get('enable_lotw_upload', False) and self.local_params.get('lotw_username', ''):
+        if self.local_params.get('enable_lotw_download', False) and self.local_params.get('lotw_username', ''):
             interval_minutes = self.local_params.get('lotw_download_interval', LOTW_SYNC_INTERVAL_MINUTES)
             interval_ms = interval_minutes * 60 * 1000
 
@@ -4434,6 +4434,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.worker.club_log_api_key                = self.local_params.get('club_log_api_key', '')
 
         self.worker.enable_lotw_upload              = self.local_params.get('enable_lotw_upload', False)
+        self.worker.enable_lotw_download            = self.local_params.get('enable_lotw_download', False)
         self.worker.lotw_username                   = self.local_params.get('lotw_username', '')
         self.worker.lotw_password                   = self.local_params.get('lotw_password', '')
         self.worker.lotw_location                   = self.local_params.get('lotw_location', '')

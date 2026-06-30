@@ -790,6 +790,14 @@
         <translation>Activer la synchronisation automatique avec LoTW</translation>
     </message>
     <message>
+        <source>Enable automatic upload of logged QSOs to LoTW</source>
+        <translation>Activer l'envoi automatique des QSO enregistrés vers LoTW</translation>
+    </message>
+    <message>
+        <source>Enable automatic download of QSLs from LoTW</source>
+        <translation>Activer le téléchargement automatique des QSL depuis LoTW</translation>
+    </message>
+    <message>
         <source>Download QSLs since:</source>
         <translation>Télécharger les QSL depuis :</translation>
     </message>

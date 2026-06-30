@@ -798,6 +798,14 @@
         <translation>启用自动同步到LoTW</translation>
     </message>
     <message>
+        <source>Enable automatic upload of logged QSOs to LoTW</source>
+        <translation>启用已记录QSO自动上传到LoTW</translation>
+    </message>
+    <message>
+        <source>Enable automatic download of QSLs from LoTW</source>
+        <translation>启用从LoTW自动下载QSL</translation>
+    </message>
+    <message>
         <source>Download QSLs since:</source>
         <translation>下载QSL从：</translation>
     </message>

@@ -794,6 +794,14 @@
         <translation>Увімкнути автоматичну синхронізацію з LoTW</translation>
     </message>
     <message>
+        <source>Enable automatic upload of logged QSOs to LoTW</source>
+        <translation>Увімкнути автоматичне вивантаження записаних QSO до LoTW</translation>
+    </message>
+    <message>
+        <source>Enable automatic download of QSLs from LoTW</source>
+        <translation>Увімкнути автоматичне завантаження QSL з LoTW</translation>
+    </message>
+    <message>
         <source>Download QSLs since:</source>
         <translation>Завантажити QSL з:</translation>
     </message>

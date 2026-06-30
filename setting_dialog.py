@@ -927,9 +927,13 @@ class SettingsDialog(QtWidgets.QDialog):
         lotw_upload_settings_widget = QtWidgets.QWidget()
         lotw_upload_settings_layout = QtWidgets.QGridLayout(lotw_upload_settings_widget)
 
-        self.enable_lotw_upload = QtWidgets.QCheckBox(SettingsStrings.CHECK_ENABLE_LOTW_SYNCH())
+        self.enable_lotw_upload = QtWidgets.QCheckBox(SettingsStrings.CHECK_ENABLE_LOTW_UPLOAD())
         self.enable_lotw_upload.setFont(CUSTOM_FONT)
         self.enable_lotw_upload.setChecked(False)
+
+        self.enable_lotw_download = QtWidgets.QCheckBox(SettingsStrings.CHECK_ENABLE_LOTW_DOWNLOAD())
+        self.enable_lotw_download.setFont(CUSTOM_FONT)
+        self.enable_lotw_download.setChecked(False)
 
         lotw_username_label = QtWidgets.QLabel(SettingsStrings.LABEL_LOTW_USERNAME())
         lotw_username_label.setFont(CUSTOM_FONT)
@@ -1015,23 +1019,24 @@ class SettingsDialog(QtWidgets.QDialog):
         test_buttons_layout.addWidget(self.test_lotw_download_button)
 
         lotw_upload_settings_layout.addWidget(self.enable_lotw_upload, 0, 0, 1, 2)
-        lotw_upload_settings_layout.addWidget(lotw_username_label, 1, 0, QtCore.Qt.AlignmentFlag.AlignRight)
-        lotw_upload_settings_layout.addWidget(self.lotw_username, 1, 1)
-        lotw_upload_settings_layout.addWidget(lotw_password_label, 2, 0, QtCore.Qt.AlignmentFlag.AlignRight)
-        lotw_upload_settings_layout.addWidget(self.lotw_password, 2, 1)
-        lotw_upload_settings_layout.addWidget(lotw_location_label, 3, 0, QtCore.Qt.AlignmentFlag.AlignRight)
-        lotw_upload_settings_layout.addWidget(self.lotw_location, 3, 1)
-        lotw_upload_settings_layout.addWidget(lotw_signing_password_label, 4, 0, QtCore.Qt.AlignmentFlag.AlignRight)
-        lotw_upload_settings_layout.addWidget(self.lotw_signing_password, 4, 1)
-        lotw_upload_settings_layout.addWidget(lotw_qso_since_date_label, 5, 0, QtCore.Qt.AlignmentFlag.AlignRight)
-        lotw_upload_settings_layout.addWidget(self.lotw_qso_since_date, 5, 1)
-        lotw_upload_settings_layout.addWidget(lotw_download_interval_label, 6, 0, QtCore.Qt.AlignmentFlag.AlignRight)
-        lotw_upload_settings_layout.addWidget(self.lotw_download_interval, 6, 1)
-        lotw_upload_settings_layout.addWidget(tqsl_path_label, 7, 0, QtCore.Qt.AlignmentFlag.AlignRight)
-        lotw_upload_settings_layout.addLayout(tqsl_path_layout, 7, 1)
-        lotw_upload_settings_layout.addWidget(tqsl_dir_label, 8, 0, QtCore.Qt.AlignmentFlag.AlignRight)
-        lotw_upload_settings_layout.addLayout(tqsl_dir_layout, 8, 1)
-        lotw_upload_settings_layout.addLayout(test_buttons_layout, 9, 0, 1, 2)
+        lotw_upload_settings_layout.addWidget(self.enable_lotw_download, 1, 0, 1, 2)
+        lotw_upload_settings_layout.addWidget(lotw_username_label, 2, 0, QtCore.Qt.AlignmentFlag.AlignRight)
+        lotw_upload_settings_layout.addWidget(self.lotw_username, 2, 1)
+        lotw_upload_settings_layout.addWidget(lotw_password_label, 3, 0, QtCore.Qt.AlignmentFlag.AlignRight)
+        lotw_upload_settings_layout.addWidget(self.lotw_password, 3, 1)
+        lotw_upload_settings_layout.addWidget(lotw_location_label, 4, 0, QtCore.Qt.AlignmentFlag.AlignRight)
+        lotw_upload_settings_layout.addWidget(self.lotw_location, 4, 1)
+        lotw_upload_settings_layout.addWidget(lotw_signing_password_label, 5, 0, QtCore.Qt.AlignmentFlag.AlignRight)
+        lotw_upload_settings_layout.addWidget(self.lotw_signing_password, 5, 1)
+        lotw_upload_settings_layout.addWidget(lotw_qso_since_date_label, 6, 0, QtCore.Qt.AlignmentFlag.AlignRight)
+        lotw_upload_settings_layout.addWidget(self.lotw_qso_since_date, 6, 1)
+        lotw_upload_settings_layout.addWidget(lotw_download_interval_label, 7, 0, QtCore.Qt.AlignmentFlag.AlignRight)
+        lotw_upload_settings_layout.addWidget(self.lotw_download_interval, 7, 1)
+        lotw_upload_settings_layout.addWidget(tqsl_path_label, 8, 0, QtCore.Qt.AlignmentFlag.AlignRight)
+        lotw_upload_settings_layout.addLayout(tqsl_path_layout, 8, 1)
+        lotw_upload_settings_layout.addWidget(tqsl_dir_label, 9, 0, QtCore.Qt.AlignmentFlag.AlignRight)
+        lotw_upload_settings_layout.addLayout(tqsl_dir_layout, 9, 1)
+        lotw_upload_settings_layout.addLayout(test_buttons_layout, 10, 0, 1, 2)
 
         # Reduce vertical spacing between rows
         lotw_upload_settings_layout.setVerticalSpacing(10)
@@ -3085,6 +3090,9 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_lotw_upload.setChecked(
             self.params.get('enable_lotw_upload', False)
         )
+        self.enable_lotw_download.setChecked(
+            self.params.get('enable_lotw_download', False)
+        )
         self.lotw_username.setText(
             self.params.get('lotw_username', '')
         )
@@ -3329,6 +3337,7 @@ class SettingsDialog(QtWidgets.QDialog):
             'club_log_callsign'                          : self.club_log_callsign.text(),
             'club_log_api_key'                           : self.club_log_api_key.text(),
             'enable_lotw_upload'                         : self.enable_lotw_upload.isChecked(),
+            'enable_lotw_download'                       : self.enable_lotw_download.isChecked(),
             'lotw_username'                              : self.lotw_username.text(),
             'lotw_password'                              : self.lotw_password.text(),
             'lotw_location'                              : self.lotw_location.text(),

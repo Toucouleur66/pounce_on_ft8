@@ -790,6 +790,14 @@
         <translation>LoTWへの自動同期を有効化</translation>
     </message>
     <message>
+        <source>Enable automatic upload of logged QSOs to LoTW</source>
+        <translation>記録したQSOのLoTWへの自動アップロードを有効化</translation>
+    </message>
+    <message>
+        <source>Enable automatic download of QSLs from LoTW</source>
+        <translation>LoTWからのQSLの自動ダウンロードを有効化</translation>
+    </message>
+    <message>
         <source>Download QSLs since:</source>
         <translation>QSLのダウンロード開始日：</translation>
     </message>

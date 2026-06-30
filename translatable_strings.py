@@ -251,6 +251,8 @@ class SettingsStrings:
     # LoTW Upload/Download
     GROUP_LOTW_UPLOAD_SETTINGS = lambda: tr("SettingsDialog", "LoTW Upload/Download Settings")
     CHECK_ENABLE_LOTW_SYNCH = lambda: tr("SettingsDialog", "Enable automatic synch to LoTW")
+    CHECK_ENABLE_LOTW_UPLOAD = lambda: tr("SettingsDialog", "Enable automatic upload of logged QSOs to LoTW")
+    CHECK_ENABLE_LOTW_DOWNLOAD = lambda: tr("SettingsDialog", "Enable automatic download of QSLs from LoTW")
     LABEL_LOTW_USERNAME = lambda: tr("SettingsDialog", "Username:")
     LABEL_LOTW_PASSWORD = lambda: tr("SettingsDialog", "Password:")
     LABEL_LOTW_LOCATION = lambda: tr("SettingsDialog", "Station Location:")

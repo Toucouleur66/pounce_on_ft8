@@ -98,6 +98,7 @@ class Listener(QObject):
             club_log_callsign,
             club_log_api_key,
             enable_lotw_upload,
+            enable_lotw_download,
             lotw_username,
             lotw_password,
             lotw_location,
@@ -253,6 +254,7 @@ class Listener(QObject):
         self.club_log_uploader              = None
 
         self.enable_lotw_upload             = enable_lotw_upload
+        self.enable_lotw_download           = enable_lotw_download
         self.lotw_username                  = lotw_username
         self.lotw_password                  = lotw_password
         self.lotw_location                  = lotw_location
@@ -312,9 +314,9 @@ class Listener(QObject):
             )
 
         """
-            Initialize LoTW uploader
+            Initialize LoTW client (shared by upload and download)
         """
-        if self.enable_lotw_upload and self.lotw_username:
+        if (self.enable_lotw_upload or self.enable_lotw_download) and self.lotw_username:
             self.lotw_uploader = LoTWClient(
                 self.lotw_username,
                 self.lotw_password,
@@ -624,6 +626,7 @@ class Listener(QObject):
         log_output.append(f"PriorityOrder={self.priority_order}")      
         log_output.append(f"ClubLogSynch={self.enable_club_log_synch}")
         log_output.append(f"LoTWUpload={self.enable_lotw_upload}")
+        log_output.append(f"LoTWDownload={self.enable_lotw_download}")
         log_output.append(f"Watchdog={self.enable_watchdog} (attempts={self.watchdog_number_of_attempts}, retry={self.watchdog_retry_time}min)")
 
         log.warning(f"\n\t".join(log_output))

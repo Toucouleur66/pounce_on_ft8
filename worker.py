@@ -90,6 +90,7 @@ class Worker(QObject):
             club_log_callsign                  = '',
             club_log_api_key                   = '',
             enable_lotw_upload                 = False,
+            enable_lotw_download               = False,
             lotw_username                      = '',
             lotw_password                      = '',
             lotw_location                      = '',
@@ -161,6 +162,7 @@ class Worker(QObject):
         self.club_log_api_key                   = club_log_api_key
 
         self.enable_lotw_upload                 = enable_lotw_upload
+        self.enable_lotw_download               = enable_lotw_download
         self.lotw_username                      = lotw_username
         self.lotw_password                      = lotw_password
         self.lotw_location                      = lotw_location
@@ -231,6 +233,7 @@ class Worker(QObject):
                 club_log_api_key                = self.club_log_api_key,
 
                 enable_lotw_upload              = self.enable_lotw_upload,
+                enable_lotw_download            = self.enable_lotw_download,
                 lotw_username                   = self.lotw_username,
                 lotw_password                   = self.lotw_password,
                 lotw_location                   = self.lotw_location,
@@ -328,6 +331,7 @@ class Worker(QObject):
             self.listener.club_log_api_key                      = self.club_log_api_key
 
             self.listener.enable_lotw_upload                    = self.enable_lotw_upload
+            self.listener.enable_lotw_download                  = self.enable_lotw_download
             self.listener.lotw_username                         = self.lotw_username
             self.listener.lotw_password                         = self.lotw_password
             self.listener.lotw_location                         = self.lotw_location
@@ -347,8 +351,8 @@ class Worker(QObject):
             else:
                 self.listener.club_log_uploader = None
 
-            # Reinitialize LoTW uploader if settings changed
-            if self.enable_lotw_upload and self.lotw_username:
+            # Reinitialize LoTW client if settings changed (shared by upload and download)
+            if (self.enable_lotw_upload or self.enable_lotw_download) and self.lotw_username:
                 from lotw_uploader import LoTWClient
                 self.listener.lotw_uploader = LoTWClient(
                     self.lotw_username,
