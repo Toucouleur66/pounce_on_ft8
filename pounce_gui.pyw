@@ -1158,6 +1158,10 @@ class MainApp(QtWidgets.QMainWindow):
         self._output_single_click_timer.setSingleShot(True)
         self._output_single_click_timer.timeout.connect(self._fire_output_single_click)
         self._output_pending_click_pos = None
+        # A double-click emits Release BEFORE DblClick, then a trailing Release
+        # after it. This flag lets us ignore that trailing Release so it does not
+        # re-arm the single-click timer (which would open the menu after a reply).
+        self._output_ignore_next_release = False
         output_table.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
 
         return output_table
@@ -2330,6 +2334,8 @@ class MainApp(QtWidgets.QMainWindow):
             ):
                 self._output_single_click_timer.stop()
                 self._output_pending_click_pos = None
+                # The trailing Release of the double-click must not re-arm the timer.
+                self._output_ignore_next_release = True
                 index = self.output_table.indexAt(event.position().toPoint())
                 if index.isValid():
                     self.on_table_row_double_clicked(self.output_table, index)
@@ -2339,6 +2345,9 @@ class MainApp(QtWidgets.QMainWindow):
                 event.type() == QtCore.QEvent.Type.MouseButtonRelease
                 and event.button() == QtCore.Qt.MouseButton.LeftButton
             ):
+                if self._output_ignore_next_release:
+                    self._output_ignore_next_release = False
+                    return False
                 self._output_pending_click_pos = event.position().toPoint()
                 self._output_single_click_timer.start(
                     QtWidgets.QApplication.doubleClickInterval()
