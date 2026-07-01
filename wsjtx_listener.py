@@ -2008,10 +2008,15 @@ class Listener(QObject):
             except Exception as e:
                 log.error(f"Error sending packets: {e}\n{traceback.format_exc()}")
 
-    def reply_to_packet(self, callsign_packet):
+    def reply_to_packet(self, callsign_packet, manual=False):
         if self._instance == SLAVE:
-            # A SLAVE has no direct radio link: ask the MASTER to reply on our
-            # behalf. The decode is identified by millis_since_midnight + message.
+            # A SLAVE never decides to reply on its own: only an explicit user
+            # action (double-click) may ask the MASTER to reply on our behalf.
+            # The MASTER stays the sole authority for automatic replies, so an
+            # automatic selection on the SLAVE must be a no-op here.
+            if not manual:
+                return
+            # The decode is identified by millis_since_midnight + message.
             self.send_request_reply_packet(callsign_packet)
             return
 

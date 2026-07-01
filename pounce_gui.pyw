@@ -2374,11 +2374,12 @@ class MainApp(QtWidgets.QMainWindow):
             log.warning(f"Double-click reply ignored: packet {packet_id} no longer in store for [ {callsign} ]")
             return
 
-        # On a SLAVE, reply_to_packet forwards a RequestReplyPacket to the MASTER
-        # (which owns the radio link); on a MASTER it sends the ReplyPacket directly.
+        # Double-click is an explicit manual action. On a SLAVE, only a manual
+        # reply forwards a RequestReplyPacket to the MASTER (which owns the radio
+        # link); on a MASTER it sends the ReplyPacket directly.
         log.info(f"Double-click reply to [ {callsign} ] (packet {packet_id}, instance {self._instance})")
         listener.targeted_call = callsign
-        listener.reply_to_packet(callsign_packet)
+        listener.reply_to_packet(callsign_packet, manual=True)
 
         # Point the antenna at this station too (only moves if tracking is
         # enabled; handle_wanted_azimuth guards on the controller's enable flag).
