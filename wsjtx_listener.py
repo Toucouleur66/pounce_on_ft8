@@ -398,7 +398,8 @@ class Listener(QObject):
                 is_control   = isinstance(parsed_pkt, (
                     pywsjtx.RequestReplyPacket,
                     pywsjtx.RequestSettingPacket,
-                    pywsjtx.SettingPacket
+                    pywsjtx.SettingPacket,
+                    pywsjtx.DecisionPacket
                 ))
 
                 # Remember the real radio address (MASTER receiving a raw radio packet),
@@ -716,9 +717,65 @@ class Listener(QObject):
                 settings_packet
             )
 
-            log.info(f"SettingPacket sent to {addr_port}.")        
+            log.info(f"SettingPacket sent to {addr_port}.")
         except Exception as e:
-            log.error(f"Failed to send SettingPacket: {e}")    
+            log.error(f"Failed to send SettingPacket: {e}")
+
+    def can_relay_decision(self):
+        # A MASTER can relay a decision to a SLAVE only if a distinct secondary
+        # (SLAVE) UDP target is configured. Same guard as can_forward_packet.
+        if not self.enable_secondary_udp_server:
+            return False
+        if (
+            self.secondary_udp_server_address == self.primary_udp_server_address and
+            self.secondary_udp_server_port == self.primary_udp_server_port
+        ):
+            return False
+        return True
+
+    def send_decision_packet(self, decision_dict):
+        # MASTER -> SLAVE: relay the already-computed decision for a decode so the
+        # SLAVE displays the same focus banner / plays the same sound, without
+        # recomputing from its own settings/ADIF. Sent WITH the "ip:port|" header
+        # (like SettingPacket) so the SLAVE recognizes us as the MASTER.
+        try:
+            payload = dict(decision_dict)
+            # decode_time is a datetime (not JSON-safe); rebuilt on the SLAVE from
+            # decode_time_str. Identity keys would flip the SLAVE's window/identity
+            # to the master's, so strip them.
+            for key in ('decode_time', 'my_call', 'my_grid', 'wsjtx_id'):
+                payload.pop(key, None)
+
+            decision_packet = pywsjtx.DecisionPacket.Builder(
+                to_wsjtx_id="WSJT-X",
+                decision_dict=payload
+            )
+            decision_packet = self.add_packet_header() + decision_packet
+            self.s.send_packet(
+                (self.secondary_udp_server_address, self.secondary_udp_server_port),
+                decision_packet
+            )
+        except Exception as e:
+            log.error(f"Failed to send DecisionPacket: {e}\n{traceback.format_exc()}")
+
+    def handle_decision_packet(self, addr_port):
+        # SLAVE side: adopt the MASTER's decision for a decode and feed it straight
+        # to the GUI (same message_callback path) so banner + sounds match the
+        # MASTER. Only a SLAVE consumes decisions.
+        if self._instance != SLAVE:
+            return
+        try:
+            decision = json.loads(self.the_packet.decision_json)
+            # Rebuild the datetime process_message_buffer expects (max(... decode_time)).
+            decode_time_str = decision.get('decode_time_str')
+            if decode_time_str:
+                decision['decode_time'] = datetime.strptime(decode_time_str, '%Y-%m-%d %H:%M:%S')
+            # Flag this message as the authoritative driver of the SLAVE's focus
+            # banner + sounds (the SLAVE's own local decodes never drive them).
+            decision['drives_focus'] = True
+            self.message_callback(decision)
+        except Exception as e:
+            log.error(f"Error processing DecisionPacket: {e}\n{traceback.format_exc()}")
 
     """
         Process to stop Listener properly
@@ -980,6 +1037,8 @@ class Listener(QObject):
             self.handle_setting_packet(addr_port)
         elif isinstance(self.the_packet, pywsjtx.RequestReplyPacket):
             self.handle_request_reply_packet(addr_port)
+        elif isinstance(self.the_packet, pywsjtx.DecisionPacket):
+            self.handle_decision_packet(addr_port)
         else:
             status_update = False
             log.error('Unknown packet type {}; {}'.format(type(self.the_packet),self.the_packet))
@@ -1001,6 +1060,8 @@ class Listener(QObject):
         elif isinstance(self.the_packet, pywsjtx.SettingPacket):
             return False
         elif isinstance(self.the_packet, pywsjtx.RequestReplyPacket):
+            return False
+        elif isinstance(self.the_packet, pywsjtx.DecisionPacket):
             return False
         else:
             return True
@@ -1815,11 +1876,11 @@ class Listener(QObject):
 
                 # log.debug(f"Priority for: {formatted_message} for {callsign:<15}\nWorkedB4\t= {callsign_wkb4}\nCallsignInfo\t= {callsign_info}\nEntityCode\t= {entity_code}\nEntityWkB4\t= {entity_wkb4}\nWanted\t\t= {wanted}\nWantedCQZone\t= {wanted_cq_zone}\nMarathon\t= {marathon}\nExcluded\t= {excluded}\nMonitored\t= {monitored}")
 
-                self.message_callback({           
+                decode_message = {
                 'wsjtx_id'          : self.the_packet.wsjtx_id,
-                'my_call'           : self.my_call, 
-                'packet_id'         : packet_id,     
-                'decode_time'       : decode_time,              
+                'my_call'           : self.my_call,
+                'packet_id'         : packet_id,
+                'decode_time'       : decode_time,
                 'decode_time_str'   : decode_time_str,
                 'excluded'          : excluded,
                 'callsign'          : callsign,
@@ -1836,14 +1897,33 @@ class Listener(QObject):
                 'entity_wkb4'       : entity_wkb4,
                 'delta_time'        : delta_t,
                 'delta_freq'        : delta_f,
-                'snr'               : snr,                
+                'snr'               : snr,
                 'message'           : cleaned_message,
-                'message_uid'       : str(uuid.uuid4()), 
+                'message_uid'       : str(uuid.uuid4()),
                 'message_type'      : message_type,
                 'priority'          : priority,
                 'priority_type'     : priority_type,
-                'formatted_message' : formatted_message
-            })        
+                'formatted_message' : formatted_message,
+                # Pre-computed so the SLAVE banner can show the "my call" style
+                # without us relaying my_call (which would flip the SLAVE identity).
+                'directed_to_my_call' : (directed is not None and directed == self.my_call)
+            }
+
+                self.message_callback(decode_message)
+
+                """
+                    MASTER relays its already-computed decision to the SLAVE so the
+                    SLAVE drives its focus banner + sounds identically, instead of
+                    recomputing from its own (different) settings/ADIF. Only the
+                    "significant" decodes (something worth showing/sounding) are sent,
+                    to keep the control-link light.
+                """
+                if (
+                    self._instance == MASTER
+                    and (message_type is not None or priority)
+                    and self.can_relay_decision()
+                ):
+                    self.send_decision_packet(decode_message)
 
         except TypeError as e:
             log.error("Caught a type error in parsing packet: {}; error {}\n{}".format(

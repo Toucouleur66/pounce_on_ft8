@@ -1964,10 +1964,14 @@ class MainApp(QtWidgets.QMainWindow):
                 elif monitored_cq_zone is True:
                     message_color      = BG_COLOR_BLACK_ON_CYAN
                 elif (
-                    directed is not None and 
-                    self.operating_band and 
+                    # On a SLAVE this fallback would read the SLAVE's own wanted list
+                    # (different from the MASTER), so skip it there — the SLAVE trusts
+                    # the relayed decision booleans above.
+                    self._instance != SLAVE and
+                    directed is not None and
+                    self.operating_band and
                     matches_any(text_to_array(self.wanted_callsigns_vars[self.operating_band].text()), directed)
-                ):                    
+                ):
                     message_color      = BG_COLOR_WHITE_ON_BLUE
                 else:
                     message_color      = None
@@ -1991,36 +1995,50 @@ class MainApp(QtWidgets.QMainWindow):
                     if wkb4_year is None:
                         wkb4_year = '⋆'
                  
-                self.update_model_data(
-                    wanted,
-                    excluded,
-                    callsign,
-                    wkb4_year,
-                    directed,
-                    message.get('decode_time_str'),
-                    self.operating_band,
-                    message.get('snr', 0),
-                    message.get('delta_time', 0.0),
-                    message.get('delta_freq', 0),
-                    message.get('message', ''),
-                    formatted_message,
-                    entity,
-                    lotw,
-                    cq_zone,
-                    continent,
-                    message.get('grid'),
-                    message_type,
-                    message_color,
-                    message.get('message_uid'),
-                    message.get('packet_id'),
-                )
+                """
+                    MASTER/SLAVE split:
+                    - MASTER: local decode drives BOTH the table row and the banner/sound.
+                    - SLAVE: the local decode drives ONLY the table row (kept from the
+                      SLAVE's own receiver, so packet_id stays valid for double-click).
+                      The focus banner + sounds are driven exclusively by the MASTER's
+                      relayed decision (drives_focus), which must NOT add a duplicate row.
+                """
+                drives_focus = message.get('drives_focus', False)
 
-                self.message_buffer.append(message)         
+                if not (self._instance == SLAVE and drives_focus):
+                    self.update_model_data(
+                        wanted,
+                        excluded,
+                        callsign,
+                        wkb4_year,
+                        directed,
+                        message.get('decode_time_str'),
+                        self.operating_band,
+                        message.get('snr', 0),
+                        message.get('delta_time', 0.0),
+                        message.get('delta_freq', 0),
+                        message.get('message', ''),
+                        formatted_message,
+                        entity,
+                        lotw,
+                        cq_zone,
+                        continent,
+                        message.get('grid'),
+                        message_type,
+                        message_color,
+                        message.get('message_uid'),
+                        message.get('packet_id'),
+                    )
 
-                if not self.process_timer:
-                    self.process_timer = True
-                    self.process_timer_timeout.start(10_000)
-                    QtCore.QTimer.singleShot(300, lambda: self.process_message_buffer())            
+                # On a SLAVE only the MASTER's relayed decision may drive the focus
+                # banner + sounds; the SLAVE's own local decodes never do.
+                if self._instance != SLAVE or drives_focus:
+                    self.message_buffer.append(message)
+
+                    if not self.process_timer:
+                        self.process_timer = True
+                        self.process_timer_timeout.start(10_000)
+                        QtCore.QTimer.singleShot(300, lambda: self.process_message_buffer())
         else:
             pass
 
@@ -2619,8 +2637,13 @@ class MainApp(QtWidgets.QMainWindow):
         self.output_table.scrollToBottom()
         self.last_focus_value_message_uid = None
 
-    def set_message_to_focus_value_label(self, message):  
-        contains_my_call = message.get('directed') == message.get('my_call') and message.get('directed') is not None
+    def set_message_to_focus_value_label(self, message):
+        # A relayed MASTER decision carries no my_call (stripped to protect the
+        # SLAVE identity); it carries directed_to_my_call instead.
+        contains_my_call = (
+            message.get('directed') is not None
+            and message.get('directed') == message.get('my_call')
+        ) or message.get('directed_to_my_call', False)
         contains_alert   = message.get('type') == 'gui_alert'
         
         if contains_alert:

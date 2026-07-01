@@ -695,6 +695,35 @@ class RequestReplyPacket(GenericWSJTXPacket):
         pkt.write_QString(callsign)
         return pkt.packet
 
+class DecisionPacket(GenericWSJTXPacket):
+    # Custom (non-WSJT-X) control packet: a MASTER relays its ALREADY-COMPUTED
+    # decision for a decode to a SLAVE, so the SLAVE drives its focus banner and
+    # sounds exactly like the MASTER instead of recomputing from its own (possibly
+    # different) settings/ADIF. The payload is the JSON-serialized message dict the
+    # MASTER emits to its own GUI (minus non-serializable / identity keys).
+    # Sent MASTER->SLAVE WITH the "ip:port|" header, like SettingPacket.
+    TYPE_VALUE = 36
+
+    def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
+        GenericWSJTXPacket.__init__(self, addr_port, magic, schema, pkt_type, id, pkt)
+        ps = PacketReader(pkt)
+        the_type = ps.QInt32()
+        self.wsjtx_id = ps.QString()
+        self.decision_json = ps.QString()
+
+    def __repr__(self):
+        return f"DecisionPacket: decision: {self.decision_json}"
+
+    @classmethod
+    def Builder(cls, to_wsjtx_id='WSJT-X', decision_dict=None):
+        pkt = PacketWriter()
+        pkt.write_QInt32(DecisionPacket.TYPE_VALUE)
+        pkt.write_QString(to_wsjtx_id)
+        if decision_dict is None:
+            decision_dict = {}
+        pkt.write_QString(json.dumps(decision_dict))
+        return pkt.packet
+
 class WSJTXPacketClassFactory(GenericWSJTXPacket):
     PACKET_TYPE_TO_OBJ_MAP = {
         HeartBeatPacket.TYPE_VALUE: HeartBeatPacket,
@@ -714,7 +743,8 @@ class WSJTXPacketClassFactory(GenericWSJTXPacket):
         ConfigurePacket.TYPE_VALUE: ConfigurePacket,
         SettingPacket.TYPE_VALUE: SettingPacket,
         RequestSettingPacket.TYPE_VALUE: RequestSettingPacket,
-        RequestReplyPacket.TYPE_VALUE: RequestReplyPacket
+        RequestReplyPacket.TYPE_VALUE: RequestReplyPacket,
+        DecisionPacket.TYPE_VALUE: DecisionPacket
     }
     def __init__(self, addr_port, magic, schema, pkt_type, id, pkt):
         self.addr_port = addr_port
