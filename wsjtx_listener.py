@@ -679,15 +679,16 @@ class Listener(QObject):
                 finally:
                     del frame
 
-                self.send_settings_packet({             
-                    'band'                  : self.band,
-                    'wanted_callsigns'      : self.wanted_callsigns,
-                    'excluded_callsigns'    : self.excluded_callsigns,
-                    'monitored_callsigns'   : self.monitored_callsigns,
-                    'wanted_cq_zones'       : self.wanted_cq_zones,
-                    'monitored_cq_zones'    : self.monitored_cq_zones,
-                    'excluded_cq_zones'     : self.excluded_cq_zones,
-                    'enable_sending_reply'  : self.enable_sending_reply
+                self.send_settings_packet({
+                    'band'                     : self.band,
+                    'wanted_callsigns'         : self.wanted_callsigns,
+                    'excluded_callsigns'       : self.excluded_callsigns,
+                    'monitored_callsigns'      : self.monitored_callsigns,
+                    'wanted_cq_zones'          : self.wanted_cq_zones,
+                    'monitored_cq_zones'       : self.monitored_cq_zones,
+                    'excluded_cq_zones'        : self.excluded_cq_zones,
+                    'enable_sending_reply'     : self.enable_sending_reply,
+                    'worked_before_preference' : self.worked_before_preference
                 }, addr_port)
         except Exception as e:
             log.error(f"Failed to synch settings: {e}\n{traceback.format_exc()}")
@@ -1192,6 +1193,7 @@ class Listener(QObject):
                     excluded_callsigns  = self.synched_settings.get('excluded_callsigns')
                     excluded_cq_zones   = self.synched_settings.get('excluded_cq_zones')
                     enable_sending_reply = self.synched_settings.get('enable_sending_reply')
+                    worked_before_preference = self.synched_settings.get('worked_before_preference')
                     """
                         Make sure to set synch_time after we checked if wanted_callsigns is valid
                     """
@@ -1207,6 +1209,11 @@ class Listener(QObject):
                         if enable_sending_reply is not None:
                             self.enable_sending_reply = enable_sending_reply
                             self.monitoring_settings.set_sending_reply(enable_sending_reply)
+
+                        # Adopt the MASTER's Worked-Before policy so the SLAVE's own
+                        # WkB4 decisions match the MASTER (was never synced before).
+                        if worked_before_preference is not None:
+                            self.worked_before_preference = worked_before_preference
 
                         self.message_callback({
                             'type'     : 'instance_settings',
