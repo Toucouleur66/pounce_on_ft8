@@ -383,17 +383,40 @@ class PstRotatorController(QObject):
             except OSError as e:
                 log.debug(f"PstRotator poll send error -> {e}")
 
-            # Read the reply (a single recvfrom; ignore if it times out).
+            # Read the reply, then drain any backlog so we keep only the most
+            # recent position. PstRotatorAz can emit unsolicited position updates
+            # on port+1 while the rotor turns (notably during a manual move); if
+            # we consumed just one datagram per second the socket buffer would
+            # fill up and we would display an ever-staler position.
             azimuth = None
+            got_reply = False
             try:
-                data, _ = sock.recvfrom(256)
+                data, _ = sock.recvfrom(256)  # blocking, honours settimeout(2)
+                got_reply = True
+            except socket.timeout:
+                data = None
+            except OSError as e:
+                log.debug(f"PstRotator poll recv error -> {e}")
+                data = None
+
+            if got_reply:
+                # Drain everything else already queued, keeping the last one.
+                sock.setblocking(False)
+                try:
+                    while True:
+                        try:
+                            more, _ = sock.recvfrom(256)
+                        except (BlockingIOError, socket.timeout):
+                            break
+                        except OSError:
+                            break
+                        data = more
+                finally:
+                    sock.settimeout(2)
+
                 match = _AZ_REPLY_RE.search(data.decode("ascii", errors="ignore"))
                 if match:
                     azimuth = float(match.group(1))
-            except socket.timeout:
-                pass
-            except OSError as e:
-                log.debug(f"PstRotator poll recv error -> {e}")
 
             self.azimuth_read.emit(azimuth)
 
