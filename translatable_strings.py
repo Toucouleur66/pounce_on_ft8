@@ -413,6 +413,12 @@ class SettingsStrings:
     HEADER_PSTROTATOR_AZIMUTH = lambda: tr("SettingsDialog", "Azimuth (°)")
     BUTTON_PSTROTATOR_ADD = lambda: tr("SettingsDialog", "Add")
     BUTTON_PSTROTATOR_REMOVE = lambda: tr("SettingsDialog", "Remove")
+    GROUP_PSTROTATOR_BANDS = lambda: tr("SettingsDialog", "Track on Reply — bands")
+    PSTROTATOR_BANDS_NOTICE = lambda: tr("SettingsDialog",
+        "Select the bands on which the antenna should follow the stations you "
+        "reply to. On unchecked bands (e.g. no directional antenna) the azimuth "
+        "is never changed by Track on Reply. If no band is selected, Track on "
+        "Reply never moves the antenna.")
 
     # Automation test results
     AUTOMATION_ADMIN_REQUIRED_TITLE = lambda: tr("SettingsDialog", "Administrator Rights Required")

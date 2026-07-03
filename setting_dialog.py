@@ -235,7 +235,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.stacked_widget.addWidget(club_log_page)
         self.stacked_widget.addWidget(backup_page)
         self.stacked_widget.addWidget(automate_tasks_page)
-        self.stacked_widget.addWidget(pstrotator_page)
+        self.pstrotator_page_index = self.stacked_widget.addWidget(pstrotator_page)
         self.stacked_widget.addWidget(debugging_page)
 
         server_layout         = QtWidgets.QVBoxLayout(server_page)
@@ -257,11 +257,16 @@ class SettingsDialog(QtWidgets.QDialog):
         debugging_layout      = QtWidgets.QVBoxLayout(debugging_page)
 
         self.menu_list.currentRowChanged.connect(self.stacked_widget.setCurrentIndex)
+        # The Antenna Rotator page carries an extra band selector column, so it
+        # needs more width; widen the dialog only while that page is shown.
+        self.stacked_widget.currentChanged.connect(self.adjust_width_for_page)
         self.menu_list.setCurrentRow(0)  # Select first item by default
 
-        self.setMinimumWidth(700)
+        self.default_dialog_width = 700
+        self.pstrotator_dialog_width = 940
+        self.setMinimumWidth(self.default_dialog_width)
         self.setMinimumHeight(700)
-        self.resize(700, 700)
+        self.resize(self.default_dialog_width, 700)
 
         """
             Server Settings
@@ -1843,11 +1848,59 @@ class SettingsDialog(QtWidgets.QDialog):
         pstrotator_schedule_layout.addWidget(self.pstrotator_schedule_body)
         pstrotator_schedule_group.setLayout(pstrotator_schedule_layout)
 
+        # Band selector (right column): Track on Reply only follows on the
+        # checked bands. Modelled on the Grid Tracker band selector.
+        pstrotator_bands_group = QtWidgets.QGroupBox(SettingsStrings.GROUP_PSTROTATOR_BANDS())
+        self.group_boxes.append(pstrotator_bands_group)
+        pstrotator_bands_group.setFont(CUSTOM_FONT_SMALL)
+        pstrotator_bands_group_layout = QtWidgets.QVBoxLayout()
+
+        pstrotator_bands_notice_label = QtWidgets.QLabel(SettingsStrings.PSTROTATOR_BANDS_NOTICE())
+        pstrotator_bands_notice_label.setWordWrap(True)
+        pstrotator_bands_notice_label.setFont(CUSTOM_FONT_SMALL)
+        pstrotator_bands_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
+        self.notice_labels.append(pstrotator_bands_notice_label)
+        pstrotator_bands_notice_label.setAutoFillBackground(True)
+        pstrotator_bands_group_layout.addWidget(pstrotator_bands_notice_label)
+
+        pstrotator_bands_select_layout = QtWidgets.QGridLayout()
+        self.pstrotator_band_buttons = {}
+        bands_max_cols = 2
+        b_row = 0
+        b_col = 0
+        for amateur_band in list(AMATEUR_BANDS.keys()):
+            btn = CustomButton(amateur_band)
+            btn.setCheckable(True)
+            btn.toggled.connect(lambda checked, btn=btn, name=amateur_band: self.on_pstrotator_band_toggled(btn, name, checked))
+            self.pstrotator_band_buttons[amateur_band] = btn
+            pstrotator_bands_select_layout.addWidget(btn, b_row, b_col)
+            b_col += 1
+            if b_col >= bands_max_cols:
+                b_col = 0
+                b_row += 1
+        pstrotator_bands_group_layout.addLayout(pstrotator_bands_select_layout)
+        pstrotator_bands_group_layout.addStretch()
+        pstrotator_bands_group.setLayout(pstrotator_bands_group_layout)
+
+        # Two-column layout: existing controls (left) + band selector (right).
+        pstrotator_columns_layout = QtWidgets.QHBoxLayout()
+
+        pstrotator_left_column = QtWidgets.QVBoxLayout()
+        pstrotator_left_column.addWidget(pstrotator_connection_group)
+        pstrotator_left_column.addWidget(pstrotator_wanted_group)
+        pstrotator_left_column.addWidget(pstrotator_park_group)
+        pstrotator_left_column.addWidget(pstrotator_schedule_group)
+        pstrotator_left_column.addStretch()
+
+        pstrotator_right_column = QtWidgets.QVBoxLayout()
+        pstrotator_right_column.addWidget(pstrotator_bands_group)
+        pstrotator_right_column.addStretch()
+
+        pstrotator_columns_layout.addLayout(pstrotator_left_column, 3)
+        pstrotator_columns_layout.addLayout(pstrotator_right_column, 2)
+
         pstrotator_layout.addWidget(pstrotator_notice_label)
-        pstrotator_layout.addWidget(pstrotator_connection_group)
-        pstrotator_layout.addWidget(pstrotator_wanted_group)
-        pstrotator_layout.addWidget(pstrotator_park_group)
-        pstrotator_layout.addWidget(pstrotator_schedule_group)
+        pstrotator_layout.addLayout(pstrotator_columns_layout)
         pstrotator_layout.addStretch()
 
         """
@@ -2094,6 +2147,12 @@ class SettingsDialog(QtWidgets.QDialog):
 
         self.populate_priority_list()
 
+    def on_pstrotator_band_toggled(self, button, band_name, checked):
+        if checked:
+            button.updateStyle(band_name, STATUS_TRX_COLOR, "#FFFFFF")
+        else:
+            button.resetStyle()
+
     def add_pstrotator_schedule_row(self, hour=0, minute=0, azimuth=0):
         # Signals from clicked() may pass a bool; ignore non-int defaults.
         if not isinstance(hour, int):
@@ -2174,6 +2233,13 @@ class SettingsDialog(QtWidgets.QDialog):
         wanted_on = self.enable_pstrotator_wanted.isChecked()
         self.pstrotator_park_group.setEnabled(wanted_on)
         self.pstrotator_park_body.setEnabled(wanted_on and self.enable_pstrotator_park.isChecked())
+
+    def adjust_width_for_page(self, index):
+        # Widen the dialog only for the Antenna Rotator page (band selector),
+        # restore the default width for every other page.
+        target = self.pstrotator_dialog_width if index == self.pstrotator_page_index else self.default_dialog_width
+        if self.width() != target:
+            self.resize(target, self.height())
 
     def done(self, result):
         # Detach from the persistent rotator poller before the dialog is destroyed.
@@ -3030,6 +3096,12 @@ class SettingsDialog(QtWidgets.QDialog):
                 continue
         self.update_pstrotator_schedule_enabled()
 
+        pstrotator_band_preference = self.params.get('pstrotator_band_preference', {})
+        if not isinstance(pstrotator_band_preference, dict):
+            pstrotator_band_preference = {}
+        for band_name, btn in self.pstrotator_band_buttons.items():
+            btn.setChecked(pstrotator_band_preference.get(band_name, False))
+
         self.enable_debug_output.setChecked(
             self.params.get('enable_debug_output', DEFAULT_DEBUG_OUTPUT)
         )
@@ -3276,6 +3348,10 @@ class SettingsDialog(QtWidgets.QDialog):
         pstrotator_port_text = self.pstrotator_port.text()
         pstrotator_port = int(pstrotator_port_text) if pstrotator_port_text.isdigit() else DEFAULT_PSTROTATOR_PORT
 
+        pstrotator_band_preference = {}
+        for band_name, btn in self.pstrotator_band_buttons.items():
+            pstrotator_band_preference[band_name] = btn.isChecked()
+
         # Get priority order - convert display names to property keys
         priority_order = []
         for i in range(self.priority_table.rowCount()):
@@ -3319,6 +3395,7 @@ class SettingsDialog(QtWidgets.QDialog):
             'pstrotator_park_delay'                      : self.pstrotator_park_delay.value(),
             'enable_pstrotator_schedule'                 : self.enable_pstrotator_schedule.isChecked(),
             'pstrotator_schedule'                        : self.get_pstrotator_schedule(),
+            'pstrotator_band_preference'                 : pstrotator_band_preference,
             'enable_debug_output'                        : self.enable_debug_output.isChecked(),
             'enable_extra_gui_debug_output'              : self.enable_extra_gui_debug_output.isChecked(),
             'enable_pounce_log'                          : self.enable_pounce_log.isChecked(),

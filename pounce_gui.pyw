@@ -1817,11 +1817,19 @@ class MainApp(QtWidgets.QMainWindow):
         """
         Point the antenna at the station described by `message` (the one we are
         replying to). Uses the decoded grid, falling back to the callsign_info
-        grid. No-op unless we know my_grid. Honours the controller's own
-        enable/threshold checks.
+        grid. No-op unless we know my_grid, and only on bands the user enabled
+        for Track on Reply. Honours the controller's own enable/threshold checks.
         """
         if not self.my_grid:
             return
+
+        # Only follow on bands the user selected. If no band is selected,
+        # Track on Reply never moves the antenna.
+        band = message.get('band') or self.operating_band
+        band_preference = self.local_params.get('pstrotator_band_preference', {})
+        if not band or not band_preference.get(band, False):
+            return
+
         callsign_info = message.get('callsign_info') or {}
         station_grid = message.get('grid') or callsign_info.get('grid')
         if not station_grid:
