@@ -263,7 +263,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.menu_list.setCurrentRow(0)  # Select first item by default
 
         self.default_dialog_width = 700
-        self.pstrotator_dialog_width = 940
+        self.pstrotator_dialog_width = 780
         self.setMinimumWidth(self.default_dialog_width)
         self.setMinimumHeight(700)
         self.resize(self.default_dialog_width, 700)
@@ -1855,17 +1855,9 @@ class SettingsDialog(QtWidgets.QDialog):
         pstrotator_bands_group.setFont(CUSTOM_FONT_SMALL)
         pstrotator_bands_group_layout = QtWidgets.QVBoxLayout()
 
-        pstrotator_bands_notice_label = QtWidgets.QLabel(SettingsStrings.PSTROTATOR_BANDS_NOTICE())
-        pstrotator_bands_notice_label.setWordWrap(True)
-        pstrotator_bands_notice_label.setFont(CUSTOM_FONT_SMALL)
-        pstrotator_bands_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
-        self.notice_labels.append(pstrotator_bands_notice_label)
-        pstrotator_bands_notice_label.setAutoFillBackground(True)
-        pstrotator_bands_group_layout.addWidget(pstrotator_bands_notice_label)
-
         pstrotator_bands_select_layout = QtWidgets.QGridLayout()
         self.pstrotator_band_buttons = {}
-        bands_max_cols = 2
+        bands_max_cols = 1
         b_row = 0
         b_col = 0
         for amateur_band in list(AMATEUR_BANDS.keys()):
@@ -1881,11 +1873,21 @@ class SettingsDialog(QtWidgets.QDialog):
         pstrotator_bands_group_layout.addLayout(pstrotator_bands_select_layout)
         pstrotator_bands_group_layout.addStretch()
         pstrotator_bands_group.setLayout(pstrotator_bands_group_layout)
+        # Let the band group grow to the height of the left column; the internal
+        # stretch above keeps the buttons at the top with the slack below them.
+        pstrotator_bands_group.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Preferred,
+            QtWidgets.QSizePolicy.Policy.Expanding
+        )
 
-        # Two-column layout: existing controls (left) + band selector (right).
+        # Two-column layout. Left column holds everything that already existed
+        # (notice included); right column holds the band selector alone, so the
+        # top of the notice and the top of the band selector line up. No AlignTop
+        # here so the shorter column is stretched to match the taller one.
         pstrotator_columns_layout = QtWidgets.QHBoxLayout()
 
         pstrotator_left_column = QtWidgets.QVBoxLayout()
+        pstrotator_left_column.addWidget(pstrotator_notice_label)
         pstrotator_left_column.addWidget(pstrotator_connection_group)
         pstrotator_left_column.addWidget(pstrotator_wanted_group)
         pstrotator_left_column.addWidget(pstrotator_park_group)
@@ -1894,12 +1896,10 @@ class SettingsDialog(QtWidgets.QDialog):
 
         pstrotator_right_column = QtWidgets.QVBoxLayout()
         pstrotator_right_column.addWidget(pstrotator_bands_group)
-        pstrotator_right_column.addStretch()
 
-        pstrotator_columns_layout.addLayout(pstrotator_left_column, 3)
+        pstrotator_columns_layout.addLayout(pstrotator_left_column, 5)
         pstrotator_columns_layout.addLayout(pstrotator_right_column, 2)
 
-        pstrotator_layout.addWidget(pstrotator_notice_label)
         pstrotator_layout.addLayout(pstrotator_columns_layout)
         pstrotator_layout.addStretch()
 
