@@ -96,4 +96,5 @@ comparison always reflects what's being heard **now**, not what was heard long a
 In short: **collect the whole period → rank everyone by your rules → wait a heartbeat for the full
 batch → call the single best station → stick with it until it's worked or hopeless.** Everything you
 configure in [Choosing Who to Reply To](/guide/reply-engine), [Worked-Before](/guide/worked-before),
-[Marathon](/guide/marathon) and [Grid Tracker](/guide/grid-tracker) simply feeds into this ranking.
+[Marathon](/guide/marathon), [Grid Tracker](/guide/grid-tracker) and
+[Parks On The Air](/guide/pota) simply feeds into this ranking.

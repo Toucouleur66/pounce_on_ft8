@@ -84,6 +84,8 @@ class Listener(QObject):
             marathon_preference,
             dxcc_preference,
             enable_dxcc_reply_unconfirmed,
+            enable_pota,
+            pota_provider,
             grid_tracker_preference,
             enable_grid_reply_new_grid,
             enable_grid_reply_unconfirmed,
@@ -181,6 +183,11 @@ class Listener(QObject):
         self.marathon_preference                = marathon_preference
         self.dxcc_preference                    = dxcc_preference or {}
         self.enable_dxcc_reply_unconfirmed      = enable_dxcc_reply_unconfirmed
+        # POTA is spot-driven (not ADIF-driven): enable_pota gates it, and the
+        # shared pota_provider supplies the live activator->reference lookup and
+        # the answered-today (callsign, reference) bookkeeping.
+        self.enable_pota                        = enable_pota
+        self.pota_provider                      = pota_provider
         self.grid_tracker_preference            = grid_tracker_preference
         self.enable_grid_reply_new_grid         = enable_grid_reply_new_grid
         self.enable_grid_reply_unconfirmed      = enable_grid_reply_unconfirmed
@@ -625,6 +632,7 @@ class Listener(QObject):
         log_output.append(f"WorkedBeforePreference={self.worked_before_preference}")
         log_output.append(f"Marathon={self.enable_marathon}")
         log_output.append(f"DXCCProgram={self.enable_dxcc}")
+        log_output.append(f"POTA={self.enable_pota}")
         log_output.append(f"GridTracker={self.enable_grid_tracker}")
         log_output.append(f"LoTWReplyOnly={self.enable_reply_to_lotw_only }") 
         log_output.append(f"PriorityOrder={self.priority_order}")      
@@ -1347,6 +1355,8 @@ class Listener(QObject):
                 callsign_wkb4     = False
                 marathon          = False
                 dxcc              = False
+                pota              = False
+                pota_reference    = None
                 priority          = 0
                 priority_type     = None
 
@@ -1485,6 +1495,32 @@ class Listener(QObject):
                     ):
                         dxcc = True
                         log.info(f"Focus on [ {callsign} ] for DXCC entity [ {entity_code} ] on [ {self.band} ]")
+                        reply_to_packet = True
+
+                """
+                    Check if callsign is a current POTA activator
+
+                    POTA status is spot-driven (pota.app), NOT ADIF-driven, so this
+                    ignores Worked Before rules entirely. The same activator is called
+                    again whenever their park reference changes, but a given
+                    (callsign, reference) is only chased once per UTC day.
+                """
+                if (
+                    self.enable_pota
+                    and self.pota_provider is not None
+                    and not wanted
+                    and not wanted_cq_zone
+                    and not marathon
+                    and not dxcc
+                    and not wanted_grid
+                ):
+                    pota_reference = self.pota_provider.get_reference(callsign)
+                    if (
+                        pota_reference
+                        and not self.pota_provider.already_answered(callsign, pota_reference)
+                    ):
+                        pota = True
+                        log.info(f"Focus on [ {callsign} ] for POTA [ {pota_reference} ] on [ {self.band} ]")
                         reply_to_packet = True
 
                 """
@@ -1845,6 +1881,8 @@ class Listener(QObject):
                         'wanted_grid'       : wanted_grid,
                         'marathon'          : marathon,
                         'dxcc_entity'       : dxcc,
+                        'pota'              : pota,
+                        'pota_reference'    : pota_reference,
                         'lotw'              : lotw,
                         'snr'               : snr,
                         'wkb4_year'         : wkb4_year,
@@ -1890,6 +1928,8 @@ class Listener(QObject):
                 'wanted'            : wanted,
                 'wanted_cq_zone'    : wanted_cq_zone,
                 'wanted_grid'       : wanted_grid,
+                'pota'              : pota,
+                'pota_reference'    : pota_reference,
                 'monitored'         : monitored,
                 'monitored_cq_zone' : monitored_cq_zone,
                 'exactly_matched'   : exactly_matched,
@@ -2079,6 +2119,17 @@ class Listener(QObject):
                 self.set_delta_f_packet(self.suggested_frequency)
 
         self.reply_to_packet(callsign_packet)
+
+        # Record the POTA (callsign, reference) as answered today so we do not
+        # chase the same park again until the reference changes (or the UTC day
+        # rolls over). Only when this reply was actually driven by POTA.
+        if (
+            selected_message.get('pota')
+            and selected_message.get('pota_reference')
+            and self.pota_provider is not None
+        ):
+            self.pota_provider.mark_answered(callsign, selected_message.get('pota_reference'))
+
         self.last_selected_message = selected_message
 
     def halt_packet(self):

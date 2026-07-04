@@ -118,6 +118,13 @@ DEFAULT_JTDX_CLICK_DELAY            = 0
 BAND_CHANGE_WAITING_DELAY           = 10
 LOTW_SYNC_INTERVAL_MINUTES          = 10
 
+# Parks On The Air (POTA) — reply to live park activators.
+# POTA activator status is not in the local ADIF; it is looked up live from the
+# pota.app spot API and cross-referenced against every decoded callsign.
+DEFAULT_ENABLE_POTA                 = False
+POTA_SPOT_URL                       = "https://api.pota.app/spot/activator"
+POTA_FETCH_INTERVAL_MINUTES         = 5  # matches the pota.app refresh cadence
+
 # PstRotatorAz UDP antenna rotator control
 DEFAULT_PSTROTATOR_HOST             = "127.0.0.1"
 DEFAULT_PSTROTATOR_PORT             = 12000
@@ -140,6 +147,7 @@ PRIORITY_LIST                   = {
     "Marathon"                  : "marathon",
     "DXCC Program"              : "dxcc_entity",
     "New Grid"                  : "wanted_grid",
+    "POTA"                      : "pota",
     "Politeness reply"          : "polite_reply",
 }
 

@@ -53,6 +53,7 @@ from context_menu_handler import ContextMenuHandler
 from clublog import ClubLogManager
 from lotw_manager import LoTWManager
 from lotw_sync_worker import LoTWSyncWorker
+from pota_spots import PotaSpotProvider, PotaFetchWorker
 from country_files import CountryFilesManager
 from setting_dialog import SettingsDialog
 from exclusion_dialog import ExclusionDialog
@@ -104,6 +105,7 @@ from style import (
     FG_COLOR_BLACK_ON_PURPLE,
     BG_COLOR_BLACK_ON_CYAN,
     FG_COLOR_BLACK_ON_CYAN,
+    BG_COLOR_WHITE_ON_POTA,
     BG_COLOR_WHITE_ON_BLUE_VIOLET,
     FG_COLOR_WHITE_ON_BLUE_VIOLET,
     # Status buttons
@@ -174,6 +176,7 @@ from constants import (
     WKB4_REPLY_MODE_ALWAYS,
     convert_wkb4_reply_mode,
     LOTW_SYNC_INTERVAL_MINUTES,
+    POTA_FETCH_INTERVAL_MINUTES,
     # Fonts
     CUSTOM_FONT,
     CUSTOM_FONT_MONO_LG,
@@ -225,6 +228,12 @@ class MainApp(QtWidgets.QMainWindow):
         self.lotw_download_timer = None
         self._lotw_sync_thread   = None
         self._lotw_sync_worker   = None
+        # Parks On The Air: one shared spot provider (live activator->reference
+        # cache + answered-today set), refreshed by a periodic off-thread fetch.
+        self.pota_provider       = PotaSpotProvider()
+        self.pota_fetch_timer    = None
+        self._pota_fetch_thread  = None
+        self._pota_fetch_worker  = None
         self.grid_monitor        = None
         self.active_users_window = None
         self.app_shutting_down   = False
@@ -815,6 +824,9 @@ class MainApp(QtWidgets.QMainWindow):
 
         # Start LoTW sync independently of monitoring
         self._restart_lotw_sync_timer()
+
+        # Start POTA spot fetching independently of monitoring
+        self._restart_pota_fetch_timer()
 
     def init_status_bar(self):
             self.status_bar = CustomStatusBar()
@@ -1940,6 +1952,7 @@ class MainApp(QtWidgets.QMainWindow):
                 wanted              = message.get('wanted')
                 wanted_cq_zone      = message.get('wanted_cq_zone')
                 wanted_grid         = message.get('wanted_grid')
+                pota                = message.get('pota')
                 monitored           = message.get('monitored')
                 monitored_cq_zone   = message.get('monitored_cq_zone')
                 excluded            = message.get('excluded')
@@ -1971,8 +1984,10 @@ class MainApp(QtWidgets.QMainWindow):
                     message_color      = BG_COLOR_BLACK_ON_SAUMON
                 elif wanted_grid is True:
                     message_color      = BG_COLOR_BLACK_ON_YELLOW
+                elif pota is True:
+                    message_color      = BG_COLOR_WHITE_ON_POTA
                 elif monitored is True:
-                    message_color      = BG_COLOR_BLACK_ON_PURPLE 
+                    message_color      = BG_COLOR_BLACK_ON_PURPLE
                 elif monitored_cq_zone is True:
                     message_color      = BG_COLOR_BLACK_ON_CYAN
                 elif (
@@ -2703,8 +2718,11 @@ class MainApp(QtWidgets.QMainWindow):
                 focus_message = f"Zone {cq_zone}" if cq_zone else "Zone"
             elif priority_type == 'dxcc_entity':
                 focus_message = "DXCC"
+            elif priority_type == 'pota':
+                pota_reference = message.get('pota_reference')
+                focus_message = pota_reference if pota_reference else "POTA"
 
-            if focus_message:    
+            if focus_message:
                 formatted_message+= f" / {focus_message.upper()}"
             
         self.focus_value_label.setText(formatted_message)
@@ -3109,6 +3127,9 @@ class MainApp(QtWidgets.QMainWindow):
 
             # Restart LoTW sync timer regardless of monitoring state
             self._restart_lotw_sync_timer()
+
+            # Restart POTA fetch timer regardless of monitoring state
+            self._restart_pota_fetch_timer()
 
             if self._running:
                 self.refresh_monitoring()
@@ -4373,6 +4394,50 @@ class MainApp(QtWidgets.QMainWindow):
         else:
             log.info("LoTW sync disabled — timer not started")
 
+    def _restart_pota_fetch_timer(self):
+        """Stop any existing POTA spot-fetch timer and restart it if enabled."""
+        if self.pota_fetch_timer:
+            self.pota_fetch_timer.stop()
+            self.pota_fetch_timer = None
+
+        if self.local_params.get('enable_pota', False):
+            interval_ms = POTA_FETCH_INTERVAL_MINUTES * 60 * 1000
+
+            self.pota_fetch_timer = QtCore.QTimer(self)
+            self.pota_fetch_timer.timeout.connect(self.fetch_pota_spots)
+            self.pota_fetch_timer.start(interval_ms)
+
+            # Fetch once shortly after launch/settings change so spots are ready.
+            QtCore.QTimer.singleShot(3000, self.fetch_pota_spots)
+            log.info(f"POTA fetch timer started — first fetch in 3s, then every {POTA_FETCH_INTERVAL_MINUTES} min")
+        else:
+            log.info("POTA disabled — spot fetch timer not started")
+
+    def fetch_pota_spots(self):
+        """Fetch current POTA activator spots off the GUI thread into the provider."""
+        # Skip if a fetch is already running.
+        if self._pota_fetch_thread and self._pota_fetch_thread.isRunning():
+            log.info("POTA fetch already in progress, skipping")
+            return
+
+        thread = QtCore.QThread(self)
+        worker = PotaFetchWorker()
+        worker.moveToThread(thread)
+
+        # Store references immediately to prevent garbage collection.
+        self._pota_fetch_thread = thread
+        self._pota_fetch_worker = worker
+
+        def on_finished(spots):
+            self.pota_provider.update_spots(spots)
+            thread.quit()
+            self._pota_fetch_thread = None
+            self._pota_fetch_worker = None
+
+        thread.started.connect(worker.run)
+        worker.finished.connect(on_finished)
+        thread.start()
+
     def handle_worker_error(self, error_message):
         log.error(error_message)
         self.stop_worker() 
@@ -4496,6 +4561,8 @@ class MainApp(QtWidgets.QMainWindow):
         self.worker.marathon_preference             = self.local_params.get('marathon_preference', {})
         self.worker.dxcc_preference                 = self.local_params.get('dxcc_preference', {})
         self.worker.enable_dxcc_reply_unconfirmed   = self.local_params.get('enable_dxcc_reply_unconfirmed', False)
+        self.worker.enable_pota                     = self.local_params.get('enable_pota', False)
+        self.worker.pota_provider                   = self.pota_provider
         self.worker.grid_tracker_preference         = self.local_params.get('grid_tracker_preference', {})
         self.worker.enable_grid_reply_new_grid      = self.local_params.get('enable_grid_reply_new_grid', False)
         self.worker.enable_grid_reply_unconfirmed   = self.local_params.get('enable_grid_reply_unconfirmed', False)
@@ -4598,6 +4665,9 @@ class MainApp(QtWidgets.QMainWindow):
         if hasattr(self, 'lotw_download_timer') and self.lotw_download_timer:
             self.lotw_download_timer.stop()
             self.lotw_download_timer = None
+        if hasattr(self, 'pota_fetch_timer') and self.pota_fetch_timer:
+            self.pota_fetch_timer.stop()
+            self.pota_fetch_timer = None
         self.activity_bar.setValue(0)
         self.hide_status_menu()
 

@@ -29,7 +29,9 @@ from style import (
     BG_COLOR_BLACK_ON_PURPLE,
     FG_COLOR_BLACK_ON_PURPLE,
     BG_COLOR_BLACK_ON_CYAN,
-    FG_COLOR_BLACK_ON_CYAN
+    FG_COLOR_BLACK_ON_CYAN,
+    BG_COLOR_WHITE_ON_POTA,
+    FG_COLOR_WHITE_ON_POTA
 )
 
 class RawDataModel(QtCore.QAbstractTableModel):
@@ -255,6 +257,8 @@ class RawDataModel(QtCore.QAbstractTableModel):
             return QColor(FG_COLOR_WHITE_ON_BLUE)
         elif row_color == BG_COLOR_BLACK_ON_CYAN:
             return QColor(FG_COLOR_BLACK_ON_CYAN)
+        elif row_color == BG_COLOR_WHITE_ON_POTA:
+            return QColor(FG_COLOR_WHITE_ON_POTA)
         else:
-            return QColor(FG_COLOR_BLACK_ON_CYAN)  
+            return QColor(FG_COLOR_BLACK_ON_CYAN)
     

@@ -55,8 +55,10 @@ export default defineConfig({
             { text: 'Watchdog & Exclusions', link: '/guide/watchdog' },
             { text: 'Worked-Before', link: '/guide/worked-before' },
             { text: 'DX Marathon', link: '/guide/marathon' },
+            { text: 'Parks On The Air', link: '/guide/pota' },
             { text: 'Grid Tracker & Map', link: '/guide/grid-tracker' },
-            { text: 'Finding a Clear Frequency', link: '/guide/gap-finder' }
+            { text: 'Finding a Clear Frequency', link: '/guide/gap-finder' },
+            { text: 'Antenna Rotator', link: '/guide/rotator' }
           ]
         },
         {

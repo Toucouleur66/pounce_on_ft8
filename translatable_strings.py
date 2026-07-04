@@ -165,6 +165,7 @@ class SettingsStrings:
     MENU_LOTW = lambda: tr("SettingsDialog", "Logbook of The World")
     MENU_DX_MARATHON = lambda: tr("SettingsDialog", "DX Marathon")
     MENU_DXCC_PROGRAM = lambda: tr("SettingsDialog", "DXCC Program")
+    MENU_POTA = lambda: tr("SettingsDialog", "Parks On The Air")
     MENU_GRID_TRACKER = lambda: tr("SettingsDialog", "Grid Tracker")
     MENU_PRIORITY_MANAGER = lambda: tr("SettingsDialog", "Priority Manager")
     MENU_LOGBOOK_ANALYSIS = lambda: tr("SettingsDialog", "Logbook Analysis")
@@ -318,6 +319,11 @@ class SettingsStrings:
     )
     GROUP_DXCC_SETTINGS = lambda: tr("SettingsDialog", "Enable DXCC Program for selected bands")
     CHECK_ENABLE_DXCC_UNCONFIRMED = lambda: tr("SettingsDialog", "Keep replying to an entity until it is confirmed (QSL)")
+    # Parks On The Air (POTA)
+    POTA_NOTICE = lambda: tr("SettingsDialog",
+        "<p>Parks On The Air (POTA) replies to park activators currently spotted on pota.app.</p><p>Live FT8/FT4 activator spots are fetched every few minutes. When a decoded callsign matches a spotted activator, Wait and Pounce will reply and display the park reference (e.g. US-1234).</p><p>The same activator is called again whenever their park reference changes; a given reference is only chased once per UTC day. Worked Before rules are ignored for POTA.</p>"
+    )
+    CHECK_ENABLE_POTA = lambda: tr("SettingsDialog", "Enable reply to POTA")
     # Grid Tracker
     GRID_TRACKER_NOTICE = lambda: tr("SettingsDialog",
         "<p>Grid Tracker feature monitors for new grids (4 or 6 character Maidenhead) that haven't been worked yet.</p><p>When enabled, the program will reply to stations in grids you haven't worked on the selected bands.</p>"

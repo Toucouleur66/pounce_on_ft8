@@ -54,7 +54,15 @@ Each row is one decoded message. Columns:
 | Yellow | **Wanted grid**. |
 | Purple | **Monitored callsign**. |
 | Cyan | **Monitored CQ zone**. |
+| Green | **POTA activator** currently spotted on pota.app (see [Parks On The Air](/guide/pota)). |
 | White on blue | A wanted call being **called by others**. |
+
+### Double-click to reply now
+
+**Double-click any row** to reply to that station immediately, overriding the automatic choice —
+handy when you want to grab a specific decode right away. This works even from an extra
+(receive-only) instance: the request is routed through the main copy that keys the radio. The
+station you double-clicked is shown in the focus banner.
 
 ## Right-click / left-click context menu
 

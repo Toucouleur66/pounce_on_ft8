@@ -78,6 +78,31 @@ See [DX Marathon](/guide/marathon).
 
 See [Grid Tracker & Map](/guide/grid-tracker).
 
+## Antenna Rotator
+
+- **PstRotatorAz Connection** — UDP Server address + port, and the live **Current azimuth**.
+- **Wanted Tracking** — *Point the antenna at decoded Wanted callsigns automatically*, with an
+  *Only move if azimuth changes by more than* threshold.
+- **Return to Previous Position** — *Return the antenna to its previous azimuth when idle*, after a
+  configurable number of minutes.
+- **Hourly Schedule** — *Rotate to a fixed azimuth at given times (UTC)*, with a Time / Azimuth
+  table.
+
+See [Antenna Rotator](/guide/rotator).
+
+## DXCC Program
+
+- Per-band buttons to choose which bands the entity check applies to, for DXCC-by-band tracking.
+
+## Parks On The Air
+
+- **Enable reply to POTA** — reply to activators currently spotted on
+  [pota.app](https://pota.app). Live FT8/FT4 spots are fetched every few minutes; a matched
+  activator is highlighted in green and its park reference is shown in the focus label. When
+  enabled, a **POTA** entry appears in the Priority Manager.
+
+See [Parks On The Air](/guide/pota).
+
 ## Priority Manager
 
 - **Maximum number of attempts** (4–30)

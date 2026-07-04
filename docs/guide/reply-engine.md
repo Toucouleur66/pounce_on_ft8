@@ -21,11 +21,18 @@ When more than one wanted station is available, the order you set here decides w
 | Highest | **Wanted Callsign** |
 | | **Wanted CQ Zone** |
 | | **Marathon** |
+| | **DXCC Program** |
 | | **New Grid** |
+| | **POTA** |
 | Lowest | **Politeness reply** |
 
 That's the default order — a wanted callsign beats a wanted zone, which beats a marathon entity,
 and so on. Reorder it to match how *you* hunt.
+
+::: info Some rows only appear when enabled
+**DXCC Program**, **New Grid** and **POTA** show up in the list only once you've enabled the
+matching feature (and, for the logbook-based ones, selected at least one band).
+:::
 
 ::: tip Someone answering you always wins
 Whatever your order, a station that is **calling your callsign** is answered first — you're already

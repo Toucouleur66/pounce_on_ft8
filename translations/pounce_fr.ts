@@ -458,6 +458,18 @@
         <translation>Marathon DX</translation>
     </message>
     <message>
+        <source>Parks On The Air</source>
+        <translation>Parks On The Air</translation>
+    </message>
+    <message>
+        <source>Enable reply to POTA</source>
+        <translation>Activer la réponse aux POTA</translation>
+    </message>
+    <message>
+        <source>&lt;p&gt;Parks On The Air (POTA) replies to park activators currently spotted on pota.app.&lt;/p&gt;&lt;p&gt;Live FT8/FT4 activator spots are fetched every few minutes. When a decoded callsign matches a spotted activator, Wait and Pounce will reply and display the park reference (e.g. US-1234).&lt;/p&gt;&lt;p&gt;The same activator is called again whenever their park reference changes; a given reference is only chased once per UTC day. Worked Before rules are ignored for POTA.&lt;/p&gt;</source>
+        <translation type="unfinished">&lt;p&gt;Parks On The Air (POTA) répond aux activateurs de parcs actuellement spottés sur pota.app.&lt;/p&gt;&lt;p&gt;Les spots FT8/FT4 en direct sont récupérés toutes les quelques minutes. Quand un indicatif décodé correspond à un activateur spotté, Wait and Pounce répond et affiche la référence du parc (ex. US-1234).&lt;/p&gt;&lt;p&gt;Le même activateur est rappelé chaque fois que sa référence de parc change ; une référence donnée n&apos;est chassée qu&apos;une fois par jour UTC. Les règles Worked Before sont ignorées pour POTA.&lt;/p&gt;</translation>
+    </message>
+    <message>
         <source>Grid Tracker</source>
         <translation>Suivi de grilles</translation>
     </message>

@@ -64,6 +64,7 @@ from constants import (
     DEFAULT_SENDING_REPLY,
     DEFAULT_POLITE_REPLY,
     DEFAULT_IGNORE_SAT_ENTRIES,
+    DEFAULT_ENABLE_POTA,
     DEFAULT_GAP_FINDER,
     DEFAULT_WATCHDOG,
     DEFAULT_WATCHDOG_NUMBER_OF_ATTEMPTS,
@@ -174,6 +175,7 @@ class SettingsDialog(QtWidgets.QDialog):
             SettingsStrings.MENU_LOTW(),
             SettingsStrings.MENU_DX_MARATHON(),
             SettingsStrings.MENU_DXCC_PROGRAM(),
+            SettingsStrings.MENU_POTA(),
             SettingsStrings.MENU_GRID_TRACKER(),
             SettingsStrings.MENU_PRIORITY_MANAGER(),
             SettingsStrings.MENU_LOGBOOK_ANALYSIS(),
@@ -207,6 +209,7 @@ class SettingsDialog(QtWidgets.QDialog):
         lotw_page         = QtWidgets.QWidget()
         marathon_page     = QtWidgets.QWidget()
         dxcc_page         = QtWidgets.QWidget()
+        pota_page         = QtWidgets.QWidget()
         grid_tracker_page = QtWidgets.QWidget()
         priority_page     = QtWidgets.QWidget()
         log_analysis_page = QtWidgets.QWidget()
@@ -228,6 +231,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.stacked_widget.addWidget(lotw_page)
         self.stacked_widget.addWidget(marathon_page)
         self.stacked_widget.addWidget(dxcc_page)
+        self.stacked_widget.addWidget(pota_page)
         self.stacked_widget.addWidget(grid_tracker_page)
         self.stacked_widget.addWidget(priority_page)
         self.stacked_widget.addWidget(log_analysis_page)
@@ -247,6 +251,7 @@ class SettingsDialog(QtWidgets.QDialog):
         lotw_layout           = QtWidgets.QVBoxLayout(lotw_page)
         marathon_layout       = QtWidgets.QVBoxLayout(marathon_page)
         dxcc_layout           = QtWidgets.QVBoxLayout(dxcc_page)
+        pota_layout           = QtWidgets.QVBoxLayout(pota_page)
         grid_tracker_layout   = QtWidgets.QVBoxLayout(grid_tracker_page)
         log_analysis_layout   = QtWidgets.QVBoxLayout(log_analysis_page)
         worked_b4_layout      = QtWidgets.QVBoxLayout(worked_b4_page)
@@ -1372,6 +1377,31 @@ class SettingsDialog(QtWidgets.QDialog):
         dxcc_layout.addStretch()
 
         """
+            Parks On The Air (POTA) Settings
+
+            POTA activator status is looked up live from pota.app (not the local
+            ADIF), so this page only needs a single enable checkbox. When enabled,
+            a "POTA" row appears in the Priority Manager.
+        """
+        pota_notice_text = SettingsStrings.POTA_NOTICE()
+        pota_notice_label = QtWidgets.QLabel(pota_notice_text)
+        pota_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
+        self.notice_labels.append(pota_notice_label)
+        pota_notice_label.setWordWrap(True)
+        pota_notice_label.setFont(CUSTOM_FONT_SMALL)
+        pota_notice_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
+
+        self.enable_pota = QtWidgets.QCheckBox(SettingsStrings.CHECK_ENABLE_POTA())
+        self.enable_pota.setFont(CUSTOM_FONT_SMALL)
+        self.enable_pota.setChecked(DEFAULT_ENABLE_POTA)
+        # Toggling POTA changes whether the "POTA" row shows in the Priority Manager.
+        self.enable_pota.toggled.connect(self.populate_priority_list)
+
+        pota_layout.addWidget(pota_notice_label)
+        pota_layout.addWidget(self.enable_pota)
+        pota_layout.addStretch()
+
+        """
             Log Analysis Settings
         """
         log_analysis_layout.addWidget(log_analysis_notice_label)
@@ -2032,6 +2062,9 @@ class SettingsDialog(QtWidgets.QDialog):
                         continue
                 elif key == "wanted_grid":
                     if not self.grid_tracker_preference or not any(self.grid_tracker_preference.values()):
+                        continue
+                elif key == "pota":
+                    if not (hasattr(self, 'enable_pota') and self.enable_pota.isChecked()):
                         continue
                 available_items.append(display_name)
             if not self.enable_polite_reply.isChecked():
@@ -3046,6 +3079,9 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_ignore_sat_entries.setChecked(
             self.params.get('enable_ignore_sat_entries', DEFAULT_IGNORE_SAT_ENTRIES)
         )
+        self.enable_pota.setChecked(
+            self.params.get('enable_pota', DEFAULT_ENABLE_POTA)
+        )
         self.enable_watchdog.setChecked(
             self.params.get('enable_watchdog', DEFAULT_WATCHDOG)
         )
@@ -3415,6 +3451,7 @@ class SettingsDialog(QtWidgets.QDialog):
             'marathon_preference'                        : marathon_preference,
             'dxcc_preference'                            : dxcc_preference,
             'enable_dxcc_reply_unconfirmed'              : self.enable_dxcc_reply_unconfirmed.isChecked(),
+            'enable_pota'                                : self.enable_pota.isChecked(),
             'grid_tracker_preference'                    : grid_tracker_preference,
             'enable_grid_reply_new_grid'                 : self.enable_grid_reply_new_grid.isChecked(),
             'enable_grid_reply_unconfirmed'              : self.enable_grid_reply_unconfirmed.isChecked(),

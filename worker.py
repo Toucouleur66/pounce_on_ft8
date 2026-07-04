@@ -80,6 +80,8 @@ class Worker(QObject):
             marathon_preference                = None,
             dxcc_preference                    = None,
             enable_dxcc_reply_unconfirmed      = False,
+            enable_pota                        = False,
+            pota_provider                      = None,
             grid_tracker_preference            = None,
             enable_grid_reply_new_grid         = False,
             enable_grid_reply_unconfirmed      = False,
@@ -151,6 +153,8 @@ class Worker(QObject):
         self.marathon_preference                = marathon_preference or {}
         self.dxcc_preference                    = dxcc_preference or {}
         self.enable_dxcc_reply_unconfirmed      = enable_dxcc_reply_unconfirmed
+        self.enable_pota                        = enable_pota
+        self.pota_provider                      = pota_provider
         self.grid_tracker_preference            = grid_tracker_preference or {}
         self.enable_grid_reply_new_grid         = enable_grid_reply_new_grid
         self.enable_grid_reply_unconfirmed      = enable_grid_reply_unconfirmed
@@ -219,6 +223,8 @@ class Worker(QObject):
                 marathon_preference             = self.marathon_preference,
                 dxcc_preference                 = self.dxcc_preference,
                 enable_dxcc_reply_unconfirmed   = self.enable_dxcc_reply_unconfirmed,
+                enable_pota                     = self.enable_pota,
+                pota_provider                   = self.pota_provider,
                 grid_tracker_preference         = self.grid_tracker_preference,
                 enable_grid_reply_new_grid      = self.enable_grid_reply_new_grid,
                 enable_grid_reply_unconfirmed   = self.enable_grid_reply_unconfirmed,
@@ -320,6 +326,8 @@ class Worker(QObject):
             self.listener.marathon_preference                   = self.marathon_preference
             self.listener.dxcc_preference                       = self.dxcc_preference
             self.listener.enable_dxcc_reply_unconfirmed         = self.enable_dxcc_reply_unconfirmed
+            self.listener.enable_pota                           = self.enable_pota
+            self.listener.pota_provider                         = self.pota_provider
             self.listener.grid_tracker_preference               = self.grid_tracker_preference
             self.listener.enable_grid_reply_new_grid            = self.enable_grid_reply_new_grid
             self.listener.enable_grid_reply_unconfirmed         = self.enable_grid_reply_unconfirmed
