@@ -114,8 +114,13 @@ def parse_single_wsjtx_message(
         cleaned_message = message[:q_match.start()].rstrip()
 
     # 1) Handle <...> message
+    #
+    #    "<...>" is the *called* station that JTDX/WSJT-X could not decode.
+    #    The transmitting callsign still follows and is kept. The trailing
+    #    msg is optional (e.g. "<...> EX/KZ1R" has nothing after the call),
+    #    so both the msg and its leading space are optional here.
     match = re.match(
-        r"^<\.\.\.>\s+([A-Z0-9/]*\d[A-Z0-9/]*)\s+([A-Z0-9+\-]+)?",
+        r"^<\.\.\.>\s+([A-Z0-9/]*\d[A-Z0-9/]*)(?:\s+([A-Z0-9+\-]+))?",
         message
     )
     if match:
@@ -386,6 +391,8 @@ def matches_any(patterns, callsign):
     return any(fnmatch.fnmatch(callsign, pattern) for pattern in patterns)
 
 def is_exact_match(patterns, callsign):
+    if not callsign or patterns is None:
+        return False
     patterns = [p.strip().upper() for p in patterns if p.strip()]
     return callsign.upper() in patterns
 
