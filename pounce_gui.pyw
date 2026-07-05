@@ -886,7 +886,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.activateWindow()
         
         self.blinking_grid()
-        self.on_focus_value_label_clicked()
         self.hide_status_menu()
         self.scroll_to_message_uid(self.last_focus_value_message_uid)
             
