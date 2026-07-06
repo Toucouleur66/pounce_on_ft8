@@ -2016,14 +2016,23 @@ class Listener(QObject):
         for filtered_message in filtered_messages:
             if filtered_message['directed'] == self.my_call:
                 if filtered_message['callsign'] == self.targeted_call:
+                    # QSO in progress with the station we are currently targeting.
                     filtered_message['priority'] = highest_priority + 1
-                else:
+                elif len(self.reply_attempts.get(filtered_message['callsign'], [])) > 0:
+                    # A QSO we actually initiated (we already emitted a reply to
+                    # this callsign, auto or double-click) but targeted_call was
+                    # lost (watchdog/focus). Keep top priority to finish it.
                     filtered_message['priority'] = highest_priority
+                else:
+                    # Station reports us WITHOUT us ever calling it: not our QSO.
+                    # Do NOT grant absolute priority (that would beat a real wanted).
+                    # Demote to a normal directed message so its own bonus decides.
+                    filtered_message['priority'] = 1 if filtered_message.get('cqing') else 0
             else:
                 if filtered_message.get('cqing'):
                     filtered_message['priority'] = 1
                 else:
-                    filtered_message['priority'] = 0                    
+                    filtered_message['priority'] = 0
 
             priority_bonus, priority_type = self.get_priority_bonus(filtered_message)
             filtered_message['priority'] += priority_bonus
@@ -2159,6 +2168,14 @@ class Listener(QObject):
             return
 
         try:
+            # Record that we emitted a reply so a manually-started (double-click)
+            # QSO counts as "engaged" for reply-priority, just like an automatic
+            # reply. The automatic path already fills reply_attempts before calling
+            # us, so only fill the gap left by the double-click paths (local MASTER
+            # double-click and a SLAVE's relayed RequestReplyPacket).
+            if self.targeted_call and self.targeted_call not in self.reply_attempts:
+                self.reply_attempts[self.targeted_call] = [callsign_packet.time]
+
             radio_addr_port = self.radio_addr_port or self.origin_addr_port
             self.reply_to_packet_time = datetime.now(timezone.utc)
             reply_pkt = pywsjtx.ReplyPacket.Builder(callsign_packet)
