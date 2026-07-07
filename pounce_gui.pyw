@@ -2030,6 +2030,11 @@ class MainApp(QtWidgets.QMainWindow):
                       relayed decision (drives_focus), which must NOT add a duplicate row.
                 """
                 drives_focus = message.get('drives_focus', False)
+                # A SLAVE-local QSO-factual decode (ready_to_log / directed_to_my_call)
+                # that drives the banner but is a REAL local decode: it must still draw
+                # its own table row. Only a MASTER-relayed decision (drives_focus)
+                # skips the row, because the row already exists from the local decode.
+                local_focus = message.get('local_focus', False)
 
                 if not (self._instance == SLAVE and drives_focus):
                     self.update_model_data(
@@ -2056,9 +2061,11 @@ class MainApp(QtWidgets.QMainWindow):
                         message.get('packet_id'),
                     )
 
-                # On a SLAVE only the MASTER's relayed decision may drive the focus
-                # banner + sounds; the SLAVE's own local decodes never do.
-                if self._instance != SLAVE or drives_focus:
+                # On a SLAVE the focus banner + sounds are driven by the MASTER's
+                # relayed decision (drives_focus) OR by a QSO-factual local decode
+                # (local_focus: ready_to_log / directed_to_my_call). The SLAVE's other
+                # local decodes (wanted/zone/monitored) never drive the banner.
+                if self._instance != SLAVE or drives_focus or local_focus:
                     self.message_buffer.append(message)
 
                     if not self.process_timer:

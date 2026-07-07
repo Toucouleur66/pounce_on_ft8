@@ -52,6 +52,12 @@ from constants import (
     PRIORITY_LIST
 )
 
+# Message types a SLAVE may drive from its OWN local decode (banner + sound),
+# because they are QSO-factual (a message directed to us / the end of a QSO) and
+# computed identically on both instances — unlike wanted/zone/monitored decisions
+# which depend on the (divergent) config/ADIF and must come from the MASTER's relay.
+SLAVE_LOCAL_FOCUS_TYPES = ('ready_to_log', 'directed_to_my_call')
+
 class Listener(QObject):
     def __init__(
             self,
@@ -1949,6 +1955,20 @@ class Listener(QObject):
                 'directed_to_my_call' : (directed is not None and directed == self.my_call)
             }
 
+                """
+                    On a SLAVE, wanted/zone/monitored decisions are unreliable (its
+                    ADIF/config differ) and are driven by the MASTER's relayed
+                    DecisionPacket instead. But QSO-factual events (a message sent to
+                    us / the end of a QSO) are computed identically on both sides and
+                    the SLAVE already acts on them (it logs its own QSOs). So let the
+                    SLAVE's OWN decode drive the banner + sound for those, without
+                    depending on the relay timing. local_focus = a LOCAL slave decode
+                    that must ALSO draw its table row (unlike a relayed decision which
+                    only drives the banner and would duplicate an existing row).
+                """
+                if self._instance == SLAVE and message_type in SLAVE_LOCAL_FOCUS_TYPES:
+                    decode_message['local_focus'] = True
+
                 self.message_callback(decode_message)
 
                 """
@@ -1956,11 +1976,14 @@ class Listener(QObject):
                     SLAVE drives its focus banner + sounds identically, instead of
                     recomputing from its own (different) settings/ADIF. Only the
                     "significant" decodes (something worth showing/sounding) are sent,
-                    to keep the control-link light.
+                    to keep the control-link light. QSO-factual types are NOT relayed:
+                    the SLAVE already drives those from its own local decode (see
+                    SLAVE_LOCAL_FOCUS_TYPES), so relaying would double the banner/sound.
                 """
                 if (
                     self._instance == MASTER
                     and (message_type is not None or priority)
+                    and message_type not in SLAVE_LOCAL_FOCUS_TYPES
                     and self.can_relay_decision()
                 ):
                     self.send_decision_packet(decode_message)
