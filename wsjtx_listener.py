@@ -2047,10 +2047,13 @@ class Listener(QObject):
                     # lost (watchdog/focus). Keep top priority to finish it.
                     filtered_message['priority'] = highest_priority
                 else:
-                    # Station reports us WITHOUT us ever calling it: not our QSO.
-                    # Do NOT grant absolute priority (that would beat a real wanted).
-                    # Demote to a normal directed message so its own bonus decides.
-                    filtered_message['priority'] = 1 if filtered_message.get('cqing') else 0
+                    # Station calls US without us ever calling it: not our QSO, so
+                    # NO absolute priority (that would beat a real wanted — prior fix).
+                    # But being addressed to us still ranks it, at the SAME bonus
+                    # level, above a CQ (base 1) and above a message directed to a
+                    # third party (base 0). Base 2 keeps it below an engaged QSO
+                    # (highest_priority) and never overrides the wanted bonus order.
+                    filtered_message['priority'] = 2
             else:
                 if filtered_message.get('cqing'):
                     filtered_message['priority'] = 1
