@@ -100,6 +100,7 @@ class Listener(QObject):
             adif_worked_backup_file_path,
             worked_before_preference,
             minimum_report_for_reply,
+            max_reply_callsign_length,
             priority_order,
             enable_club_log_synch,
             club_log_email,
@@ -260,6 +261,7 @@ class Listener(QObject):
         self.worked_before_preference       = worked_before_preference      
 
         self.minimum_report_for_reply       = minimum_report_for_reply
+        self.max_reply_callsign_length      = max_reply_callsign_length
 
         self.enable_club_log_synch          = enable_club_log_synch
         self.club_log_email                 = club_log_email
@@ -628,7 +630,8 @@ class Listener(QObject):
         log_output.append(f"EnableGapFinder={self.enable_gap_finder}")    
         log_output.append(f"Band={self.band}")   
         log_output.append(f"FrequencyRange={self.min_freq}-{self.max_freq}Hz")
-        log_output.append(f"MinimumSignalReport={self.minimum_report_for_reply}db")        
+        log_output.append(f"MinimumSignalReport={self.minimum_report_for_reply}db")
+        log_output.append(f"MaxReplyCallsignLength={self.max_reply_callsign_length}")
         log_output.append(f"WantedCallsigns={self.wanted_callsigns}")
         log_output.append(f"MonitoredCallsigns={self.monitored_callsigns}")
         log_output.append(f"ExcludedCallsigns={self.excluded_callsigns}")
@@ -1586,6 +1589,25 @@ class Listener(QObject):
                     wanted         = False
                     wanted_cq_zone = False
                     wanted_grid    = False
+
+                """
+                    Ignore if callsign is longer than the configured maximum length
+                """
+                if (
+                    self.max_reply_callsign_length is not None
+                    and callsign is not None
+                    and len(callsign) > self.max_reply_callsign_length
+                    and (
+                        wanted
+                        or wanted_cq_zone
+                        or wanted_grid
+                    )
+                ):
+                    log.warning(f"[ {callsign} ] exceeds max reply length [ {self.max_reply_callsign_length} ], skipping")
+                    wanted          = False
+                    wanted_cq_zone  = False
+                    wanted_grid     = False
+                    reply_to_packet = False
 
                 if wanted:
                     log.info(f"Focus on [ {callsign} ] as wanted on [ {self.band} ]")  

@@ -28,6 +28,7 @@ from constants import (
     DEFAULT_POUNCE_LOG,
     DEFAULT_LOG_PACKET_DATA,
     DEFAULT_MINIMUM_REPORT,
+    DEFAULT_MAX_REPLY_CALLSIGN_LENGTH,
     DEFAULT_JTDX_CLICK_PROMPT_LOG_QSO,
     WKB4_REPLY_MODE_ALWAYS,
     FREQ_MINIMUM,
@@ -87,6 +88,7 @@ class Worker(QObject):
             enable_grid_reply_unconfirmed      = False,
             enable_ignore_sat_entries          = DEFAULT_IGNORE_SAT_ENTRIES,
             minimum_report_for_reply           = DEFAULT_MINIMUM_REPORT,
+            max_reply_callsign_length          = DEFAULT_MAX_REPLY_CALLSIGN_LENGTH,
             priority_order                     = None,
             enable_club_log_synch              = False,
             club_log_email                     = '',
@@ -160,6 +162,7 @@ class Worker(QObject):
         self.enable_grid_reply_unconfirmed      = enable_grid_reply_unconfirmed
         self.enable_ignore_sat_entries          = enable_ignore_sat_entries
         self.minimum_report_for_reply           = minimum_report_for_reply
+        self.max_reply_callsign_length          = max_reply_callsign_length
         self.priority_order                     = priority_order
 
         self.enable_club_log_synch              = enable_club_log_synch
@@ -234,6 +237,7 @@ class Worker(QObject):
                 adif_worked_backup_file_path     = self.adif_worked_backup_file_path,
                 worked_before_preference        = self.worked_before_preference,
                 minimum_report_for_reply        = self.minimum_report_for_reply,
+                max_reply_callsign_length       = self.max_reply_callsign_length,
                 priority_order                  = self.priority_order,
 
                 enable_club_log_synch           = self.enable_club_log_synch,
@@ -336,6 +340,7 @@ class Worker(QObject):
                 self.listener.adif_monitor.set_ignore_sat_entries(self.enable_ignore_sat_entries)
             self.listener.worked_before_preference              = self.worked_before_preference
             self.listener.minimum_report_for_reply              = self.minimum_report_for_reply
+            self.listener.max_reply_callsign_length             = self.max_reply_callsign_length
             if self.priority_order is not None:
                 self.listener.priority_order                    = self.priority_order
 

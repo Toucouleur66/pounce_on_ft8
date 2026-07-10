@@ -172,6 +172,7 @@ from constants import (
     DEFAULT_DELAY_BETWEEN_SOUND,
     DEFAULT_MAX_WAITING_DELAY,
     DEFAULT_MINIMUM_REPORT,
+    DEFAULT_MAX_REPLY_CALLSIGN_LENGTH,
     ACTIVITY_BAR_MAX_VALUE,
     WKB4_REPLY_MODE_ALWAYS,
     convert_wkb4_reply_mode,
@@ -4574,6 +4575,7 @@ class MainApp(QtWidgets.QMainWindow):
         self.worker.enable_grid_reply_unconfirmed   = self.local_params.get('enable_grid_reply_unconfirmed', False)
         self.worker.enable_ignore_sat_entries       = self.local_params.get('enable_ignore_sat_entries', DEFAULT_IGNORE_SAT_ENTRIES)
         self.worker.minimum_report_for_reply        = self.local_params.get('minimum_report_for_reply', DEFAULT_MINIMUM_REPORT)
+        self.worker.max_reply_callsign_length       = self.local_params.get('max_reply_callsign_length', DEFAULT_MAX_REPLY_CALLSIGN_LENGTH)
         self.worker.priority_order                  = self.local_params.get('priority_order', list(PRIORITY_LIST.values()))
 
         self.worker.enable_club_log_synch           = self.local_params.get('enable_club_log_synch', False)

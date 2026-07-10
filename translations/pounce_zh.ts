@@ -646,6 +646,10 @@
         <translation>最小报告</translation>
     </message>
     <message>
+        <source>Do not reply to callsigns longer than</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Priority Manager</source>
         <translation>优先级管理器</translation>
     </message>

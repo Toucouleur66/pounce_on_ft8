@@ -642,6 +642,10 @@
         <translation>Rapport minimum</translation>
     </message>
     <message>
+        <source>Do not reply to callsigns longer than</source>
+        <translation>Ne pas répondre aux indicatifs plus longs que</translation>
+    </message>
+    <message>
         <source>&lt;p&gt;Set the priority order for reply decisions when decoding several potential callsigns for a same period.&lt;/p&gt;&lt;p&gt;Drag and drop blocks to reorder them. The first row has the highest priority, and the last row refers to the lowest priority.&lt;/p&gt;</source>
         <translation type="unfinished">&lt;p&gt;Définissez l&apos;ordre de priorité pour savoir de quelle façon le programme va gérer ses priorités pour une même période.&lt;/p&gt;&lt;p&gt;Glissez-déposez les blocs pour les réorganiser. La première ligne a la priorité la plus élevée, et la dernière ligne a la priorité la plus faible.&lt;/p&gt;</translation>
     </message>

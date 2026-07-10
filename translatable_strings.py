@@ -227,6 +227,7 @@ class SettingsStrings:
     )
     GROUP_MINIMUM_REPORT = lambda: tr("SettingsDialog", "Minimum dB signal for reply (FT8/FT4 Mode only)")
     LABEL_MINIMUM_REPORT = lambda: tr("SettingsDialog", "Minimum report")
+    LABEL_MAX_REPLY_CALLSIGN_LENGTH = lambda: tr("SettingsDialog", "Do not reply to callsigns longer than")
     # Priority Manager
     GROUP_PRIORITY_MANAGER = lambda: tr("SettingsDialog", "Priority Manager Settings")
     PRIORITY_NOTICE = lambda: tr("SettingsDialog",

@@ -76,6 +76,9 @@ from constants import (
     DEFAULT_DELAY_BETWEEN_SOUND,
     DEFAULT_MAX_WAITING_DELAY,
     DEFAULT_MINIMUM_REPORT,
+    DEFAULT_MAX_REPLY_CALLSIGN_LENGTH,
+    MIN_MAX_REPLY_CALLSIGN_LENGTH,
+    MAX_MAX_REPLY_CALLSIGN_LENGTH,
     DEFAULT_JTDX_CLICK_PROMPT_LOG_QSO,
     DEFAULT_JTDX_CLICK_DELAY,
     # PstRotator
@@ -447,11 +450,22 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_reply_to_valid_direction.setFont(CUSTOM_FONT)
         self.enable_reply_to_valid_direction.setChecked(True)
 
+        max_reply_callsign_length_label = QtWidgets.QLabel(SettingsStrings.LABEL_MAX_REPLY_CALLSIGN_LENGTH())
+        max_reply_callsign_length_label.setFont(CUSTOM_FONT)
+
+        self.max_reply_callsign_length = QtWidgets.QSpinBox()
+        self.max_reply_callsign_length.setRange(MIN_MAX_REPLY_CALLSIGN_LENGTH, MAX_MAX_REPLY_CALLSIGN_LENGTH)
+        self.max_reply_callsign_length.setValue(DEFAULT_MAX_REPLY_CALLSIGN_LENGTH)
+        self.max_reply_callsign_length.setSuffix(" characters")
+        self.max_reply_callsign_length.setFont(CUSTOM_FONT)
+
         general_settings_layout.addWidget(self.enable_sending_reply, 0, 0, 1, 2)
         general_settings_layout.addWidget(self.enable_polite_reply, 1, 0, 1, 2)
         general_settings_layout.addWidget(self.enable_log_all_valid_contact, 2, 0, 1, 2)
         general_settings_layout.addWidget(self.enable_reply_to_valid_callsign, 3, 0, 1, 2)
         general_settings_layout.addWidget(self.enable_reply_to_valid_direction, 4, 0, 1, 2)
+        general_settings_layout.addWidget(max_reply_callsign_length_label, 5, 0)
+        general_settings_layout.addWidget(self.max_reply_callsign_length, 5, 1)
 
         general_settings_group.setLayout(QtWidgets.QVBoxLayout())
         general_settings_group.layout().setContentsMargins(0, 0, 0, 0)
@@ -3076,6 +3090,9 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_gap_finder.setChecked(
             self.params.get('enable_gap_finder', DEFAULT_GAP_FINDER)
         )
+        self.max_reply_callsign_length.setValue(
+            self.params.get('max_reply_callsign_length', DEFAULT_MAX_REPLY_CALLSIGN_LENGTH)
+        )
         self.enable_ignore_sat_entries.setChecked(
             self.params.get('enable_ignore_sat_entries', DEFAULT_IGNORE_SAT_ENTRIES)
         )
@@ -3416,6 +3433,7 @@ class SettingsDialog(QtWidgets.QDialog):
             'max_reply_attempts_to_callsign'             : max_reply_attempts,
             'max_waiting_delay'                          : max_waiting_delay,
             'minimum_report_for_reply'                   : minimum_report_for_reply,
+            'max_reply_callsign_length'                  : self.max_reply_callsign_length.value(),
             'enable_gap_finder'                          : self.enable_gap_finder.isChecked(),
             'enable_ignore_sat_entries'                  : self.enable_ignore_sat_entries.isChecked(),
             'enable_watchdog'                            : self.enable_watchdog.isChecked(),

@@ -638,6 +638,10 @@
         <translation>最小レポート</translation>
     </message>
     <message>
+        <source>Do not reply to callsigns longer than</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Priority Manager</source>
         <translation>優先度マネージャー</translation>
     </message>

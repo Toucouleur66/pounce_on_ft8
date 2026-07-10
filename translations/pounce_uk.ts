@@ -642,6 +642,10 @@
         <translation>Мінімальний звіт</translation>
     </message>
     <message>
+        <source>Do not reply to callsigns longer than</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Priority Manager</source>
         <translation>Менеджер пріоритетів</translation>
     </message>
