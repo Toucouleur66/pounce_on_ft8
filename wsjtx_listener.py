@@ -2522,10 +2522,12 @@ class Listener(QObject):
         ):        
         marathon = False
 
-        # entity_wkb4 not worked before
-        if callsign_wkb4 and self.worked_before_preference == WKB4_REPLY_MODE_NEVER:
-            log.warning(f"Skipping [ {callsign} ] as it is wkb4 [ {wkb4_year}]")
-        elif callsign in self.wanted_callsigns_per_entity.get(self.band, {}).get(entity_code, {}):
+        # Marathon is per-year and IGNORES Worked Before (like DXCC/POTA): a QSO in a
+        # PREVIOUS year must not block this year's marathon. "Already worked this year
+        # on this band" is enforced upstream by is_entity_worked_b4 and by the
+        # year/band check in the last branch below — so callsign_wkb4/wkb4_year are
+        # intentionally not consulted here (kept in the signature for the caller).
+        if callsign in self.wanted_callsigns_per_entity.get(self.band, {}).get(entity_code, {}):
             marathon = True
         elif self.marathon_preference.get(MARATHON_UNLIMITED):
             if self.is_entity_worked_unlimited_marathon(
