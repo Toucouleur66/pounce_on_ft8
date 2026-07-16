@@ -48,6 +48,12 @@ WANTED_HOLD_SECONDS = 5 * 60
 # second, which is negligible on CPU and network.
 AZ_POLL_INTERVAL_SECONDS = 1
 
+# The rotor is considered "arrived" once it sits within this many degrees of the
+# target. Kept tight (and independent of the move threshold) so the "back to XX°"
+# status stays visible until the antenna has actually reached the rest azimuth,
+# while still tolerating the rotor's small final positioning error.
+ARRIVED_TOLERANCE_DEGREES = 2
+
 # Reply format on UDP port+1, e.g. "AZ:297.0".
 _AZ_REPLY_RE = re.compile(r'AZ\s*[:=]\s*(-?\d+(?:\.\d+)?)', re.IGNORECASE)
 
@@ -319,12 +325,11 @@ class PstRotatorController(QObject):
         if not self._returning or self._pre_wanted_azimuth is None:
             return None
 
-        # Consider the return finished once the rotor sits on the target. Allow
-        # the same slack as the move threshold (the rotor stops within it), with
-        # a small floor so a zero threshold still terminates.
+        # Keep showing "back to" until the rotor has actually reached the target,
+        # not merely within the (larger) move threshold. A tight fixed tolerance
+        # absorbs the rotor's small final positioning error.
         if self._current_azimuth is not None:
-            tolerance = max(self.threshold, 2)
-            if _angular_diff(self._current_azimuth, self._pre_wanted_azimuth) <= tolerance:
+            if _angular_diff(self._current_azimuth, self._pre_wanted_azimuth) <= ARRIVED_TOLERANCE_DEGREES:
                 self._returning = False
                 return None
 
