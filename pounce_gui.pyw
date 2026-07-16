@@ -2817,9 +2817,9 @@ class MainApp(QtWidgets.QMainWindow):
     def refresh_heartbeat_or_azimuth_label(self):
         """
         When the connection is alive and the rotator azimuth is known, show
-        "Az: XX°" in the heartbeat slot. While a return-to-position countdown is
-        running, show "Az: XX° → YY° Nmin left" (or "Ns left" under a minute).
-        Otherwise show the heartbeat text.
+        "Az: XX°" in the heartbeat slot. While the return-to-position countdown
+        runs, show "Az: XX° Nmin left → YY°"; while the rotor is actually
+        travelling back, show "Az: XX° back to YY°". Otherwise show the heartbeat.
         """
         if not hasattr(self, 'status_bar_label_heartbeat'):
             return
@@ -2829,6 +2829,14 @@ class MainApp(QtWidgets.QMainWindow):
 
         if getattr(self, '_connection_lost', False) or current_azimuth is None:
             self.status_bar_label_heartbeat.setText(getattr(self, '_last_heartbeat_str', '') or MainWindowStrings.NO_HEARTBEAT_RECEIVED())
+            return
+
+        # The rotor is on its way back to the pre-tracking azimuth.
+        returning_azimuth = rotator.returning_to_azimuth() if rotator else None
+        if returning_azimuth is not None:
+            self.status_bar_label_heartbeat.setText(
+                MainWindowStrings.STATUS_AZIMUTH_BACK_TO(round(current_azimuth), round(returning_azimuth))
+            )
             return
 
         remaining = rotator.park_seconds_remaining() if rotator else None

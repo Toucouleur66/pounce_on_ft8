@@ -109,6 +109,7 @@ class MainWindowStrings:
     NO_HEARTBEAT_RECEIVED = lambda: tr("MainWindow", "No HeartBeat received.")
     STATUS_AZIMUTH = lambda az: tr("MainWindow", "Az:") + f" {az}°"
     STATUS_AZIMUTH_RETURN = lambda current, target, remaining: tr("MainWindow", "Az:") + f" {current}° {remaining} → {target}°"
+    STATUS_AZIMUTH_BACK_TO = lambda current, target: tr("MainWindow", "Az:") + f" {current}° " + tr("MainWindow", "back to") + f" {target}°"
     RETURN_LEFT_MIN = lambda minutes: f"{minutes}min " + tr("MainWindow", "left")
     RETURN_LEFT_SEC = lambda seconds: f"{seconds}s " + tr("MainWindow", "left")
     # Buffer status

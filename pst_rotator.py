@@ -109,6 +109,9 @@ class PstRotatorController(QObject):
         self._last_wanted_time = None
         # True once the antenna has been parked, so we park only once per idle.
         self._parked = True
+        # True from the moment the park command is sent until the rotor reaches
+        # the pre-tracking azimuth (drives the "back to XX°" status read-out).
+        self._returning = False
 
         # Schedule slot already fired today, keyed by "HH:MM", to fire once per day.
         self._fired_slots = set()
@@ -215,10 +218,13 @@ class PstRotatorController(QObject):
             return
 
         # Capture the pre-tracking azimuth on the FIRST wanted move (while still
-        # "parked"), so we can return there once idle.
-        if self._parked:
+        # "parked"), so we can return there once idle. Skip while a return is in
+        # progress: the rotor is mid-travel, so its current position is not the
+        # rest position — keep the one we already captured.
+        if self._parked and not self._returning:
             self._pre_wanted_azimuth = self._current_azimuth
 
+        self._returning = False  # a new reply cancels any return in progress
         self._last_wanted_time = datetime.now(timezone.utc)
         self._parked = False  # a new wanted move resets the park timer
         log.info(f"PstRotator wanted tracking -> {azimuth}°")
@@ -282,6 +288,9 @@ class PstRotatorController(QObject):
             f"PstRotator returning to {round(self._pre_wanted_azimuth)}° "
             f"after {self.park_delay} min without a wanted decode"
         )
+        # Flag the return so the GUI can show "back to XX°" until the rotor
+        # actually gets there.
+        self._returning = True
         self._send_azimuth(self._pre_wanted_azimuth)
 
     def park_seconds_remaining(self):
@@ -300,6 +309,25 @@ class PstRotatorController(QObject):
 
     def return_azimuth(self):
         """Azimuth the antenna will return to when parking, or None."""
+        return self._pre_wanted_azimuth
+
+    def returning_to_azimuth(self):
+        """
+        Azimuth the rotor is currently travelling back to after the park delay
+        expired, or None once it has arrived (or if no return is in progress).
+        """
+        if not self._returning or self._pre_wanted_azimuth is None:
+            return None
+
+        # Consider the return finished once the rotor sits on the target. Allow
+        # the same slack as the move threshold (the rotor stops within it), with
+        # a small floor so a zero threshold still terminates.
+        if self._current_azimuth is not None:
+            tolerance = max(self.threshold, 2)
+            if _angular_diff(self._current_azimuth, self._pre_wanted_azimuth) <= tolerance:
+                self._returning = False
+                return None
+
         return self._pre_wanted_azimuth
 
     """
