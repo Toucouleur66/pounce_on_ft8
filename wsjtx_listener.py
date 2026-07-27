@@ -1865,15 +1865,41 @@ class Listener(QObject):
                             message_type    = 'callsign_excluded'
 
                     """
-                        Ignore if excluded
+                        Ignore if excluded.
+
+                        A CQ-Zone exclusion (excluded == "Z<n>") only filters ordinary
+                        traffic: it must NOT block a program/collection target (marathon,
+                        DXCC, new grid, POTA), the same way it already spares a wanted
+                        callsign. A needed entity can legitimately sit in a zone you
+                        otherwise exclude (e.g. 4U1UN, entity 289, in CQ Zone 5). A
+                        callsign exclusion (a pattern or exact match) still blocks all.
                     """
-                    if excluded:
+                    # A zone exclusion is stored by the parser as "Z<digits>"
+                    # (e.g. "Z5"); a callsign exclusion is a pattern/exact match.
+                    zone_exclusion = (
+                        isinstance(excluded, str)
+                        and len(excluded) > 1
+                        and excluded[0] == 'Z'
+                        and excluded[1:].isdigit()
+                    )
+                    program_target = marathon or dxcc or pota or wanted_grid
+
+                    if excluded and not (zone_exclusion and program_target):
                         log.debug(f"Skipping [ {callsign} ] as it is set as excluded [ {excluded} ]")
                         reply_to_packet = False
                         wanted          = False
                         wanted_grid     = False
                         wanted_cq_zone  = False
+                        marathon        = False
+                        dxcc            = False
+                        pota            = False
                         message_type    = 'callsign_excluded'
+                    elif excluded and zone_exclusion and program_target:
+                        # Program target in an excluded zone: keep it, and clear the
+                        # zone-exclusion flag so downstream (colour/sound) treats it
+                        # as a normal program hit rather than an excluded callsign.
+                        log.info(f"Keeping [ {callsign} ] in excluded zone [ {excluded} ] for program target")
+                        excluded = False
 
                     if self.is_ftx_mode() and directed != self.my_call:
                         """
