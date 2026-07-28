@@ -315,6 +315,7 @@ class SettingsStrings:
     GROUP_MARATHON_SETTINGS = lambda: tr("SettingsDialog", "Enable Marathon for selected bands")
     CHECK_ENABLE_MARATHON = lambda: tr("SettingsDialog", "Enable Marathon mode")
     LABEL_SELECT_BANDS = lambda: tr("SettingsDialog", "Select bands for Marathon:")
+    BUTTON_MARATHON_SCORE = lambda: tr("SettingsDialog", "Show Marathon Score")
     # DXCC Program
     DXCC_NOTICE = lambda: tr("SettingsDialog",
         "<p>DXCC Program tracks DXCC entities you have not worked on the selected bands (all-time, regardless of year).</p><p>When a new DXCC is decoded, Wait and Pounce will reply to this callsign. If you keep working stations from the same DXCC until it is confirmed, enable the option below.</p><p>Enable <u>Unlimited</u> to chase any DXCC not yet worked on any band.</p>"
@@ -540,6 +541,35 @@ class AdifSummaryStrings:
     HEADER_YEAR = lambda: tr("AdifSummaryDialog", "Year")
     HEADER_TOTAL = lambda: tr("AdifSummaryDialog", "Total")
     LABEL_TOTAL = lambda: tr("AdifSummaryDialog", "Total")
+
+
+# DX MARATHON SCORE WINDOW
+class MarathonScoreStrings:
+    CONTEXT = "MarathonScoreDialog"
+    WINDOW_TITLE = lambda: tr("MarathonScoreDialog", "DX Marathon Score")
+    TITLE = lambda year: tr("MarathonScoreDialog", f"DX Marathon {year}")
+    ANALYZING = lambda: tr("MarathonScoreDialog", "Analyzing logbook…")
+    NO_FILES = lambda: tr("MarathonScoreDialog", "No logbook files selected. Add ADIF files in Logbook Analysis first.")
+    SUBTITLE = lambda: tr("MarathonScoreDialog", "Entities and CQ zones worked per band this year:")
+    TOGGLE_SHOW_ALL_BANDS = lambda: tr("MarathonScoreDialog", "Show all bands")
+    # Table headers
+    HEADER_BAND = lambda: tr("MarathonScoreDialog", "Band")
+    HEADER_ENTITIES = lambda: tr("MarathonScoreDialog", "Entities")
+    HEADER_ZONES = lambda: tr("MarathonScoreDialog", "Zones")
+    HEADER_SCORE = lambda: tr("MarathonScoreDialog", "Score")
+    LABEL_TOTAL = lambda: tr("MarathonScoreDialog", "Total (all bands)")
+    # Score / comparison block
+    GROUP_SCORE = lambda: tr("MarathonScoreDialog", "Official score (all bands, unique)")
+    LABEL_SCORE_LINE = lambda entities, zones, total: tr("MarathonScoreDialog", f"{entities} entities + {zones} zones = {total} points")
+    GROUP_COMPARISON = lambda: tr("MarathonScoreDialog", "Year-to-date comparison")
+    LABEL_COMPARE_BAND = lambda: tr("MarathonScoreDialog", "Compare band:")
+    OPTION_ALL_BANDS = lambda: tr("MarathonScoreDialog", "All bands (official)")
+    COL_THIS_YEAR = lambda year: tr("MarathonScoreDialog", f"{year} to date")
+    COL_LAST_YEAR = lambda year: tr("MarathonScoreDialog", f"{year} same date")
+    COL_CHANGE = lambda: tr("MarathonScoreDialog", "Change")
+    ROW_ENTITIES = lambda: tr("MarathonScoreDialog", "Entities")
+    ROW_ZONES = lambda: tr("MarathonScoreDialog", "Zones")
+    ROW_TOTAL = lambda: tr("MarathonScoreDialog", "Total score")
 
 
 # ACTIVE USERS WINDOW

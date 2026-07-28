@@ -13,6 +13,7 @@ from PyQt6.QtCore import Qt
 from custom_button import CustomButton
 from priority_table import PriorityTableWidget
 from adif_summary_dialog import AdifSummaryDialog
+from marathon_score_dialog import MarathonScoreDialog
 from lotw_manager import LoTWManager
 from lotw_uploader import LoTWClient
 from lotw_incoming_dialog import LoTWIncomingDialog
@@ -23,7 +24,7 @@ from window_controller import WindowController
 
 from datetime import datetime
 
-from translatable_strings import SettingsStrings, CommonStrings
+from translatable_strings import SettingsStrings, CommonStrings, MarathonScoreStrings
 
 from utils import get_local_ip_address, get_log_filename
 from utils import parse_adif
@@ -1335,8 +1336,12 @@ class SettingsDialog(QtWidgets.QDialog):
         """
             Marathon Settings
         """
+        self.marathon_score_button = CustomButton(SettingsStrings.BUTTON_MARATHON_SCORE())
+        self.marathon_score_button.clicked.connect(self.open_marathon_score)
+
         marathon_layout.addWidget(marathon_notice_label)
         marathon_layout.addWidget(self.marathon_group)
+        marathon_layout.addWidget(self.marathon_score_button)
         marathon_layout.addStretch()
 
         """
@@ -2991,6 +2996,22 @@ class SettingsDialog(QtWidgets.QDialog):
 
     def open_windows_monitoring_test(self):
         dialog = WindowMonitoringDialog(self, self.dark_mode)
+        dialog.exec()
+
+    def open_marathon_score(self):
+        if not self.selected_adif_files:
+            QtWidgets.QMessageBox.information(
+                self,
+                SettingsStrings.MENU_DX_MARATHON(),
+                MarathonScoreStrings.NO_FILES(),
+            )
+            return
+        dialog = MarathonScoreDialog(
+            list(self.selected_adif_files),
+            self.enable_ignore_sat_entries.isChecked(),
+            self.dark_mode,
+            self,
+        )
         dialog.exec()
 
     def open_log_folder_clicked(self):
