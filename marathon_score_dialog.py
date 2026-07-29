@@ -9,23 +9,37 @@ from datetime import datetime, timezone
 
 from PyQt6 import QtWidgets
 from PyQt6.QtWidgets import (
-    QDialog, QLabel, QVBoxLayout, QHBoxLayout, QGroupBox, QComboBox,
+    QDialog, QLabel, QVBoxLayout, QHBoxLayout, QGroupBox, QComboBox, QProgressBar,
     QTableWidget, QTableWidgetItem, QHeaderView, QSizePolicy, QSpacerItem
 )
 from PyQt6.QtGui import QFont, QColor
 from PyQt6.QtCore import Qt, QObject, QThread, pyqtSignal
 
 from custom_button import CustomButton
-from custom_qlabel import CustomQLabel
-from animated_toggle import AnimatedToggle
 
-from utils import AMATEUR_BANDS
-from constants import CUSTOM_FONT
+from constants import CUSTOM_FONT, CUSTOM_FONT_SMALL
 from style import get_main_table_qss, set_macos_window_appearance, EVEN_COLOR
 
 from marathon_score import build_scorer
+from marathon_diff_dialog import MarathonDiffDialog
 
 from translatable_strings import MarathonScoreStrings, CommonStrings
+
+# Header CSS shared with the rest of the app (Antenna Rotator, Priority Manager…).
+_HEADER_QSS = """
+    QHeaderView::section {
+        font-weight: normal;
+        border: none;
+        padding: 10 4px 4px 4px;
+    }
+"""
+
+
+def _style_header(table):
+    header = table.horizontalHeader()
+    header.setHighlightSections(False)
+    header.setFont(CUSTOM_FONT_SMALL)
+    header.setStyleSheet(_HEADER_QSS)
 
 from logger import get_logger
 
@@ -59,11 +73,10 @@ class MarathonScoreDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle(MarathonScoreStrings.WINDOW_TITLE())
         self.setModal(True)
-        self.resize(760, 640)
+        self.resize(620, 640)
         self.dark_mode = dark_mode
         self.adif_file_paths = adif_file_paths
         self.ignore_sat_entries = ignore_sat_entries
-        self.show_all_bands = False
         self.scorer = None
         self.comparison_band = None  # None = all bands (official score)
 
@@ -83,16 +96,22 @@ class MarathonScoreDialog(QDialog):
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.main_layout.addWidget(title_label)
 
-        # Busy placeholder shown while parsing.
+        # Busy placeholder + progress bar shown while parsing.
         self.status_label = QLabel(MarathonScoreStrings.ANALYZING())
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.main_layout.addWidget(self.status_label)
 
-        # Container that receives the results once parsing is done.
-        self.results_container = QVBoxLayout()
-        self.main_layout.addLayout(self.results_container)
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setTextVisible(True)
+        self.main_layout.addWidget(self.progress_bar)
 
-        self.main_layout.addStretch()
+        # Container that receives the results once parsing is done. It carries a
+        # stretch factor so the band table (which is set to expand) grows when the
+        # window is made taller.
+        self.results_container = QVBoxLayout()
+        self.main_layout.addLayout(self.results_container, 1)
 
         self.ok_button = CustomButton(CommonStrings.OK())
         self.ok_button.setFixedWidth(80)
@@ -119,7 +138,10 @@ class MarathonScoreDialog(QDialog):
 
     def _on_progress(self, done, total):
         if total:
-            self.status_label.setText(f"{MarathonScoreStrings.ANALYZING()} ({done}/{total})")
+            self.progress_bar.setRange(0, total)
+            self.progress_bar.setValue(done)
+        else:
+            self.progress_bar.setRange(0, 0)  # indeterminate when total unknown
 
     def _on_parsing_finished(self, scorer):
         self._thread.quit()
@@ -127,12 +149,16 @@ class MarathonScoreDialog(QDialog):
         self._worker = None
         self._thread = None
 
+        # Parsing done: hide the busy indicators.
+        self.status_label.hide()
+        self.progress_bar.hide()
+
         self.scorer = scorer
         if scorer is None:
             self.status_label.setText(MarathonScoreStrings.NO_FILES())
+            self.status_label.show()
             return
 
-        self.status_label.setText(MarathonScoreStrings.SUBTITLE())
         self._build_results()
 
     """
@@ -157,32 +183,17 @@ class MarathonScoreDialog(QDialog):
     def _build_results(self):
         self._clear_results()
 
-        # Show-all-bands toggle row.
-        toggle_layout = QHBoxLayout()
-        toggle_layout.addStretch()
-        self.show_all_bands_label = CustomQLabel(MarathonScoreStrings.TOGGLE_SHOW_ALL_BANDS())
-        toggle_layout.addWidget(self.show_all_bands_label)
-        self.show_all_bands_toggle = AnimatedToggle()
-        self.show_all_bands_toggle.setChecked(self.show_all_bands)
-        self.show_all_bands_toggle.stateChanged.connect(self._toggle_show_all_bands)
-        self.show_all_bands_toggle.setFixedSize(self.show_all_bands_toggle.sizeHint())
-        toggle_layout.addWidget(self.show_all_bands_toggle)
-        self.results_container.addLayout(toggle_layout)
+        subtitle = QLabel(MarathonScoreStrings.SUBTITLE())
+        subtitle.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        self.results_container.addWidget(subtitle)
 
-        self.results_container.addWidget(self._build_band_table())
+        # The band table takes the extra vertical space when the window grows.
+        self.results_container.addWidget(self._build_band_table(), 1)
         self.results_container.addSpacerItem(QSpacerItem(20, 10, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed))
-        self.results_container.addWidget(self._build_comparison_group())
-
-    def _toggle_show_all_bands(self, state):
-        self.show_all_bands = bool(state)
-        self._build_results()
+        self.results_container.addWidget(self._build_comparison_group(), 0)
 
     def _build_band_table(self):
-        all_bands = list(AMATEUR_BANDS.keys())
-        if self.show_all_bands:
-            bands = all_bands
-        else:
-            bands = self.scorer.bands_worked(self.current_year) or []
+        bands = self.scorer.bands_worked(self.current_year) or []
 
         table = QTableWidget()
         table.setColumnCount(4)
@@ -201,6 +212,7 @@ class MarathonScoreDialog(QDialog):
         table.setFont(CUSTOM_FONT)
         table.setShowGrid(False)
         table.setStyleSheet(get_main_table_qss(self.dark_mode))
+        _style_header(table)
 
         def cell(text, highlight=False):
             item = QTableWidgetItem(str(text))
@@ -260,6 +272,11 @@ class MarathonScoreDialog(QDialog):
         self.comparison_combo.currentIndexChanged.connect(self._on_comparison_band_changed)
         selector_layout.addWidget(self.comparison_combo)
         selector_layout.addStretch()
+
+        self.view_difference_button = CustomButton(MarathonScoreStrings.BUTTON_VIEW_DIFFERENCE())
+        self.view_difference_button.clicked.connect(self._open_difference)
+        selector_layout.addWidget(self.view_difference_button)
+
         layout.addLayout(selector_layout)
 
         self.comparison_table = QTableWidget()
@@ -278,6 +295,7 @@ class MarathonScoreDialog(QDialog):
         self.comparison_table.setFont(CUSTOM_FONT)
         self.comparison_table.setShowGrid(False)
         self.comparison_table.setStyleSheet(get_main_table_qss(self.dark_mode))
+        _style_header(self.comparison_table)
         self.comparison_table.setFixedHeight(
             self.comparison_table.verticalHeader().defaultSectionSize() * 3
             + self.comparison_table.horizontalHeader().height() + 4
@@ -292,6 +310,20 @@ class MarathonScoreDialog(QDialog):
     def _on_comparison_band_changed(self, _index):
         self.comparison_band = self.comparison_combo.currentData()
         self._fill_comparison_table()
+
+    def _open_difference(self):
+        if self.scorer is None:
+            return
+        dialog = MarathonDiffDialog(
+            self.scorer,
+            self.current_year,
+            self.previous_year,
+            self.comparison_band,
+            self.today_cutoff,
+            self.dark_mode,
+            self,
+        )
+        dialog.exec()
 
     def _fill_comparison_table(self):
         this_ent, this_zone, this_total = self._score_for(self.current_year, self.comparison_band)

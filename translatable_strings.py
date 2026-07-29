@@ -551,7 +551,6 @@ class MarathonScoreStrings:
     ANALYZING = lambda: tr("MarathonScoreDialog", "Analyzing logbook…")
     NO_FILES = lambda: tr("MarathonScoreDialog", "No logbook files selected. Add ADIF files in Logbook Analysis first.")
     SUBTITLE = lambda: tr("MarathonScoreDialog", "Entities and CQ zones worked per band this year:")
-    TOGGLE_SHOW_ALL_BANDS = lambda: tr("MarathonScoreDialog", "Show all bands")
     # Table headers
     HEADER_BAND = lambda: tr("MarathonScoreDialog", "Band")
     HEADER_ENTITIES = lambda: tr("MarathonScoreDialog", "Entities")
@@ -570,6 +569,26 @@ class MarathonScoreStrings:
     ROW_ENTITIES = lambda: tr("MarathonScoreDialog", "Entities")
     ROW_ZONES = lambda: tr("MarathonScoreDialog", "Zones")
     ROW_TOTAL = lambda: tr("MarathonScoreDialog", "Total score")
+    BUTTON_VIEW_DIFFERENCE = lambda: tr("MarathonScoreDialog", "View difference")
+
+
+# DX MARATHON DIFFERENCE WINDOW
+class MarathonDiffStrings:
+    CONTEXT = "MarathonDiffDialog"
+    WINDOW_TITLE = lambda: tr("MarathonDiffDialog", "DX Marathon — difference")
+    TITLE = lambda cur, prev, scope: tr("MarathonDiffDialog", f"{cur} vs {prev} — {scope}")
+    SCOPE_ALL_BANDS = lambda: tr("MarathonDiffDialog", "all bands")
+    TOGGLE_ENTITIES = lambda: tr("MarathonDiffDialog", "Entities")
+    TOGGLE_ZONES = lambda: tr("MarathonDiffDialog", "Zones")
+    CHECK_HIDE_COMMON = lambda: tr("MarathonDiffDialog", "Hide common (show only differences)")
+    COL_DATE = lambda: tr("MarathonDiffDialog", "Date")
+    COL_CALLSIGN = lambda: tr("MarathonDiffDialog", "Callsign")
+    COL_PREFIX = lambda: tr("MarathonDiffDialog", "Prefix")
+    COL_NAME = lambda: tr("MarathonDiffDialog", "Name")
+    COL_CONTINENT = lambda: tr("MarathonDiffDialog", "Continent")
+    COL_CQ_ZONES = lambda: tr("MarathonDiffDialog", "CQ Zones")
+    COL_ZONE = lambda: tr("MarathonDiffDialog", "Zone")
+    SUMMARY = lambda common, gained, lost: tr("MarathonDiffDialog", f"{common} common · {gained} gained · {lost} only last year")
 
 
 # ACTIVE USERS WINDOW
