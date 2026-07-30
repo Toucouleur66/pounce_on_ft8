@@ -29,6 +29,16 @@ except ImportError:
         return name
 
 class CallsignLookup:
+    # CTY prefixes whose entity depends on the callsign length — a quirk ClubLog
+    # hardcodes but that is not expressed in the data files. Maps a prefix to the
+    # exact base-callsign length for which it applies; any other length must fall
+    # through to the next (shorter) matching prefix.
+    #   KG4 = Guantanamo Bay only for KG4 + 2 chars (5-char base, e.g. KG4AB);
+    #   KG4FUY (6) / KG4A (4) are ordinary US callsigns.
+    _PREFIX_EXACT_LENGTH = {
+        "KG4": 5,
+    }
+
     def __init__(
         self,
         xml_file_path       = get_data_file_path("cty.xml"),
@@ -120,11 +130,32 @@ class CallsignLookup:
         
         log.info(f"Built CTY prefix index with {len(self._cty_prefix_index):,} length groups and {total_buckets:,} prefix buckets")
 
+    def _is_length_rule_stale(self, callsign, cached_result):
+        """
+        True if a cached entry was resolved to a length-conditional prefix's
+        entity (e.g. KG4 -> Guantanamo) but the base callsign length does not
+        match that prefix's rule — i.e. it was cached before the rule existed and
+        must be re-resolved.
+        """
+        if not cached_result:
+            return False
+        base_call = callsign.upper().split('/')[0]
+        for prefix, required in self._PREFIX_EXACT_LENGTH.items():
+            if base_call.startswith(prefix) and len(base_call) != required:
+                prefix_entry = self.cty_prefixes.get(prefix)
+                # Match by entity name (the CTY prefix entry has no entity_code).
+                if prefix_entry and cached_result.get("entity") == prefix_entry.get("entity"):
+                    return True
+        return False
+
     def _find_matching_cty_prefixes(self, callsign):
         """Find matching CTY prefixes using optimized index instead of linear search"""
         callsign_upper = callsign.upper()
         callsign_len = len(callsign_upper)
-        
+
+        # Base callsign (before any /P, /M… suffix) for length-conditional prefixes.
+        base_call = callsign_upper.split('/')[0]
+
         # Search through length groups in descending order (longest prefixes first)
         for prefix_len in sorted(self._cty_prefix_index.keys(), reverse=True):
             if prefix_len > callsign_len:
@@ -143,8 +174,14 @@ class CallsignLookup:
                     # Check each prefix in this bucket
                     for prefix in length_dict[start_chars]:
                         if callsign_upper.startswith(prefix):
+                            # Length-conditional prefixes (e.g. KG4 = Guantanamo
+                            # only for a 5-char base) are skipped when the base
+                            # length doesn't match, so a shorter prefix wins.
+                            required = self._PREFIX_EXACT_LENGTH.get(prefix)
+                            if required is not None and len(base_call) != required:
+                                continue
                             return prefix  # Return first (longest) match
-        
+
         return None
 
     def load_cache_from_disk(self):
@@ -833,7 +870,14 @@ class CallsignLookup:
             callsign = callsign.strip().upper()
             if date is None:
                 date = datetime.datetime.now(datetime.timezone.utc)
-            
+
+            # Drop cache entries that were stored before the length-conditional
+            # prefix rules existed (e.g. KG4FUY cached as Guantanamo Bay), so they
+            # are re-resolved correctly below.
+            if enable_cache and callsign in self.cache and self._is_length_rule_stale(callsign, self.cache.get(callsign)):
+                with self.cache_lock:
+                    self.cache.pop(callsign, None)
+
             if enable_cache and callsign in self.cache:
                 with self.cache_lock:
                     cached_result = self.cache[callsign].copy()
