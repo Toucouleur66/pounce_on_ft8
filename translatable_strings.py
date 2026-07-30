@@ -561,15 +561,14 @@ class MarathonScoreStrings:
     GROUP_SCORE = lambda: tr("MarathonScoreDialog", "Official score (all bands, unique)")
     LABEL_SCORE_LINE = lambda entities, zones, total: tr("MarathonScoreDialog", f"{entities} entities + {zones} zones = {total} points")
     GROUP_COMPARISON = lambda: tr("MarathonScoreDialog", "Year-to-date comparison")
-    LABEL_COMPARE_BAND = lambda: tr("MarathonScoreDialog", "Compare band:")
-    OPTION_ALL_BANDS = lambda: tr("MarathonScoreDialog", "All bands (official)")
+    LABEL_COMPARE_BAND = lambda: tr("MarathonScoreDialog", "Select a band to compare and view the difference:")
+    OPTION_ALL = lambda: tr("MarathonScoreDialog", "All")
     COL_THIS_YEAR = lambda year: tr("MarathonScoreDialog", f"{year} to date")
     COL_LAST_YEAR = lambda year: tr("MarathonScoreDialog", f"{year} same date")
     COL_CHANGE = lambda: tr("MarathonScoreDialog", "Change")
     ROW_ENTITIES = lambda: tr("MarathonScoreDialog", "Entities")
     ROW_ZONES = lambda: tr("MarathonScoreDialog", "Zones")
     ROW_TOTAL = lambda: tr("MarathonScoreDialog", "Total score")
-    BUTTON_VIEW_DIFFERENCE = lambda: tr("MarathonScoreDialog", "View difference")
 
 
 # DX MARATHON DIFFERENCE WINDOW

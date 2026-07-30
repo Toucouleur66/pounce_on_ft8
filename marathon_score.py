@@ -16,10 +16,16 @@ from collections import defaultdict
 from utils import parse_adif_record, AMATEUR_BANDS
 from callsign_lookup import CallsignLookup
 from marathon_entities import marathon_entity, marathon_entity_name
+from marathon_wae import resolve_wae, wae_record
 
 from logger import get_logger
 
 log = get_logger(__name__)
+
+# DX Marathon covers HF plus 6 m only; bands above 6 m (4 m, 2 m, 70 cm, …) do
+# not count. Kept in AMATEUR_BANDS display order.
+MARATHON_BANDS = [b for b in AMATEUR_BANDS.keys() if b not in ('4m', '2m', '70cm', '13cm', '3cm')]
+_MARATHON_BANDS_SET = set(MARATHON_BANDS)
 
 
 class MarathonScorer:
@@ -44,7 +50,8 @@ class MarathonScorer:
             store[year][band][key] = (qso_date, callsign)
 
     def add_qso(self, year, band, entity_code, cq_zone, qso_date, callsign=None, entity_name=None):
-        if not year or not band:
+        # Ignore QSOs outside the DX Marathon bands (above 6 m).
+        if not year or not band or band not in _MARATHON_BANDS_SET:
             return
         if entity_code:
             self._record_first(self.entities, year, band, entity_code, qso_date, callsign)
@@ -54,20 +61,24 @@ class MarathonScorer:
             self._record_first(self.zones, year, band, cq_zone, qso_date, callsign)
 
     def entity_name(self, entity_code):
-        # Official DX Marathon name (resolved via the captured ClubLog name to
-        # avoid ADIF-code collisions), then the ClubLog name, then the raw code.
-        lookup_name = self.entity_names.get(entity_code)
-        return (
-            marathon_entity_name(entity_code, lookup_name)
-            or lookup_name
-            or str(entity_code)
-        )
+        return self.entity_record(entity_code)["name"]
 
     def entity_record(self, entity_code):
         """
-        {prefix, name, continent, cq_zones} for an entity from the official DX
-        Marathon list, falling back to the parsed name when the code is unknown.
+        {prefix, name, continent, cq_zones} for an entity. WAE entities (internal
+        codes 901-906) use their DX Marathon record; the rest resolve against the
+        official CSV via the captured ClubLog name (avoids ADIF-code collisions),
+        falling back to the parsed name.
         """
+        wae = wae_record(entity_code)
+        if wae:
+            return {
+                "prefix"   : wae["prefix"],
+                "name"     : wae["name"],
+                "continent": wae["continent"],
+                "cq_zones" : wae["cq_zones"],
+            }
+
         lookup_name = self.entity_names.get(entity_code)
         record = marathon_entity(entity_code, lookup_name)
         if record:
@@ -120,14 +131,24 @@ class MarathonScorer:
                 done += 1
 
                 if not (ignore_sat_entries and prop_mode == 'SAT') and info:
+                    entity_code = info.get('entity_code')
+                    entity_name = info.get('entity')
+                    # DX Marathon WAE entities (Shetland, Sicily, ITU Vienna…) are
+                    # remapped to their internal code (901-906) so they score and
+                    # display as distinct entities.
+                    wae = resolve_wae(call, entity_name)
+                    if wae:
+                        entity_code = wae['code']
+                        entity_name = wae['name']
+
                     self.add_qso(
                         year,
                         band,
-                        info.get('entity_code'),
+                        entity_code,
                         info.get('cqz'),
                         qso_date,
                         callsign=call,
-                        entity_name=info.get('entity'),
+                        entity_name=entity_name,
                     )
 
                 # Report progress every 200 records (and on the last one).
@@ -159,9 +180,9 @@ class MarathonScorer:
         return sorted(set(self.entities.keys()) | set(self.zones.keys()))
 
     def bands_worked(self, year, cutoff=None):
-        """Bands (in AMATEUR_BANDS order) that have any entity or zone for year."""
+        """DX Marathon bands (160 m - 6 m) that have any entity or zone for year."""
         result = []
-        for band in AMATEUR_BANDS.keys():
+        for band in MARATHON_BANDS:
             n_ent, n_zone = self.band_counts(year, band, cutoff)
             if n_ent or n_zone:
                 result.append(band)

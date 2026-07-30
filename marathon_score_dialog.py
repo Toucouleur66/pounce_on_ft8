@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 
 from PyQt6 import QtWidgets
 from PyQt6.QtWidgets import (
-    QDialog, QLabel, QVBoxLayout, QHBoxLayout, QGroupBox, QComboBox, QProgressBar,
+    QDialog, QLabel, QVBoxLayout, QHBoxLayout, QGroupBox, QGridLayout, QProgressBar,
     QTableWidget, QTableWidgetItem, QHeaderView, QSizePolicy, QSpacerItem
 )
 from PyQt6.QtGui import QFont, QColor
@@ -18,7 +18,7 @@ from PyQt6.QtCore import Qt, QObject, QThread, pyqtSignal
 from custom_button import CustomButton
 
 from constants import CUSTOM_FONT, CUSTOM_FONT_SMALL
-from style import get_main_table_qss, set_macos_window_appearance, EVEN_COLOR
+from style import get_main_table_qss, set_macos_window_appearance, EVEN_COLOR, STATUS_TRX_COLOR
 
 from marathon_score import build_scorer
 from marathon_diff_dialog import MarathonDiffDialog
@@ -254,30 +254,29 @@ class MarathonScoreDialog(QDialog):
         group.setFont(CUSTOM_FONT)
         layout = QVBoxLayout()
 
-        # Band selector: "All bands (official)" + each band worked this year.
-        selector_layout = QHBoxLayout()
+        # Band selector as the app's usual checkable band buttons: "All" + each
+        # band worked this year. Clicking one updates the comparison table and
+        # opens the difference window for that band.
         selector_label = QLabel(MarathonScoreStrings.LABEL_COMPARE_BAND())
         selector_label.setFont(CUSTOM_FONT)
-        selector_layout.addWidget(selector_label)
+        layout.addWidget(selector_label)
 
-        self.comparison_combo = QComboBox()
-        self.comparison_combo.setFont(CUSTOM_FONT)
-        self.comparison_combo.addItem(MarathonScoreStrings.OPTION_ALL_BANDS(), None)
-        for band in self.scorer.bands_worked(self.current_year):
-            self.comparison_combo.addItem(band, band)
-        # Restore any previous selection (survives the show-all-bands toggle).
-        index = self.comparison_combo.findData(self.comparison_band)
-        if index >= 0:
-            self.comparison_combo.setCurrentIndex(index)
-        self.comparison_combo.currentIndexChanged.connect(self._on_comparison_band_changed)
-        selector_layout.addWidget(self.comparison_combo)
-        selector_layout.addStretch()
+        bands_grid = QGridLayout()
+        self.comparison_band_buttons = {}   # band (None for All) -> CustomButton
+        entries = [(None, MarathonScoreStrings.OPTION_ALL())] + [
+            (b, b) for b in self.scorer.bands_worked(self.current_year)
+        ]
+        max_cols = 6
+        for i, (band, label) in enumerate(entries):
+            btn = CustomButton(label)
+            btn.setCheckable(True)
+            btn.clicked.connect(lambda _checked=False, b=band: self._select_comparison_band(b))
+            self.comparison_band_buttons[band] = btn
+            bands_grid.addWidget(btn, i // max_cols, i % max_cols)
+        layout.addLayout(bands_grid)
 
-        self.view_difference_button = CustomButton(MarathonScoreStrings.BUTTON_VIEW_DIFFERENCE())
-        self.view_difference_button.clicked.connect(self._open_difference)
-        selector_layout.addWidget(self.view_difference_button)
-
-        layout.addLayout(selector_layout)
+        # Reflect the current selection's checked style (survives rebuilds).
+        self._apply_comparison_band_style()
 
         self.comparison_table = QTableWidget()
         self.comparison_table.setColumnCount(4)
@@ -307,9 +306,24 @@ class MarathonScoreDialog(QDialog):
         self._fill_comparison_table()
         return group
 
-    def _on_comparison_band_changed(self, _index):
-        self.comparison_band = self.comparison_combo.currentData()
+    def _apply_comparison_band_style(self):
+        # Highlight the selected band button; reset the others.
+        for band, btn in self.comparison_band_buttons.items():
+            checked = (band == self.comparison_band)
+            btn.setChecked(checked)
+            label = MarathonScoreStrings.OPTION_ALL() if band is None else band
+            if checked:
+                btn.updateStyle(label, STATUS_TRX_COLOR, "#FFFFFF")
+            else:
+                btn.resetStyle()
+
+    def _select_comparison_band(self, band):
+        # Selecting a band updates the comparison table AND opens the difference
+        # window for that band.
+        self.comparison_band = band
+        self._apply_comparison_band_style()
         self._fill_comparison_table()
+        self._open_difference()
 
     def _open_difference(self):
         if self.scorer is None:
