@@ -10,7 +10,8 @@ from datetime import datetime, timezone
 from PyQt6 import QtWidgets
 from PyQt6.QtWidgets import (
     QDialog, QLabel, QVBoxLayout, QHBoxLayout, QGroupBox, QGridLayout, QProgressBar,
-    QTableWidget, QTableWidgetItem, QHeaderView, QSizePolicy, QSpacerItem
+    QTableWidget, QTableWidgetItem, QHeaderView, QSizePolicy, QSpacerItem,
+    QRadioButton, QButtonGroup
 )
 from PyQt6.QtGui import QFont, QColor
 from PyQt6.QtCore import Qt, QObject, QThread, pyqtSignal
@@ -24,6 +25,9 @@ from marathon_score import build_scorer
 from marathon_diff_dialog import MarathonDiffDialog
 
 from translatable_strings import MarathonScoreStrings, CommonStrings
+
+# Sentinel: no band button selected yet (distinct from None = the "All" band).
+_UNSET = object()
 
 # Header CSS shared with the rest of the app (Antenna Rotator, Priority Manager…).
 _HEADER_QSS = """
@@ -78,7 +82,8 @@ class MarathonScoreDialog(QDialog):
         self.adif_file_paths = adif_file_paths
         self.ignore_sat_entries = ignore_sat_entries
         self.scorer = None
-        self.comparison_band = None  # None = all bands (official score)
+        self.comparison_band = _UNSET  # no band button selected yet
+        self.compare_full_year = False  # False = to date, True = full previous year
 
         now = datetime.now(timezone.utc)
         self.current_year = str(now.year)
@@ -239,14 +244,15 @@ class MarathonScoreDialog(QDialog):
 
         return table
 
-    def _score_for(self, year, band):
+    def _score_for(self, year, band, cutoff):
         """
-        (entities, zones, total) YTD (today's cutoff) for `year`. band=None means
-        the official all-bands unique score; otherwise that single band.
+        (entities, zones, total) up to `cutoff` for `year`. cutoff=None means the
+        full year. band=None or the initial unset state means the official
+        all-bands unique score; otherwise that single band.
         """
-        if band is None:
-            return self.scorer.overall_score(year, self.today_cutoff)
-        n_ent, n_zone = self.scorer.band_counts(year, band, self.today_cutoff)
+        if band is None or band is _UNSET:
+            return self.scorer.overall_score(year, cutoff)
+        n_ent, n_zone = self.scorer.band_counts(year, band, cutoff)
         return n_ent, n_zone, n_ent + n_zone
 
     def _build_comparison_group(self):
@@ -277,6 +283,23 @@ class MarathonScoreDialog(QDialog):
 
         # Reflect the current selection's checked style (survives rebuilds).
         self._apply_comparison_band_style()
+
+        # Compare-against selector: to date (YTD) vs the full previous year.
+        compare_layout = QHBoxLayout()
+        self.to_date_radio = QRadioButton(MarathonScoreStrings.COMPARE_TO_DATE())
+        self.full_year_radio = QRadioButton(MarathonScoreStrings.COMPARE_FULL_YEAR(self.previous_year))
+        self.to_date_radio.setFont(CUSTOM_FONT)
+        self.full_year_radio.setFont(CUSTOM_FONT)
+        self.to_date_radio.setChecked(not self.compare_full_year)
+        self.full_year_radio.setChecked(self.compare_full_year)
+        self._compare_group = QButtonGroup(self)
+        self._compare_group.addButton(self.to_date_radio)
+        self._compare_group.addButton(self.full_year_radio)
+        self.full_year_radio.toggled.connect(self._on_compare_mode_changed)
+        compare_layout.addWidget(self.to_date_radio)
+        compare_layout.addWidget(self.full_year_radio)
+        compare_layout.addStretch()
+        layout.addLayout(compare_layout)
 
         self.comparison_table = QTableWidget()
         self.comparison_table.setColumnCount(4)
@@ -334,14 +357,39 @@ class MarathonScoreDialog(QDialog):
             self.previous_year,
             self.comparison_band,
             self.today_cutoff,
+            self.compare_full_year,
             self.dark_mode,
             self,
         )
         dialog.exec()
 
+    def _on_compare_mode_changed(self, _checked):
+        self.compare_full_year = self.full_year_radio.isChecked()
+        self._fill_comparison_table()
+
     def _fill_comparison_table(self):
-        this_ent, this_zone, this_total = self._score_for(self.current_year, self.comparison_band)
-        last_ent, last_zone, last_total = self._score_for(self.previous_year, self.comparison_band)
+        # Current year is always to-date (can't be more than YTD). Previous year
+        # uses the full year when "Full {prev}" is selected, else the same cutoff.
+        prev_cutoff = None if self.compare_full_year else self.today_cutoff
+        this_ent, this_zone, this_total = self._score_for(self.current_year, self.comparison_band, self.today_cutoff)
+        last_ent, last_zone, last_total = self._score_for(self.previous_year, self.comparison_band, prev_cutoff)
+
+        # Reflect the mode in the previous-year column header.
+        prev_header = (
+            MarathonScoreStrings.COL_LAST_YEAR_FULL(self.previous_year)
+            if self.compare_full_year
+            else MarathonScoreStrings.COL_LAST_YEAR(self.previous_year)
+        )
+        header_item = self.comparison_table.horizontalHeaderItem(2)
+        if header_item is not None:
+            header_item.setText(prev_header)
+        else:
+            self.comparison_table.setHorizontalHeaderLabels([
+                "",
+                MarathonScoreStrings.COL_THIS_YEAR(self.current_year),
+                prev_header,
+                MarathonScoreStrings.COL_CHANGE(),
+            ])
 
         def delta_str(cur, prev):
             d = cur - prev

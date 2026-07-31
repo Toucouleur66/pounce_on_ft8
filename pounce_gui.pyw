@@ -56,6 +56,7 @@ from lotw_sync_worker import LoTWSyncWorker
 from pota_spots import PotaSpotProvider, PotaFetchWorker
 from country_files import CountryFilesManager
 from setting_dialog import SettingsDialog
+from marathon_score_dialog import MarathonScoreDialog
 from exclusion_dialog import ExclusionDialog
 from updater import Updater, UpdateManager
 from raw_data_model import RawDataModel
@@ -70,6 +71,7 @@ if sys.platform == 'darwin':
 
 # Translation strings
 from translatable_strings import MainWindowStrings, CommonStrings, ContextMenuStrings, ErrorStrings, TimeStrings
+from translatable_strings import SettingsStrings, MarathonScoreStrings
 
 from utils import get_local_ip_address, matches_any, get_app_data_dir
 from utils import get_mode_interval, get_amateur_band, display_frequency
@@ -3094,6 +3096,23 @@ class MainApp(QtWidgets.QMainWindow):
             import traceback
             log.error(traceback.format_exc())            
 
+    def open_marathon_score(self):
+        adif_file_paths = self.local_params.get('adif_file_paths') or []
+        if not adif_file_paths:
+            QtWidgets.QMessageBox.information(
+                self,
+                SettingsStrings.MENU_DX_MARATHON(),
+                MarathonScoreStrings.NO_FILES(),
+            )
+            return
+        dialog = MarathonScoreDialog(
+            list(adif_file_paths),
+            self.local_params.get('enable_ignore_sat_entries', DEFAULT_IGNORE_SAT_ENTRIES),
+            self.dark_mode,
+            self,
+        )
+        dialog.exec()
+
     def open_settings(self):
         log.warning("Settings opened")
 
@@ -3903,7 +3922,6 @@ class MainApp(QtWidgets.QMainWindow):
         main_menu.addSeparator()
 
         self.monitoring_action = QtGui.QAction(self.get_monitoring_action_text(), self)
-        self.monitoring_action.setShortcut(QtGui.QKeySequence("Ctrl+M"))
         self.update_monitoring_action()
         main_menu.addAction(self.monitoring_action)
         
@@ -3962,6 +3980,13 @@ class MainApp(QtWidgets.QMainWindow):
         show_lotw_qsls_action = QtGui.QAction(MainWindowStrings.SHOW_LOTW_QSLS(), self)
         show_lotw_qsls_action.triggered.connect(self.show_lotw_qsls)
         self.online_menu.addAction(show_lotw_qsls_action)
+
+        # Ctrl+M opens the DX Marathon Score window directly.
+        self.marathon_score_action = QtGui.QAction(SettingsStrings.BUTTON_MARATHON_SCORE(), self)
+        self.marathon_score_action.setShortcut(QtGui.QKeySequence("Ctrl+M"))
+        self.marathon_score_action.triggered.connect(self.open_marathon_score)
+        self.online_menu.addAction(self.marathon_score_action)
+
         self.online_menu.addSeparator()
 
         show_active_users_action = QtGui.QAction("List of active users", self)

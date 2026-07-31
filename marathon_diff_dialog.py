@@ -35,9 +35,28 @@ _COLOR_LOST_FG   = "#FFFFFF"    # white
 _COLOR_LOST_BG   = "#C5221F"    # red
 
 
+class _NumericItem(QTableWidgetItem):
+    """Table item that displays its text but sorts by its leading number, so
+    e.g. "8" sorts before "16" (and "3, 4, 5" sorts by 3)."""
+
+    def _sort_value(self):
+        digits = ""
+        for ch in self.text().strip():
+            if ch.isdigit():
+                digits += ch
+            elif digits:
+                break
+        return int(digits) if digits else -1
+
+    def __lt__(self, other):
+        if isinstance(other, _NumericItem):
+            return self._sort_value() < other._sort_value()
+        return super().__lt__(other)
+
+
 class MarathonDiffDialog(QDialog):
     def __init__(self, scorer, current_year, previous_year, band, cutoff,
-                 dark_mode=False, parent=None):
+                 compare_full_year=False, dark_mode=False, parent=None):
         super().__init__(parent)
         self.setWindowTitle(MarathonDiffStrings.WINDOW_TITLE())
         self.setModal(True)
@@ -47,16 +66,23 @@ class MarathonDiffDialog(QDialog):
         self.current_year = current_year
         self.previous_year = previous_year
         self.band = band            # None = all bands
-        self.cutoff = cutoff
+        self.cutoff = cutoff              # current-year cutoff (always to-date)
+        # Previous year: the full year when comparing to "Full {prev}", else the
+        # same to-date cutoff as the current year.
+        self.prev_cutoff = None if compare_full_year else cutoff
         self.show_zones = False      # False = entities, True = zones
-        self.hide_common = False
+        self.hide_common = True       # show only differences by default
 
         set_macos_window_appearance(self, dark_mode)
 
         layout = QVBoxLayout(self)
 
         scope = band if band else MarathonDiffStrings.SCOPE_ALL_BANDS()
-        title = QLabel(f"<b>{MarathonDiffStrings.TITLE(current_year, previous_year, scope)}</b>")
+        prev_label = (
+            MarathonDiffStrings.PREV_FULL_YEAR(previous_year)
+            if compare_full_year else previous_year
+        )
+        title = QLabel(f"<b>{MarathonDiffStrings.TITLE(current_year, prev_label, scope)}</b>")
         title_font = QFont()
         title_font.setPointSize(13)
         title.setFont(title_font)
@@ -80,6 +106,7 @@ class MarathonDiffDialog(QDialog):
 
         self.hide_common_check = QCheckBox(MarathonDiffStrings.CHECK_HIDE_COMMON())
         self.hide_common_check.setFont(CUSTOM_FONT)
+        self.hide_common_check.setChecked(self.hide_common)
         self.hide_common_check.toggled.connect(self._on_hide_common)
         switch_layout.addWidget(self.hide_common_check)
         layout.addLayout(switch_layout)
@@ -96,10 +123,12 @@ class MarathonDiffDialog(QDialog):
         self.table.setFont(CUSTOM_FONT)
         self.table.setShowGrid(False)
         self.table.setStyleSheet(get_main_table_qss(self.dark_mode))
+        self.table.setSortingEnabled(True)
         header = self.table.horizontalHeader()
         header.setHighlightSections(False)
         header.setFont(CUSTOM_FONT_SMALL)
         header.setStyleSheet(_HEADER_QSS)
+        header.setSortIndicatorShown(True)
         layout.addWidget(self.table)
 
         button = CustomButton(CommonStrings.OK())
@@ -138,8 +167,8 @@ class MarathonDiffDialog(QDialog):
         date_str = self._fmt_date(date)
         call_str = callsign or ""
         if self.show_zones:
-            # Date | Callsign | Zone
-            return [date_str, call_str, str(key)]
+            # Zone | Date | Callsign
+            return [str(key), date_str, call_str]
         # Date | Callsign | Prefix | Name | Continent | CQ Zones
         rec = self.scorer.entity_record(key)
         return [date_str, call_str, rec["prefix"], rec["name"], rec["continent"], rec["cq_zones"]]
@@ -147,9 +176,9 @@ class MarathonDiffDialog(QDialog):
     def _configure_columns(self):
         if self.show_zones:
             headers = [
+                MarathonDiffStrings.COL_ZONE(),
                 MarathonDiffStrings.COL_DATE(),
                 MarathonDiffStrings.COL_CALLSIGN(),
-                MarathonDiffStrings.COL_ZONE(),
             ]
             stretch_col = 2
         else:
@@ -172,10 +201,10 @@ class MarathonDiffDialog(QDialog):
     def _rebuild(self):
         if self.show_zones:
             cur_info = self.scorer.zone_info(self.current_year, self.band, self.cutoff)
-            prev_info = self.scorer.zone_info(self.previous_year, self.band, self.cutoff)
+            prev_info = self.scorer.zone_info(self.previous_year, self.band, self.prev_cutoff)
         else:
             cur_info = self.scorer.entity_info(self.current_year, self.band, self.cutoff)
-            prev_info = self.scorer.entity_info(self.previous_year, self.band, self.cutoff)
+            prev_info = self.scorer.entity_info(self.previous_year, self.band, self.prev_cutoff)
 
         cur = set(cur_info)
         prev = set(prev_info)
@@ -184,7 +213,7 @@ class MarathonDiffDialog(QDialog):
         lost = prev - cur
 
         self.summary_label.setText(
-            MarathonDiffStrings.SUMMARY(len(common), len(gained), len(lost))
+            MarathonDiffStrings.SUMMARY(len(common), len(gained), len(lost), self.current_year, self.previous_year)
         )
 
         # Rows: (key, date, callsign, fg, bg). Gained first, then lost, then
@@ -202,14 +231,36 @@ class MarathonDiffDialog(QDialog):
                 date, call = cur_info[key]
                 rows.append((key, date, call, None, None))
 
+        # Disable sorting while (re)building columns and filling, then restore it,
+        # otherwise the table re-sorts on every setItem and rows misalign.
+        self.table.setSortingEnabled(False)
         self._configure_columns()
         self.table.setRowCount(len(rows))
+
+        # Numeric-sortable columns (per mode) so "8" sorts before "16".
+        # Zones mode: Zone is column 0; entities mode: CQ Zones is column 5.
+        numeric_cols = {0} if self.show_zones else {5}
+
         for row, (key, date, call, fg, bg) in enumerate(rows):
             for col, text in enumerate(self._columns_for_row(key, date, call)):
-                item = QTableWidgetItem(text)
+                if col in numeric_cols:
+                    item = _NumericItem(text)
+                else:
+                    item = QTableWidgetItem(text)
                 item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
                 if fg:
                     item.setForeground(QColor(fg))
                 if bg:
                     item.setBackground(QColor(bg))
                 self.table.setItem(row, col, item)
+
+        self.table.setSortingEnabled(True)
+
+        # Default sort: Zone (col 0) ascending in zones mode, Prefix (col 2)
+        # ascending in entities mode.
+        default_sort_col = 0 if self.show_zones else 2
+        self.table.sortItems(default_sort_col, Qt.SortOrder.AscendingOrder)
+
+        # Zones mode has only 3 narrow columns, so shrink the window; entities
+        # mode needs the full width for its 6 columns.
+        self.resize(460 if self.show_zones else 760, self.height())

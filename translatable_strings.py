@@ -565,7 +565,10 @@ class MarathonScoreStrings:
     OPTION_ALL = lambda: tr("MarathonScoreDialog", "All")
     COL_THIS_YEAR = lambda year: tr("MarathonScoreDialog", f"{year} to date")
     COL_LAST_YEAR = lambda year: tr("MarathonScoreDialog", f"{year} same date")
+    COL_LAST_YEAR_FULL = lambda year: tr("MarathonScoreDialog", f"{year} full year")
     COL_CHANGE = lambda: tr("MarathonScoreDialog", "Change")
+    COMPARE_TO_DATE = lambda: tr("MarathonScoreDialog", "To date")
+    COMPARE_FULL_YEAR = lambda year: tr("MarathonScoreDialog", f"Full {year}")
     ROW_ENTITIES = lambda: tr("MarathonScoreDialog", "Entities")
     ROW_ZONES = lambda: tr("MarathonScoreDialog", "Zones")
     ROW_TOTAL = lambda: tr("MarathonScoreDialog", "Total score")
@@ -576,6 +579,7 @@ class MarathonDiffStrings:
     CONTEXT = "MarathonDiffDialog"
     WINDOW_TITLE = lambda: tr("MarathonDiffDialog", "DX Marathon — difference")
     TITLE = lambda cur, prev, scope: tr("MarathonDiffDialog", f"{cur} vs {prev} — {scope}")
+    PREV_FULL_YEAR = lambda year: tr("MarathonDiffDialog", f"{year} (full year)")
     SCOPE_ALL_BANDS = lambda: tr("MarathonDiffDialog", "all bands")
     TOGGLE_ENTITIES = lambda: tr("MarathonDiffDialog", "Entities")
     TOGGLE_ZONES = lambda: tr("MarathonDiffDialog", "Zones")
@@ -587,7 +591,7 @@ class MarathonDiffStrings:
     COL_CONTINENT = lambda: tr("MarathonDiffDialog", "Continent")
     COL_CQ_ZONES = lambda: tr("MarathonDiffDialog", "CQ Zones")
     COL_ZONE = lambda: tr("MarathonDiffDialog", "Zone")
-    SUMMARY = lambda common, gained, lost: tr("MarathonDiffDialog", f"{common} common · {gained} gained · {lost} only last year")
+    SUMMARY = lambda common, gained, lost, cur_year, prev_year: tr("MarathonDiffDialog", f"{common} in common worked · {gained} gained in {cur_year} · {lost} missing from {prev_year}")
 
 
 # ACTIVE USERS WINDOW
