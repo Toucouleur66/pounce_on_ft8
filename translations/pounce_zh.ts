@@ -798,8 +798,8 @@
         <translation>启用网格追踪器以回复新网格的呼号（无论波段）</translation>
     </message>
     <message>
-        <source>&lt;p&gt;Club Log is a web service for amateur radio logging and statistics.&lt;/p&gt;&lt;p&gt;You can enable automatic upload of your QSO data to Club Log.&lt;/p&gt;</source>
-        <translation>&lt;p&gt;Club Log是业余无线电日志和统计的网络服务。&lt;/p&gt;&lt;p&gt;您可以启用自动上传您的QSO数据到Club Log。&lt;/p&gt;</translation>
+        <source>&lt;p&gt;Club Log is a web service for amateur radio logging and statistics.&lt;/p&gt;&lt;p&gt;You can enable automatic upload of your QSO data to Club Log.&lt;/p&gt;&lt;p&gt;Use your registered email and ClubLog's password OR an Application Password (create the Application Password in your Club Log account settings).&lt;/p&gt;</source>
+        <translation>&lt;p&gt;Club Log是业余无线电日志和统计的网络服务。&lt;/p&gt;&lt;p&gt;您可以启用自动上传您的QSO数据到Club Log。&lt;/p&gt;&lt;p&gt;使用您注册的电子邮件和 ClubLog 密码，或使用应用程序密码（在您的 Club Log 账户设置中创建应用程序密码）。&lt;/p&gt;</translation>
     </message>
     <message>
         <source>Club Log Settings</source>
@@ -878,10 +878,6 @@
         <translation>呼号：</translation>
     </message>
     <message>
-        <source>API Key:</source>
-        <translation>API密钥：</translation>
-    </message>
-    <message>
         <source>Test Connection</source>
         <translation>测试连接</translation>
     </message>
@@ -938,8 +934,8 @@
         <translation>邮箱：</translation>
     </message>
     <message>
-        <source>Password:</source>
-        <translation>密码：</translation>
+        <source>Password or Application Password:</source>
+        <translation>密码或应用程序密码：</translation>
     </message>
     <message>
         <source>Registered email address in Club Log</source>

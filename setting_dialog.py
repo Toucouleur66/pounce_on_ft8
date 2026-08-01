@@ -1490,13 +1490,6 @@ class SettingsDialog(QtWidgets.QDialog):
         self.club_log_callsign.setFont(CUSTOM_FONT)
         self.club_log_callsign.setPlaceholderText(SettingsStrings.PLACEHOLDER_CALLSIGN())
 
-        club_log_api_key_label = QtWidgets.QLabel(SettingsStrings.LABEL_API_KEY())
-        club_log_api_key_label.setFont(CUSTOM_FONT)
-        self.club_log_api_key = QtWidgets.QLineEdit()
-        self.club_log_api_key.setFont(CUSTOM_FONT)
-        self.club_log_api_key.setEchoMode(QtWidgets.QLineEdit.EchoMode.Password)
-        self.club_log_api_key.setPlaceholderText(SettingsStrings.PLACEHOLDER_CLUB_LOG_API_KEY())
-
         self.test_club_log_upload_button = QtWidgets.QPushButton(SettingsStrings.BUTTON_TEST_CLUB_LOG_UPLOAD())
         self.test_club_log_upload_button.setFont(CUSTOM_FONT)
         self.test_club_log_upload_button.clicked.connect(self.test_club_log_upload_last_qso)
@@ -1511,9 +1504,7 @@ class SettingsDialog(QtWidgets.QDialog):
         club_log_settings_layout.addWidget(self.club_log_password, 2, 1)
         club_log_settings_layout.addWidget(club_log_callsign_label, 3, 0, QtCore.Qt.AlignmentFlag.AlignRight)
         club_log_settings_layout.addWidget(self.club_log_callsign, 3, 1)
-        club_log_settings_layout.addWidget(club_log_api_key_label, 4, 0, QtCore.Qt.AlignmentFlag.AlignRight)
-        club_log_settings_layout.addWidget(self.club_log_api_key, 4, 1)
-        club_log_settings_layout.addLayout(club_log_test_buttons_layout, 5, 0, 1, 2)
+        club_log_settings_layout.addLayout(club_log_test_buttons_layout, 4, 0, 1, 2)
 
         club_log_settings_group.setLayout(QtWidgets.QVBoxLayout())
         club_log_settings_group.layout().setContentsMargins(0, 0, 0, 0)
@@ -2795,18 +2786,17 @@ class SettingsDialog(QtWidgets.QDialog):
         email = self.club_log_email.text().strip()
         password = self.club_log_password.text().strip()
         callsign = self.club_log_callsign.text().strip()
-        api_key = self.club_log_api_key.text().strip()
 
-        if not email or not password or not api_key:
-            log.warning("Club Log test upload failed: Missing email, password or API key")
+        if not email or not password:
+            log.warning("Club Log test upload failed: Missing email or password")
             WindowController.show_test_result_dialog(self, {
                 'title': 'Missing Information',
-                'message': 'Please enter your Club Log email, application password and API key.'
+                'message': 'Please enter your Club Log email and application password.'
             })
             return
 
         # Get the last QSO from the log file
-        from constants import ADIF_WORKED_CALLSIGNS_FILE
+        from constants import ADIF_WORKED_CALLSIGNS_FILE, CLUB_LOG_API_KEY
 
         if not os.path.exists(ADIF_WORKED_CALLSIGNS_FILE):
             log.warning(f"Club Log test upload failed: Log file not found at {ADIF_WORKED_CALLSIGNS_FILE}")
@@ -2855,8 +2845,8 @@ class SettingsDialog(QtWidgets.QDialog):
 
             log.info(f"Attempting to upload QSO with {qso_callsign} to Club Log")
 
-            # Create uploader instance with the user's own credentials
-            uploader = ClubLogUploader(email, password, api_key, callsign)
+            # Create uploader instance (uses the application's registered API key)
+            uploader = ClubLogUploader(email, password, CLUB_LOG_API_KEY, callsign)
 
             # Try to upload (this will take a few seconds)
             success, message = uploader.upload_qso(last_qso)
@@ -3238,9 +3228,6 @@ class SettingsDialog(QtWidgets.QDialog):
         self.club_log_callsign.setText(
             self.params.get('club_log_callsign', '')
         )
-        self.club_log_api_key.setText(
-            self.params.get('club_log_api_key', '')
-        )
 
         # Load LoTW Upload settings
         self.enable_lotw_upload.setChecked(
@@ -3499,7 +3486,6 @@ class SettingsDialog(QtWidgets.QDialog):
             'club_log_email'                             : self.club_log_email.text(),
             'club_log_password'                          : self.club_log_password.text(),
             'club_log_callsign'                          : self.club_log_callsign.text(),
-            'club_log_api_key'                           : self.club_log_api_key.text(),
             'enable_lotw_upload'                         : self.enable_lotw_upload.isChecked(),
             'enable_lotw_download'                       : self.enable_lotw_download.isChecked(),
             'lotw_username'                              : self.lotw_username.text(),

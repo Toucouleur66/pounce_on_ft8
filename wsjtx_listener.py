@@ -35,6 +35,7 @@ log     = get_logger(__name__)
 
 from constants import (
     CURRENT_VERSION_NUMBER,
+    CLUB_LOG_API_KEY,
     BAND_CHANGE_WAITING_DELAY,
     DEFAULT_REPLY_ATTEMPTS,
     MAXIMUM_ALLOWED_DT,
@@ -106,7 +107,6 @@ class Listener(QObject):
             club_log_email,
             club_log_password,
             club_log_callsign,
-            club_log_api_key,
             enable_lotw_upload,
             enable_lotw_download,
             lotw_username,
@@ -267,7 +267,6 @@ class Listener(QObject):
         self.club_log_email                 = club_log_email
         self.club_log_password              = club_log_password
         self.club_log_callsign              = club_log_callsign
-        self.club_log_api_key               = club_log_api_key
         self.club_log_uploader              = None
 
         self.enable_lotw_upload             = enable_lotw_upload
@@ -323,11 +322,11 @@ class Listener(QObject):
         """
             Initialize Club Log uploader
         """
-        if self.enable_club_log_synch and self.club_log_email and self.club_log_password and self.club_log_api_key:
+        if self.enable_club_log_synch and self.club_log_email and self.club_log_password:
             self.club_log_uploader = ClubLogUploader(
                 self.club_log_email,
                 self.club_log_password,
-                self.club_log_api_key,
+                CLUB_LOG_API_KEY,
                 self.club_log_callsign or ''
             )
 

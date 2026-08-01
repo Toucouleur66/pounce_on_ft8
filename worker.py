@@ -12,6 +12,7 @@ from logger import get_logger
 log     = get_logger(__name__)
 
 from constants import (
+    CLUB_LOG_API_KEY,
     DEFAULT_UDP_PORT,
     DEFAULT_SECONDARY_UDP_SERVER,
     DEFAULT_SENDING_REPLY,
@@ -94,7 +95,6 @@ class Worker(QObject):
             club_log_email                     = '',
             club_log_password                  = '',
             club_log_callsign                  = '',
-            club_log_api_key                   = '',
             enable_lotw_upload                 = False,
             enable_lotw_download               = False,
             lotw_username                      = '',
@@ -169,7 +169,6 @@ class Worker(QObject):
         self.club_log_email                     = club_log_email
         self.club_log_password                  = club_log_password
         self.club_log_callsign                  = club_log_callsign
-        self.club_log_api_key                   = club_log_api_key
 
         self.enable_lotw_upload                 = enable_lotw_upload
         self.enable_lotw_download               = enable_lotw_download
@@ -244,7 +243,6 @@ class Worker(QObject):
                 club_log_email                  = self.club_log_email,
                 club_log_password               = self.club_log_password,
                 club_log_callsign               = self.club_log_callsign,
-                club_log_api_key                = self.club_log_api_key,
 
                 enable_lotw_upload              = self.enable_lotw_upload,
                 enable_lotw_download            = self.enable_lotw_download,
@@ -348,7 +346,6 @@ class Worker(QObject):
             self.listener.club_log_email                        = self.club_log_email
             self.listener.club_log_password                     = self.club_log_password
             self.listener.club_log_callsign                     = self.club_log_callsign
-            self.listener.club_log_api_key                      = self.club_log_api_key
 
             self.listener.enable_lotw_upload                    = self.enable_lotw_upload
             self.listener.enable_lotw_download                  = self.enable_lotw_download
@@ -360,12 +357,12 @@ class Worker(QObject):
             self.listener.tqsl_dir                              = self.tqsl_dir
 
             # Reinitialize Club Log uploader if settings changed
-            if self.enable_club_log_synch and self.club_log_email and self.club_log_password and self.club_log_api_key:
+            if self.enable_club_log_synch and self.club_log_email and self.club_log_password:
                 from clublog import ClubLogUploader
                 self.listener.club_log_uploader = ClubLogUploader(
                     self.club_log_email,
                     self.club_log_password,
-                    self.club_log_api_key,
+                    CLUB_LOG_API_KEY,
                     self.club_log_callsign or ''
                 )
             else:

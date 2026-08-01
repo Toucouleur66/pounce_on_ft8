@@ -794,8 +794,8 @@
         <translation>Увімкнути трекер сіток для відповіді на нову сітку незалежно від діапазону</translation>
     </message>
     <message>
-        <source>&lt;p&gt;Club Log is a web service for amateur radio logging and statistics.&lt;/p&gt;&lt;p&gt;You can enable automatic upload of your QSO data to Club Log.&lt;/p&gt;</source>
-        <translation>&lt;p&gt;Club Log - це веб-сервіс для журналювання та статистики аматорського радіо.&lt;/p&gt;&lt;p&gt;Ви можете увімкнути автоматичне завантаження ваших QSO даних до Club Log.&lt;/p&gt;</translation>
+        <source>&lt;p&gt;Club Log is a web service for amateur radio logging and statistics.&lt;/p&gt;&lt;p&gt;You can enable automatic upload of your QSO data to Club Log.&lt;/p&gt;&lt;p&gt;Use your registered email and ClubLog's password OR an Application Password (create the Application Password in your Club Log account settings).&lt;/p&gt;</source>
+        <translation>&lt;p&gt;Club Log - це веб-сервіс для журналювання та статистики аматорського радіо.&lt;/p&gt;&lt;p&gt;Ви можете увімкнути автоматичне завантаження ваших QSO даних до Club Log.&lt;/p&gt;&lt;p&gt;Використовуйте вашу зареєстровану електронну пошту та пароль ClubLog АБО пароль застосунку (створіть пароль застосунку в налаштуваннях вашого облікового запису Club Log).&lt;/p&gt;</translation>
     </message>
     <message>
         <source>Club Log Settings</source>
@@ -874,10 +874,6 @@
         <translation>Позивний:</translation>
     </message>
     <message>
-        <source>API Key:</source>
-        <translation>API ключ:</translation>
-    </message>
-    <message>
         <source>Test Connection</source>
         <translation>Перевірити з'єднання</translation>
     </message>
@@ -934,8 +930,8 @@
         <translation>Email:</translation>
     </message>
     <message>
-        <source>Password:</source>
-        <translation>Пароль:</translation>
+        <source>Password or Application Password:</source>
+        <translation>Пароль або пароль застосунку:</translation>
     </message>
     <message>
         <source>Registered email address in Club Log</source>

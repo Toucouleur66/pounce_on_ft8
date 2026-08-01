@@ -790,8 +790,8 @@
         <translation>バンドに関係なく新しいグリッドの場合はコールサインに応答</translation>
     </message>
     <message>
-        <source>&lt;p&gt;Club Log is a web service for amateur radio logging and statistics.&lt;/p&gt;&lt;p&gt;You can enable automatic upload of your QSO data to Club Log.&lt;/p&gt;</source>
-        <translation>&lt;p&gt;Club Logは、アマチュア無線のログ記録と統計のためのウェブサービスです。&lt;/p&gt;&lt;p&gt;QSOデータのClub Logへの自動アップロードを有効にできます。&lt;/p&gt;</translation>
+        <source>&lt;p&gt;Club Log is a web service for amateur radio logging and statistics.&lt;/p&gt;&lt;p&gt;You can enable automatic upload of your QSO data to Club Log.&lt;/p&gt;&lt;p&gt;Use your registered email and ClubLog's password OR an Application Password (create the Application Password in your Club Log account settings).&lt;/p&gt;</source>
+        <translation>&lt;p&gt;Club Logは、アマチュア無線のログ記録と統計のためのウェブサービスです。&lt;/p&gt;&lt;p&gt;QSOデータのClub Logへの自動アップロードを有効にできます。&lt;/p&gt;&lt;p&gt;登録済みのメールアドレスとClubLogのパスワード、またはアプリケーションパスワードを使用してください（アプリケーションパスワードはClub Logアカウント設定で作成します）。&lt;/p&gt;</translation>
     </message>
     <message>
         <source>Club Log Settings</source>
@@ -870,10 +870,6 @@
         <translation>コールサイン:</translation>
     </message>
     <message>
-        <source>API Key:</source>
-        <translation>APIキー:</translation>
-    </message>
-    <message>
         <source>Test Connection</source>
         <translation>接続テスト</translation>
     </message>
@@ -930,8 +926,8 @@
         <translation>メールアドレス:</translation>
     </message>
     <message>
-        <source>Password:</source>
-        <translation>パスワード:</translation>
+        <source>Password or Application Password:</source>
+        <translation>パスワードまたはアプリケーションパスワード:</translation>
     </message>
     <message>
         <source>Registered email address in Club Log</source>

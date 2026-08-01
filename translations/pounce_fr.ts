@@ -790,8 +790,8 @@
         <translation>Activer le suivi de grilles pour répondre si nouvelle grille quelle que soit la bande</translation>
     </message>
     <message>
-        <source>&lt;p&gt;Club Log is a web service for amateur radio logging and statistics.&lt;/p&gt;&lt;p&gt;You can enable automatic upload of your QSO data to Club Log.&lt;/p&gt;</source>
-        <translation>&lt;p&gt;Club Log est un service web pour la journalisation et les statistiques de radioamateur.&lt;/p&gt;&lt;p&gt;Vous pouvez activer le téléchargement automatique de vos données QSO vers Club Log.&lt;/p&gt;</translation>
+        <source>&lt;p&gt;Club Log is a web service for amateur radio logging and statistics.&lt;/p&gt;&lt;p&gt;You can enable automatic upload of your QSO data to Club Log.&lt;/p&gt;&lt;p&gt;Use your registered email and ClubLog's password OR an Application Password (create the Application Password in your Club Log account settings).&lt;/p&gt;</source>
+        <translation>&lt;p&gt;Club Log est un service web pour la journalisation et les statistiques de radioamateur.&lt;/p&gt;&lt;p&gt;Vous pouvez activer le téléchargement automatique de vos données QSO vers Club Log.&lt;/p&gt;&lt;p&gt;Utilisez votre email enregistré et votre mot de passe ClubLog OU un mot de passe d'application (créez le mot de passe d'application dans les paramètres de votre compte Club Log).&lt;/p&gt;</translation>
     </message>
     <message>
         <source>Club Log Settings</source>
@@ -870,10 +870,6 @@
         <translation>Indicatif:</translation>
     </message>
     <message>
-        <source>API Key:</source>
-        <translation>Clé API:</translation>
-    </message>
-    <message>
         <source>Test Connection</source>
         <translation>Tester la connexion</translation>
     </message>
@@ -930,8 +926,8 @@
         <translation>Email:</translation>
     </message>
     <message>
-        <source>Password:</source>
-        <translation>Mot de passe:</translation>
+        <source>Password or Application Password:</source>
+        <translation>Mot de passe ou mot de passe d'application:</translation>
     </message>
     <message>
         <source>Registered email address in Club Log</source>
