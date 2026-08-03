@@ -4829,6 +4829,22 @@ def on_about_to_quit(window):
     except Exception as e:
         log.exception("Error stopping timers")
 
+    # Ensure the ADIF multiprocessing worker is stopped gracefully even when
+    # monitoring was already stopped (_running is False). The worker is a spawn
+    # child (a fresh WaitAndPounce.exe with its own PyInstaller _MEIxxxxx temp
+    # dir); if it is killed abruptly on exit instead of shutting down cleanly,
+    # Windows keeps DLL handles open and PyInstaller raises the
+    # "Failed to remove temporary directory" warning.
+    try:
+        if getattr(window, 'worker', None) is not None \
+                and getattr(window.worker, 'listener', None) is not None \
+                and getattr(window.worker.listener, 'adif_monitor', None) is not None:
+            log.info("Stopping ADIF monitor on shutdown")
+            window.worker.listener.adif_monitor.stop()
+            window.worker.listener.adif_monitor = None
+    except Exception as e:
+        log.exception("Error stopping ADIF monitor on shutdown")
+
     # Clean up threads
     try:
         log.info("Cleaning up threads")
