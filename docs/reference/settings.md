@@ -24,6 +24,8 @@ Also here: **Enable auto start monitoring when program launched**.
 - **Log all valid contacts (not only from Wanted)**.
 - **Ignore callsign if prefix is invalid**.
 - **Ignore callsign if it targets another continent**.
+- **Do not reply to callsigns longer than** — skip unusually long callsigns (special event / compound
+  calls) above a length you set.
 - **Minimum report** — ignore signals weaker than this (+10 dB down to −26 dB).
 
 ## Watchdog and retry
@@ -54,7 +56,9 @@ See [Sound Alerts](/guide/sounds).
 ## Logbook of The World
 
 - **Enable reply only for callsigns that use LoTW**
-- **Enable automatic synch to LoTW**
+- **Enable automatic upload of logged QSOs to LoTW** — upload and download are now separate switches,
+  so you can turn on one, the other, or both.
+- **Enable automatic download of QSLs from LoTW**
 - **Username / Password / Station Location / Signing Password**
 - **Download QSLs since** (date)
 - **Download interval** (minutes)
@@ -81,10 +85,10 @@ See [Grid Tracker & Map](/guide/grid-tracker).
 ## Antenna Rotator
 
 - **PstRotatorAz Connection** — UDP Server address + port, and the live **Current azimuth**.
-- **Wanted Tracking** — *Point the antenna at decoded Wanted callsigns automatically*, with an
-  *Only move if azimuth changes by more than* threshold.
+- **Track on Reply** — *Point the antenna at every station we reply to*, with a per-band selector and
+  an *Only move if azimuth changes by more than* threshold.
 - **Return to Previous Position** — *Return the antenna to its previous azimuth when idle*, after a
-  configurable number of minutes.
+  configurable number of minutes with no reply.
 - **Hourly Schedule** — *Rotate to a fixed azimuth at given times (UTC)*, with a Time / Azimuth
   table.
 
@@ -92,7 +96,10 @@ See [Antenna Rotator](/guide/rotator).
 
 ## DXCC Program
 
-- Per-band buttons to choose which bands the entity check applies to, for DXCC-by-band tracking.
+- Per-band buttons to choose which bands the entity check applies to (all-time, regardless of year).
+- **Keep replying to an entity until it is confirmed (QSL)** — keep calling stations from a needed
+  entity until you have a confirmation, not just a contact.
+- **Unlimited** — chase any DXCC entity not yet worked on any band.
 
 ## Parks On The Air
 
@@ -115,6 +122,8 @@ See [Choosing Who to Reply To](/guide/reply-engine).
 
 - **Select new ADIF File for analysis**
 - The file list, with **Summary** and **Clear**
+- **Ignore entries if prop_mode is set to SAT in ADIF Files** — skip satellite QSOs so they don't
+  count toward your HF worked / worked-before / marathon tracking.
 
 See [Your Logbook](/guide/adif).
 

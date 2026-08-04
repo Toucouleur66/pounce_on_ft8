@@ -14,25 +14,26 @@ version is **2.30**.
   in the focus label. The same operator is called again whenever their park reference changes, and a
   **POTA** entry appears in the Priority Manager so you decide where park activators rank. See
   [Parks On The Air](/guide/pota).
+- **Antenna rotator control (PstRotator).** A new *Antenna Rotator* settings tab steers your rotator
+  (via PstRotatorAz) to point at the stations you reply to — with a per-band selector, a movement
+  threshold, an automatic **return to the previous azimuth**, an **hourly azimuth schedule**, and a
+  live azimuth read-out in the status bar. See [Antenna Rotator](/guide/rotator).
+- **DXCC Program.** Hunt DXCC entities you haven't worked on the selected bands (all-time), with an
+  option to keep calling an entity until it's **confirmed**, plus an **Unlimited** any-band mode. See
+  [DXCC Program](/guide/dxcc-program).
+- **Double-click to reply.** Double-click any decode row to reply to that station immediately — this
+  works from an extra (receive-only) instance too, routed through the main copy.
+- **Separate LoTW upload and download.** Upload and download are now independent switches, so you can
+  request an upload, a download, or both from a given instance. See [Logbook of The World](/guide/lotw).
+- **Ignore satellite QSOs** when analysing your logbook, so they don't skew your HF tracking.
+- **Exclude by callsign length** — a setting to skip callsigns longer than a maximum you choose.
+- **Time / Age hint.** A small symbol on the **Time** column header reminds you that you can click to
+  switch to *Show age* mode, and back.
 
-### Version 2.21
-
-- **Antenna rotator control (PstRotator).** A new *Antenna Rotator* settings tab lets Wait and
-  Pounce steer your rotator (via PstRotator / PstRotatorAz) toward the station you're working, with:
-  - automatic tracking of the wanted station's heading,
-  - a **schedule** to change azimuth at the times you choose,
-  - a configurable movement threshold, and an automatic **return to the previous azimuth** when
-    tracking ends,
-  - the live azimuth shown in the status bar while connected.
-- **Double-click to reply.** Double-click any decode row to reply to that station immediately — and
-  this works from an extra (receive-only) instance too, routed through the main copy.
-- **DXCC Program tracking.** A setting to choose exactly which bands the entity check applies to,
-  for DXCC-by-band hunting.
-- **Time / Age hint.** A small symbol on the **Time** column header reminds you that you can click
-  to switch to *Show age* mode, and back.
-
-*Fixes:* Club Log real-time upload, smoother zoom on the grid map, and the harmless
-temporary-folder warning on shutdown is gone.
+*Fixes:* a wanted callsign entered **without a wildcard** is always callable again even when worked
+before (great for POTA chasers re-working the same activator); several Master/Slave sync fixes;
+Club Log real-time upload; smoother grid-map zoom; and the harmless temporary-folder warning on
+shutdown (Windows) is gone.
 
 ### Version 2.20
 

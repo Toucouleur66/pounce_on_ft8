@@ -8,9 +8,8 @@ station that is **currently spotted as a POTA activator**, and show you which pa
 
 ## What it does
 
-Unlike [Marathon](/guide/marathon) or the [DXCC Program](/reference/settings#dxcc-program) — which
-decide what you need from your local [logbook](/guide/adif) — POTA status can't be read from your
-log. It is **spot-driven**: Wait and Pounce fetches the live list of activator spots from
+Unlike [Marathon](/guide/marathon) or the [DXCC Program](/guide/dxcc-program) — which decide what you
+need from your local [logbook](/guide/adif) — POTA status can't be read from your log. It is **spot-driven**: Wait and Pounce fetches the live list of activator spots from
 [pota.app](https://pota.app) and cross-references it against every decoded callsign.
 
 When a decoded station matches a currently-spotted activator:

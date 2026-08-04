@@ -87,6 +87,9 @@ connection info. The **background colour** reflects health:
 - **Green** — healthy, decoding
 - **Blue-violet** — running as a **Slave** instance
 
+When an [antenna rotator](/guide/rotator) is connected, the status bar also shows the antenna's live
+**azimuth** (and, if the return-to-previous timer is running, the countdown until it swings back).
+
 ## Activity bar
 
 A thin vertical histogram on the far right showing live decode density / band busyness.

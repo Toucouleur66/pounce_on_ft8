@@ -35,6 +35,13 @@ WkB4 acts as an early gate in the [reply pipeline](/guide/how-it-works):
   worked before on another band/year (see [Marathon](/guide/marathon) and
   [Grid Tracker](/guide/grid-tracker)).
 
+::: tip An exact wanted callsign is always callable again
+If you type a **specific callsign with no wildcard** into Wanted, it stays callable even if you've
+already worked it — worked-before never blocks it. This is exactly what you want for a
+[POTA](/guide/pota) chase or a sked, where you may work the same operator repeatedly. Wildcard
+entries (like `3D2*`) still respect your worked-before setting.
+:::
+
 ## The ★ column
 
 The table's **★** column shows the worked-before status:
