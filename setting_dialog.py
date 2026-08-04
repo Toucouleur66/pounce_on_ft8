@@ -172,6 +172,7 @@ class SettingsDialog(QtWidgets.QDialog):
         menu_items = [
             SettingsStrings.MENU_SERVER(),
             SettingsStrings.MENU_GENERAL_SETTINGS(),
+            SettingsStrings.MENU_PRIORITY_MANAGER(),
             SettingsStrings.MENU_WATCHDOG_RETRY(),
             SettingsStrings.MENU_OFFSET_UPDATER(),
             SettingsStrings.MENU_SOUND_ALERTS(),
@@ -180,7 +181,6 @@ class SettingsDialog(QtWidgets.QDialog):
             SettingsStrings.MENU_DXCC_PROGRAM(),
             SettingsStrings.MENU_POTA(),
             SettingsStrings.MENU_GRID_TRACKER(),
-            SettingsStrings.MENU_PRIORITY_MANAGER(),
             SettingsStrings.MENU_LOGBOOK_ANALYSIS(),
             SettingsStrings.MENU_WORKED_BEFORE(),
             SettingsStrings.MENU_CLUB_LOG(),
@@ -228,6 +228,7 @@ class SettingsDialog(QtWidgets.QDialog):
 
         self.stacked_widget.addWidget(server_page)
         self.stacked_widget.addWidget(general_page)
+        self.stacked_widget.addWidget(priority_page)
         self.stacked_widget.addWidget(watchdog_page)
         self.stacked_widget.addWidget(offset_page)
         self.stacked_widget.addWidget(sound_page)
@@ -236,7 +237,6 @@ class SettingsDialog(QtWidgets.QDialog):
         self.stacked_widget.addWidget(dxcc_page)
         self.stacked_widget.addWidget(pota_page)
         self.stacked_widget.addWidget(grid_tracker_page)
-        self.stacked_widget.addWidget(priority_page)
         self.stacked_widget.addWidget(log_analysis_page)
         self.stacked_widget.addWidget(worked_b4_page)
         self.stacked_widget.addWidget(club_log_page)
