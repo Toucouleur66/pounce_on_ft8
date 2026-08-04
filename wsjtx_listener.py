@@ -50,7 +50,9 @@ from constants import (
     WKB4_REPLY_MODE_CURRENT_YEAR,
     ADIF_WORKED_CALLSIGNS_FILE,
     MARATHON_FILE,
-    PRIORITY_LIST
+    PRIORITY_LIST,
+    PRIORITY_TARGET_KEYS,
+    normalize_priority_order
 )
 
 # Message types a SLAVE may drive from its OWN local decode (banner + sound),
@@ -202,11 +204,13 @@ class Listener(QObject):
 
         self.max_reply_attempts_to_callsign     = max_reply_attempts_to_callsign
 
-        # Convert display names to property keys if needed
+        # Convert display names to property keys if needed, then normalize so the
+        # two exclusion rows are always present (legacy configs get them at the top).
         if priority_order is not None:
-            self.priority_order = [PRIORITY_LIST.get(name, name) for name in priority_order]
+            keys = [PRIORITY_LIST.get(name, name) for name in priority_order]
         else:
-            self.priority_order = list(PRIORITY_LIST.values())
+            keys = list(PRIORITY_LIST.values())
+        self.priority_order = normalize_priority_order(keys)
 
         self.origin_addr_port               = None
         # Address of the real radio (JTDX/WSJT-X), learned from genuine radio
@@ -1887,41 +1891,42 @@ class Listener(QObject):
                             message_type    = 'callsign_excluded'
 
                     """
-                        Ignore if excluded.
+                        Ignore if excluded — Reply Rules threshold.
 
-                        A CQ-Zone exclusion (excluded == "Z<n>") only filters ordinary
-                        traffic: it must NOT block a program/collection target (marathon,
-                        DXCC, new grid, POTA), the same way it already spares a wanted
-                        callsign. A needed entity can legitimately sit in a zone you
-                        otherwise exclude (e.g. 4U1UN, entity 289, in CQ Zone 5). A
-                        callsign exclusion (a pattern or exact match) still blocks all.
+                        An exclusion row (Excluded Callsigns / Excluded Zones) in the
+                        Reply Rules order acts as a threshold: a reply target ranked
+                        ABOVE the matching exclusion row is still called; a target
+                        ranked BELOW (or no target at all) is blocked. This replaces
+                        the old hard-coded "program targets always beat a zone
+                        exclusion" rule with a user-configurable ordering.
                     """
-                    # A zone exclusion is stored by the parser as "Z<digits>"
-                    # (e.g. "Z5"); a callsign exclusion is a pattern/exact match.
-                    zone_exclusion = (
-                        isinstance(excluded, str)
-                        and len(excluded) > 1
-                        and excluded[0] == 'Z'
-                        and excluded[1:].isdigit()
-                    )
-                    program_target = marathon or dxcc or pota or wanted_grid
-
-                    if excluded and not (zone_exclusion and program_target):
-                        log.debug(f"Skipping [ {callsign} ] as it is set as excluded [ {excluded} ]")
-                        reply_to_packet = False
-                        wanted          = False
-                        wanted_grid     = False
-                        wanted_cq_zone  = False
-                        marathon        = False
-                        dxcc            = False
-                        pota            = False
-                        message_type    = 'callsign_excluded'
-                    elif excluded and zone_exclusion and program_target:
-                        # Program target in an excluded zone: keep it, and clear the
-                        # zone-exclusion flag so downstream (colour/sound) treats it
-                        # as a normal program hit rather than an excluded callsign.
-                        log.info(f"Keeping [ {callsign} ] in excluded zone [ {excluded} ] for program target")
-                        excluded = False
+                    if excluded:
+                        active_targets = {
+                            key for key, on in (
+                                ('wanted',         wanted),
+                                ('wanted_cq_zone', wanted_cq_zone),
+                                ('wanted_grid',    wanted_grid),
+                                ('marathon',       marathon),
+                                ('dxcc_entity',    dxcc),
+                                ('pota',           pota),
+                            ) if on
+                        }
+                        if self.exclusion_overrides(excluded, active_targets):
+                            # A target outranks the exclusion: keep replying and clear
+                            # the flag so downstream (colour/sound) treats it as a
+                            # normal target hit rather than an excluded callsign.
+                            log.info(f"Keeping [ {callsign} ] despite exclusion [ {excluded} ] (target ranks above the exclusion)")
+                            excluded = False
+                        else:
+                            log.debug(f"Skipping [ {callsign} ] as it is set as excluded [ {excluded} ]")
+                            reply_to_packet = False
+                            wanted          = False
+                            wanted_grid     = False
+                            wanted_cq_zone  = False
+                            marathon        = False
+                            dxcc            = False
+                            pota            = False
+                            message_type    = 'callsign_excluded'
 
                     if self.is_ftx_mode() and directed != self.my_call:
                         """
@@ -2068,14 +2073,49 @@ class Listener(QObject):
     def get_priority_bonus(self, filtered_message):
         priority_bonus = 0
         priority_type = None
-        
+
         for i, property_name in enumerate(self.priority_order):
             if filtered_message.get(property_name, False):
                 priority_bonus = len(self.priority_order) - i
                 priority_type = property_name
                 break
-                
+
         return priority_bonus, priority_type
+
+    def _priority_index(self, key):
+        """Position of `key` in priority_order (lower = higher priority);
+        +inf when absent (an exclusion row removed by the user = strict)."""
+        try:
+            return self.priority_order.index(key)
+        except ValueError:
+            return float('inf')
+
+    def exclusion_overrides(self, excluded, active_targets):
+        """
+            Reply Rules threshold: an exclusion row blocks the reply UNLESS a
+            reply target (marathon/DXCC/new grid/POTA/wanted/zone) is ranked
+            ABOVE the exclusion row in priority_order. Returns True when the
+            exclusion should be OVERRIDDEN (i.e. keep replying).
+
+            `excluded` is the parser flag: "Z<n>" for a zone exclusion, else a
+            callsign pattern / exact match. `active_targets` is the set of target
+            keys that are True for this decode.
+        """
+        is_zone = (
+            isinstance(excluded, str)
+            and len(excluded) > 1
+            and excluded[0] == 'Z'
+            and excluded[1:].isdigit()
+        )
+        exclusion_key = 'excluded_zones' if is_zone else 'excluded_callsigns'
+        exclusion_index = self._priority_index(exclusion_key)
+
+        best_target_index = min(
+            (self._priority_index(t) for t in active_targets if t in PRIORITY_TARGET_KEYS),
+            default=float('inf'),
+        )
+        # A target strictly above the exclusion row overrides it.
+        return best_target_index < exclusion_index
             
     def get_sorted_keys(self):
         return lambda message: (

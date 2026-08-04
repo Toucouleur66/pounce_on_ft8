@@ -58,6 +58,7 @@ from constants import (
     MARATHON_UNLIMITED,
     # Priority
     PRIORITY_LIST,
+    normalize_priority_order,
     # UDP related
     DEFAULT_UDP_PORT,
     DEFAULT_AUTO_START_MONITORING,
@@ -2050,7 +2051,11 @@ class SettingsDialog(QtWidgets.QDialog):
 
         # Load from saved settings
         if not current_order:
-            saved_order = self.params.get('priority_order', list(PRIORITY_LIST.values()))
+            # Normalize so legacy configs (without the two Excluded rows) get them
+            # inserted at their default position (top = strict exclusion).
+            saved_order = normalize_priority_order(
+                self.params.get('priority_order', list(PRIORITY_LIST.values()))
+            )
             reverse_mapping = {v: k for k, v in PRIORITY_LIST.items()}
             for item in saved_order:
                 try:
@@ -2076,10 +2081,12 @@ class SettingsDialog(QtWidgets.QDialog):
                 elif key == "pota":
                     if not (hasattr(self, 'enable_pota') and self.enable_pota.isChecked()):
                         continue
+                elif key == "polite_reply":
+                    if not self.enable_polite_reply.isChecked():
+                        continue
+                # The two "Excluded ..." rows are always available: they are the
+                # threshold that decides when an exclusion overrides a target.
                 available_items.append(display_name)
-            if not self.enable_polite_reply.isChecked():
-                 if available_items:
-                    available_items.pop()
 
         final_order = []
         for item in current_order:

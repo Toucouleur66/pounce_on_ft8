@@ -33,7 +33,8 @@ from constants import (
     DEFAULT_JTDX_CLICK_PROMPT_LOG_QSO,
     WKB4_REPLY_MODE_ALWAYS,
     FREQ_MINIMUM,
-    FREQ_MAXIMUM
+    FREQ_MAXIMUM,
+    normalize_priority_order
 )
 
 class Worker(QObject):
@@ -340,7 +341,7 @@ class Worker(QObject):
             self.listener.minimum_report_for_reply              = self.minimum_report_for_reply
             self.listener.max_reply_callsign_length             = self.max_reply_callsign_length
             if self.priority_order is not None:
-                self.listener.priority_order                    = self.priority_order
+                self.listener.priority_order                    = normalize_priority_order(self.priority_order)
 
             self.listener.enable_club_log_synch                 = self.enable_club_log_synch
             self.listener.club_log_email                        = self.club_log_email

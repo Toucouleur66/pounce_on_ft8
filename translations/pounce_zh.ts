@@ -478,8 +478,8 @@
         <translation>网格追踪</translation>
     </message>
     <message>
-        <source>Priority Manager</source>
-        <translation>优先级管理</translation>
+        <source>Reply Rules</source>
+        <translation>回复规则</translation>
     </message>
     <message>
         <source>Logbook Analysis</source>
@@ -650,12 +650,12 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Priority Manager</source>
-        <translation>优先级管理器</translation>
+        <source>Reply Rules Settings</source>
+        <translation>回复规则设置</translation>
     </message>
     <message>
-        <source>&lt;p&gt;Set the priority order for reply decisions when decoding several potential callsigns for a same period.&lt;/p&gt;&lt;p&gt;Drag and drop blocks to reorder them. The first row has the highest priority, and the last row refers to the lowest priority.&lt;/p&gt;</source>
-        <translation>&lt;p&gt;在同一时段解码多个潜在呼号时设置回复决策的优先级顺序。&lt;/p&gt;&lt;p&gt;拖放块以重新排序。第一行具有最高优先级，最后一行指最低优先级。&lt;/p&gt;</translation>
+        <source>&lt;p&gt;Set the order used to decide which station to reply to when several are decoded in the same period. Drag and drop rows to reorder them: the top row has the highest priority.&lt;/p&gt;&lt;p&gt;The &lt;b&gt;Excluded Callsigns&lt;/b&gt; and &lt;b&gt;Excluded Zones&lt;/b&gt; rows act as a threshold: a target placed &lt;b&gt;above&lt;/b&gt; an exclusion row is still called despite the exclusion, while a target placed &lt;b&gt;below&lt;/b&gt; it is blocked. Place an exclusion at the very top to block everything, or below a target to let that target through.&lt;/p&gt;</source>
+        <translation>&lt;p&gt;设置在同一时段解码到多个电台时用于决定回复哪个电台的顺序。拖放各行以重新排序：最上面一行的优先级最高。&lt;/p&gt;&lt;p&gt;&lt;b&gt;排除的呼号&lt;/b&gt;和&lt;b&gt;排除的分区&lt;/b&gt;两行起到阈值的作用：放在某条排除行&lt;b&gt;上方&lt;/b&gt;的目标仍会被呼叫，尽管存在该排除；而放在其&lt;b&gt;下方&lt;/b&gt;的目标则会被阻止。将排除行放在最顶端可阻止所有目标，或将其放在某个目标下方以放行该目标。&lt;/p&gt;</translation>
     </message>
     <message>
         <source>&lt;p&gt;When several Wanted callsigns are detected during the same sequence and if program starts to reply to one specific callsign, it has a limited &lt;u&gt;number of attempts&lt;/u&gt; before moving on to the next detected callsign.&lt;/p&gt;&lt;p&gt;The maximum &lt;u&gt;waiting delay&lt;/u&gt; is used to halt TX and stop calling a station that the program has started to call but is no longer decoded. However, if another Wanted callsign is detected, this setting has no effect.&lt;/p&gt;</source>

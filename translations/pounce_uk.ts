@@ -474,8 +474,8 @@
         <translation>Трекер сіток</translation>
     </message>
     <message>
-        <source>Priority Manager</source>
-        <translation>Менеджер пріоритетів</translation>
+        <source>Reply Rules</source>
+        <translation>Правила відповіді</translation>
     </message>
     <message>
         <source>Logbook Analysis</source>
@@ -646,12 +646,12 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Priority Manager</source>
-        <translation>Менеджер пріоритетів</translation>
+        <source>Reply Rules Settings</source>
+        <translation>Налаштування правил відповіді</translation>
     </message>
     <message>
-        <source>&lt;p&gt;Set the priority order for reply decisions when decoding several potential callsigns for a same period.&lt;/p&gt;&lt;p&gt;Drag and drop blocks to reorder them. The first row has the highest priority, and the last row refers to the lowest priority.&lt;/p&gt;</source>
-        <translation>&lt;p&gt;Встановіть порядок пріоритету для відповідей при декодуванні кількох потенційних позивних за той самий період.&lt;/p&gt;&lt;p&gt;Перетягуйте блоки для зміни порядку. Перший рядок має найвищий пріоритет, останній рядок - найнижчий.&lt;/p&gt;</translation>
+        <source>&lt;p&gt;Set the order used to decide which station to reply to when several are decoded in the same period. Drag and drop rows to reorder them: the top row has the highest priority.&lt;/p&gt;&lt;p&gt;The &lt;b&gt;Excluded Callsigns&lt;/b&gt; and &lt;b&gt;Excluded Zones&lt;/b&gt; rows act as a threshold: a target placed &lt;b&gt;above&lt;/b&gt; an exclusion row is still called despite the exclusion, while a target placed &lt;b&gt;below&lt;/b&gt; it is blocked. Place an exclusion at the very top to block everything, or below a target to let that target through.&lt;/p&gt;</source>
+        <translation>&lt;p&gt;Встановіть порядок, за яким вирішується, якій станції відповідати, коли за один період декодовано кілька станцій. Перетягуйте рядки для зміни порядку: верхній рядок має найвищий пріоритет.&lt;/p&gt;&lt;p&gt;Рядки &lt;b&gt;Виключені позивні&lt;/b&gt; та &lt;b&gt;Виключені зони&lt;/b&gt; діють як поріг: ціль, розміщена &lt;b&gt;вище&lt;/b&gt; рядка виключення, все одно викликається попри виключення, тоді як ціль, розміщена &lt;b&gt;нижче&lt;/b&gt; нього, блокується. Розмістіть виключення на самому верху, щоб заблокувати все, або нижче цілі, щоб пропустити цю ціль.&lt;/p&gt;</translation>
     </message>
     <message>
         <source>&lt;p&gt;When several Wanted callsigns are detected during the same sequence and if program starts to reply to one specific callsign, it has a limited &lt;u&gt;number of attempts&lt;/u&gt; before moving on to the next detected callsign.&lt;/p&gt;&lt;p&gt;The maximum &lt;u&gt;waiting delay&lt;/u&gt; is used to halt TX and stop calling a station that the program has started to call but is no longer decoded. However, if another Wanted callsign is detected, this setting has no effect.&lt;/p&gt;</source>

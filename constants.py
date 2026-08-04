@@ -144,7 +144,14 @@ DEFAULT_PSTROTATOR_PARK_DELAY       = 15  # minutes of inactivity before returni
 DEFAULT_SELECTED_BAND           = "6m"
 DEFAULT_FILTER_VALUE            = "All"
 
+# Reply Rules order (was "Priority Manager"). Top row = highest priority.
+# The two "Excluded ..." rows are NOT reply targets; they act as a THRESHOLD:
+# a target ranked ABOVE an exclusion row is still called despite the exclusion,
+# a target ranked BELOW is blocked. They are placed FIRST by default (strict
+# exclusion), and list(PRIORITY_LIST.values()) is the default priority_order.
 PRIORITY_LIST                   = {
+    "Excluded Callsigns"        : "excluded_callsigns",
+    "Excluded Zones"            : "excluded_zones",
     "Wanted Callsign(s)"        : "wanted",
     "Wanted CQ Zone(s)"         : "wanted_cq_zone",
     "Marathon"                  : "marathon",
@@ -153,6 +160,40 @@ PRIORITY_LIST                   = {
     "POTA"                      : "pota",
     "Politeness reply"          : "polite_reply",
 }
+
+# The priority_order keys that are actual reply TARGETS (carry a reply bonus),
+# vs the EXCLUSION keys that only serve as threshold markers.
+PRIORITY_TARGET_KEYS            = ("wanted", "wanted_cq_zone", "marathon",
+                                   "dxcc_entity", "wanted_grid", "pota", "polite_reply")
+PRIORITY_EXCLUSION_KEYS         = ("excluded_callsigns", "excluded_zones")
+
+
+def normalize_priority_order(order):
+    """
+        Return a valid priority_order (list of internal keys):
+        - drops unknown keys,
+        - keeps the existing relative order of known keys,
+        - guarantees every PRIORITY_LIST key is present; any MISSING key is
+          inserted at its default index from PRIORITY_LIST (so a legacy config
+          without the two Excluded rows gets them at the TOP = strict exclusion).
+    """
+    default_keys = list(PRIORITY_LIST.values())
+    valid = set(default_keys)
+
+    result = [k for k in (order or []) if k in valid]
+
+    for default_index, key in enumerate(default_keys):
+        if key not in result:
+            # Insert at the smallest position not already taken by a
+            # higher-default-priority key, approximating its default rank.
+            insert_at = 0
+            for existing in result:
+                if default_keys.index(existing) < default_index:
+                    insert_at += 1
+                else:
+                    break
+            result.insert(insert_at, key)
+    return result
 
 DISCORD_URL                     = "https://discord.gg/fqCu24naCM"
 DISCORD_SECTION                 = f'<a href="{DISCORD_URL}">Support available on Discord</a>'

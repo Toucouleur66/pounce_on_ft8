@@ -168,7 +168,7 @@ class SettingsStrings:
     MENU_DXCC_PROGRAM = lambda: tr("SettingsDialog", "DXCC Program")
     MENU_POTA = lambda: tr("SettingsDialog", "Parks On The Air")
     MENU_GRID_TRACKER = lambda: tr("SettingsDialog", "Grid Tracker")
-    MENU_PRIORITY_MANAGER = lambda: tr("SettingsDialog", "Priority Manager")
+    MENU_PRIORITY_MANAGER = lambda: tr("SettingsDialog", "Reply Rules")
     MENU_LOGBOOK_ANALYSIS = lambda: tr("SettingsDialog", "Logbook Analysis")
     MENU_WORKED_BEFORE = lambda: tr("SettingsDialog", "Worked before")
     MENU_CLUB_LOG = lambda: tr("SettingsDialog", "Club Log")
@@ -230,9 +230,9 @@ class SettingsStrings:
     LABEL_MINIMUM_REPORT = lambda: tr("SettingsDialog", "Minimum report")
     LABEL_MAX_REPLY_CALLSIGN_LENGTH = lambda: tr("SettingsDialog", "Do not reply to callsigns longer than")
     # Priority Manager
-    GROUP_PRIORITY_MANAGER = lambda: tr("SettingsDialog", "Priority Manager Settings")
+    GROUP_PRIORITY_MANAGER = lambda: tr("SettingsDialog", "Reply Rules Settings")
     PRIORITY_NOTICE = lambda: tr("SettingsDialog",
-        "<p>Set the priority order for reply decisions when decoding several potential callsigns for a same period.</p><p>Drag and drop blocks to reorder them. The first row has the highest priority, and the last row refers to the lowest priority.</p>"
+        "<p>Set the order used to decide which station to reply to when several are decoded in the same period. Drag and drop rows to reorder them: the top row has the highest priority.</p><p>The <b>Excluded Callsigns</b> and <b>Excluded Zones</b> rows act as a threshold: a target placed <b>above</b> an exclusion row is still called despite the exclusion, while a target placed <b>below</b> it is blocked. Place an exclusion at the very top to block everything, or below a target to let that target through.</p>"
     )
     SEQUENCING_NOTICE = lambda: tr("SettingsDialog",
         "<p>When several Wanted callsigns are detected during the same sequence and if program starts to reply to one specific callsign, it has a limited <u>number of attempts</u> before moving on to the next detected callsign.</p><p>The maximum <u>waiting delay</u> is used to halt TX and stop calling a station that the program has started to call but is no longer decoded. However, if another Wanted callsign is detected, this setting has no effect.</p>"
