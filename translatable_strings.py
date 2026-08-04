@@ -232,7 +232,7 @@ class SettingsStrings:
     # Priority Manager
     GROUP_PRIORITY_MANAGER = lambda: tr("SettingsDialog", "Reply Rules Settings")
     PRIORITY_NOTICE = lambda: tr("SettingsDialog",
-        "<p>Set the order used to decide which station to reply to when several are decoded in the same period. Drag and drop rows to reorder them: the top row has the highest priority.</p><p>The <b>Excluded Callsigns</b> and <b>Excluded Zones</b> rows act as a threshold: a target placed <b>above</b> an exclusion row is still called despite the exclusion, while a target placed <b>below</b> it is blocked. Place an exclusion at the very top to block everything, or below a target to let that target through.</p>"
+        "<p>Set the order used to decide which station to reply to when several are decoded in the same period. Drag and drop rows to reorder them: the top row has the highest priority.</p><p>The <u>Excluded Callsigns</u> and <u>Excluded Zones</u> rows act as a threshold: a target placed <u>above</u> an exclusion row is still called despite the exclusion, while a target placed <u>below</u> it is blocked. Place an exclusion at the very top to block everything, or below a target to let that target through.</p>"
     )
     SEQUENCING_NOTICE = lambda: tr("SettingsDialog",
         "<p>When several Wanted callsigns are detected during the same sequence and if program starts to reply to one specific callsign, it has a limited <u>number of attempts</u> before moving on to the next detected callsign.</p><p>The maximum <u>waiting delay</u> is used to halt TX and stop calling a station that the program has started to call but is no longer decoded. However, if another Wanted callsign is detected, this setting has no effect.</p>"
