@@ -152,7 +152,6 @@ from constants import (
     DEFAULT_SELECTED_BAND,
     # Needed for filtering
     DEFAULT_FILTER_VALUE,
-    DEFAULT_REPLY_ATTEMPTS,
     # Working directory
     CURRENT_DIR,
     # UDP related
@@ -175,7 +174,6 @@ from constants import (
     DEFAULT_LOG_ALL_VALID_CONTACT,
     DEFAULT_IGNORE_SAT_ENTRIES,
     DEFAULT_DELAY_BETWEEN_SOUND,
-    DEFAULT_MAX_WAITING_DELAY,
     DEFAULT_MINIMUM_REPORT,
     DEFAULT_MAX_REPLY_CALLSIGN_LENGTH,
     ACTIVITY_BAR_MAX_VALUE,
@@ -2281,13 +2279,10 @@ class MainApp(QtWidgets.QMainWindow):
 
                 if message_type == 'wanted_callsign_being_called':
                     self.last_targeted_call = selected_message.get('callsign')
-                elif (
-                    message_type == 'ready_to_log' or 
-                    message_type == 'lost_targeted_callsign'
-                ):
-                    self.last_targeted_call = None    
+                elif message_type == 'ready_to_log':
+                    self.last_targeted_call = None
 
-            if message_type and message_type not in ['lost_targeted_callsign', 'callsign_excluded']:
+            if message_type and message_type not in ['callsign_excluded']:
                 self.set_message_to_focus_value_label(selected_message)
 
         """
@@ -4626,9 +4621,6 @@ class MainApp(QtWidgets.QMainWindow):
         self.worker.enable_logging_udp_server       = self.local_params.get('enable_logging_udp_server', DEFAULT_SECONDARY_UDP_SERVER)
         self.worker.enable_sending_reply            = self.local_params.get('enable_sending_reply', DEFAULT_SENDING_REPLY)
         self.worker.enable_polite_reply             = self.local_params.get('enable_polite_reply', DEFAULT_POLITE_REPLY)
-
-        self.worker.max_reply_attempts_to_callsign  = self.local_params.get('max_reply_attempts_to_callsign', DEFAULT_REPLY_ATTEMPTS)
-        self.worker.max_working_delay               = self.local_params.get('max_working_delay', DEFAULT_MAX_WAITING_DELAY)
 
         self.worker.enable_log_all_valid_contact    = self.local_params.get('enable_log_all_valid_contact', DEFAULT_LOG_ALL_VALID_CONTACT)
         self.worker.enable_reply_to_valid_callsign  = self.local_params.get('enable_reply_to_valid_callsign', DEFAULT_LOG_ALL_VALID_CONTACT)
