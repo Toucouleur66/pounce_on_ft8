@@ -1112,6 +1112,22 @@ class Listener(QObject):
             return self.watchdog_number_of_attempts
         return self.max_reply_attempts_to_callsign
 
+    def is_qso_engaged(self, callsign, current_directed=None):
+        """
+            True once a QSO is actually engaged with `callsign`: either the
+            station has already addressed us this QSO (qso_time_on is set), or the
+            decode currently being processed is directed to us by that station.
+            Used to stop the watchdog from excluding a station right as it starts
+            replying to us (which would drop us before we send the final 73/RR73).
+        """
+        if callsign is None:
+            return False
+        if self.qso_time_on.get(callsign) is not None:
+            return True
+        if current_directed is not None and current_directed == self.my_call:
+            return True
+        return False
+
     def is_watchdog_excluded(self, callsign):
         until = self.watchdog_exclusions.get(callsign)
         if until is None:
@@ -1686,10 +1702,17 @@ class Listener(QObject):
                     
                     attempts_limit = self.get_watchdog_attempts_limit()
                     if len(self.reply_attempts.get(self.targeted_call) or []) >= attempts_limit:
-                        log.warning(f"{len(self.reply_attempts[self.targeted_call])} attempts for [ {self.targeted_call} ] but we are about to switch on [ {callsign} ]")
-                        if self.enable_watchdog:
-                            self.add_watchdog_exclusion(self.targeted_call)
-                        self.reset_targeted_call()
+                        # Do not drop/exclude a station that has already started
+                        # replying to us: the attempts were spent while it was
+                        # calling third parties, and dumping it now would skip the
+                        # final 73/RR73 of a QSO that is actually engaged.
+                        if self.is_qso_engaged(self.targeted_call):
+                            log.warning(f"Watchdog limit reached for [ {self.targeted_call} ] but QSO engaged — keeping it")
+                        else:
+                            log.warning(f"{len(self.reply_attempts[self.targeted_call])} attempts for [ {self.targeted_call} ] but we are about to switch on [ {callsign} ]")
+                            if self.enable_watchdog:
+                                self.add_watchdog_exclusion(self.targeted_call)
+                            self.reset_targeted_call()
 
                     if (
                         directed == self.my_call 
@@ -2174,6 +2197,7 @@ class Listener(QObject):
         if (
             self.enable_watchdog
             and len(self.reply_attempts[callsign]) >= attempts_limit
+            and not self.is_qso_engaged(callsign)
         ):
             log.warning(f"Watchdog limit ({attempts_limit}) reached for [ {callsign} ]")
             self.add_watchdog_exclusion(callsign)
