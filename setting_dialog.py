@@ -453,11 +453,13 @@ class SettingsDialog(QtWidgets.QDialog):
         max_reply_callsign_length_label = QtWidgets.QLabel(SettingsStrings.LABEL_MAX_REPLY_CALLSIGN_LENGTH())
         max_reply_callsign_length_label.setFont(CUSTOM_FONT)
 
-        self.max_reply_callsign_length = QtWidgets.QSpinBox()
-        self.max_reply_callsign_length.setRange(MIN_MAX_REPLY_CALLSIGN_LENGTH, MAX_MAX_REPLY_CALLSIGN_LENGTH)
-        self.max_reply_callsign_length.setValue(DEFAULT_MAX_REPLY_CALLSIGN_LENGTH)
-        self.max_reply_callsign_length.setSuffix(" characters")
+        self.max_reply_callsign_length = QtWidgets.QComboBox()
+        self.max_reply_callsign_length.setEditable(False)
+        self.max_reply_callsign_length.setMinimumWidth(100)
         self.max_reply_callsign_length.setFont(CUSTOM_FONT)
+        self.max_reply_callsign_length.addItems([
+            f"{i} characters" for i in range(MIN_MAX_REPLY_CALLSIGN_LENGTH, MAX_MAX_REPLY_CALLSIGN_LENGTH + 1)
+        ])
 
         general_settings_layout.addWidget(self.enable_sending_reply, 0, 0, 1, 2)
         general_settings_layout.addWidget(self.enable_polite_reply, 1, 0, 1, 2)
@@ -733,21 +735,23 @@ class SettingsDialog(QtWidgets.QDialog):
         watchdog_number_of_attempts_label.setFont(CUSTOM_FONT)
         watchdog_number_of_attempts_label.setFixedWidth(200)
 
-        self.watchdog_number_of_attempts = QtWidgets.QLineEdit()
+        self.watchdog_number_of_attempts = QtWidgets.QComboBox()
+        self.watchdog_number_of_attempts.setEditable(False)
         self.watchdog_number_of_attempts.setFont(CUSTOM_FONT)
         self.watchdog_number_of_attempts.setMinimumWidth(100)
-        self.watchdog_number_of_attempts.setText(str(DEFAULT_WATCHDOG_NUMBER_OF_ATTEMPTS))
-        self.watchdog_number_of_attempts.setValidator(QtGui.QIntValidator(1, 9999, self))
+        self.watchdog_number_of_attempts.addItems([str(i) for i in range(1, 21)])
+        self.watchdog_number_of_attempts.setCurrentText(str(DEFAULT_WATCHDOG_NUMBER_OF_ATTEMPTS))
 
         watchdog_retry_time_label = QtWidgets.QLabel(SettingsStrings.LABEL_WATCHDOG_RETRY_TIME())
         watchdog_retry_time_label.setFont(CUSTOM_FONT)
         watchdog_retry_time_label.setFixedWidth(200)
 
-        self.watchdog_retry_time = QtWidgets.QLineEdit()
+        self.watchdog_retry_time = QtWidgets.QComboBox()
+        self.watchdog_retry_time.setEditable(False)
         self.watchdog_retry_time.setFont(CUSTOM_FONT)
         self.watchdog_retry_time.setMinimumWidth(100)
-        self.watchdog_retry_time.setText(str(DEFAULT_WATCHDOG_RETRY_TIME))
-        self.watchdog_retry_time.setValidator(QtGui.QIntValidator(1, 9999, self))
+        self.watchdog_retry_time.addItems([str(i) for i in range(2, 31)])
+        self.watchdog_retry_time.setCurrentText(str(DEFAULT_WATCHDOG_RETRY_TIME))
 
         watchdog_retry_minutes_label = QtWidgets.QLabel(SettingsStrings.LABEL_MINUTES())
         watchdog_retry_minutes_label.setFont(CUSTOM_FONT)
@@ -791,7 +795,7 @@ class SettingsDialog(QtWidgets.QDialog):
             SettingsStrings.HEADER_PRIORITY(),
             SettingsStrings.HEADER_REPLY_TO()
         ])
-        self.priority_table.setMaximumHeight(190)
+        self.priority_table.setMaximumHeight(340)
         self.priority_table.setAlternatingRowColors(True)
         self.priority_table.verticalHeader().setVisible(False)
         self.priority_table.horizontalHeader().setStretchLastSection(True)
@@ -3038,8 +3042,8 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_gap_finder.setChecked(
             self.params.get('enable_gap_finder', DEFAULT_GAP_FINDER)
         )
-        self.max_reply_callsign_length.setValue(
-            self.params.get('max_reply_callsign_length', DEFAULT_MAX_REPLY_CALLSIGN_LENGTH)
+        self.max_reply_callsign_length.setCurrentText(
+            f"{self.params.get('max_reply_callsign_length', DEFAULT_MAX_REPLY_CALLSIGN_LENGTH)} characters"
         )
         self.enable_ignore_sat_entries.setChecked(
             self.params.get('enable_ignore_sat_entries', DEFAULT_IGNORE_SAT_ENTRIES)
@@ -3050,10 +3054,10 @@ class SettingsDialog(QtWidgets.QDialog):
         self.enable_watchdog.setChecked(
             self.params.get('enable_watchdog', DEFAULT_WATCHDOG)
         )
-        self.watchdog_number_of_attempts.setText(
+        self.watchdog_number_of_attempts.setCurrentText(
             str(self.params.get('watchdog_number_of_attempts', DEFAULT_WATCHDOG_NUMBER_OF_ATTEMPTS))
         )
-        self.watchdog_retry_time.setText(
+        self.watchdog_retry_time.setCurrentText(
             str(self.params.get('watchdog_retry_time', DEFAULT_WATCHDOG_RETRY_TIME))
         )
         self.enable_jtdx_click_log_qso.setChecked(
@@ -3312,6 +3316,12 @@ class SettingsDialog(QtWidgets.QDialog):
         minimum_report_index = self.minimum_report_combo.currentIndex()
         minimum_report_for_reply = 10 - minimum_report_index  # +10dB is index 0, so +10 - 0 = +10
 
+        # Max reply callsign length: combo text is "<N> characters" -> take N.
+        try:
+            max_reply_callsign_length_value = int(self.max_reply_callsign_length.currentText().split()[0])
+        except (ValueError, IndexError):
+            max_reply_callsign_length_value = DEFAULT_MAX_REPLY_CALLSIGN_LENGTH
+
         marathon_preference = {}
         for band_name, btn in self.band_buttons.items():
             marathon_preference[band_name] = btn.isChecked()
@@ -3357,12 +3367,12 @@ class SettingsDialog(QtWidgets.QDialog):
             'enable_reply_to_valid_direction'            : self.enable_reply_to_valid_direction.isChecked(),
             'enable_reply_to_lotw_only'                  : self.enable_reply_to_lotw_only.isChecked(),
             'minimum_report_for_reply'                   : minimum_report_for_reply,
-            'max_reply_callsign_length'                  : self.max_reply_callsign_length.value(),
+            'max_reply_callsign_length'                  : max_reply_callsign_length_value,
             'enable_gap_finder'                          : self.enable_gap_finder.isChecked(),
             'enable_ignore_sat_entries'                  : self.enable_ignore_sat_entries.isChecked(),
             'enable_watchdog'                            : self.enable_watchdog.isChecked(),
-            'watchdog_number_of_attempts'                : int(self.watchdog_number_of_attempts.text()) if self.watchdog_number_of_attempts.text().isdigit() else DEFAULT_WATCHDOG_NUMBER_OF_ATTEMPTS,
-            'watchdog_retry_time'                        : int(self.watchdog_retry_time.text()) if self.watchdog_retry_time.text().isdigit() else DEFAULT_WATCHDOG_RETRY_TIME,
+            'watchdog_number_of_attempts'                : int(self.watchdog_number_of_attempts.currentText()) if self.watchdog_number_of_attempts.currentText().isdigit() else DEFAULT_WATCHDOG_NUMBER_OF_ATTEMPTS,
+            'watchdog_retry_time'                        : int(self.watchdog_retry_time.currentText()) if self.watchdog_retry_time.currentText().isdigit() else DEFAULT_WATCHDOG_RETRY_TIME,
             'enable_jtdx_click_log_qso'                  : self.enable_jtdx_click_log_qso.isChecked(),
             'jtdx_click_delay'                           : self.jtdx_click_delay_slider.value(),
             'pstrotator_host'                            : self.pstrotator_host.text() or DEFAULT_PSTROTATOR_HOST,
