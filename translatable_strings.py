@@ -234,13 +234,6 @@ class SettingsStrings:
     PRIORITY_NOTICE = lambda: tr("SettingsDialog",
         "<p>Set the order used to decide which station to reply to when several are decoded in the same period. Drag and drop rows to reorder them: the top row has the highest priority.</p><p>The <u>Excluded Callsigns</u> and <u>Excluded Zones</u> rows act as a threshold: a target placed <u>above</u> an exclusion row is still called despite the exclusion, while a target placed <u>below</u> it is blocked. Place an exclusion at the very top to block everything, or below a target to let that target through.</p>"
     )
-    SEQUENCING_NOTICE = lambda: tr("SettingsDialog",
-        "<p>When several Wanted callsigns are detected during the same sequence and if program starts to reply to one specific callsign, it has a limited <u>number of attempts</u> before moving on to the next detected callsign.</p><p>The maximum <u>waiting delay</u> is used to halt TX and stop calling a station that the program has started to call but is no longer decoded. However, if another Wanted callsign is detected, this setting has no effect.</p>"
-    )
-    GROUP_SEQUENCING = lambda: tr("SettingsDialog", "Sequencing")
-    LABEL_MAX_ATTEMPTS = lambda: tr("SettingsDialog", "Maximum number of attempts")
-    LABEL_TIMES = lambda: tr("SettingsDialog", "times")
-    LABEL_MAX_WAITING_DELAY = lambda: tr("SettingsDialog", "Maximum waiting delay")
     LABEL_MINUTES = lambda: tr("SettingsDialog", "minutes")
     HEADER_PRIORITY = lambda: tr("SettingsDialog", "Priority")
     HEADER_REPLY_TO = lambda: tr("SettingsDialog", "Reply to")

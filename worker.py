@@ -17,8 +17,6 @@ from constants import (
     DEFAULT_SECONDARY_UDP_SERVER,
     DEFAULT_SENDING_REPLY,
     DEFAULT_POLITE_REPLY,
-    DEFAULT_REPLY_ATTEMPTS,
-    DEFAULT_MAX_WAITING_DELAY,
     DEFAULT_LOG_ALL_VALID_CONTACT,
     DEFAULT_IGNORE_SAT_ENTRIES,
     DEFAULT_GAP_FINDER,
@@ -63,8 +61,6 @@ class Worker(QObject):
             enable_logging_udp_server          = DEFAULT_SECONDARY_UDP_SERVER,
             enable_sending_reply               = DEFAULT_SENDING_REPLY,
             enable_polite_reply                = DEFAULT_POLITE_REPLY,
-            max_reply_attempts_to_callsign     = DEFAULT_REPLY_ATTEMPTS,
-            max_working_delay                  = DEFAULT_MAX_WAITING_DELAY,
             enable_log_all_valid_contact       = DEFAULT_LOG_ALL_VALID_CONTACT,
             enable_reply_to_valid_callsign     = DEFAULT_LOG_ALL_VALID_CONTACT,
             enable_reply_to_valid_direction    = DEFAULT_LOG_ALL_VALID_CONTACT,
@@ -135,8 +131,6 @@ class Worker(QObject):
 
         self.enable_sending_reply               = enable_sending_reply
         self.enable_polite_reply                = enable_polite_reply
-        self.max_reply_attempts_to_callsign     = max_reply_attempts_to_callsign
-        self.max_working_delay                  = max_working_delay
         self.enable_log_all_valid_contact       = enable_log_all_valid_contact
         self.enable_reply_to_valid_callsign     = enable_reply_to_valid_callsign
         self.enable_reply_to_valid_direction    = enable_reply_to_valid_direction
@@ -202,9 +196,6 @@ class Worker(QObject):
                 enable_sending_reply            = self.enable_sending_reply,
                 enable_polite_reply             = self.enable_polite_reply,
 
-                max_reply_attempts_to_callsign  = self.max_reply_attempts_to_callsign,
-                max_working_delay               = self.max_working_delay,
-                
                 enable_log_all_valid_contact    = self.enable_log_all_valid_contact,
                 enable_reply_to_valid_callsign  = self.enable_reply_to_valid_callsign,
                 enable_reply_to_valid_direction = self.enable_reply_to_valid_direction,
@@ -313,8 +304,6 @@ class Worker(QObject):
             self.listener.enable_polite_reply                   = self.enable_polite_reply
             self.listener.min_freq                              = self.min_freq
             self.listener.max_freq                              = self.max_freq
-            self.listener.max_reply_attempts_to_callsign        = self.max_reply_attempts_to_callsign
-            self.listener.max_working_delay_seconds             = self.max_working_delay * 60
             self.listener.enable_log_all_valid_contact          = self.enable_log_all_valid_contact
             self.listener.enable_reply_to_valid_callsign        = self.enable_reply_to_valid_callsign
             self.listener.enable_reply_to_valid_direction       = self.enable_reply_to_valid_direction

@@ -74,9 +74,7 @@ from constants import (
     DEFAULT_DEBUG_OUTPUT,
     DEFAULT_POUNCE_LOG,
     DEFAULT_LOG_PACKET_DATA,
-    DEFAULT_REPLY_ATTEMPTS,
     DEFAULT_DELAY_BETWEEN_SOUND,
-    DEFAULT_MAX_WAITING_DELAY,
     DEFAULT_MINIMUM_REPORT,
     DEFAULT_MAX_REPLY_CALLSIGN_LENGTH,
     MIN_MAX_REPLY_CALLSIGN_LENGTH,
@@ -786,72 +784,6 @@ class SettingsDialog(QtWidgets.QDialog):
         priority_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
         self.notice_labels.append(priority_notice_label)
 
-        max_reply_text = SettingsStrings.SEQUENCING_NOTICE()
-        max_reply_notice_label = QtWidgets.QLabel(max_reply_text)
-        max_reply_notice_label.setWordWrap(True)
-        max_reply_notice_label.setFont(CUSTOM_FONT_SMALL)
-        max_reply_notice_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
-        max_reply_notice_label.setStyleSheet(get_setting_qss(EVEN_COLOR))
-        self.notice_labels.append(max_reply_notice_label)
-        max_reply_notice_label.setAutoFillBackground(True)
-
-        self.max_reply_group = QtWidgets.QGroupBox(SettingsStrings.GROUP_SEQUENCING())
-        self.group_boxes.append(self.max_reply_group)
-        self.max_reply_group.setFont(CUSTOM_FONT_SMALL)
-
-        max_reply_layout = QtWidgets.QVBoxLayout()
-
-        max_reply_label = QtWidgets.QLabel(SettingsStrings.LABEL_MAX_ATTEMPTS())
-        max_reply_label.setFont(CUSTOM_FONT)
-        max_reply_label.setFixedWidth(200)
-
-        self.max_reply_attempts_combo = QtWidgets.QComboBox()
-        self.max_reply_attempts_combo.setEditable(False)
-        self.max_reply_attempts_combo.setMinimumWidth(100)
-
-        self.max_reply_attempts_combo.addItems([str(i) for i in range(4, 31)])
-        self.max_reply_attempts_combo.setCurrentIndex(DEFAULT_REPLY_ATTEMPTS)
-
-        reply_attempts_layout = QtWidgets.QHBoxLayout()
-        reply_attempts_layout.addWidget(max_reply_label)
-        reply_attempts_layout.addWidget(self.max_reply_attempts_combo)
-        times_label = QtWidgets.QLabel(SettingsStrings.LABEL_TIMES())
-        times_label.setFont(CUSTOM_FONT)
-        reply_attempts_layout.addWidget(times_label)
-
-        max_reply_layout.addLayout(reply_attempts_layout)
-
-        max_waiting_delay_label = QtWidgets.QLabel(SettingsStrings.LABEL_MAX_WAITING_DELAY())
-        max_waiting_delay_label.setFont(CUSTOM_FONT)
-        max_waiting_delay_label.setFixedWidth(200)
-
-        self.max_waiting_delay_combo = QtWidgets.QComboBox()
-        self.max_waiting_delay_combo.setEditable(False)
-        self.max_waiting_delay_combo.setMinimumWidth(100)
-
-        waiting_delay_values = list(range(1, 11, 1))
-        self.max_waiting_delay_combo.addItems([str(value) for value in waiting_delay_values])
-
-        default_waiting_delay = str(DEFAULT_MAX_WAITING_DELAY)
-        if default_waiting_delay in [str(v) for v in waiting_delay_values]:
-            self.max_waiting_delay_combo.setCurrentText(default_waiting_delay)
-        else:
-            self.max_waiting_delay_combo.setCurrentText(str(waiting_delay_values[0]))
-
-        waiting_delay_layout = QtWidgets.QHBoxLayout()
-        waiting_delay_layout.addWidget(max_waiting_delay_label)
-        waiting_delay_layout.addWidget(self.max_waiting_delay_combo)
-        minutes_label = QtWidgets.QLabel(SettingsStrings.LABEL_MINUTES())
-        minutes_label.setFont(CUSTOM_FONT)
-        waiting_delay_layout.addWidget(minutes_label)
-
-        max_reply_layout.addLayout(waiting_delay_layout)
-
-        max_reply_layout.addStretch()
-
-        self.max_reply_group.setLayout(max_reply_layout)
-        self.max_reply_group.layout().setSpacing(5)
-
         self.priority_table = PriorityTableWidget()
         self.priority_table.setColumnCount(2)
         self.priority_table.setShowGrid(False)
@@ -883,9 +815,7 @@ class SettingsDialog(QtWidgets.QDialog):
         priority_group_layout.addWidget(self.priority_table)
         self.priority_manager_group.setLayout(priority_group_layout)
 
-        # Move priority-related widgets to Priority page
-        priority_layout.addWidget(max_reply_notice_label)
-        priority_layout.addWidget(self.max_reply_group)
+        # Reply Rules page
         priority_layout.addWidget(self.priority_manager_group)
         priority_layout.addStretch()
 
@@ -3308,22 +3238,6 @@ class SettingsDialog(QtWidgets.QDialog):
         else:
             self.adif_wkb4_group.setVisible(False)
 
-        max_reply_attempts = self.params.get('max_reply_attempts_to_callsign', DEFAULT_REPLY_ATTEMPTS)
-
-        index = self.max_reply_attempts_combo.findText(str(max_reply_attempts))
-        if index != -1:
-            self.max_reply_attempts_combo.setCurrentIndex(index)
-        else:
-            self.max_reply_attempts_combo.setCurrentIndex(0)
-
-        max_waiting_delay = self.params.get('max_waiting_delay', DEFAULT_MAX_WAITING_DELAY)
-        if isinstance(max_waiting_delay, int):
-            max_waiting_delay = str(max_waiting_delay)
-        if max_waiting_delay in [self.max_waiting_delay_combo.itemText(i) for i in range(self.max_waiting_delay_combo.count())]:
-            self.max_waiting_delay_combo.setCurrentText(max_waiting_delay)
-        else:
-            self.max_waiting_delay_combo.setCurrentText(str(DEFAULT_MAX_WAITING_DELAY))
-
         minimum_report = self.params.get('minimum_report_for_reply', DEFAULT_MINIMUM_REPORT)
         minimum_report_index = 10 - minimum_report
         if 0 <= minimum_report_index < self.minimum_report_combo.count():
@@ -3394,9 +3308,6 @@ class SettingsDialog(QtWidgets.QDialog):
         else:
             worked_before_preference = WKB4_REPLY_MODE_ALWAYS
 
-        max_reply_attempts = int(self.max_reply_attempts_combo.currentText())
-        max_waiting_delay = int(self.max_waiting_delay_combo.currentText())
-
         # Get minimum report for reply (convert combo index back to dB value)
         minimum_report_index = self.minimum_report_combo.currentIndex()
         minimum_report_for_reply = 10 - minimum_report_index  # +10dB is index 0, so +10 - 0 = +10
@@ -3445,8 +3356,6 @@ class SettingsDialog(QtWidgets.QDialog):
             'enable_reply_to_valid_callsign'             : self.enable_reply_to_valid_callsign.isChecked(),
             'enable_reply_to_valid_direction'            : self.enable_reply_to_valid_direction.isChecked(),
             'enable_reply_to_lotw_only'                  : self.enable_reply_to_lotw_only.isChecked(),
-            'max_reply_attempts_to_callsign'             : max_reply_attempts,
-            'max_waiting_delay'                          : max_waiting_delay,
             'minimum_report_for_reply'                   : minimum_report_for_reply,
             'max_reply_callsign_length'                  : self.max_reply_callsign_length.value(),
             'enable_gap_finder'                          : self.enable_gap_finder.isChecked(),

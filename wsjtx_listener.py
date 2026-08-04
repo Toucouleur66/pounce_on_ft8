@@ -74,8 +74,6 @@ class Listener(QObject):
             enable_logging_udp_server,            
             enable_sending_reply,
             enable_polite_reply,
-            max_reply_attempts_to_callsign,
-            max_working_delay,
             enable_log_all_valid_contact,
             enable_reply_to_valid_callsign,
             enable_reply_to_valid_direction,
@@ -202,8 +200,6 @@ class Listener(QObject):
         self.enable_grid_reply_unconfirmed      = enable_grid_reply_unconfirmed
         self.enable_ignore_sat_entries          = enable_ignore_sat_entries
 
-        self.max_reply_attempts_to_callsign     = max_reply_attempts_to_callsign
-
         # Convert display names to property keys if needed, then normalize so the
         # two exclusion rows are always present (legacy configs get them at the top).
         if priority_order is not None:
@@ -240,10 +236,6 @@ class Listener(QObject):
 
         self.enable_logging_udp_server      = enable_logging_udp_server or False
 
-        """
-            Convert minutes to seconds from max_working_delay
-        """
-        self.max_working_delay_seconds      = max_working_delay * 60
         self.monitoring_settings            = monitoring_settings
 
         self.wanted_callsigns               = None
@@ -1112,9 +1104,11 @@ class Listener(QObject):
         })
 
     def get_watchdog_attempts_limit(self):
+        # The Watchdog is the single source of the reply-attempt limit. When it is
+        # disabled, attempts are unlimited (we keep calling without excluding).
         if self.enable_watchdog:
             return self.watchdog_number_of_attempts
-        return self.max_reply_attempts_to_callsign
+        return float('inf')
 
     def is_qso_engaged(self, callsign, current_directed=None):
         """
@@ -1692,18 +1686,11 @@ class Listener(QObject):
                 """
                     Might reset values to focus on another wanted callsign
                 """
-                if (                    
-                    self.targeted_call is not None 
-                    and callsign != self.targeted_call 
+                if (
+                    self.targeted_call is not None
+                    and callsign != self.targeted_call
                     and not (wanted and wanted_cq_zone)
                 ):
-                    if (
-                        self.qso_time_on.get(self.targeted_call) and
-                        (time_now - self.qso_time_on.get(self.targeted_call)).total_seconds() >= self.max_working_delay_seconds            
-                    ):
-                        log.warning(f"Waiting for [ {self.targeted_call} ] but we are about to switch on [ {callsign} ]")
-                        self.reset_targeted_call()
-                    
                     attempts_limit = self.get_watchdog_attempts_limit()
                     if len(self.reply_attempts.get(self.targeted_call) or []) >= attempts_limit:
                         # Do not drop/exclude a station that has already started
@@ -1837,17 +1824,7 @@ class Listener(QObject):
                         })
 
                 elif monitored or monitored_cq_zone:
-                    message_type = 'monitored_callsign_decoded'   
-                elif self.targeted_call is not None:
-                    if (
-                        self.reply_attempts.get(self.targeted_call) and
-                        (decode_time - self.reply_attempts[self.targeted_call][-1]).total_seconds() >= self.max_working_delay_seconds            
-                    ):
-                        message_type = 'lost_targeted_callsign'
-                        log.warning(f"Lost focus for callsign [ {self.targeted_call} ]")        
-                        self.targeted_call = None  
-                        self.halt_packet()
-
+                    message_type = 'monitored_callsign_decoded'
 
                 if (
                     reply_to_packet

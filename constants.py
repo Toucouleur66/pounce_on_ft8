@@ -110,7 +110,8 @@ DEFAULT_SHOW_ALL_DECODED            = False
 DEFAULT_LOG_ALL_VALID_CONTACT       = True
 DEFAULT_IGNORE_SAT_ENTRIES          = False
 DEFAULT_DELAY_BETWEEN_SOUND         = 120
-DEFAULT_MAX_WAITING_DELAY           = 2 # minutes
+# Fixed internal bound for re-replying to a station that sent us an unexpected
+# message after we already reported it (wsjtx_listener). Not user-configurable.
 DEFAULT_REPLY_ATTEMPTS              = 10
 DEFAULT_MINIMUM_REPORT              = -25
 DEFAULT_MAX_REPLY_CALLSIGN_LENGTH   = 11 # max number of characters in a callsign we may reply to (8..11)
