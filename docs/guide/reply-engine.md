@@ -11,14 +11,17 @@ Wait and Pounce becomes a smart **monitor** — it highlights decodes and plays 
 the radio. You can also flip replying on and off quickly with the sound/reply toggle, and a sound
 confirms when replying has been turned off.
 
-## Your priority order
+## Reply Rules
 
 When more than one wanted station is available, the order you set here decides who wins. In
-**Settings → Priority Manager**, drag the reasons into the order you prefer:
+**Settings → Reply Rules**, drag the rows into the order you prefer — the **top row has the highest
+priority**:
 
-| Priority | Reason |
+| Priority | Row |
 |---|---|
-| Highest | **Wanted Callsign** |
+| Highest | **Excluded Callsigns** |
+| | **Excluded Zones** |
+| | **Wanted Callsign** |
 | | **Wanted CQ Zone** |
 | | **Marathon** |
 | | **DXCC Program** |
@@ -26,8 +29,8 @@ When more than one wanted station is available, the order you set here decides w
 | | **POTA** |
 | Lowest | **Politeness reply** |
 
-That's the default order — a wanted callsign beats a wanted zone, which beats a marathon entity,
-and so on. Reorder it to match how *you* hunt.
+That's the default order. A wanted callsign beats a wanted zone, which beats a marathon entity,
+and so on — reorder it to match how *you* hunt.
 
 ::: info Some rows only appear when enabled
 **DXCC Program**, **New Grid** and **POTA** show up in the list only once you've enabled the
@@ -39,10 +42,23 @@ Whatever your order, a station that is **calling your callsign** is answered fir
 in a QSO and finishing it comes before chasing anything new.
 :::
 
-The same page also sets how long the software persists with one station:
+### Exclusions are a threshold
 
-- **Maximum number of attempts** (4–30) — how many times to call a station before giving up.
-- **Maximum waiting delay** (1–10 min) — how long to keep trying a target with no answer.
+The **Excluded Callsigns** and **Excluded Zones** rows aren't reply targets — they act as a
+**threshold**. A target placed **above** an exclusion row is still called *despite* the exclusion;
+a target placed **below** it is blocked.
+
+- Put an exclusion row at the **very top** (the default) to block everything it matches — a hard
+  block, like a classic exclusion list.
+- Drop it **below** a target row to let that target through. For example, with **Excluded Zones**
+  *below* **Marathon** but *above* **New Grid**, a station in an excluded zone is still called if it
+  gives you a new marathon entity, but ignored if it would only be a new grid.
+
+Because the two rows are separate, you can be strict about specific callsigns (keep **Excluded
+Callsigns** near the top) while letting award targets slip past a broad zone exclusion (move
+**Excluded Zones** down). The callsigns and zones themselves are still typed in the per-band
+**Excluded Callsign(s)** / **Excluded CQ Zone(s)** fields — see
+[Wanted / Monitored / Excluded](/guide/targets).
 
 ## Polite reply
 
@@ -68,5 +84,5 @@ When your target sends its final acknowledgement, Wait and Pounce:
 3. Marks the station worked for that band and removes it from your wanted list.
 4. Frees up to choose the next target.
 
-If a contact **can't** be completed within your limits, the [Watchdog](/guide/watchdog) steps in
-and sets that station aside so you move on.
+If a station won't complete, the [Watchdog](/guide/watchdog) — when enabled — gives up after a set
+number of attempts and sets it aside so you move on.

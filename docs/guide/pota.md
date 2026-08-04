@@ -24,7 +24,7 @@ like any other QSO.
 
 In **Settings → Parks On The Air**, tick **Enable reply to POTA**. That's the only switch — there is
 no per-band selection. Once enabled, a **POTA** entry appears in your
-[Priority Manager](/guide/reply-engine#your-priority-order) so you can decide where park activators
+[Reply Rules](/guide/reply-engine#reply-rules) so you can decide where park activators
 rank against your other reasons to call.
 
 ## How activations are found
@@ -57,4 +57,4 @@ alongside Wanted, Marathon, DXCC and Grid:
 - **POTA** decides need from *live pota.app spots* — who's on the air in a park right now.
 
 Where a park activator ranks against those is entirely up to your
-[Priority Manager](/guide/reply-engine#your-priority-order) order.
+[Reply Rules](/guide/reply-engine#reply-rules) order.

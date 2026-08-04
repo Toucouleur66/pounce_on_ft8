@@ -12,11 +12,11 @@ In **Settings → Watchdog and retry**:
 | Setting | Default | Range | Meaning |
 |---|---|---|---|
 | **Enable Watchdog** | Off | — | Turn the watchdog on/off. |
-| **Number of attempts** | 10 | 1–9999 | Calls to a station before giving up. |
-| **Wait time** (minutes) | 20 | 1–9999 | How long the temporary exclusion lasts. |
+| **Number of attempts** | 10 | 1–20 | Calls to a station before giving up. |
+| **Wait time** (minutes) | 20 | 2–30 | How long the temporary exclusion lasts. |
 
-When the watchdog is **off**, the attempt cap falls back to the
-[*Maximum number of attempts*](/guide/reply-engine) set in the Priority Manager.
+This is the **only** attempts setting. When the watchdog is **off**, attempts are **unlimited** —
+Wait and Pounce keeps calling and never sets a station aside on its own.
 
 ## What happens when the limit is hit
 
@@ -41,16 +41,21 @@ excluded long past its timer.
 
 When an exclusion is lifted, the call's attempt counter is cleared so it starts fresh.
 
-## Direct reply overrides exclusion
+## A QSO in progress is never dropped
 
-If a temporarily-excluded station **answers your callsign directly**, the exclusion is lifted
-*immediately* (reason: "direct reply received"). You will never lose a QSO that's actually in
-progress because of the watchdog.
+The watchdog will not set aside a station **once it has started replying to you**. If your target
+answers your callsign (even after the attempt count has been spent while it was busy working other
+stations), the QSO counts as engaged and Wait and Pounce keeps calling so the final **73/RR73** goes
+out. A temporarily-excluded station that then answers you directly has its exclusion lifted
+*immediately* (reason: "direct reply received").
 
-## Hard exclusions are different
+## Excluded callsigns and zones
 
-Anything you type into the **Excluded Callsign(s)** field is a *hard* exclusion: it is never
-replied to and is **not** subject to the watchdog timer. See
+The **Excluded Callsign(s)** and **Excluded CQ Zone(s)** you type in are *not* a separate always-win
+rule. Where they sit in your [Reply Rules](/guide/reply-engine#exclusions-are-a-threshold) order
+decides whether they block a station: a target ranked **above** the matching exclusion row is still
+called, one ranked **below** is skipped. Leaving the exclusion rows at the top (the default) makes
+them block everything they match — the classic "never reply" behaviour. See
 [Wanted / Monitored / Excluded](/guide/targets#excluded-hard-vs-temporary).
 
 ## Manual temporary exclusions

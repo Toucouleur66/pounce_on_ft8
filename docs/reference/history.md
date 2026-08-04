@@ -2,9 +2,34 @@
 
 Wait and Pounce keeps improving. This page lists the latest releases and then summarises the main
 capabilities the program offers — written for users, not a line-by-line changelog. The current
-version is **2.30**.
+version is **2.31**.
 
 ## Latest releases
+
+### Version 2.31
+
+- **Reply Rules (was Priority Manager).** The reply-order page is renamed **Reply Rules** and now
+  includes two reorderable **Excluded Callsigns** and **Excluded Zones** rows. They act as a
+  *threshold*: a target placed **above** an exclusion row is still called despite the exclusion,
+  while a target placed **below** is blocked. So you can, for example, let a needed marathon entity
+  through a zone you otherwise exclude — by dragging **Excluded Zones** below **Marathon**. By
+  default both exclusion rows sit at the top, so exclusions block everything unless you move them.
+  See [Choosing Who to Reply To](/guide/reply-engine#reply-rules).
+- **One attempts setting.** The old *Sequencing* box (a separate *maximum number of attempts* and a
+  *maximum waiting delay*) is gone. The [Watchdog](/guide/watchdog)'s **Number of attempts** is now
+  the single limit — and with the watchdog off, attempts are **unlimited**.
+- **A QSO in progress is never dropped.** A station that has started replying to you is no longer set
+  aside by the watchdog, even if the attempt count ran out while it was busy working others — the
+  QSO always gets its final 73/RR73.
+- **Analyze a reply decision.** Right-click any decode row → **Analyze reply decision** to see, from
+  the log, exactly why the program replied to a station: the winning reason, the other candidates in
+  that cycle, and the deciding tie-break.
+
+*Fixes:* the DX Marathon now correctly ignores Worked-Before (a station worked a previous year is
+still called for this year's marathon); an excluded CQ zone no longer silently blocks a needed
+marathon/DXCC/grid/POTA target unless you rank it that way; an extra receive-only instance no longer
+replies on its own (only the main copy does, or a double-click); and the reply banner + sounds on a
+second instance now match the main copy.
 
 ### Version 2.30
 
@@ -12,7 +37,7 @@ version is **2.30**.
   **Enable reply to POTA** switch. Wait and Pounce fetches live activator spots from
   [pota.app](https://pota.app), highlights matching decodes in green, and shows the park reference
   in the focus label. The same operator is called again whenever their park reference changes, and a
-  **POTA** entry appears in the Priority Manager so you decide where park activators rank. See
+  **POTA** entry appears in the Reply Rules order so you decide where park activators rank. See
   [Parks On The Air](/guide/pota).
 - **Antenna rotator control (PstRotator).** A new *Antenna Rotator* settings tab steers your rotator
   (via PstRotatorAz) to point at the stations you reply to — with a per-band selector, a movement
@@ -65,8 +90,9 @@ The complete release notes for every version live in the application's README, a
 
 ## Smarter replying
 
-- **Configurable priority** — decide the order in which wanted callsigns, CQ zones, marathon
-  entities, new grids and politeness replies are chosen.
+- **Reply Rules** — decide the order in which wanted callsigns, CQ zones, marathon entities, new
+  grids, POTA activators and politeness replies are chosen, and where callsign/zone exclusions cut
+  in (they act as a threshold you can drag above or below any target).
 - **Best-of-the-batch selection** — when many stations decode at once, the best one is picked rather
   than whoever decoded first.
 - **Double-click to reply** — override the automatic choice and call a station instantly.

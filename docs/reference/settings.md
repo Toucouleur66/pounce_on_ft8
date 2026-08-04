@@ -30,9 +30,9 @@ Also here: **Enable auto start monitoring when program launched**.
 
 ## Watchdog and retry
 
-- **Enable Watchdog**
-- **Number of attempts** before giving up on a station
-- **Wait time** (minutes) the station stays set aside
+- **Enable Watchdog** — the single attempts limit; when off, attempts are unlimited
+- **Number of attempts** (1–20) before giving up on a station
+- **Wait time** (2–30 minutes) the station stays set aside
 
 See [Watchdog & Exclusions](/guide/watchdog).
 
@@ -106,15 +106,15 @@ See [Antenna Rotator](/guide/rotator).
 - **Enable reply to POTA** — reply to activators currently spotted on
   [pota.app](https://pota.app). Live FT8/FT4 spots are fetched every few minutes; a matched
   activator is highlighted in green and its park reference is shown in the focus label. When
-  enabled, a **POTA** entry appears in the Priority Manager.
+  enabled, a **POTA** entry appears in the Reply Rules order.
 
 See [Parks On The Air](/guide/pota).
 
-## Priority Manager
+## Reply Rules
 
-- **Maximum number of attempts** (4–30)
-- **Maximum waiting delay** (1–10 min)
-- The drag-and-drop **priority order** list
+- The drag-and-drop **reply order** list (top row = highest priority)
+- **Excluded Callsigns** and **Excluded Zones** appear as reorderable rows: a target above an
+  exclusion row is still called, a target below it is blocked
 
 See [Choosing Who to Reply To](/guide/reply-engine).
 
@@ -173,7 +173,6 @@ For diagnosing problems (see [Troubleshooting](/guide/troubleshooting)):
 |---|---|
 | Network port | 2237 |
 | Watchdog | off · 10 attempts · 20 minutes |
-| Maximum waiting delay | 2 minutes |
 | Minimum report | −25 dB |
 | Delay between monitored sounds | 120 seconds |
 | LoTW download interval | 10 minutes |

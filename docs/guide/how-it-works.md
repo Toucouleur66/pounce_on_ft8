@@ -78,13 +78,14 @@ the next transmit slot — it is not indecision, it's comparison.
 Once a station is chosen, the software keeps calling it across the following periods until one of
 these happens:
 
-- **the QSO completes** (the station sends its final acknowledgement),
-- **time runs out** — your *maximum waiting delay* elapses with no answer, or
-- **too many tries** — your *maximum number of attempts* is reached.
+- **the QSO completes** (the station sends its final acknowledgement), or
+- **too many tries** — with the [Watchdog](/guide/watchdog) enabled, its *number of attempts* is
+  reached (with the watchdog off, there is no limit).
 
-When it gives up, the [Watchdog](/guide/watchdog) can set the station aside temporarily so the
-software immediately moves on to the next-best target instead of looping on a station that can't
-hear you. It also tells the radio to stop transmitting so you're not calling into the void.
+When it gives up, the Watchdog sets the station aside temporarily so the software immediately moves
+on to the next-best target instead of looping on a station that can't hear you. It also tells the
+radio to stop transmitting so you're not calling into the void. A station that has already started
+replying to you is never dropped — the QSO always gets its final 73/RR73.
 
 ## Step 5 — Housekeeping
 

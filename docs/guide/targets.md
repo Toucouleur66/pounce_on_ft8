@@ -14,8 +14,8 @@ between sessions.
 | **Monitored Callsign(s)** | calls, wildcards | Alert only (sound + highlight); **not** auto-worked. |
 | **Wanted CQ Zone(s)** | numbers | Auto-reply to any station in these CQ zones. |
 | **Monitored CQ Zone(s)** | numbers | Alert only for these zones. |
-| **Excluded Callsign(s)** | calls | **Never** reply, regardless of any other rule. |
-| **Excluded CQ Zone(s)** | numbers | Never reply to these zones. |
+| **Excluded Callsign(s)** | calls | Block replies — strength set by your [Reply Rules](/guide/reply-engine#exclusions-are-a-threshold) order. |
+| **Excluded CQ Zone(s)** | numbers | Block replies from these zones — strength set by your Reply Rules order. |
 
 ## Wanted vs Monitored
 
@@ -40,8 +40,11 @@ When a reply is chosen via a wildcard match, the focus label shows the **`/ WILD
 
 There are **two** kinds of exclusion:
 
-1. **Hard exclusion** — anything you type into *Excluded Callsign(s)*. The engine will *never*
-   reply to it, overriding wanted/marathon/grid and even the watchdog.
+1. **Configured exclusion** — anything you type into *Excluded Callsign(s)* or *Excluded CQ Zone(s)*.
+   How strongly it blocks depends on where the **Excluded Callsigns** / **Excluded Zones** rows sit
+   in your [Reply Rules](/guide/reply-engine#exclusions-are-a-threshold) order: a target ranked
+   **above** the exclusion row is still called, one **below** is skipped. Left at the top (the
+   default), an excluded callsign is never replied to — the classic hard block.
 2. **Temporary exclusion** — added automatically by the [Watchdog](/guide/watchdog), or manually
    via the context menu (**Temporarily add to Excluded**). It auto-expires.
 
