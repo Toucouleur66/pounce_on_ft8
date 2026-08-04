@@ -795,7 +795,11 @@ class SettingsDialog(QtWidgets.QDialog):
             SettingsStrings.HEADER_PRIORITY(),
             SettingsStrings.HEADER_REPLY_TO()
         ])
-        self.priority_table.setMaximumHeight(340)
+        self.priority_table.setMinimumHeight(420)
+        self.priority_table.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Expanding,
+        )
         self.priority_table.setAlternatingRowColors(True)
         self.priority_table.verticalHeader().setVisible(False)
         self.priority_table.horizontalHeader().setStretchLastSection(True)
@@ -819,9 +823,13 @@ class SettingsDialog(QtWidgets.QDialog):
         priority_group_layout.addWidget(self.priority_table)
         self.priority_manager_group.setLayout(priority_group_layout)
 
-        # Reply Rules page
+        # Reply Rules page — let the priority group (and its table) take the
+        # available vertical space instead of leaving a large empty area below.
+        self.priority_manager_group.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Preferred,
+            QtWidgets.QSizePolicy.Policy.Expanding,
+        )
         priority_layout.addWidget(self.priority_manager_group)
-        priority_layout.addStretch()
 
         """
             LoTW Settings
