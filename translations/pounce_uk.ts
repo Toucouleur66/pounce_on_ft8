@@ -1315,6 +1315,85 @@
         <source>Open QRZ.com for %1</source>
         <translation>Відкрити QRZ.com для %1</translation>
     </message>
+    <message>
+        <source>Analyze reply decision for %1</source>
+        <translation>Проаналізувати рішення про відповідь для %1</translation>
+    </message>
+</context>
+<context>
+    <name>ReplyDecision</name>
+    <message>
+        <source>Reply Decision Analysis</source>
+        <translation>Аналіз рішення про відповідь</translation>
+    </message>
+    <message>
+        <source>Replied to %1 — reason: %2</source>
+        <translation>Відповідь надано %1 — причина: %2</translation>
+    </message>
+    <message>
+        <source>%1 was a candidate but %2 was chosen</source>
+        <translation>%1 був кандидатом, але вибрано %2</translation>
+    </message>
+    <message>
+        <source>unknown (log predates reason logging)</source>
+        <translation>невідомо (журнал створено до запису причин)</translation>
+    </message>
+    <message>
+        <source>No reply decision found for %1 in the log.</source>
+        <translation>У журналі не знайдено рішення про відповідь для %1.</translation>
+    </message>
+    <message>
+        <source>Candidates in this cycle (highest priority first):</source>
+        <translation>Кандидати в цьому циклі (спочатку найвищий пріоритет):</translation>
+    </message>
+    <message>
+        <source>Log context:</source>
+        <translation>Контекст журналу:</translation>
+    </message>
+    <message>
+        <source>Local Slave analysis — the actual reply decision belongs to the Master. This reflects the Slave's own settings/log.</source>
+        <translation>Локальний аналіз підлеглого — фактичне рішення про відповідь належить головному. Це відображає власні налаштування/журнал підлеглого.</translation>
+    </message>
+    <message>
+        <source>★</source>
+        <translation>★</translation>
+    </message>
+    <message>
+        <source>Priority</source>
+        <translation>Пріоритет</translation>
+    </message>
+    <message>
+        <source>Reason</source>
+        <translation>Причина</translation>
+    </message>
+    <message>
+        <source>Callsign</source>
+        <translation>Позивний</translation>
+    </message>
+    <message>
+        <source>Dir</source>
+        <translation>Dir</translation>
+    </message>
+    <message>
+        <source>SNR</source>
+        <translation>SNR</translation>
+    </message>
+    <message>
+        <source>Pid</source>
+        <translation>Pid</translation>
+    </message>
+    <message>
+        <source>WkB4</source>
+        <translation>WkB4</translation>
+    </message>
+    <message>
+        <source>LoTW</source>
+        <translation>LoTW</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Копіювати</translation>
+    </message>
 </context>
 <context>
     <name>WindowMonitoringDialog</name>

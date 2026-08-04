@@ -662,6 +662,32 @@ class ContextMenuStrings:
     # QRZ.com
     OPEN_QRZ_COM = lambda callsign: tr("ContextMenu", "Open QRZ.com for %1").replace("%1", str(callsign))
 
+    # Reply decision audit
+    ANALYZE_REPLY_DECISION = lambda callsign: tr("ContextMenu", "Analyze reply decision for %1").replace("%1", str(callsign))
+
+
+# REPLY DECISION AUDIT DIALOG (reply_decision_dialog.py)
+class ReplyDecisionStrings:
+    CONTEXT = "ReplyDecision"
+    WINDOW_TITLE = lambda: tr("ReplyDecision", "Reply Decision Analysis")
+    REPLIED_TO = lambda callsign, reason: tr("ReplyDecision", "Replied to %1 — reason: %2").replace("%1", str(callsign)).replace("%2", str(reason))
+    NOT_SELECTED = lambda callsign, winner: tr("ReplyDecision", "%1 was a candidate but %2 was chosen").replace("%1", str(callsign)).replace("%2", str(winner))
+    REASON_UNKNOWN = lambda: tr("ReplyDecision", "unknown (log predates reason logging)")
+    NO_DECISION = lambda callsign: tr("ReplyDecision", "No reply decision found for %1 in the log.").replace("%1", str(callsign))
+    CANDIDATES_HEADER = lambda: tr("ReplyDecision", "Candidates in this cycle (highest priority first):")
+    CONTEXT_HEADER = lambda: tr("ReplyDecision", "Log context:")
+    SLAVE_WARNING = lambda: tr("ReplyDecision", "Local Slave analysis — the actual reply decision belongs to the Master. This reflects the Slave's own settings/log.")
+    COL_SELECTED = lambda: tr("ReplyDecision", "★")
+    COL_PRIORITY = lambda: tr("ReplyDecision", "Priority")
+    COL_REASON = lambda: tr("ReplyDecision", "Reason")
+    COL_CALLSIGN = lambda: tr("ReplyDecision", "Callsign")
+    COL_DIRECTED = lambda: tr("ReplyDecision", "Dir")
+    COL_SNR = lambda: tr("ReplyDecision", "SNR")
+    COL_PID = lambda: tr("ReplyDecision", "Pid")
+    COL_WKB4 = lambda: tr("ReplyDecision", "WkB4")
+    COL_LOTW = lambda: tr("ReplyDecision", "LoTW")
+    COPY = lambda: tr("ReplyDecision", "Copy")
+
 
 # ERROR MESSAGES
 class ErrorStrings:

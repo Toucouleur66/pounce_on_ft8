@@ -2607,14 +2607,20 @@ class Listener(QObject):
 
         snr = f'+{message.get("snr")}' if message.get('snr') >= 0 else message.get('snr')
 
-        return (            
+        # priority_type (why:wanted / why:marathon / why:wanted_cq_zone ...) is added
+        # last so a reply-decision audit tool can state the exact reason per candidate.
+        # Older logs without it stay parseable (the field is simply absent).
+        priority_type = f"why:{message.get('priority_type')}" if message.get('priority_type') else ""
+
+        return (
             f"[ {message.get('priority')} ] {decode_time_str} "
             f"de:{message.get('callsign'):<10}{lotw}"
-            f"\tdir:{directed_or_grid:<4}" 
+            f"\tdir:{directed_or_grid:<4}"
             f"\tsnr:{snr:<6}"
             f"\tpid:{message.get('packet_id'):<6}"
-            f"\t{wkb4_year}"                                           
-        )        
+            f"\t{wkb4_year:<12}"
+            f"\t{priority_type}"
+        )
     
     def update_adif_data(self, parsed_message):
         self.adif_data = parsed_message

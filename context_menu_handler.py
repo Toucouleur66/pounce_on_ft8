@@ -188,6 +188,14 @@ class ContextMenuHandler:
         )
         menu.addSeparator()
 
+        # Reply decision audit (output table only: needs the decode's packet_id to
+        # locate the cycle in pounce.log).
+        if source_type == "table" and hasattr(widget, 'objectName') and widget.objectName() == 'output_table':
+            actions['analyze_reply_decision'] = menu.addAction(
+                ContextMenuStrings.ANALYZE_REPLY_DECISION(callsign)
+            )
+            menu.addSeparator()
+
         # Copy message
         actions['copy_message'] = menu.addAction(
             ContextMenuStrings.COPY_MESSAGE_TO_CLIPBOARD()
@@ -227,6 +235,7 @@ class ContextMenuHandler:
                 'qrz_com_for_directed_callsign': lambda: self.main_gui.open_qrz_com(directed),
                 'add_to_cq_zone': lambda: self.main_gui.update_var(self.main_gui.monitored_cq_zones_vars[context_menu_band], cq_zone),
                 'remove_from_cq_zone': lambda: self.main_gui.update_var(self.main_gui.monitored_cq_zones_vars[context_menu_band], cq_zone, "remove"),
+                'analyze_reply_decision': lambda: self.main_gui.analyze_reply_decision(data),
             }
 
             for key, act in actions.items():

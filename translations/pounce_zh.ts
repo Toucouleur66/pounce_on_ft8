@@ -1379,6 +1379,85 @@
         <source>An error occurred while testing: %1</source>
         <translation>测试时发生错误：%1</translation>
     </message>
+    <message>
+        <source>Analyze reply decision for %1</source>
+        <translation>分析对 %1 的回复决策</translation>
+    </message>
+</context>
+<context>
+    <name>ReplyDecision</name>
+    <message>
+        <source>Reply Decision Analysis</source>
+        <translation>回复决策分析</translation>
+    </message>
+    <message>
+        <source>Replied to %1 — reason: %2</source>
+        <translation>已回复 %1 — 原因：%2</translation>
+    </message>
+    <message>
+        <source>%1 was a candidate but %2 was chosen</source>
+        <translation>%1 曾是候选，但选择了 %2</translation>
+    </message>
+    <message>
+        <source>unknown (log predates reason logging)</source>
+        <translation>未知（日志早于原因记录功能）</translation>
+    </message>
+    <message>
+        <source>No reply decision found for %1 in the log.</source>
+        <translation>日志中未找到 %1 的回复决策。</translation>
+    </message>
+    <message>
+        <source>Candidates in this cycle (highest priority first):</source>
+        <translation>本周期的候选（优先级从高到低）：</translation>
+    </message>
+    <message>
+        <source>Log context:</source>
+        <translation>日志上下文：</translation>
+    </message>
+    <message>
+        <source>Local Slave analysis — the actual reply decision belongs to the Master. This reflects the Slave's own settings/log.</source>
+        <translation>本地从机分析 — 实际的回复决策由主机决定。此处反映的是从机自身的设置/日志。</translation>
+    </message>
+    <message>
+        <source>★</source>
+        <translation>★</translation>
+    </message>
+    <message>
+        <source>Priority</source>
+        <translation>优先级</translation>
+    </message>
+    <message>
+        <source>Reason</source>
+        <translation>原因</translation>
+    </message>
+    <message>
+        <source>Callsign</source>
+        <translation>呼号</translation>
+    </message>
+    <message>
+        <source>Dir</source>
+        <translation>Dir</translation>
+    </message>
+    <message>
+        <source>SNR</source>
+        <translation>SNR</translation>
+    </message>
+    <message>
+        <source>Pid</source>
+        <translation>Pid</translation>
+    </message>
+    <message>
+        <source>WkB4</source>
+        <translation>WkB4</translation>
+    </message>
+    <message>
+        <source>LoTW</source>
+        <translation>LoTW</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>复制</translation>
+    </message>
 </context>
 <context>
     <name>WindowMonitoringDialog</name>

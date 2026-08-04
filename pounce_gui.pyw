@@ -63,8 +63,11 @@ from raw_data_model import RawDataModel
 from raw_data_filter_proxy_model import RawDataFilterProxyModel
 from grid_map_viewer import GridMapWindow
 from active_users_window import ActiveUsersWindow
+from telemetry_service import TelemetryService
 from lotw_sync_worker import LoTWSyncWorker
 from lotw_incoming_dialog import LoTWIncomingDialog
+from reply_decision_dialog import ReplyDecisionDialog
+import log_reply_analyzer
 
 if sys.platform == 'darwin':
     from status_menu import StatusMenuAgent
@@ -239,6 +242,7 @@ class MainApp(QtWidgets.QMainWindow):
         self._pota_fetch_worker  = None
         self.grid_monitor        = None
         self.active_users_window = None
+        self.standalone_telemetry_service = None
         self.app_shutting_down   = False
 
         self.grid_monitor_geometry  = {}
@@ -3066,24 +3070,68 @@ class MainApp(QtWidgets.QMainWindow):
         dialog = LoTWIncomingDialog(log_entries=entries, dark_mode=self.dark_mode, parent=self)
         dialog.exec()
 
+    def analyze_reply_decision(self, data):
+        """
+            Reconstruct, from pounce.log, why we replied to (or skipped) the
+            callsign of the clicked output-table row: the winning candidate, its
+            reason, the other candidates of that cycle, and the log context.
+        """
+        try:
+            callsign  = (data or {}).get('callsign')
+            if not callsign:
+                return
+
+            # Locate the log files: current handler path first, then app-data dir.
+            log_dir = None
+            if getattr(self, 'file_handler', None) is not None:
+                base = getattr(self.file_handler, 'baseFilename', None)
+                if base:
+                    log_dir = os.path.dirname(base)
+            if not log_dir:
+                log_dir = get_app_data_dir()
+
+            log_files = log_reply_analyzer.find_log_files(log_dir)
+
+            analysis = log_reply_analyzer.analyze_reply_from_files(
+                callsign,
+                time_hhmmss=(data or {}).get('date_str'),
+                packet_id=(data or {}).get('packet_id'),
+                log_files=log_files,
+            )
+
+            dialog = ReplyDecisionDialog(
+                analysis,
+                dark_mode=self.dark_mode,
+                is_slave=(self._instance == SLAVE),
+                parent=self,
+            )
+            dialog.exec()
+        except Exception as e:
+            log.error(f"Failed to analyze reply decision: {e}\n{traceback.format_exc()}")
+
     def show_active_users(self):
         try:
-            if not hasattr(self, 'worker') or self.worker is None:
-                log.error("Worker not initialized")
-                return
+            # Prefer the running listener's telemetry service (keeps sending
+            # heartbeats), but fall back to a standalone instance so the list
+            # of active users is available even when monitoring is not running.
+            telemetry_service = None
+            if (
+                hasattr(self, 'worker') and self.worker is not None
+                and hasattr(self.worker, 'listener') and self.worker.listener is not None
+                and getattr(self.worker.listener, 'telemetry_service', None) is not None
+            ):
+                telemetry_service = self.worker.listener.telemetry_service
 
-            if not hasattr(self.worker, 'listener') or self.worker.listener is None:
-                log.error("Listener not initialized")                
-                return
-
-            if not hasattr(self.worker.listener, 'telemetry_service') or self.worker.listener.telemetry_service is None:
-                log.error("Telemetry service not initialized")                
-                return
+            if telemetry_service is None:
+                if not hasattr(self, 'standalone_telemetry_service') or self.standalone_telemetry_service is None:
+                    log.info("Creating standalone telemetry service for active users list")
+                    self.standalone_telemetry_service = TelemetryService()
+                telemetry_service = self.standalone_telemetry_service
 
             if not hasattr(self, 'active_users_window') or self.active_users_window is None:
                 log.info("Creating active users window")
                 self.active_users_window = ActiveUsersWindow(
-                    self.worker.listener.telemetry_service,
+                    telemetry_service,
                     self.dark_mode,
                     self
                 )

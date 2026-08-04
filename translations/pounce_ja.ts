@@ -1247,5 +1247,84 @@
         <source>Open QRZ.com for %1</source>
         <translation>%1のQRZ.comを開く</translation>
     </message>
+    <message>
+        <source>Analyze reply decision for %1</source>
+        <translation>%1 への応答判断を分析</translation>
+    </message>
+</context>
+<context>
+    <name>ReplyDecision</name>
+    <message>
+        <source>Reply Decision Analysis</source>
+        <translation>応答判断の分析</translation>
+    </message>
+    <message>
+        <source>Replied to %1 — reason: %2</source>
+        <translation>%1 に応答しました — 理由: %2</translation>
+    </message>
+    <message>
+        <source>%1 was a candidate but %2 was chosen</source>
+        <translation>%1 は候補でしたが %2 が選択されました</translation>
+    </message>
+    <message>
+        <source>unknown (log predates reason logging)</source>
+        <translation>不明（ログが理由記録より前のものです）</translation>
+    </message>
+    <message>
+        <source>No reply decision found for %1 in the log.</source>
+        <translation>ログに %1 の応答判断が見つかりませんでした。</translation>
+    </message>
+    <message>
+        <source>Candidates in this cycle (highest priority first):</source>
+        <translation>このサイクルの候補（優先度の高い順）：</translation>
+    </message>
+    <message>
+        <source>Log context:</source>
+        <translation>ログコンテキスト：</translation>
+    </message>
+    <message>
+        <source>Local Slave analysis — the actual reply decision belongs to the Master. This reflects the Slave's own settings/log.</source>
+        <translation>スレーブのローカル分析 — 実際の応答判断はマスターが行います。これはスレーブ自身の設定／ログを反映しています。</translation>
+    </message>
+    <message>
+        <source>★</source>
+        <translation>★</translation>
+    </message>
+    <message>
+        <source>Priority</source>
+        <translation>優先度</translation>
+    </message>
+    <message>
+        <source>Reason</source>
+        <translation>理由</translation>
+    </message>
+    <message>
+        <source>Callsign</source>
+        <translation>コールサイン</translation>
+    </message>
+    <message>
+        <source>Dir</source>
+        <translation>Dir</translation>
+    </message>
+    <message>
+        <source>SNR</source>
+        <translation>SNR</translation>
+    </message>
+    <message>
+        <source>Pid</source>
+        <translation>Pid</translation>
+    </message>
+    <message>
+        <source>WkB4</source>
+        <translation>WkB4</translation>
+    </message>
+    <message>
+        <source>LoTW</source>
+        <translation>LoTW</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>コピー</translation>
+    </message>
 </context>
 </TS>

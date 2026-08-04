@@ -1311,6 +1311,85 @@
         <source>Open QRZ.com for %1</source>
         <translation>Ouvrir QRZ.com pour %1</translation>
     </message>
+    <message>
+        <source>Analyze reply decision for %1</source>
+        <translation>Analyser la décision de réponse pour %1</translation>
+    </message>
+</context>
+<context>
+    <name>ReplyDecision</name>
+    <message>
+        <source>Reply Decision Analysis</source>
+        <translation>Analyse de la décision de réponse</translation>
+    </message>
+    <message>
+        <source>Replied to %1 — reason: %2</source>
+        <translation>Réponse à %1 — raison : %2</translation>
+    </message>
+    <message>
+        <source>%1 was a candidate but %2 was chosen</source>
+        <translation>%1 était un candidat mais %2 a été choisi</translation>
+    </message>
+    <message>
+        <source>unknown (log predates reason logging)</source>
+        <translation>inconnu (le journal est antérieur à l'enregistrement des raisons)</translation>
+    </message>
+    <message>
+        <source>No reply decision found for %1 in the log.</source>
+        <translation>Aucune décision de réponse trouvée pour %1 dans le journal.</translation>
+    </message>
+    <message>
+        <source>Candidates in this cycle (highest priority first):</source>
+        <translation>Candidats dans ce cycle (priorité la plus élevée en premier) :</translation>
+    </message>
+    <message>
+        <source>Log context:</source>
+        <translation>Contexte du journal :</translation>
+    </message>
+    <message>
+        <source>Local Slave analysis — the actual reply decision belongs to the Master. This reflects the Slave's own settings/log.</source>
+        <translation>Analyse locale de l'esclave — la décision de réponse réelle appartient au maître. Ceci reflète les propres paramètres/journal de l'esclave.</translation>
+    </message>
+    <message>
+        <source>★</source>
+        <translation>★</translation>
+    </message>
+    <message>
+        <source>Priority</source>
+        <translation>Priorité</translation>
+    </message>
+    <message>
+        <source>Reason</source>
+        <translation>Raison</translation>
+    </message>
+    <message>
+        <source>Callsign</source>
+        <translation>Indicatif</translation>
+    </message>
+    <message>
+        <source>Dir</source>
+        <translation>Dir</translation>
+    </message>
+    <message>
+        <source>SNR</source>
+        <translation>SNR</translation>
+    </message>
+    <message>
+        <source>Pid</source>
+        <translation>Pid</translation>
+    </message>
+    <message>
+        <source>WkB4</source>
+        <translation>WkB4</translation>
+    </message>
+    <message>
+        <source>LoTW</source>
+        <translation>LoTW</translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation>Copier</translation>
+    </message>
 </context>
 <context>
     <name>WindowMonitoringDialog</name>
