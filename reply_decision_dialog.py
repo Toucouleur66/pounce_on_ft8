@@ -69,7 +69,8 @@ class ReplyDecisionDialog(QDialog):
             caption = QLabel(ReplyDecisionStrings.CANDIDATES_HEADER())
             caption.setFont(CUSTOM_FONT_SMALL)
             layout.addWidget(caption)
-            layout.addWidget(self._build_table(candidates, analysis.get('selected')))
+            self._table = self._build_table(candidates, analysis.get('selected'))
+            layout.addWidget(self._table)
 
             tie_note = analysis.get('tie_break_note')
             if tie_note:
@@ -90,6 +91,11 @@ class ReplyDecisionDialog(QDialog):
             ctx_view.setFont(CUSTOM_FONT_SMALL)
             ctx_view.setPlainText("\n".join(context))
             ctx_view.setMaximumHeight(160)
+            # Match the candidate table's width exactly (same left/right edges).
+            ctx_view.setSizePolicy(
+                QtWidgets.QSizePolicy.Policy.Expanding,
+                QtWidgets.QSizePolicy.Policy.Fixed,
+            )
             layout.addWidget(ctx_view)
 
         # Buttons: Copy (only when there is something worth copying) + Close.
@@ -134,12 +140,24 @@ class ReplyDecisionDialog(QDialog):
         # The queried station was a candidate but lost to `winner`.
         return f"<b>{ReplyDecisionStrings.NOT_SELECTED(callsign, winner)}</b>"
 
-    @staticmethod
-    def _format_reason(priority_type):
-        # "wanted_grid" -> "WANTED GRID"; empty stays empty.
+    # Human labels for the internal priority_type keys (acronyms kept correct).
+    _REASON_LABELS = {
+        'wanted'         : "Wanted",
+        'wanted_grid'    : "Wanted Grid",
+        'wanted_cq_zone' : "Wanted CQ Zone",
+        'marathon'       : "Marathon",
+        'dxcc_entity'    : "DXCC",
+        'pota'           : "POTA",
+        'polite_reply'   : "Politeness",
+    }
+
+    @classmethod
+    def _format_reason(cls, priority_type):
+        # "wanted_grid" -> "Wanted Grid"; empty stays empty. Unknown keys fall
+        # back to a title-cased form.
         if not priority_type:
             return ""
-        return priority_type.replace('_', ' ').upper()
+        return cls._REASON_LABELS.get(priority_type, priority_type.replace('_', ' ').title())
 
     def _build_table(self, candidates, selected):
         # No "selected" star column: the winning row is already highlighted.
@@ -196,6 +214,10 @@ class ReplyDecisionDialog(QDialog):
         # Stretch the last column to the right edge so the table fills its full
         # width and lines up with the Log context box below it.
         header.setStretchLastSection(True)
+        table.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Expanding,
+        )
         return table
 
     def _plain_text_summary(self):
