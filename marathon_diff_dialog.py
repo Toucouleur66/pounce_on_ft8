@@ -29,8 +29,11 @@ _HEADER_QSS = """
 from translatable_strings import MarathonDiffStrings, CommonStrings
 
 
-# Gained entries are cyan text; lost entries are white text on a red fill.
-_COLOR_GAINED_FG = EVEN_COLOR   # cyan (#9DFFFE), same as the score highlight
+# Gained entries: dark-blue text on a cyan fill (same highlight as the score
+# window's totals row) so they stay readable on Windows, where plain cyan text
+# on the white background is washed out. Lost entries: white text on a red fill.
+_COLOR_GAINED_FG = "#555BC2"    # dark blue, same as the score highlight text
+_COLOR_GAINED_BG = EVEN_COLOR   # cyan (#9DFFFE), same as the score highlight fill
 _COLOR_LOST_FG   = "#FFFFFF"    # white
 _COLOR_LOST_BG   = "#C5221F"    # red
 
@@ -222,7 +225,7 @@ class MarathonDiffDialog(QDialog):
         rows = []
         for key in sorted(gained, key=self._label_for):
             date, call = cur_info[key]
-            rows.append((key, date, call, _COLOR_GAINED_FG, None))
+            rows.append((key, date, call, _COLOR_GAINED_FG, _COLOR_GAINED_BG))
         for key in sorted(lost, key=self._label_for):
             date, call = prev_info[key]
             rows.append((key, date, call, _COLOR_LOST_FG, _COLOR_LOST_BG))
