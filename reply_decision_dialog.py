@@ -121,12 +121,19 @@ class ReplyDecisionDialog(QDialog):
         button_layout.addStretch()
         layout.addLayout(button_layout)
 
-        # Size to content: a full analysis (candidate table + context) gets a roomy
-        # window; a bare "no decision found" message stays compact instead of a huge
-        # mostly-empty box.
+        # Size to content: a full analysis (candidate table + context) sizes the
+        # window to the table's natural width so it isn't wider than needed and the
+        # table + log context share the exact same left/right edges. A bare "no
+        # decision found" message stays compact.
         if has_details:
-            self.setMinimumWidth(560)
-            self.resize(720, 560)
+            table_w = getattr(self, '_table_content_width', 520)
+            margins = layout.contentsMargins()
+            width = table_w + margins.left() + margins.right()
+            # Keep the SLAVE warning / headline readable if the table is narrow.
+            width = max(width, 480)
+            self.resize(width, 560)
+            self.setMinimumWidth(width)
+            self.setMaximumWidth(width)
         else:
             self.summary_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             layout.setSizeConstraint(QLayout.SizeConstraint.SetFixedSize)
@@ -225,9 +232,13 @@ class ReplyDecisionDialog(QDialog):
                 table.setItem(row, col, item)
 
         table.resizeColumnsToContents()
-        # Stretch the last column to the right edge so the table fills its full
-        # width and lines up with the Log context box below it.
-        header.setStretchLastSection(True)
+        # Natural table width = sum of column widths + frame (+ vertical scrollbar
+        # allowance). We size the whole dialog to this so the table shows at its
+        # content width and the Log context box (Expanding) lines up with the last
+        # column's right edge instead of the table being stretched wider.
+        header.setStretchLastSection(False)
+        content_width = sum(table.columnWidth(c) for c in range(table.columnCount()))
+        self._table_content_width = content_width + 2 * table.frameWidth() + 18
         table.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Expanding,
             QtWidgets.QSizePolicy.Policy.Expanding,
