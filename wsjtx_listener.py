@@ -1965,10 +1965,29 @@ class Listener(QObject):
                     priority = 1
 
                 """
-                    Send messages to GUI                    
+                    Send messages to GUI
                 """
                 if reply_to_packet and message_type is None:
                     message_type = 'wanted_callsign_decoded'
+
+                """
+                    Visual "excluded" mark (struck-through row) — independent of
+                    whether we would reply. A station that is hard-excluded, or
+                    temporarily excluded by the watchdog (retry window still open),
+                    is shown as excluded even when a filter cleared reply_to_packet
+                    before the exclusion blocks above could tag it. A station that
+                    is directly answering us is never marked (its exclusion was
+                    already lifted) — so we skip directed-to-my_call decodes.
+                """
+                if (
+                    message_type not in ('callsign_excluded', 'ready_to_log', 'directed_to_my_call')
+                    and directed != self.my_call
+                    and (
+                        excluded
+                        or (self.enable_watchdog and self.is_watchdog_excluded(callsign))
+                    )
+                ):
+                    message_type = 'callsign_excluded'
 
                 # log.debug(f"Priority for: {formatted_message} for {callsign:<15}\nWorkedB4\t= {callsign_wkb4}\nCallsignInfo\t= {callsign_info}\nEntityCode\t= {entity_code}\nEntityWkB4\t= {entity_wkb4}\nWanted\t\t= {wanted}\nWantedCQZone\t= {wanted_cq_zone}\nMarathon\t= {marathon}\nExcluded\t= {excluded}\nMonitored\t= {monitored}")
 
