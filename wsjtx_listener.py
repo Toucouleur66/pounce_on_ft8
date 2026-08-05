@@ -1831,43 +1831,6 @@ class Listener(QObject):
                     and message_type != 'ready_to_log'
                 ):
                     """
-                        Exclude if needed
-                    """
-                    if (
-                        not exactly_matched
-                        and directed != self.my_call
-                        and callsign not in self.excluded_callsigns
-                        and len(self.reply_attempts.get(self.targeted_call) or []) >= self.get_watchdog_attempts_limit()
-                    ):
-                        if self.enable_watchdog and self.targeted_call:
-                            self.add_watchdog_exclusion(self.targeted_call)
-                        self.reply_attempts[callsign] = []
-                        log.error(f"Add [ {callsign} ] to temporarily excluded")
-                        self.message_callback({
-                            'type'             : 'temporarily_excluded',
-                            'callsign'         : callsign,
-                            'exclusion_minutes': self.watchdog_retry_time if self.enable_watchdog else None,
-                            'band'             : self.band
-                        })
-                        reply_to_packet = False
-
-                    """
-                        Ignore if temporarily excluded by Watchdog,
-                        unless the callsign is replying directly to us — in that
-                        case drop the exclusion and let the QSO proceed.
-                    """
-                    if self.enable_watchdog and self.is_watchdog_excluded(callsign):
-                        if directed == self.my_call:
-                            self.lift_watchdog_exclusion(callsign, reason='direct reply received')
-                        else:
-                            log.debug(f"Skipping [ {callsign} ] — watchdog retry window active")
-                            reply_to_packet = False
-                            wanted          = False
-                            wanted_grid     = False
-                            wanted_cq_zone  = False
-                            message_type    = 'callsign_excluded'
-
-                    """
                         Ignore if excluded — Reply Rules threshold.
 
                         An exclusion row (Excluded Callsigns / Excluded Zones) in the
@@ -1876,6 +1839,11 @@ class Listener(QObject):
                         ranked BELOW (or no target at all) is blocked. This replaces
                         the old hard-coded "program targets always beat a zone
                         exclusion" rule with a user-configurable ordering.
+
+                        This MUST run before the watchdog temp-exclusion below: an
+                        excluded station (by zone or by callsign) has to be filtered
+                        out here so it is never swept into the temporarily-excluded
+                        list by the watchdog. A zone exclusion is NOT a reply attempt.
                     """
                     if excluded:
                         active_targets = {
@@ -1904,6 +1872,47 @@ class Listener(QObject):
                             dxcc            = False
                             pota            = False
                             message_type    = 'callsign_excluded'
+
+                    """
+                        Ignore if temporarily excluded by Watchdog,
+                        unless the callsign is replying directly to us — in that
+                        case drop the exclusion and let the QSO proceed.
+                    """
+                    if reply_to_packet and self.enable_watchdog and self.is_watchdog_excluded(callsign):
+                        if directed == self.my_call:
+                            self.lift_watchdog_exclusion(callsign, reason='direct reply received')
+                        else:
+                            log.debug(f"Skipping [ {callsign} ] — watchdog retry window active")
+                            reply_to_packet = False
+                            wanted          = False
+                            wanted_grid     = False
+                            wanted_cq_zone  = False
+                            message_type    = 'callsign_excluded'
+
+                    """
+                        Watchdog temp-exclusion: only for a station we are actually
+                        trying to reply to (still reply_to_packet True here, i.e. NOT
+                        excluded above) whose targeted-call attempt budget is spent.
+                    """
+                    if (
+                        reply_to_packet
+                        and not excluded
+                        and not exactly_matched
+                        and directed != self.my_call
+                        and callsign not in self.excluded_callsigns
+                        and len(self.reply_attempts.get(self.targeted_call) or []) >= self.get_watchdog_attempts_limit()
+                    ):
+                        if self.enable_watchdog and self.targeted_call:
+                            self.add_watchdog_exclusion(self.targeted_call)
+                        self.reply_attempts[callsign] = []
+                        log.error(f"Add [ {callsign} ] to temporarily excluded")
+                        self.message_callback({
+                            'type'             : 'temporarily_excluded',
+                            'callsign'         : callsign,
+                            'exclusion_minutes': self.watchdog_retry_time if self.enable_watchdog else None,
+                            'band'             : self.band
+                        })
+                        reply_to_packet = False
 
                     if self.is_ftx_mode() and directed != self.my_call:
                         """
