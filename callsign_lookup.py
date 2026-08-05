@@ -148,6 +148,21 @@ class CallsignLookup:
                     return True
         return False
 
+    def _is_grid_zone_stale(self, cached_result):
+        """
+        True if a cached entry's stored grid is geographically inconsistent with
+        its own entity centroid — a corrupt decoded grid that was trusted before
+        the consistency guard existed (e.g. Greece cached as ON10 -> CQ zone 23).
+        Such an entry is dropped so it re-resolves to the entity's real zone.
+        Only a demonstrably-far grid is stale; missing data stays valid.
+        """
+        if not cached_result:
+            return False
+        grid = cached_result.get("grid")
+        if not grid:
+            return False
+        return not self._grid_matches_entity(grid, cached_result)
+
     def _find_matching_cty_prefixes(self, callsign):
         """Find matching CTY prefixes using optimized index instead of linear search"""
         callsign_upper = callsign.upper()
@@ -858,6 +873,41 @@ class CallsignLookup:
         zone = self.lat_lon_to_cq_zone(lat, lon)
         return zone
 
+    # Max angular distance (degrees) a decoded grid may sit from the entity's
+    # own centroid before we treat it as bogus. Wide enough to cover any single
+    # DXCC entity (their CTY prefix centroids are already regional, so a real
+    # grid stays close), tight enough to reject a corrupt grid that lands on a
+    # different continent (e.g. Greece cached as ON10 -> lon 103E -> CQ zone 23).
+    GRID_ENTITY_MAX_DEGREES = 45.0
+
+    def _grid_matches_entity(self, grid, result):
+        """
+            True when `grid` is geographically plausible for the entity in
+            `result` (whose lat/long is the CTY centroid). Guards the CQ-zone /
+            grid override from a corrupt decoded grid that would otherwise flip a
+            station into a far-away zone and get persisted to the cache.
+
+            Returns True (permissive) when we lack the data to judge — a missing
+            entity centroid or an unparsable grid must not silently drop a real
+            grid; only a grid we can prove is far from the entity is rejected.
+        """
+        if not grid:
+            return False
+        ent_lat = result.get("lat")
+        ent_lon = result.get("long")
+        if ent_lat is None or ent_lon is None:
+            return True
+        try:
+            g_lat, g_lon = self.locator_to_lat_lon_partial(grid)
+        except (ValueError, IndexError):
+            return True
+        # Longitude wraps at +/-180; take the shorter arc.
+        d_lon = abs(g_lon - ent_lon) % 360
+        if d_lon > 180:
+            d_lon = 360 - d_lon
+        d_lat = abs(g_lat - ent_lat)
+        return d_lat <= self.GRID_ENTITY_MAX_DEGREES and d_lon <= self.GRID_ENTITY_MAX_DEGREES
+
     def lookup_callsign(
         self,
         callsign,
@@ -872,18 +922,24 @@ class CallsignLookup:
                 date = datetime.datetime.now(datetime.timezone.utc)
 
             # Drop cache entries that were stored before the length-conditional
-            # prefix rules existed (e.g. KG4FUY cached as Guantanamo Bay), so they
-            # are re-resolved correctly below.
-            if enable_cache and callsign in self.cache and self._is_length_rule_stale(callsign, self.cache.get(callsign)):
-                with self.cache_lock:
-                    self.cache.pop(callsign, None)
+            # prefix rules existed (e.g. KG4FUY cached as Guantanamo Bay), or that
+            # hold a corrupt grid inconsistent with their entity (e.g. Greece
+            # cached as ON10 -> CQ zone 23), so they are re-resolved correctly.
+            if enable_cache and callsign in self.cache:
+                stale_cached = self.cache.get(callsign)
+                if (
+                    self._is_length_rule_stale(callsign, stale_cached)
+                    or self._is_grid_zone_stale(stale_cached)
+                ):
+                    with self.cache_lock:
+                        self.cache.pop(callsign, None)
 
             if enable_cache and callsign in self.cache:
                 with self.cache_lock:
                     cached_result = self.cache[callsign].copy()
                     self.cache.move_to_end(callsign)
                     
-                    if grid and cached_result:                    
+                    if grid and cached_result and self._grid_matches_entity(grid, cached_result):
                         cached_result["grid"] = grid
                         cached_result["grid_updated"] = date.strftime("%Y-%m-%d")
                         cached_result["grid_source"] = "provided"
@@ -932,7 +988,7 @@ class CallsignLookup:
                     if self.is_valid_for_date(exception_data, date):
                         result = exception_data.copy()
 
-                        if grid and result:
+                        if grid and result and self._grid_matches_entity(grid, result):
                             result["grid"] = grid
                             result["grid_updated"] = date.strftime("%Y-%m-%d")
                             result["grid_source"] = "provided"
@@ -987,7 +1043,7 @@ class CallsignLookup:
                     log.debug(f"No information found for {callsign}.")
                 result = {}
 
-            if grid and result:
+            if grid and result and self._grid_matches_entity(grid, result):
                 result["grid"] = grid
                 result["grid_updated"] = date.strftime("%Y-%m-%d")
                 result["grid_source"] = "provided"
@@ -1052,7 +1108,7 @@ class CallsignLookup:
             result = self.cty_exact_calls[callsign.upper()].copy()
             
             # Update with provided grid if available
-            if grid:
+            if grid and self._grid_matches_entity(grid, result):
                 result["grid"] = grid
                 result["grid_source"] = "provided"
                 if date:
@@ -1100,7 +1156,7 @@ class CallsignLookup:
             result = self.cty_prefixes[callsign.upper()].copy()
             
             # Update with provided grid if available
-            if grid:
+            if grid and self._grid_matches_entity(grid, result):
                 result["grid"] = grid
                 result["grid_source"] = "provided"
                 if date:
@@ -1150,7 +1206,7 @@ class CallsignLookup:
             result["call"] = matching_prefix 
             
             # Update with provided grid if available
-            if grid:
+            if grid and self._grid_matches_entity(grid, result):
                 result["grid"] = grid
                 result["grid_source"] = "provided"
                 if date:
