@@ -189,13 +189,15 @@ class ContextMenuHandler:
         menu.addSeparator()
 
         # Reply decision audit (output table only: needs the decode's packet_id to
-        # locate the cycle in pounce.log). Greyed out when the row has no packet_id
-        # (nothing to analyse) rather than opening a "not found" dialog.
+        # locate the cycle in pounce.log). Greyed out when the row had no reply
+        # decision — priority_type is set only for a decode that went through the
+        # reply buffer, so a plain monitored/excluded/decoded row (priority_type
+        # None) has nothing to analyse — rather than opening a "not found" dialog.
         if source_type == "table" and hasattr(widget, 'objectName') and widget.objectName() == 'output_table':
             actions['analyze_reply_decision'] = menu.addAction(
                 ContextMenuStrings.ANALYZE_REPLY_DECISION(callsign)
             )
-            actions['analyze_reply_decision'].setEnabled(bool(data.get('packet_id')))
+            actions['analyze_reply_decision'].setEnabled(bool(data.get('priority_type')))
             menu.addSeparator()
 
         # Copy message

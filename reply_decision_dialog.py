@@ -232,13 +232,16 @@ class ReplyDecisionDialog(QDialog):
                 table.setItem(row, col, item)
 
         table.resizeColumnsToContents()
-        # Natural table width = sum of column widths + frame (+ vertical scrollbar
-        # allowance). We size the whole dialog to this so the table shows at its
-        # content width and the Log context box (Expanding) lines up with the last
-        # column's right edge instead of the table being stretched wider.
-        header.setStretchLastSection(False)
+        # Natural table width from the column contents. We size the whole dialog to
+        # this so the box isn't wider than needed and the Log context box (also
+        # Expanding to the dialog width) shares the exact same left/right edges.
         content_width = sum(table.columnWidth(c) for c in range(table.columnCount()))
-        self._table_content_width = content_width + 2 * table.frameWidth() + 18
+        self._table_content_width = content_width + 2 * table.frameWidth()
+        # Stretch the LAST column (Pid) so it fills to the table's right frame edge
+        # instead of leaving dead space — this makes the Pid column's right border
+        # line up with the Log context box's right border. The other columns keep
+        # their content width, so only Pid absorbs any rounding slack.
+        header.setStretchLastSection(True)
         table.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Expanding,
             QtWidgets.QSizePolicy.Policy.Expanding,

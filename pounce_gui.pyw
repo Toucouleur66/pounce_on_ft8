@@ -2064,6 +2064,7 @@ class MainApp(QtWidgets.QMainWindow):
                         message_color,
                         message.get('message_uid'),
                         message.get('packet_id'),
+                        message.get('priority_type'),
                     )
 
                 # On a SLAVE the focus banner + sounds are driven by the MASTER's
@@ -3617,7 +3618,8 @@ class MainApp(QtWidgets.QMainWindow):
             message_type,
             row_color         = None,
             message_uid       = None,
-            packet_id         = None
+            packet_id         = None,
+            priority_type     = None
         ):
 
         """
@@ -3645,7 +3647,11 @@ class MainApp(QtWidgets.QMainWindow):
             "row_datetime"      : datetime.now(timezone.utc),
             "row_color"         : row_color,
             "message_type"      : message_type,
-            "excluded"          : excluded
+            "excluded"          : excluded,
+            # priority_type is non-None only for a decode that went through the
+            # reply buffer (i.e. actually had a reply decision). The context menu
+            # uses it to grey out "Analyze reply decision" for plain decodes.
+            "priority_type"     : priority_type
         }
 
         """"

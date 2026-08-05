@@ -2147,18 +2147,29 @@ class Listener(QObject):
                 if filtered_message['callsign'] == self.targeted_call:
                     # QSO in progress with the station we are currently targeting.
                     filtered_message['priority'] = highest_priority + 1
-                elif len(self.reply_attempts.get(filtered_message['callsign'], [])) > 0:
+                elif (
+                    len(self.reply_attempts.get(filtered_message['callsign'], [])) > 0
+                    or self.is_qso_engaged(filtered_message['callsign'])
+                ):
                     # A QSO we actually initiated (we already emitted a reply to
                     # this callsign, auto or double-click) but targeted_call was
-                    # lost (watchdog/focus). Keep top priority to finish it.
-                    filtered_message['priority'] = highest_priority
+                    # lost (watchdog/focus) — OR a QSO that is factually engaged
+                    # (the station has already sent us a report: qso_time_on set).
+                    # The engaged check is config-independent, so it also protects
+                    # the SLAVE, whose targeted_call/reply_attempts are driven by
+                    # the MASTER and may be empty. Use highest_priority + 1 (same as
+                    # the actively-targeted case) so a freshly-decoded wanted — whose
+                    # top total is base 0 + max bonus = highest_priority — can NEVER
+                    # hijack the reply mid-QSO (a bare highest_priority would only
+                    # TIE a top-ranked wanted and let the SNR tie-break drop the QSO).
+                    filtered_message['priority'] = highest_priority + 1
                 else:
                     # Station calls US without us ever calling it: not our QSO, so
                     # NO absolute priority (that would beat a real wanted — prior fix).
                     # But being addressed to us still ranks it, at the SAME bonus
                     # level, above a CQ (base 1) and above a message directed to a
                     # third party (base 0). Base 2 keeps it below an engaged QSO
-                    # (highest_priority) and never overrides the wanted bonus order.
+                    # (highest_priority + 1) and never overrides the wanted bonus order.
                     filtered_message['priority'] = 2
             else:
                 if filtered_message.get('cqing'):
