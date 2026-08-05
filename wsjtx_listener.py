@@ -1126,6 +1126,27 @@ class Listener(QObject):
             return True
         return False
 
+    def has_prior_call(self, callsign):
+        """
+            True when WE have already called `callsign` this session — a signal
+            that survives a watchdog exclusion (which resets reply_attempts). Used
+            to decide that a station now replying to us is a QSO we initiated and
+            should be finished, not one we never engaged.
+        """
+        if callsign is None:
+            return False
+        if self.reply_attempts.get(callsign):        # we replied to it
+            return True
+        if self.rst_sent.get(callsign):              # we sent it a report
+            return True
+        # The watchdog only excludes a station AFTER we called it repeatedly, so
+        # membership here is itself proof we called it. Use raw membership, not
+        # is_watchdog_excluded() (which auto-lifts an expired window as a side
+        # effect); the deliberate lift happens later in the caller.
+        if callsign in self.watchdog_exclusions:
+            return True
+        return False
+
     def is_watchdog_excluded(self, callsign):
         until = self.watchdog_exclusions.get(callsign)
         if until is None:
@@ -1856,11 +1877,30 @@ class Listener(QObject):
                                 ('pota',           pota),
                             ) if on
                         }
-                        if self.exclusion_overrides(excluded, active_targets):
-                            # A target outranks the exclusion: keep replying and clear
-                            # the flag so downstream (colour/sound) treats it as a
-                            # normal target hit rather than an excluded callsign.
-                            log.info(f"Keeping [ {callsign} ] despite exclusion [ {excluded} ] (target ranks above the exclusion)")
+                        # Finish a QSO WE started: when the station is replying
+                        # directly to us (directed == my_call) and we had already
+                        # called it, do not drop it on the exclusion. Scoped to a
+                        # WATCHDOG-derived exclusion only — a manual callsign/zone
+                        # exclusion set by the user is always respected, even
+                        # mid-QSO. (A watchdog exclusion is auto-pushed into the
+                        # excluded list, which is what wrongly blocked the reply.)
+                        engaged_watchdog_qso = (
+                            directed == self.my_call
+                            and self.is_watchdog_excluded(callsign)
+                            and self.has_prior_call(callsign)
+                        )
+                        if engaged_watchdog_qso or self.exclusion_overrides(excluded, active_targets):
+                            # Keep replying and clear the flag so downstream
+                            # (colour/sound) treats it as a normal target hit
+                            # rather than an excluded callsign.
+                            if engaged_watchdog_qso:
+                                log.info(f"Keeping [ {callsign} ] despite watchdog exclusion (engaged QSO — replying to us)")
+                                # Lift the watchdog exclusion so the GUI removes it
+                                # from BOTH the temporary and the permanent excluded
+                                # lists (via the watchdog_exclusion_lifted message).
+                                self.lift_watchdog_exclusion(callsign, reason='engaged QSO — direct reply received')
+                            else:
+                                log.info(f"Keeping [ {callsign} ] despite exclusion [ {excluded} ] (target ranks above the exclusion)")
                             excluded = False
                         else:
                             log.debug(f"Skipping [ {callsign} ] as it is set as excluded [ {excluded} ]")
