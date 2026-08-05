@@ -57,6 +57,22 @@ class ContextMenuHandler:
 
         actions = {}
 
+        # Reply decision audit (output table only): shown at the very top, above the
+        # red "Apply to <band>" header. Only added when the row actually has a reply
+        # decision to analyse — priority_type is set only for a decode that went
+        # through the reply buffer (winner or losing candidate). Plain decodes get
+        # no entry at all (rather than a greyed-out one that's hard to notice).
+        if (
+            source_type == "table"
+            and hasattr(widget, 'objectName')
+            and widget.objectName() == 'output_table'
+            and data.get('priority_type')
+        ):
+            actions['analyze_reply_decision'] = menu.addAction(
+                ContextMenuStrings.ANALYZE_REPLY_DECISION(callsign)
+            )
+            menu.addSeparator()
+
         # History table specific actions
         if source_type == "table" and hasattr(widget, 'objectName') and widget.objectName() == 'history_table':
             actions['remove_entry_from_worked_history'] = menu.addAction(
@@ -187,18 +203,6 @@ class ContextMenuHandler:
             ContextMenuStrings.OPEN_QRZ_COM(callsign)
         )
         menu.addSeparator()
-
-        # Reply decision audit (output table only: needs the decode's packet_id to
-        # locate the cycle in pounce.log). Greyed out when the row had no reply
-        # decision — priority_type is set only for a decode that went through the
-        # reply buffer, so a plain monitored/excluded/decoded row (priority_type
-        # None) has nothing to analyse — rather than opening a "not found" dialog.
-        if source_type == "table" and hasattr(widget, 'objectName') and widget.objectName() == 'output_table':
-            actions['analyze_reply_decision'] = menu.addAction(
-                ContextMenuStrings.ANALYZE_REPLY_DECISION(callsign)
-            )
-            actions['analyze_reply_decision'].setEnabled(bool(data.get('priority_type')))
-            menu.addSeparator()
 
         # Copy message
         actions['copy_message'] = menu.addAction(
