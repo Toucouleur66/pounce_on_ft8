@@ -204,6 +204,10 @@ class ReplyDecisionDialog(QDialog):
         header.setFont(CUSTOM_FONT_SMALL)
         header.setStyleSheet(_HEADER_QSS)
         header.setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        # Centre the Priority header (col 0) to match its centred cells.
+        priority_header_item = table.horizontalHeaderItem(0)
+        if priority_header_item is not None:
+            priority_header_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
         selected_call = (selected or {}).get('callsign')
         highlight = QColor(BG_COLOR_BLACK_ON_YELLOW)
@@ -222,7 +226,11 @@ class ReplyDecisionDialog(QDialog):
             ]
             for col, val in enumerate(values):
                 item = QTableWidgetItem(val)
-                item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+                # Priority (col 0) is centred; the rest stay left-aligned.
+                if col == 0:
+                    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                else:
+                    item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
                 # Read-only, non-selectable cells (belt-and-suspenders with the
                 # table-level NoSelection / NoFocus).
                 item.setFlags(Qt.ItemFlag.ItemIsEnabled)
