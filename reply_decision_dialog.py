@@ -91,7 +91,15 @@ class ReplyDecisionDialog(QDialog):
             ctx_view.setFont(CUSTOM_FONT_SMALL)
             ctx_view.setPlainText("\n".join(context))
             ctx_view.setMaximumHeight(160)
-            # Match the candidate table's width exactly (same left/right edges).
+            # Match the candidate table exactly: same width AND the same 1px frame,
+            # so both boxes line up at the same left/right edges. Qt's default
+            # QTextEdit frame differs from the table's, which looked misaligned.
+            ctx_view.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
+            ctx_bg = '#353535' if self.dark_mode else '#FFFFFF'
+            ctx_view.setStyleSheet(
+                f"QTextEdit {{ background-color: {ctx_bg}; "
+                f"border: 1px solid palette(Mid); }}"
+            )
             ctx_view.setSizePolicy(
                 QtWidgets.QSizePolicy.Policy.Expanding,
                 QtWidgets.QSizePolicy.Policy.Fixed,
@@ -178,6 +186,9 @@ class ReplyDecisionDialog(QDialog):
         table.verticalHeader().setVisible(False)
         table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.NoSelection)
         table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        # No focus: prevents the dotted focus rectangle Windows draws on the
+        # clicked cell (the table is read-only, cells are never selectable).
+        table.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         table.setFont(CUSTOM_FONT_SMALL)
         table.setShowGrid(False)
         table.setStyleSheet(get_main_table_qss(self.dark_mode))
@@ -205,6 +216,9 @@ class ReplyDecisionDialog(QDialog):
             for col, val in enumerate(values):
                 item = QTableWidgetItem(val)
                 item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+                # Read-only, non-selectable cells (belt-and-suspenders with the
+                # table-level NoSelection / NoFocus).
+                item.setFlags(Qt.ItemFlag.ItemIsEnabled)
                 if is_winner:
                     item.setBackground(highlight)
                     item.setForeground(QColor("#000000"))
