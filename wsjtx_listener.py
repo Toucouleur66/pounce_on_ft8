@@ -168,6 +168,14 @@ class Listener(QObject):
 
         self.reply_attempts             = {}
         self.watchdog_exclusions        = {}
+        # Callsigns the user explicitly chose to work by double-clicking a decode
+        # row. A double-click overrides ANY exclusion (zone or callsign): while a
+        # callsign is present here, the exclusion block lets the QSO run to
+        # completion (including our final RR73/73) instead of re-blocking it each
+        # cycle. Cleared in reset_targeted_call (terminal 73 or abandonment) —
+        # AFTER our final transmission, so the DX can log us. This does NOT remove
+        # the user's exclusion-list entry; it only lets THIS QSO finish.
+        self.manual_qso_callsigns       = set()
 
         self.enable_sending_reply               = enable_sending_reply
         self.enable_polite_reply                = enable_polite_reply
@@ -1189,6 +1197,13 @@ class Listener(QObject):
         self.rst_rcvd_from_being_called .pop(self.targeted_call, None)
         self.rst_sent                   .pop(self.targeted_call, None)
         """
+        # End of the QSO (terminal 73) or abandonment (focus switch / band change /
+        # Tx disabled): drop the manual double-click override for this target so the
+        # user's exclusion resumes for future decodes of the same station. Done here
+        # rather than at log time so our final RR73/73 (sent before this reset) is
+        # never re-blocked by the exclusion.
+        if self.targeted_call:
+            self.manual_qso_callsigns.discard(self.targeted_call)
         self.targeted_call              = None
         self.targeted_call_period       = None
         self.targeted_call_frequencies  = set()
@@ -1851,6 +1866,13 @@ class Listener(QObject):
                     reply_to_packet
                     and message_type != 'ready_to_log'
                 ):
+                    # The user double-clicked this station to work it despite any
+                    # exclusion. This override persists until the QSO ends (cleared
+                    # in reset_targeted_call), so neither the exclusion block nor the
+                    # watchdog retry-window skip below can re-block the sequence
+                    # before our final RR73/73 is sent.
+                    manual_engaged = callsign in self.manual_qso_callsigns
+
                     """
                         Ignore if excluded — Reply Rules threshold.
 
@@ -1889,11 +1911,17 @@ class Listener(QObject):
                             and self.is_watchdog_excluded(callsign)
                             and self.has_prior_call(callsign)
                         )
-                        if engaged_watchdog_qso or self.exclusion_overrides(excluded, active_targets):
+                        # manual_engaged (double-click override) keeps the station
+                        # too, but — unlike the watchdog case — does NOT lift the
+                        # exclusion: the user's zone/callsign exclusion stays in
+                        # place for future decodes once this QSO is done.
+                        if manual_engaged or engaged_watchdog_qso or self.exclusion_overrides(excluded, active_targets):
                             # Keep replying and clear the flag so downstream
                             # (colour/sound) treats it as a normal target hit
                             # rather than an excluded callsign.
-                            if engaged_watchdog_qso:
+                            if manual_engaged:
+                                log.info(f"Keeping [ {callsign} ] despite exclusion [ {excluded} ] (manual double-click override — finishing QSO)")
+                            elif engaged_watchdog_qso:
                                 log.info(f"Keeping [ {callsign} ] despite watchdog exclusion (engaged QSO — replying to us)")
                                 # Lift the watchdog exclusion so the GUI removes it
                                 # from BOTH the temporary and the permanent excluded
@@ -1918,7 +1946,7 @@ class Listener(QObject):
                         unless the callsign is replying directly to us — in that
                         case drop the exclusion and let the QSO proceed.
                     """
-                    if reply_to_packet and self.enable_watchdog and self.is_watchdog_excluded(callsign):
+                    if reply_to_packet and not manual_engaged and self.enable_watchdog and self.is_watchdog_excluded(callsign):
                         if directed == self.my_call:
                             self.lift_watchdog_exclusion(callsign, reason='direct reply received')
                         else:
@@ -2369,6 +2397,12 @@ class Listener(QObject):
             if self.targeted_call and self.targeted_call not in self.reply_attempts:
                 self.reply_attempts[self.targeted_call] = [callsign_packet.time]
 
+            # A local MASTER double-click is an explicit override: mark the QSO so
+            # the exclusion block lets it finish even if the station is excluded.
+            # (The SLAVE-relayed double-click is marked in handle_request_reply_packet.)
+            if manual and self.targeted_call:
+                self.manual_qso_callsigns.add(self.targeted_call)
+
             radio_addr_port = self.radio_addr_port or self.origin_addr_port
             self.reply_to_packet_time = datetime.now(timezone.utc)
             reply_pkt = pywsjtx.ReplyPacket.Builder(callsign_packet)
@@ -2418,9 +2452,14 @@ class Listener(QObject):
             return
 
         self.targeted_call = self.the_packet.callsign or None
+        # A SLAVE-relayed double-click is an explicit user override, just like a
+        # local one: mark the QSO so the exclusion block lets it finish. (The
+        # local MASTER double-click is marked in reply_to_packet when manual=True.)
+        if self.targeted_call:
+            self.manual_qso_callsigns.add(self.targeted_call)
         self.reply_to_packet(matched_packet)
 
-    def set_delta_f_packet(self, frequency):  
+    def set_delta_f_packet(self, frequency):
         if self._instance == SLAVE:
             return        
       
