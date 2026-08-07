@@ -216,8 +216,9 @@ def parse_single_wsjtx_message(
         # RRR / RR73 / 73
         if re.match(r"^(RRR|RR73|73)$", msg):
             pass
-        # Grids 2 letters + 2 numbers (ex: JN12)
-        elif re.match(r"^[A-Z]{2}\d{2}$", msg):
+        # Grids 2 letters + 2 numbers (ex: JN12) — keep only a structurally
+        # valid Maidenhead locator (fields A-R, subsquare A-X).
+        elif re.match(r"^[A-Z]{2}\d{2}$", msg) and is_valid_grid_format(msg):
             grid = msg
         # Report : R+NN, +NN, R-NN, -NN
         elif re.match(r"^(?:R[+\-]|[+\-])\d{2}$", msg):
@@ -228,7 +229,13 @@ def parse_single_wsjtx_message(
     elif callsign and re.match(r"^(RRR|RR73|73)$", callsign):
         callsign = None
 
-    if callsign and lookup:            
+    # Drop a decoded grid that is not a real Maidenhead locator (e.g. the bogus
+    # "JC90" seen in "CQ TEST JP9YQS/R JC90") so it never reaches the lookup and
+    # cannot corrupt the station's CQ zone.
+    if grid and not is_valid_grid_format(grid):
+        grid = None
+
+    if callsign and lookup:
         # Also check if exact match
         if cqing and not grid and callsign not in wanted_callsigns:
             pass
@@ -255,6 +262,15 @@ def parse_single_wsjtx_message(
                 if fnmatch.fnmatch(callsign, pattern):
                     excluded = pattern
                     break
+
+        # Never reply to a station using a non-locating operating suffix
+        # (/R rover, /QRP, /AM, /M…) unless the user explicitly wants it.
+        # It is still decoded and shown; it is just not a reply target.
+        if (not is_wanted
+                and not is_excluded
+                and has_non_locating_suffix(callsign)):
+            is_excluded = True
+            excluded    = callsign.upper().rsplit('/', 1)[-1]
 
         """
             Check if the callsign is really valid
@@ -429,8 +445,32 @@ def has_valid_suffix(callsign):
     
     # Only valid suffixes are P (Portable) and MM (Maritime Mobile)
     valid_suffixes = {'P', 'MM'}
-    
+
     return suffix in valid_suffixes
+
+# Callsign suffixes that carry no DXCC/location meaning (operating conditions,
+# not a different entity). Stations sending these — e.g. "JP9YQS/R" (rover) —
+# are decoded and shown but never replied to.
+NON_LOCATING_SUFFIXES = {'R', 'QRP', 'AM', 'M', 'MOBILE', 'A', 'LH'}
+
+def has_non_locating_suffix(callsign):
+    """
+        True if the callsign ends in a non-locating operating suffix (/R rover,
+        /QRP, /AM, /M, …). Real DXCC prefixes like "VP2V/F4BKV" are NOT matched:
+        there the trailing segment is a full callsign (contains a digit), and
+        /P and /MM stay valid location suffixes handled by has_valid_suffix().
+    """
+    if not callsign or '/' not in callsign:
+        return False
+
+    suffix = callsign.upper().rsplit('/', 1)[-1]
+
+    # A trailing segment that contains a digit is a real callsign (prefix form
+    # like DU6/PE1NSQ or VP2V/F4BKV), not an operating suffix.
+    if any(ch.isdigit() for ch in suffix):
+        return False
+
+    return suffix in NON_LOCATING_SUFFIXES
 
 def int_to_array(pattern):
     array = []
@@ -1132,22 +1172,26 @@ def band_sort_key(band):
 def is_valid_grid_format(grid):
     if not grid or not isinstance(grid, str):
         return False
-        
+
     # Basic length check
     if len(grid) < 4:
         return False
-        
-    # Check first two characters are letters (field)
-    if not (grid[0].isalpha() and grid[1].isalpha()):
+
+    grid = grid.upper()
+
+    # Field (chars 1-2): Maidenhead fields run A-R only (18 x 18 world grid).
+    # Anything past R is not a real locator, so reject it here instead of
+    # letting it derive an impossible lat/lon.
+    if not ('A' <= grid[0] <= 'R' and 'A' <= grid[1] <= 'R'):
         return False
-        
-    # Check characters 3 and 4 are digits (square)
+
+    # Square (chars 3-4): digits 0-9.
     if not (grid[2].isdigit() and grid[3].isdigit()):
         return False
-        
-    # If 6-character grid, check last two are letters (subsquare)
+
+    # Subsquare (chars 5-6, optional): Maidenhead subsquares run A-X only.
     if len(grid) >= 6:
-        if not (grid[4].isalpha() and grid[5].isalpha()):
+        if not ('A' <= grid[4] <= 'X' and 'A' <= grid[5] <= 'X'):
             return False
-            
+
     return True
