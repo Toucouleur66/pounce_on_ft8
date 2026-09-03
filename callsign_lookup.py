@@ -874,11 +874,14 @@ class CallsignLookup:
         return zone
 
     # Max angular distance (degrees) a decoded grid may sit from the entity's
-    # own centroid before we treat it as bogus. Wide enough to cover any single
-    # DXCC entity (their CTY prefix centroids are already regional, so a real
-    # grid stays close), tight enough to reject a corrupt grid that lands on a
-    # different continent (e.g. Greece cached as ON10 -> lon 103E -> CQ zone 23).
-    GRID_ENTITY_MAX_DEGREES = 45.0
+    # own centroid before we treat it as bogus. CTY prefix centroids are regional
+    # (K4 -> Florida, VO1 -> Newfoundland), but a US ham keeps their callsign
+    # when relocating, so a W7-series call can legitimately operate coast-to-
+    # coast: WB7QXU in FN65 (Maine) sits 49.6 deg of longitude from the W7
+    # centroid, and Seattle-to-Maine is ~55 deg. Corrupt grids from the original
+    # bug (e.g. Greece cached as ON10 -> lon 103E -> CQ zone 23) all sit 80+ deg
+    # away, so 65 keeps a clear margin between both populations.
+    GRID_ENTITY_MAX_DEGREES = 65.0
 
     def _grid_matches_entity(self, grid, result):
         """
