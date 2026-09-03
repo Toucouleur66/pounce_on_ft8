@@ -96,6 +96,7 @@ def parse_single_wsjtx_message(
     grid_updated            = None 
     cq_zone                 = None
     msg                     = None
+    msg_tail                = None
     report                  = None
     q_tag                   = None
 
@@ -193,14 +194,19 @@ def parse_single_wsjtx_message(
                     #      - callsign = "F4XXX"
                     #      - msg      = "RR73"
                     #
+                    #    EME/tropo also produce a Roger + grid/report form where the
+                    #    payload is TWO tokens, e.g. "ON4IQ H44GJ R QI81" or
+                    #    "ON4IQ H44GJ R -12". Capture the optional second token so
+                    #    the msg handling below can keep the callsign and its grid.
                     match = re.match(
-                        r"^([A-Z0-9/]*\d[A-Z0-9/]*)\s+([A-Z0-9/]*\d[A-Z0-9/]*)\s+([A-Z0-9+\-]+)",
+                        r"^([A-Z0-9/]*\d[A-Z0-9/]*)\s+([A-Z0-9/]*\d[A-Z0-9/]*)\s+([A-Z0-9+\-]+)(?:\s+([A-Z0-9+\-]+))?",
                         message
                     )
                     if match:
                         directed = match.group(1)
                         callsign = match.group(2)
-                        msg      = match.group(3)                        
+                        msg      = match.group(3)
+                        msg_tail = match.group(4)
                     else:
                         # 6) Handle two callsigns without message (e.g., "F5UKW DU6/PE1NSQ")
                         match = re.match(
@@ -216,6 +222,17 @@ def parse_single_wsjtx_message(
         # RRR / RR73 / 73
         if re.match(r"^(RRR|RR73|73)$", msg):
             pass
+        # Bare Roger, optionally followed by a grid or report (EME/tropo), e.g.
+        # "ON4IQ H44GJ R QI81", "ON4IQ H44GJ R -12" or just "ON4IQ H44GJ R".
+        # 'R' is a valid acknowledgment (like RRR/RR73/73) so the callsign is
+        # always kept; when present, capture the grid/report from msg_tail so the
+        # station is a normal candidate with its locator.
+        elif msg == 'R':
+            if msg_tail and re.match(r"^[A-Z]{2}\d{2}$", msg_tail) and is_valid_grid_format(msg_tail):
+                grid = msg_tail
+            elif msg_tail and re.match(r"^(?:R[+\-]|[+\-])\d{2}$", msg_tail):
+                report = msg_tail
+            # else: no tail or unknown tail — still keep the callsign (Roger is valid).
         # Grids 2 letters + 2 numbers (ex: JN12) — keep only a structurally
         # valid Maidenhead locator (fields A-R, subsquare A-X).
         elif re.match(r"^[A-Z]{2}\d{2}$", msg) and is_valid_grid_format(msg):
